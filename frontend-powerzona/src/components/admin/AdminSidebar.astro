@@ -70,6 +70,7 @@ const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
 const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
+const adminPushCampaignsPath = getStoreAdminPath(storeSlug, 'push-campaigns');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
 const adminAccountPath = getStoreAdminPath(storeSlug, 'account');
@@ -79,6 +80,7 @@ const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
 const currentAdminPath = Astro.url.pathname.replace(/\/+$/, '');
 const isMarketingRafflesPath = /\/admin\/promos\/raffles$/.test(currentAdminPath);
+const isMarketingPushCampaignsPath = /\/admin\/push-campaigns$/.test(currentAdminPath);
 
 const defaultMobileTitleBySection: Record<string, string> = {
   overview: 'Resumen',
@@ -220,11 +222,25 @@ const rafflesAccess = resolveStoreCapabilityAccess(
 const canManageRaffles = canShowModule('raffles.manage');
 const canShowRafflesNav = canManageRaffles
   || (isPrimaryAdmin && !rafflesAccess.allowed);
+const pushCampaignsAccess = resolveStoreCapabilityAccess(
+  storePlanValues,
+  'push_campaigns_enabled',
+  { enforceExpiration: true },
+);
+const canManagePushCampaigns = canShowModule('marketing.push.manage');
+const canShowPushCampaignsNav = canManagePushCampaigns
+  || isMasterSupportMode
+  || (isPrimaryAdmin && !pushCampaignsAccess.allowed);
 const canGenerateRaffleNotifications = isPrimaryAdmin
   && rafflesAccess.allowed
   && canManageRaffles;
 const canShowProductVisibilityNav = canShowModule('catalog.products.visibility');
-const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav || canShowProductVisibilityNav;
+const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav || canShowProductVisibilityNav || canShowPushCampaignsNav;
+const adminMarketingLandingPath = canShowPromotionsNav || canShowCouponsNav || canShowProductVisibilityNav
+  ? adminPromosPath
+  : canShowRafflesNav
+    ? adminRafflesPath
+    : adminPushCampaignsPath;
 const canShowNotificationsNav = canShowModule('notifications.view');
 
 const securityAccess = resolveStoreCapabilityAccess(
@@ -258,6 +274,7 @@ const fastAdminNavigationPaths = new Set([
   adminPromosPath,
   adminOrganizationPath,
   adminRafflesPath,
+  adminPushCampaignsPath,
   adminNotificationsPath,
   adminSecurityPath,
   adminAccountPath,
@@ -306,7 +323,7 @@ const mobileBottomCandidates: Array<MobileBottomItem | false> = [
     iconPath: 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Z',
   },
   canShowMarketingGroup && {
-    target: 'marketing', href: adminPromosPath, label: 'Promos',
+    target: 'marketing', href: adminMarketingLandingPath, label: 'Promos',
     iconPath: 'M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z',
   },
   canShowSecurityNav && {
@@ -352,7 +369,8 @@ const marketingVisualSubClass = (subsection: string) => {
     isMarketingVisualActive &&
     (
       (subsection === 'rifas' && isMarketingRafflesPath) ||
-      (subsection === 'destacados' && !isMarketingRafflesPath)
+      (subsection === 'push-campaigns' && isMarketingPushCampaignsPath) ||
+      (subsection === 'destacados' && !isMarketingRafflesPath && !isMarketingPushCampaignsPath)
     );
   return `pz-admin-sidebar__settings-subitem${isActive ? ' is-active' : ''}`;
 };
@@ -448,6 +466,7 @@ const marketingVisualSubClass = (subsection: string) => {
       <div id="pz-admin-sidebar-promos" class={sectionPanelClass(isMarketingVisualActive)} data-sidebar-section-panel>
         <nav class="pz-admin-sidebar__section-subnav" aria-label="Secciones de marketing y organización visual">
           {canShowProductVisibilityNav && <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={adminOrganizationPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>}
+          {canShowPushCampaignsNav && <a class={marketingVisualSubClass('push-campaigns')} data-marketing-visual-subitem="push-campaigns" href={adminPushCampaignsPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13.5V9a8 8 0 0 1 16 0v4.5l2 2V18H2v-2.5l2-2ZM9.4 20h5.2a2.8 2.8 0 0 1-5.2 0ZM6 13l-2 2h16l-2-2V9a6 6 0 0 0-12 0v4Z"/></svg></span><span>Campañas push</span></a>}
           {canShowPromotionsNav && <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>}
           {canShowCouponsNav && <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>}
           {canShowRafflesNav && <a class={marketingVisualSubClass('rifas')} data-marketing-visual-subitem="rifas" href={adminRafflesPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Zm9-13 2 2-2 2-2-2 2-2ZM7 3l2 2-2 2-2-2 2-2Z"/></svg></span><span>Rifas</span></a>}

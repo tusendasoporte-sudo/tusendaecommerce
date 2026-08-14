@@ -1,0 +1,1132 @@
+---
+import {
+  STOREFRONT_PUSH_BODY_MAX,
+  STOREFRONT_PUSH_DAILY_LIMIT,
+  STOREFRONT_PUSH_MONTHLY_LIMIT,
+  STOREFRONT_PUSH_TITLE_MAX,
+} from '../../lib/storefrontPushAdmin';
+
+interface Props {
+  pocketbaseUrl: string;
+  storeName: string;
+  storeSlug: string;
+  supportStoreId?: string;
+  defaultTimezone?: string;
+}
+
+const {
+  pocketbaseUrl,
+  storeName,
+  storeSlug,
+  supportStoreId = '',
+  defaultTimezone = 'America/Havana',
+} = Astro.props;
+---
+
+<main
+  class="push-admin"
+  data-push-admin-root
+  data-pocketbase-url={pocketbaseUrl}
+  data-support-store-id={supportStoreId}
+  data-store-name={storeName}
+  data-store-slug={storeSlug}
+  data-default-timezone={defaultTimezone}
+>
+  <header class="push-hero">
+    <div class="push-hero__copy">
+      <span class="push-hero__eyebrow">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5V9a8 8 0 0 1 16 0v4.5l2 2V18H2v-2.5l2-2ZM9.4 20h5.2a2.8 2.8 0 0 1-5.2 0Z" /></svg>
+        Canal storefront · Premium
+      </span>
+      <h1>Campañas push</h1>
+      <p>Crea mensajes para la app pública de {storeName}, valida el destino y controla cada envío desde un solo lugar.</p>
+    </div>
+    <button class="push-btn push-btn--primary push-hero__action" type="button" data-new-campaign>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
+      Nueva campaña
+    </button>
+  </header>
+
+  <section class="push-policy" aria-label="Límites y funcionamiento del canal">
+    <div class="push-policy__item">
+      <span class="push-policy__icon" aria-hidden="true">10</span>
+      <span><strong>{STOREFRONT_PUSH_DAILY_LIMIT} por día</strong><small>Máximo permanente por tienda</small></span>
+    </div>
+    <div class="push-policy__item">
+      <span class="push-policy__icon" aria-hidden="true">310</span>
+      <span><strong>{STOREFRONT_PUSH_MONTHLY_LIMIT} por mes</strong><small>Los borradores no consumen cuota</small></span>
+    </div>
+    <div class="push-policy__item">
+      <span class="push-policy__icon push-policy__icon--info" aria-hidden="true">i</span>
+      <span><strong>Aceptado no significa leído</strong><small>Firebase confirma aceptación, no entrega o apertura</small></span>
+    </div>
+  </section>
+
+  <section class="push-list-panel" aria-labelledby="push-campaign-list-title">
+    <div class="push-list-panel__head">
+      <div>
+        <h2 id="push-campaign-list-title">Historial y borradores</h2>
+        <p>Los resultados siempre pertenecen a esta tienda. Se muestran hasta 50 campañas por página.</p>
+      </div>
+      <button class="push-icon-btn" type="button" data-refresh-campaigns aria-label="Actualizar campañas" title="Actualizar campañas">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
+      </button>
+    </div>
+
+    <div class="push-filters" role="search" aria-label="Filtrar campañas">
+      <label class="push-search">
+        <span class="sr-only">Buscar por título, mensaje o destino</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m20.7 19.3-4.1-4.1a7 7 0 1 0-1.4 1.4l4.1 4.1 1.4-1.4ZM5 11a6 6 0 1 1 12 0 6 6 0 0 1-12 0Z" /></svg>
+        <input type="search" placeholder="Buscar campaña" autocomplete="off" data-campaign-search />
+      </label>
+      <label class="push-filter-select">
+        <span>Estado</span>
+        <select data-status-filter>
+          <option value="">Todos</option>
+          <option value="draft">Borrador</option>
+          <option value="scheduled">Programada</option>
+          <option value="processing">Procesando</option>
+          <option value="sent">Enviada</option>
+          <option value="partially_sent">Envío parcial</option>
+          <option value="failed">Fallida</option>
+          <option value="canceled">Cancelada</option>
+          <option value="paused_plan">Pausada por plan</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="push-live" role="status" aria-live="polite" aria-atomic="true" data-campaign-live>Cargando campañas…</div>
+    <div class="push-campaign-list" data-campaign-list aria-busy="true"></div>
+
+    <nav class="push-pagination" aria-label="Páginas del historial">
+      <button class="push-btn push-btn--secondary" type="button" data-page-previous disabled>Anterior</button>
+      <span data-page-label>Página 1</span>
+      <button class="push-btn push-btn--secondary" type="button" data-page-next disabled>Siguiente</button>
+    </nav>
+  </section>
+
+  <dialog class="push-editor" data-campaign-editor aria-labelledby="push-editor-title">
+    <form class="push-editor__card" data-campaign-form novalidate>
+      <header class="push-editor__head">
+        <div>
+          <span class="push-editor__eyebrow" data-editor-state>Borrador nuevo</span>
+          <h2 id="push-editor-title" data-editor-title>Nueva campaña</h2>
+          <p>El backend validará de nuevo plan, permiso, tienda, medio, audiencia y destino.</p>
+        </div>
+        <button class="push-icon-btn" type="button" data-close-editor aria-label="Cerrar editor">×</button>
+      </header>
+
+      <div class="push-editor__body">
+        <section class="push-form-column" aria-label="Contenido y configuración de la campaña">
+          <input type="hidden" name="campaign_id" data-field="campaign_id" />
+
+          <fieldset class="push-fieldset">
+            <legend>1. Mensaje</legend>
+            <label class="push-field">
+              <span>Título <small data-title-count>0/{STOREFRONT_PUSH_TITLE_MAX}</small></span>
+              <input
+                name="title"
+                data-field="title"
+                maxlength={STOREFRONT_PUSH_TITLE_MAX}
+                required
+                autocomplete="off"
+                placeholder="Ej. Oferta exclusiva de hoy"
+              />
+            </label>
+            <label class="push-field">
+              <span>Texto <small data-body-count>0/{STOREFRONT_PUSH_BODY_MAX}</small></span>
+              <textarea
+                name="body"
+                data-field="body"
+                maxlength={STOREFRONT_PUSH_BODY_MAX}
+                required
+                rows="4"
+                placeholder="Explica el beneficio con un mensaje breve y claro."
+              ></textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="push-fieldset">
+            <legend>2. Imagen WebP</legend>
+            <div class="push-media-row">
+              <label class="push-field push-field--grow">
+                <span>Imagen disponible</span>
+                <select name="media_id" data-field="media_id">
+                  <option value="">Sin imagen</option>
+                </select>
+              </label>
+              <label class="push-upload-btn">
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-media-upload />
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 16h2V8l3 3 1.4-1.4L12 4.2 6.6 9.6 8 11l3-3v8Zm-6 2h14v2H5v-2Z" /></svg>
+                <span data-media-upload-label>Cargar imagen</span>
+              </label>
+            </div>
+            <p class="push-help">JPG, PNG o WebP real, hasta 8 MiB. C04 corrige orientación, elimina metadatos y entrega WebP de hasta 1200 × 630 y 100 KiB durante 24 horas.</p>
+            <div class="push-media-status" role="status" aria-live="polite" data-media-status></div>
+          </fieldset>
+
+          <fieldset class="push-fieldset">
+            <legend>3. Destino seguro</legend>
+            <label class="push-field">
+              <span>Tipo de destino</span>
+              <select name="target_type" data-field="target_type" required>
+                <option value="home">Portada de la tienda</option>
+                <option value="product">Producto</option>
+                <option value="category">Categoría</option>
+                <option value="section">Sección</option>
+                <option value="order">Seguimiento de pedido</option>
+                <option value="raffle">Rifa</option>
+                <option value="coupon">Cupón</option>
+              </select>
+            </label>
+            <label class="push-field hidden" data-target-reference-field>
+              <span data-target-reference-label>ID del destino</span>
+              <input
+                name="target_ref"
+                data-field="target_ref"
+                maxlength="15"
+                pattern="[a-z0-9]{15}"
+                autocomplete="off"
+                placeholder="ID de 15 caracteres"
+              />
+              <small data-target-reference-help>El backend comprobará que el registro esté activo y pertenezca a esta tienda.</small>
+            </label>
+            <label class="push-field hidden" data-target-section-field>
+              <span>Sección pública</span>
+              <select name="target_section" data-field="target_section">
+                <option value="search">Buscar</option>
+                <option value="links">Links</option>
+                <option value="gifts">Regalos</option>
+                <option value="raffles">Rifas</option>
+                <option value="checkout">Checkout</option>
+              </select>
+            </label>
+            <div class="push-validation-note" data-target-validation>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5.5v5.8c0 5 3.4 9.6 8 10.7 4.6-1.1 8-5.7 8-10.7V5.5L12 2Zm-1 13-3-3 1.4-1.4 1.6 1.6 3.6-3.6L16 10l-5 5Z" /></svg>
+              <span>No se aceptan URLs libres. La ruta canónica aparece después de guardar y validar.</span>
+            </div>
+          </fieldset>
+
+          <fieldset class="push-fieldset">
+            <legend>4. Audiencia</legend>
+            <label class="push-field">
+              <span>Segmento</span>
+              <select name="audience_type" data-field="audience_type" required>
+                <option value="all_active">Todas las instalaciones activas</option>
+                <option value="active_7d">Activas en los últimos 7 días</option>
+                <option value="active_30d">Activas en los últimos 30 días</option>
+                <option value="notification_permission">Permiso confirmado</option>
+                <option value="app_version">Versión de la app</option>
+                <option value="country_region">País o región aproximada</option>
+              </select>
+            </label>
+            <label class="push-field hidden" data-audience-version-field>
+              <span>Código de versión Android</span>
+              <input name="app_version_code" data-field="app_version_code" type="number" min="1" step="1" inputmode="numeric" />
+            </label>
+            <div class="push-inline-fields hidden" data-audience-region-field>
+              <label class="push-field">
+                <span>País ISO</span>
+                <input name="country_code" data-field="country_code" maxlength="2" pattern="[A-Za-z]{2}" placeholder="CU" autocomplete="country" />
+              </label>
+              <label class="push-field">
+                <span>Región opcional</span>
+                <input name="region_code" data-field="region_code" maxlength="80" placeholder="La Habana" autocomplete="address-level1" />
+              </label>
+            </div>
+            <label class="push-field hidden" data-audience-installation-field>
+              <span>ID de instalación vinculada</span>
+              <input
+                name="installation_id"
+                data-field="installation_id"
+                maxlength="15"
+                pattern="[a-z0-9]{15}"
+                placeholder="ID de 15 caracteres"
+                autocomplete="off"
+              />
+              <small>Obligatorio para pedidos; el token de recibo nunca viaja en FCM.</small>
+            </label>
+            <div class="push-estimate">
+              <div>
+                <span>Estimación elegible</span>
+                <strong data-audience-estimate>Sin calcular</strong>
+                <small data-audience-note>Guarda y valida el borrador para calcularla.</small>
+              </div>
+              <button class="push-btn push-btn--secondary" type="button" data-estimate-audience>Calcular audiencia</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="push-fieldset">
+            <legend>5. Envío</legend>
+            <label class="push-field">
+              <span>Zona horaria de cuota</span>
+              <input name="timezone" data-field="timezone" value={defaultTimezone} readonly />
+            </label>
+            <label class="push-field">
+              <span>Fecha y hora programada</span>
+              <input name="scheduled_at" data-field="scheduled_at" type="datetime-local" />
+              <small>La hora se convierte a UTC al guardar; la cuota diaria usa {defaultTimezone}.</small>
+            </label>
+            <div class="push-warning">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1.8 21h20.4L12 3Zm1 14h-2v-2h2v2Zm0-4h-2V8h2v5Z" /></svg>
+              <span>Una imagen caduca a las 24 horas. Para programar, debe seguir vigente al momento del envío.</span>
+            </div>
+          </fieldset>
+
+          <div class="push-form-message" role="alert" aria-live="assertive" tabindex="-1" data-form-error hidden></div>
+          <div class="push-form-success" role="status" aria-live="polite" data-form-success hidden></div>
+        </section>
+
+        <aside class="push-preview-column" aria-label="Previsualización Android">
+          <div class="push-preview-sticky">
+            <div class="push-preview-heading">
+              <div>
+                <span>Previsualización</span>
+                <strong>Android</strong>
+              </div>
+              <span class="push-preview-heading__badge">data-only v2</span>
+            </div>
+            <div class="android-device">
+              <div class="android-device__status"><span>10:24</span><span>● 5G ▰</span></div>
+              <div class="android-notification">
+                <div class="android-notification__app">
+                  <span class="android-notification__logo">PZ</span>
+                  <span>PowerZona</span>
+                  <small>ahora</small>
+                </div>
+                <strong data-preview-title>Tu título aparecerá aquí</strong>
+                <p data-preview-body>Escribe un mensaje breve para ver cómo se leerá en Android.</p>
+                <div class="android-notification__image" data-preview-image-wrap>
+                  <span data-preview-image-empty>La imagen WebP aparecerá aquí</span>
+                  <img data-preview-image alt="Vista previa de la imagen WebP de la campaña" hidden />
+                </div>
+                <div class="android-notification__actions"><span>Descartar</span><span>Abrir</span></div>
+              </div>
+              <div class="android-device__wallpaper" aria-hidden="true"><span></span><span></span><span></span></div>
+            </div>
+            <dl class="push-preview-summary">
+              <div><dt>Destino</dt><dd data-preview-target>Portada de la tienda</dd></div>
+              <div><dt>Ruta validada</dt><dd data-preview-path>Pendiente de validar</dd></div>
+              <div><dt>Audiencia</dt><dd data-preview-audience>Todas las instalaciones activas</dd></div>
+            </dl>
+            <p class="push-preview-disclaimer">La apariencia final puede variar según fabricante, versión de Android y ajustes del usuario.</p>
+          </div>
+        </aside>
+      </div>
+
+      <footer class="push-editor__footer">
+        <button class="push-btn push-btn--secondary" type="button" data-close-editor>Volver</button>
+        <div class="push-editor__footer-actions">
+          <button class="push-btn push-btn--secondary" type="button" data-save-draft>Guardar borrador</button>
+          <button class="push-btn push-btn--secondary" type="button" data-schedule-campaign>Programar</button>
+          <button class="push-btn push-btn--primary" type="button" data-send-now>Enviar ahora</button>
+        </div>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="push-confirm" data-confirm-dialog aria-labelledby="push-confirm-title" aria-describedby="push-confirm-message">
+    <form method="dialog" class="push-confirm__card" data-confirm-form>
+      <span class="push-confirm__icon" aria-hidden="true" data-confirm-icon>!</span>
+      <h2 id="push-confirm-title" data-confirm-title>Confirmar acción</h2>
+      <p id="push-confirm-message" data-confirm-message></p>
+      <dl class="push-confirm__summary" data-confirm-summary></dl>
+      <div class="push-confirm__warning" data-confirm-warning></div>
+      <div class="push-confirm__actions">
+        <button class="push-btn push-btn--secondary" value="cancel" type="button" data-confirm-cancel>Volver</button>
+        <button class="push-btn push-btn--primary" value="confirm" type="submit" data-confirm-submit>Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="push-toast" role="status" aria-live="polite" aria-atomic="true" data-push-toast hidden></div>
+</main>
+
+<script>
+  import {
+    campaignStatusLabel,
+    filterStorefrontPushCampaigns,
+    mutateStorefrontPushCampaign,
+    normalizeStorefrontPushCampaign,
+    normalizeStorefrontPushCampaigns,
+    previewStorefrontPushAudience,
+    readStorefrontPushAdminAuthToken,
+    readStorefrontPushAdminCookie,
+    saveStorefrontPushCampaign,
+    scheduleStorefrontPushCampaign,
+    STOREFRONT_PUSH_BODY_MAX,
+    STOREFRONT_PUSH_PAGE_SIZE,
+    STOREFRONT_PUSH_TITLE_MAX,
+    storefrontPushAdminErrorMessage,
+    storefrontPushAdminRequest,
+    storefrontPushCampaignActions,
+  } from '../../lib/storefrontPushAdmin.ts';
+
+  (() => {
+    const root = document.querySelector('[data-push-admin-root]');
+    if (!root || root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
+
+    const one = (selector) => root.querySelector(selector);
+    const all = (selector) => Array.from(root.querySelectorAll(selector));
+    const editor = one('[data-campaign-editor]');
+    const form = one('[data-campaign-form]');
+    const confirmDialog = one('[data-confirm-dialog]');
+    const confirmForm = one('[data-confirm-form]');
+    const list = one('[data-campaign-list]');
+    const live = one('[data-campaign-live]');
+    const searchInput = one('[data-campaign-search]');
+    const statusFilter = one('[data-status-filter]');
+    const pageLabel = one('[data-page-label]');
+    const previousButton = one('[data-page-previous]');
+    const nextButton = one('[data-page-next]');
+    const errorBox = one('[data-form-error]');
+    const successBox = one('[data-form-success]');
+    const toast = one('[data-push-toast]');
+    const defaultTimezone = String(root.dataset.defaultTimezone || 'America/Havana');
+    const client = {
+      baseUrl: String(root.dataset.pocketbaseUrl || ''),
+      token: readStorefrontPushAdminAuthToken(document.cookie),
+      supportStoreId: String(root.dataset.supportStoreId || ''),
+      adminDeviceToken: readStorefrontPushAdminCookie(document.cookie, 'pz_admin_device'),
+    };
+    const state = {
+      campaigns: [],
+      media: [],
+      page: 1,
+      loading: false,
+      editing: null,
+      audience: null,
+      confirmed: null,
+      editorReadonly: false,
+      toastTimer: 0,
+    };
+
+    function field(name) { return one(`[data-field="${name}"]`); }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+    function safeHttpsUrl(value) {
+      try {
+        const url = new URL(String(value || ''));
+        return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : '';
+      } catch (_) { return ''; }
+    }
+    function formatDate(value, includeTime = true) {
+      const date = new Date(String(value || ''));
+      if (!Number.isFinite(date.getTime())) return '—';
+      return new Intl.DateTimeFormat('es', {
+        dateStyle: 'medium', ...(includeTime ? { timeStyle: 'short' } : {}),
+      }).format(date);
+    }
+    function formatBytes(value) {
+      const bytes = Math.max(0, Number(value || 0));
+      return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KiB`;
+    }
+    function statusTone(status) {
+      if (status === 'sent') return 'success';
+      if (status === 'scheduled' || status === 'processing') return 'info';
+      if (status === 'partially_sent' || status === 'paused_plan') return 'warning';
+      if (status === 'failed' || status === 'canceled') return 'danger';
+      return 'neutral';
+    }
+    function showToast(message, tone = 'success') {
+      window.clearTimeout(state.toastTimer);
+      toast.textContent = message;
+      toast.dataset.tone = tone;
+      toast.hidden = false;
+      state.toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4200);
+    }
+    function showFormError(error) {
+      const code = String(error?.code || error?.message || 'campaign_request_failed');
+      errorBox.textContent = storefrontPushAdminErrorMessage(code);
+      errorBox.hidden = false;
+      successBox.hidden = true;
+      errorBox.focus?.();
+    }
+    function showFormSuccess(message) {
+      successBox.textContent = message;
+      successBox.hidden = false;
+      errorBox.hidden = true;
+    }
+    function clearFormMessages() {
+      errorBox.hidden = true;
+      successBox.hidden = true;
+    }
+    function setBusy(value, message = '') {
+      state.loading = value;
+      all('button').forEach((button) => {
+        if (!button.closest('[data-confirm-dialog]')) button.disabled = value;
+      });
+      list?.setAttribute('aria-busy', value ? 'true' : 'false');
+      if (message) live.textContent = message;
+    }
+    function openDialog(dialog) {
+      if (!dialog) return;
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+      document.body.classList.add('push-dialog-open');
+    }
+    function closeDialog(dialog) {
+      if (!dialog) return;
+      if (typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
+      if (!editor?.open && !confirmDialog?.open) document.body.classList.remove('push-dialog-open');
+    }
+    function campaignTargetLabel(campaign) {
+      const labels = {
+        home: 'Portada', product: 'Producto', category: 'Categoría', section: 'Sección',
+        order: 'Pedido', raffle: 'Rifa', coupon: 'Cupón',
+      };
+      return labels[campaign.target_type] || 'Destino';
+    }
+    function campaignAudienceLabel(type) {
+      return ({
+        all_active: 'Todas las instalaciones activas',
+        active_7d: 'Activas en 7 días',
+        active_30d: 'Activas en 30 días',
+        app_version: 'Versión de la app',
+        notification_permission: 'Permiso confirmado',
+        country_region: 'País o región',
+      })[type] || 'Audiencia';
+    }
+    function renderCampaigns() {
+      const campaigns = filterStorefrontPushCampaigns(state.campaigns, searchInput?.value || '');
+      if (!campaigns.length) {
+        list.innerHTML = `<div class="push-empty"><span aria-hidden="true">✦</span><strong>No hay campañas para este filtro</strong><p>Crea un borrador o cambia los filtros para continuar.</p></div>`;
+      } else {
+        list.innerHTML = campaigns.map((campaign) => {
+          const actions = storefrontPushCampaignActions(campaign.status);
+          const scheduled = campaign.status === 'scheduled' && campaign.scheduled_at
+            ? `<span><strong>Programada:</strong> ${escapeHtml(formatDate(campaign.scheduled_at))}</span>` : '';
+          const failure = campaign.failure_code
+            ? `<span class="push-campaign-card__failure"><strong>Aviso:</strong> ${escapeHtml(storefrontPushAdminErrorMessage(campaign.failure_code))}</span>` : '';
+          return `<article class="push-campaign-card" data-campaign-id="${campaign.id}">
+            <div class="push-campaign-card__main">
+              <span class="push-status" data-tone="${statusTone(campaign.status)}">${escapeHtml(campaignStatusLabel(campaign.status))}</span>
+              <div class="push-campaign-card__copy">
+                <h3>${escapeHtml(campaign.title || 'Sin título')}</h3>
+                <p>${escapeHtml(campaign.body || 'Sin mensaje')}</p>
+                <div class="push-campaign-card__meta">
+                  <span><strong>${escapeHtml(campaignTargetLabel(campaign))}:</strong> ${escapeHtml(campaign.target_path || 'ruta privada/pendiente')}</span>
+                  <span><strong>Audiencia:</strong> ${escapeHtml(campaignAudienceLabel(campaign.audience_type))}</span>
+                  ${scheduled}${failure}
+                </div>
+              </div>
+            </div>
+            <dl class="push-campaign-card__metrics" aria-label="Resultados operativos de la campaña">
+              <div><dt>Seleccionadas</dt><dd>${campaign.selected_count}</dd></div>
+              <div><dt>Aceptadas FCM</dt><dd>${campaign.accepted_count}</dd></div>
+              <div><dt>Fallidas</dt><dd>${campaign.failed_count}</dd></div>
+              <div><dt>FID inválidos</dt><dd>${campaign.invalid_count}</dd></div>
+            </dl>
+            <div class="push-campaign-card__actions">
+              <button type="button" class="push-link-btn" data-action="${actions.edit ? 'edit' : 'detail'}">${actions.edit ? 'Editar' : 'Ver detalle'}</button>
+              <button type="button" class="push-link-btn" data-action="duplicate">Duplicar</button>
+              ${actions.cancel ? '<button type="button" class="push-link-btn push-link-btn--danger" data-action="cancel">Cancelar</button>' : ''}
+            </div>
+          </article>`;
+        }).join('');
+      }
+      live.textContent = `${campaigns.length} campaña${campaigns.length === 1 ? '' : 's'} visible${campaigns.length === 1 ? '' : 's'}.`;
+      pageLabel.textContent = `Página ${state.page}`;
+      previousButton.disabled = state.loading || state.page <= 1;
+      nextButton.disabled = state.loading || state.campaigns.length < STOREFRONT_PUSH_PAGE_SIZE;
+      list.setAttribute('aria-busy', 'false');
+    }
+    async function loadCampaigns() {
+      setBusy(true, 'Cargando campañas…');
+      let loaded = false;
+      try {
+        const result = await storefrontPushAdminRequest(client, '/api/pz/storefront/v1/campaigns', {
+          query: { page: state.page, status: statusFilter?.value || undefined },
+        });
+        state.campaigns = normalizeStorefrontPushCampaigns(result.campaigns);
+        loaded = true;
+      } catch (error) {
+        state.campaigns = [];
+        list.innerHTML = `<div class="push-empty push-empty--error"><strong>No pudimos cargar las campañas</strong><p>${escapeHtml(storefrontPushAdminErrorMessage(error?.code || error?.message))}</p></div>`;
+        live.textContent = 'Error al cargar campañas.';
+      } finally {
+        setBusy(false);
+        if (loaded) renderCampaigns();
+      }
+    }
+    function mediaById(id) { return state.media.find((item) => item.id === id) || null; }
+    function renderMediaOptions(selectedId = field('media_id')?.value || '') {
+      const select = field('media_id');
+      if (!select) return;
+      const options = ['<option value="">Sin imagen</option>'];
+      state.media.forEach((item) => {
+        const label = `WebP ${Number(item.width || 0)}×${Number(item.height || 0)} · ${formatBytes(item.bytes)} · vence ${formatDate(item.delete_after)}`;
+        options.push(`<option value="${escapeHtml(item.id)}">${escapeHtml(label)}</option>`);
+      });
+      select.innerHTML = options.join('');
+      select.value = state.media.some((item) => item.id === selectedId) ? selectedId : '';
+      updatePreview();
+    }
+    async function loadMedia() {
+      const mediaStatus = one('[data-media-status]');
+      try {
+        const response = await fetch('/api/admin/push-media', {
+          headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store',
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.ok !== true) throw new Error(String(result?.error || 'media_list_failed'));
+        state.media = Array.isArray(result.media) ? result.media.filter((item) => /^[a-z0-9]{15}$/.test(String(item?.id || ''))) : [];
+        renderMediaOptions();
+        mediaStatus.textContent = state.media.length
+          ? `${state.media.length} imagen${state.media.length === 1 ? '' : 'es'} WebP disponible${state.media.length === 1 ? '' : 's'}.`
+          : 'No hay imágenes vigentes. Puedes cargar una ahora.';
+      } catch (error) {
+        state.media = [];
+        renderMediaOptions();
+        mediaStatus.textContent = 'No se pudo cargar la biblioteca de imágenes.';
+      }
+    }
+    async function uploadMedia(file) {
+      const mediaStatus = one('[data-media-status]');
+      const label = one('[data-media-upload-label]');
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) {
+        mediaStatus.textContent = 'La imagen supera el máximo de 8 MiB.';
+        return;
+      }
+      label.textContent = 'Convirtiendo…';
+      mediaStatus.textContent = 'Validando y convirtiendo a WebP…';
+      all('button').forEach((button) => { button.disabled = true; });
+      try {
+        const payload = new FormData();
+        payload.append('file', file);
+        const response = await fetch('/api/admin/push-media', {
+          method: 'POST', body: payload, credentials: 'same-origin', headers: { Accept: 'application/json' },
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.ok !== true) {
+          const error = Object.assign(
+            new Error(String(result?.error || 'media_upload_failed')),
+            { code: String(result?.error || 'media_upload_failed') },
+          );
+          throw error;
+        }
+        state.media.unshift(result.media);
+        renderMediaOptions(result.media.id);
+        mediaStatus.textContent = `WebP lista: ${result.media.width}×${result.media.height}, ${formatBytes(result.media.bytes)}. Vigente hasta ${formatDate(result.media.delete_after)}.`;
+        showToast('Imagen convertida y cargada como WebP.');
+      } catch (error) {
+        mediaStatus.textContent = storefrontPushAdminErrorMessage(error?.code || error?.message);
+      } finally {
+        label.textContent = 'Cargar imagen';
+        all('button').forEach((button) => { button.disabled = false; });
+      }
+    }
+    function updateConditionalFields() {
+      const targetType = field('target_type')?.value || 'home';
+      const audienceSelect = field('audience_type');
+      const referenceField = one('[data-target-reference-field]');
+      const sectionField = one('[data-target-section-field]');
+      const installationField = one('[data-audience-installation-field]');
+      const versionField = one('[data-audience-version-field]');
+      const regionField = one('[data-audience-region-field]');
+      const isReference = !['home', 'section'].includes(targetType);
+      referenceField.classList.toggle('hidden', !isReference);
+      sectionField.classList.toggle('hidden', targetType !== 'section');
+      installationField.classList.toggle('hidden', targetType !== 'order');
+      const labels = {
+        product: ['ID del producto', 'Usa el ID del producto activo de esta tienda.'],
+        category: ['ID de la categoría', 'Usa el ID de una categoría activa de esta tienda.'],
+        order: ['ID del pedido', 'El pedido y la instalación deben tener un vínculo seguro activo.'],
+        raffle: ['ID de la rifa', 'Si la rifa venció, el backend puede usar el listado seguro como respaldo.'],
+        coupon: ['ID del cupón', 'El cupón se vuelve a validar al ejecutar la campaña.'],
+      };
+      const label = labels[targetType] || ['ID del destino', 'El backend comprobará la tienda y disponibilidad.'];
+      one('[data-target-reference-label]').textContent = label[0];
+      one('[data-target-reference-help]').textContent = label[1];
+      if (targetType === 'order') {
+        audienceSelect.value = 'all_active';
+        audienceSelect.disabled = true;
+      } else {
+        audienceSelect.disabled = state.editorReadonly || Boolean(state.editing && state.editing.status !== 'draft');
+      }
+      const audienceType = audienceSelect.value;
+      versionField.classList.toggle('hidden', audienceType !== 'app_version');
+      regionField.classList.toggle('hidden', audienceType !== 'country_region');
+      updatePreview();
+    }
+    function updatePreview() {
+      const title = String(field('title')?.value || '').trim();
+      const body = String(field('body')?.value || '').trim();
+      one('[data-preview-title]').textContent = title || 'Tu título aparecerá aquí';
+      one('[data-preview-body]').textContent = body || 'Escribe un mensaje breve para ver cómo se leerá en Android.';
+      one('[data-title-count]').textContent = `${title.length}/${STOREFRONT_PUSH_TITLE_MAX}`;
+      one('[data-body-count]').textContent = `${body.length}/${STOREFRONT_PUSH_BODY_MAX}`;
+      const targetType = field('target_type')?.value || 'home';
+      const targetLabels = {
+        home: 'Portada de la tienda', product: 'Producto', category: 'Categoría', section: 'Sección',
+        order: 'Seguimiento de pedido', raffle: 'Rifa', coupon: 'Cupón',
+      };
+      one('[data-preview-target]').textContent = targetLabels[targetType] || 'Destino';
+      one('[data-preview-audience]').textContent = campaignAudienceLabel(field('audience_type')?.value || 'all_active');
+      const media = mediaById(field('media_id')?.value || '');
+      const preview = one('[data-preview-image]');
+      const empty = one('[data-preview-image-empty]');
+      const url = safeHttpsUrl(media?.url);
+      preview.hidden = !url;
+      empty.hidden = !!url;
+      if (url) preview.src = url;
+      else preview.removeAttribute('src');
+    }
+    function formValue() {
+      return {
+        campaign_id: field('campaign_id')?.value || '',
+        title: field('title')?.value || '',
+        body: field('body')?.value || '',
+        media_id: field('media_id')?.value || '',
+        timezone: field('timezone')?.value || defaultTimezone,
+        audience_type: field('audience_type')?.value || 'all_active',
+        app_version_code: field('app_version_code')?.value || '',
+        country_code: field('country_code')?.value || '',
+        region_code: field('region_code')?.value || '',
+        installation_id: field('installation_id')?.value || '',
+        target_type: field('target_type')?.value || 'home',
+        target_ref: field('target_ref')?.value || '',
+        target_section: field('target_section')?.value || '',
+      };
+    }
+    function setEditorReadonly(readonly) {
+      state.editorReadonly = readonly;
+      all('[data-field]').forEach((control) => {
+        if (control.dataset.field !== 'scheduled_at') control.disabled = readonly;
+      });
+      one('[data-media-upload]').disabled = readonly;
+      one('[data-save-draft]').hidden = readonly;
+      const canSchedule = !state.editing || ['draft', 'paused_plan'].includes(state.editing.status);
+      one('[data-schedule-campaign]').hidden = !canSchedule;
+      one('[data-send-now]').hidden = !canSchedule;
+      if (!readonly && field('target_type')?.value === 'order') field('audience_type').disabled = true;
+    }
+    function resetEditor() {
+      form.reset();
+      state.editing = null;
+      state.audience = null;
+      field('campaign_id').value = '';
+      field('timezone').value = defaultTimezone;
+      field('target_type').value = 'home';
+      field('audience_type').value = 'all_active';
+      field('media_id').value = '';
+      one('[data-editor-title]').textContent = 'Nueva campaña';
+      one('[data-editor-state]').textContent = 'Borrador nuevo';
+      one('[data-preview-path]').textContent = 'Pendiente de validar';
+      one('[data-audience-estimate]').textContent = 'Sin calcular';
+      one('[data-audience-note]').textContent = 'Guarda y valida el borrador para calcularla.';
+      const minDate = new Date(Date.now() + 2 * 60_000);
+      minDate.setSeconds(0, 0);
+      field('scheduled_at').min = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+      setEditorReadonly(false);
+      clearFormMessages();
+      renderMediaOptions('');
+      updateConditionalFields();
+    }
+    function fillEditor(campaign, edit) {
+      resetEditor();
+      state.editing = campaign;
+      field('campaign_id').value = campaign.id;
+      field('title').value = campaign.title;
+      field('body').value = campaign.body;
+      field('media_id').value = campaign.media_id;
+      field('timezone').value = campaign.timezone || defaultTimezone;
+      field('audience_type').value = campaign.audience_type || 'all_active';
+      field('target_type').value = campaign.target_type || 'home';
+      field('target_ref').value = campaign.target_ref || '';
+      field('target_section').value = campaign.target_section || 'search';
+      field('app_version_code').value = campaign.audience_config?.app_version_code || '';
+      field('country_code').value = campaign.audience_config?.country_code || '';
+      field('region_code').value = campaign.audience_config?.region_code || '';
+      field('installation_id').value = campaign.audience_config?.installation_id || '';
+      one('[data-editor-title]').textContent = edit ? 'Editar borrador' : 'Detalle de campaña';
+      one('[data-editor-state]').textContent = campaignStatusLabel(campaign.status);
+      one('[data-preview-path]').textContent = campaign.target_path || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Pendiente de validar');
+      if (campaign.selected_count || campaign.status !== 'draft') {
+        one('[data-audience-estimate]').textContent = `${campaign.selected_count} instalación${campaign.selected_count === 1 ? '' : 'es'}`;
+        one('[data-audience-note]').textContent = 'Conteo guardado por el motor de campañas.';
+      }
+      renderMediaOptions(campaign.media_id);
+      setEditorReadonly(!edit);
+      updateConditionalFields();
+      openDialog(editor);
+    }
+    async function saveDraft(options = {}) {
+      clearFormMessages();
+      if (!form.reportValidity()) throw new Error('invalid_payload');
+      const campaign = await saveStorefrontPushCampaign(client, formValue());
+      state.editing = campaign;
+      field('campaign_id').value = campaign.id;
+      one('[data-editor-state]').textContent = campaignStatusLabel(campaign.status);
+      one('[data-preview-path]').textContent = campaign.target_path || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Validado');
+      if (!options.silent) showFormSuccess('Borrador guardado y destino validado por el backend.');
+      await loadCampaigns();
+      return campaign;
+    }
+    async function calculateAudience(options = {}) {
+      let campaign = state.editing;
+      if (!campaign || campaign.status === 'draft') campaign = await saveDraft({ silent: true });
+      const audience = await previewStorefrontPushAudience(client, campaign.id);
+      state.audience = audience;
+      one('[data-audience-estimate]').textContent = `${audience.count} instalación${audience.count === 1 ? '' : 'es'}`;
+      one('[data-audience-note]').textContent = audience.snapshot
+        ? 'Conteo congelado al iniciar la campaña.'
+        : 'Estimación actual; puede variar hasta que comience el envío.';
+      if (!options.silent) showFormSuccess('Audiencia calculada y validada para esta tienda.');
+      return { campaign, audience };
+    }
+    function confirmation(details) {
+      one('[data-confirm-title]').textContent = details.title;
+      one('[data-confirm-message]').textContent = details.message;
+      one('[data-confirm-warning]').textContent = details.warning || '';
+      one('[data-confirm-submit]').textContent = details.confirmLabel || 'Confirmar';
+      one('[data-confirm-submit]').dataset.tone = details.tone || 'primary';
+      one('[data-confirm-summary]').innerHTML = (details.rows || []).map(([label, value]) =>
+        `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join('');
+      openDialog(confirmDialog);
+      return new Promise((resolve) => { state.confirmed = resolve; });
+    }
+    function resolveConfirmation(value) {
+      const resolve = state.confirmed;
+      state.confirmed = null;
+      closeDialog(confirmDialog);
+      if (resolve) resolve(value);
+    }
+    async function dispatchCampaign(mode) {
+      clearFormMessages();
+      try {
+        const { campaign, audience } = await calculateAudience({ silent: true });
+        const scheduledInput = field('scheduled_at')?.value || '';
+        const scheduledDate = mode === 'scheduled' ? new Date(scheduledInput) : null;
+        if (mode === 'scheduled' && (!scheduledInput || !Number.isFinite(scheduledDate.getTime()))) {
+          throw Object.assign(new Error('invalid_schedule'), { code: 'invalid_schedule' });
+        }
+        const approved = await confirmation({
+          title: mode === 'now' ? '¿Enviar esta campaña ahora?' : '¿Programar esta campaña?',
+          message: mode === 'now'
+            ? 'El envío puede comenzar inmediatamente y no se puede deshacer una vez iniciado.'
+            : 'El scheduler volverá a validar todo antes de iniciar el envío.',
+          confirmLabel: mode === 'now' ? 'Sí, enviar ahora' : 'Sí, programar',
+          tone: mode === 'now' ? 'danger' : 'primary',
+          warning: `Este envío cuenta dentro de los límites permanentes de 10 diarios y 310 mensuales. Firebase aceptado no significa entregado o leído.`,
+          rows: [
+            ['Campaña', campaign.title],
+            ['Audiencia estimada', `${audience.count} instalación${audience.count === 1 ? '' : 'es'}`],
+            ['Destino', campaign.target_path || 'Ruta privada segura'],
+            ['Momento', mode === 'now' ? 'Ahora' : formatDate(scheduledDate.toISOString())],
+          ],
+        });
+        if (!approved) return;
+        setBusy(true, mode === 'now' ? 'Enviando campaña…' : 'Programando campaña…');
+        const result = await scheduleStorefrontPushCampaign(
+          client, campaign.id, mode, mode === 'scheduled' ? scheduledDate.toISOString() : undefined,
+        );
+        closeDialog(editor);
+        showToast(mode === 'now'
+          ? `Campaña ${campaignStatusLabel(result.status).toLocaleLowerCase('es')}.`
+          : 'Campaña programada correctamente.');
+        await loadCampaigns();
+      } catch (error) {
+        showFormError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+    async function listAction(campaignId, action) {
+      const campaign = state.campaigns.find((item) => item.id === campaignId);
+      if (!campaign) return;
+      if (action === 'edit') return fillEditor(campaign, true);
+      if (action === 'detail') return fillEditor(campaign, false);
+      if (action === 'cancel') {
+        const approved = await confirmation({
+          title: '¿Cancelar esta campaña?',
+          message: campaign.status === 'draft'
+            ? 'El borrador quedará cancelado y ya no podrá editarse.'
+            : 'Solo se cancelará si el envío todavía no comenzó.',
+          confirmLabel: 'Cancelar campaña', tone: 'danger',
+          rows: [['Campaña', campaign.title], ['Estado actual', campaignStatusLabel(campaign.status)]],
+        });
+        if (!approved) return;
+      }
+      if (action === 'duplicate') {
+        const approved = await confirmation({
+          title: '¿Duplicar como borrador?',
+          message: 'Se copiarán contenido, destino y audiencia. Revisa el medio porque vence a las 24 horas.',
+          confirmLabel: 'Crear duplicado',
+          rows: [['Campaña origen', campaign.title], ['Nuevo estado', 'Borrador']],
+        });
+        if (!approved) return;
+      }
+      setBusy(true, action === 'cancel' ? 'Cancelando campaña…' : 'Duplicando campaña…');
+      try {
+        const result = await mutateStorefrontPushCampaign(client, action, campaign.id);
+        showToast(action === 'cancel' ? 'Campaña cancelada.' : 'Duplicado creado como borrador.');
+        await loadCampaigns();
+        if (action === 'duplicate') fillEditor(result, true);
+      } catch (error) {
+        showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    all('[data-new-campaign]').forEach((button) => button.addEventListener('click', () => {
+      resetEditor();
+      openDialog(editor);
+      window.setTimeout(() => field('title')?.focus(), 30);
+    }));
+    window.addEventListener('pz:push-campaign:new', () => {
+      resetEditor();
+      openDialog(editor);
+      window.setTimeout(() => field('title')?.focus(), 30);
+    });
+    all('[data-close-editor]').forEach((button) => button.addEventListener('click', () => closeDialog(editor)));
+    one('[data-refresh-campaigns]')?.addEventListener('click', loadCampaigns);
+    searchInput?.addEventListener('input', renderCampaigns);
+    statusFilter?.addEventListener('change', () => { state.page = 1; loadCampaigns(); });
+    previousButton?.addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadCampaigns(); } });
+    nextButton?.addEventListener('click', () => { state.page += 1; loadCampaigns(); });
+    list?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-action]');
+      const card = button?.closest('[data-campaign-id]');
+      if (button && card) listAction(card.dataset.campaignId, button.dataset.action);
+    });
+    ['title', 'body', 'media_id'].forEach((name) => field(name)?.addEventListener('input', updatePreview));
+    field('target_type')?.addEventListener('change', updateConditionalFields);
+    field('target_section')?.addEventListener('change', updatePreview);
+    field('audience_type')?.addEventListener('change', updateConditionalFields);
+    one('[data-media-upload]')?.addEventListener('change', (event) => {
+      const file = event.currentTarget.files?.[0];
+      uploadMedia(file);
+      event.currentTarget.value = '';
+    });
+    one('[data-save-draft]')?.addEventListener('click', async () => {
+      setBusy(true, 'Guardando borrador…');
+      try { await saveDraft(); showToast('Borrador guardado.'); } catch (error) { showFormError(error); }
+      finally { setBusy(false); }
+    });
+    one('[data-estimate-audience]')?.addEventListener('click', async () => {
+      setBusy(true, 'Calculando audiencia…');
+      try { await calculateAudience(); } catch (error) { showFormError(error); }
+      finally { setBusy(false); }
+    });
+    one('[data-send-now]')?.addEventListener('click', () => dispatchCampaign('now'));
+    one('[data-schedule-campaign]')?.addEventListener('click', () => dispatchCampaign('scheduled'));
+    one('[data-confirm-cancel]')?.addEventListener('click', () => resolveConfirmation(false));
+    confirmForm?.addEventListener('submit', (event) => { event.preventDefault(); resolveConfirmation(true); });
+    confirmDialog?.addEventListener('cancel', (event) => { event.preventDefault(); resolveConfirmation(false); });
+    editor?.addEventListener('cancel', (event) => { event.preventDefault(); closeDialog(editor); });
+    editor?.addEventListener('click', (event) => { if (event.target === editor) closeDialog(editor); });
+
+    resetEditor();
+    Promise.all([loadMedia(), loadCampaigns()]);
+  })();
+</script>
+
+<style is:global>
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .hidden { display: none !important; }
+  .push-admin { width: min(1220px, calc(100% - 36px)); margin: 0 auto; padding: 28px 0 72px; color: #0f172a; }
+  .push-admin *, .push-admin *::before, .push-admin *::after { box-sizing: border-box; }
+  .push-admin button, .push-admin input, .push-admin select, .push-admin textarea { font: inherit; }
+  .push-admin button { cursor: pointer; }
+  .push-admin button:disabled { cursor: wait; opacity: .58; }
+  body.push-dialog-open { overflow: hidden; }
+  .push-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 24px 26px; border: 1px solid rgba(191,219,254,.88); border-radius: 26px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(239,246,255,.96)); box-shadow: 0 20px 50px rgba(15,23,42,.08); }
+  .push-hero__copy { max-width: 760px; }
+  .push-hero__eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #1d4ed8; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+  .push-hero__eyebrow svg { width: 18px; height: 18px; fill: currentColor; }
+  .push-hero h1 { margin: 9px 0 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; letter-spacing: -.045em; font-weight: 1000; }
+  .push-hero p { margin: 12px 0 0; color: #475569; font-size: 15px; line-height: 1.6; font-weight: 680; }
+  .push-btn { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 13px; padding: 10px 15px; font-size: 13px; line-height: 1.2; font-weight: 950; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .push-btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .push-btn:focus-visible, .push-icon-btn:focus-visible, .push-link-btn:focus-visible, .push-upload-btn:focus-within, .push-field input:focus-visible, .push-field select:focus-visible, .push-field textarea:focus-visible { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }
+  .push-btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .push-btn--primary { color: #fff; border-color: #1d4ed8; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 13px 28px rgba(37,99,235,.22); }
+  .push-btn--secondary { color: #0f172a; border-color: #dbe5f1; background: #fff; box-shadow: 0 7px 18px rgba(15,23,42,.05); }
+  .push-hero__action { min-height: 46px; flex: 0 0 auto; }
+  .push-policy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+  .push-policy__item { min-width: 0; display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 12px; border: 1px solid rgba(226,232,240,.96); border-radius: 18px; background: rgba(255,255,255,.9); padding: 14px 16px; box-shadow: 0 10px 28px rgba(15,23,42,.045); }
+  .push-policy__icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 13px; background: #e0ecff; color: #1d4ed8; font-size: 14px; font-weight: 1000; }
+  .push-policy__icon--info { background: #e0f2fe; color: #0369a1; font-size: 20px; }
+  .push-policy__item > span:last-child { min-width: 0; display: grid; gap: 3px; }
+  .push-policy strong { font-size: 13px; font-weight: 950; }
+  .push-policy small { color: #64748b; font-size: 11px; line-height: 1.4; font-weight: 700; }
+  .push-list-panel { border: 1px solid rgba(226,232,240,.96); border-radius: 26px; background: rgba(255,255,255,.96); padding: 22px; box-shadow: 0 20px 48px rgba(15,23,42,.07); }
+  .push-list-panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .push-list-panel h2 { margin: 0; font-size: 22px; letter-spacing: -.025em; font-weight: 1000; }
+  .push-list-panel__head p { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.5; font-weight: 700; }
+  .push-icon-btn { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #dbe5f1; border-radius: 13px; background: #fff; color: #334155; font-size: 25px; box-shadow: 0 8px 20px rgba(15,23,42,.05); }
+  .push-icon-btn svg { width: 19px; height: 19px; fill: currentColor; }
+  .push-filters { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(180px, 240px); gap: 12px; margin-top: 18px; }
+  .push-search { min-height: 46px; display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid #dbe5f1; border-radius: 14px; background: #f8fafc; padding: 0 14px; }
+  .push-search svg { width: 19px; height: 19px; fill: #64748b; }
+  .push-search input { min-width: 0; border: 0; outline: 0; background: transparent; color: #0f172a; font-weight: 750; }
+  .push-filter-select { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid #dbe5f1; border-radius: 14px; background: #f8fafc; padding: 0 12px; color: #64748b; font-size: 12px; font-weight: 900; }
+  .push-filter-select select { width: 100%; min-height: 44px; border: 0; outline: 0; background: transparent; color: #0f172a; font-weight: 850; }
+  .push-live { min-height: 21px; margin: 14px 2px 0; color: #64748b; font-size: 12px; font-weight: 750; }
+  .push-campaign-list { display: grid; gap: 12px; margin-top: 8px; }
+  .push-campaign-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .62fr); gap: 16px; border: 1px solid #e2e8f0; border-radius: 19px; background: linear-gradient(135deg, #fff, #fbfdff); padding: 17px; }
+  .push-campaign-card__main { min-width: 0; display: flex; align-items: flex-start; gap: 12px; }
+  .push-status { flex: 0 0 auto; display: inline-flex; min-height: 27px; align-items: center; border-radius: 999px; padding: 5px 9px; background: #eef2f7; color: #475569; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+  .push-status[data-tone="success"] { background: #dcfce7; color: #166534; }
+  .push-status[data-tone="info"] { background: #dbeafe; color: #1d4ed8; }
+  .push-status[data-tone="warning"] { background: #ffedd5; color: #9a3412; }
+  .push-status[data-tone="danger"] { background: #fee2e2; color: #991b1b; }
+  .push-campaign-card__copy { min-width: 0; }
+  .push-campaign-card h3 { margin: 1px 0 0; font-size: 17px; line-height: 1.3; font-weight: 1000; overflow-wrap: anywhere; }
+  .push-campaign-card__copy > p { display: -webkit-box; margin: 6px 0 0; overflow: hidden; color: #475569; font-size: 13px; line-height: 1.48; font-weight: 680; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .push-campaign-card__meta { display: flex; flex-wrap: wrap; gap: 7px 13px; margin-top: 10px; color: #64748b; font-size: 11px; line-height: 1.45; }
+  .push-campaign-card__failure { color: #b45309; }
+  .push-campaign-card__metrics { align-self: start; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; }
+  .push-campaign-card__metrics div { min-width: 0; padding: 10px; text-align: center; }
+  .push-campaign-card__metrics div + div { border-left: 1px solid #e2e8f0; }
+  .push-campaign-card__metrics dt { color: #64748b; font-size: 9px; line-height: 1.25; font-weight: 900; text-transform: uppercase; }
+  .push-campaign-card__metrics dd { margin: 5px 0 0; font-size: 17px; font-weight: 1000; }
+  .push-campaign-card__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid #eef2f7; }
+  .push-link-btn { min-height: 34px; border: 0; border-radius: 10px; background: #eff6ff; color: #1d4ed8; padding: 7px 10px; font-size: 11px; font-weight: 950; }
+  .push-link-btn--danger { background: #fff1f2; color: #be123c; }
+  .push-empty { display: grid; place-items: center; min-height: 230px; border: 1px dashed #cbd5e1; border-radius: 18px; background: #f8fafc; padding: 30px; text-align: center; }
+  .push-empty > span { color: #2563eb; font-size: 30px; }
+  .push-empty strong { margin-top: 8px; font-size: 17px; }
+  .push-empty p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
+  .push-empty--error { border-color: #fecaca; background: #fff7f7; color: #991b1b; }
+  .push-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+  .push-pagination span { min-width: 76px; color: #475569; text-align: center; font-size: 12px; font-weight: 900; }
+  .push-editor, .push-confirm { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; border: 0; background: transparent; padding: 20px; }
+  .push-editor::backdrop, .push-confirm::backdrop { background: rgba(15,23,42,.58); backdrop-filter: blur(5px); }
+  .push-editor__card { width: min(1180px, 100%); max-height: calc(100vh - 40px); margin: 0 auto; overflow: auto; border: 1px solid rgba(226,232,240,.96); border-radius: 25px; background: #f8fafc; box-shadow: 0 30px 90px rgba(15,23,42,.32); }
+  .push-editor__head { position: sticky; top: 0; z-index: 10; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; border-bottom: 1px solid #e2e8f0; background: rgba(255,255,255,.97); padding: 19px 22px; backdrop-filter: blur(12px); }
+  .push-editor__eyebrow { color: #2563eb; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .08em; }
+  .push-editor__head h2 { margin: 5px 0 0; font-size: 24px; line-height: 1.1; letter-spacing: -.03em; font-weight: 1000; }
+  .push-editor__head p { margin: 7px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 700; }
+  .push-editor__body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr); gap: 18px; padding: 18px; }
+  .push-form-column { min-width: 0; display: grid; gap: 14px; }
+  .push-fieldset { min-width: 0; display: grid; gap: 13px; margin: 0; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 17px; box-shadow: 0 8px 24px rgba(15,23,42,.035); }
+  .push-fieldset legend { padding: 0 7px; color: #0f172a; font-size: 14px; font-weight: 1000; }
+  .push-field { min-width: 0; display: grid; gap: 7px; color: #334155; font-size: 12px; font-weight: 900; }
+  .push-field > span { display: flex; justify-content: space-between; gap: 10px; }
+  .push-field > span small { color: #94a3b8; font-size: 10px; }
+  .push-field input, .push-field select, .push-field textarea { width: 100%; min-height: 44px; border: 1px solid #dbe5f1; border-radius: 13px; background: #fff; color: #0f172a; padding: 10px 12px; outline: 0; font-size: 13px; font-weight: 760; }
+  .push-field textarea { min-height: 104px; resize: vertical; line-height: 1.5; }
+  .push-field input[readonly] { background: #f8fafc; color: #475569; }
+  .push-field input:disabled, .push-field select:disabled, .push-field textarea:disabled { background: #f1f5f9; color: #475569; opacity: 1; }
+  .push-field small, .push-help { margin: 0; color: #64748b; font-size: 11px; line-height: 1.48; font-weight: 650; }
+  .push-media-row { display: flex; align-items: end; gap: 10px; }
+  .push-field--grow { flex: 1 1 auto; }
+  .push-upload-btn { min-height: 44px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #bfdbfe; border-radius: 13px; background: #eff6ff; color: #1d4ed8; padding: 10px 13px; font-size: 12px; font-weight: 950; cursor: pointer; }
+  .push-upload-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .push-upload-btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .push-media-status { min-height: 18px; color: #0369a1; font-size: 11px; line-height: 1.45; font-weight: 750; }
+  .push-validation-note, .push-warning { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; border: 1px solid #bfdbfe; border-radius: 13px; background: #eff6ff; padding: 11px 12px; color: #1e40af; font-size: 11px; line-height: 1.5; font-weight: 750; }
+  .push-warning { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+  .push-validation-note svg, .push-warning svg { width: 20px; height: 20px; fill: currentColor; }
+  .push-inline-fields { display: grid; grid-template-columns: minmax(110px,.35fr) minmax(0,1fr); gap: 10px; }
+  .push-estimate { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #bfdbfe; border-radius: 15px; background: linear-gradient(135deg, #eff6ff, #f8fbff); padding: 13px; }
+  .push-estimate > div { min-width: 0; display: grid; gap: 3px; }
+  .push-estimate span { color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+  .push-estimate strong { font-size: 18px; font-weight: 1000; }
+  .push-estimate small { color: #475569; font-size: 10px; line-height: 1.4; font-weight: 680; }
+  .push-form-message, .push-form-success { border: 1px solid #fecaca; border-radius: 13px; background: #fff1f2; color: #991b1b; padding: 12px 14px; font-size: 12px; line-height: 1.5; font-weight: 850; }
+  .push-form-success { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+  .push-preview-column { min-width: 0; }
+  .push-preview-sticky { position: sticky; top: 102px; display: grid; gap: 13px; border: 1px solid #dbe5f1; border-radius: 20px; background: #fff; padding: 16px; box-shadow: 0 13px 35px rgba(15,23,42,.06); }
+  .push-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .push-preview-heading > div { display: grid; gap: 2px; }
+  .push-preview-heading span { color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+  .push-preview-heading strong { font-size: 17px; font-weight: 1000; }
+  .push-preview-heading__badge { border-radius: 999px; background: #e0f2fe; color: #0369a1 !important; padding: 6px 9px; }
+  .android-device { position: relative; min-height: 485px; overflow: hidden; border: 8px solid #111827; border-radius: 34px; background: linear-gradient(160deg, #0f4c81, #173a69 45%, #5f76a3); box-shadow: 0 22px 45px rgba(15,23,42,.26); }
+  .android-device::before { content: ''; position: absolute; top: 8px; left: 50%; width: 74px; height: 18px; transform: translateX(-50%); border-radius: 999px; background: #111827; }
+  .android-device__status { position: relative; z-index: 2; display: flex; justify-content: space-between; padding: 12px 16px 0; color: #fff; font-size: 9px; font-weight: 900; }
+  .android-notification { position: relative; z-index: 3; margin: 25px 9px 0; overflow: hidden; border-radius: 17px; background: rgba(255,255,255,.97); padding: 13px; color: #0f172a; box-shadow: 0 12px 35px rgba(15,23,42,.26); }
+  .android-notification__app { display: flex; align-items: center; gap: 7px; color: #475569; font-size: 9px; font-weight: 850; }
+  .android-notification__app small { margin-left: auto; color: #64748b; }
+  .android-notification__logo { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 8px; background: linear-gradient(135deg,#0e4da4,#2f70d2); color: #fff; font-size: 8px; font-weight: 1000; }
+  .android-notification > strong { display: block; margin-top: 10px; font-size: 13px; line-height: 1.35; font-weight: 1000; overflow-wrap: anywhere; }
+  .android-notification > p { margin: 4px 0 0; color: #334155; font-size: 11px; line-height: 1.42; font-weight: 650; overflow-wrap: anywhere; }
+  .android-notification__image { min-height: 122px; display: grid; place-items: center; overflow: hidden; margin-top: 10px; border-radius: 11px; background: linear-gradient(135deg,#e2e8f0,#f8fafc); color: #64748b; text-align: center; font-size: 10px; font-weight: 750; }
+  .android-notification__image img { width: 100%; max-height: 180px; object-fit: cover; }
+  .android-notification__actions { display: flex; justify-content: flex-end; gap: 18px; margin-top: 11px; color: #1d4ed8; font-size: 9px; font-weight: 1000; text-transform: uppercase; }
+  .android-device__wallpaper { position: absolute; inset: 0; overflow: hidden; }
+  .android-device__wallpaper span { position: absolute; border-radius: 50%; background: rgba(255,255,255,.1); filter: blur(2px); }
+  .android-device__wallpaper span:nth-child(1) { width: 220px; height: 220px; left: -70px; bottom: -20px; }
+  .android-device__wallpaper span:nth-child(2) { width: 150px; height: 150px; right: -30px; top: 190px; }
+  .android-device__wallpaper span:nth-child(3) { width: 80px; height: 80px; left: 80px; top: 340px; }
+  .push-preview-summary { display: grid; gap: 0; margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 13px; }
+  .push-preview-summary div { display: grid; grid-template-columns: 105px minmax(0,1fr); gap: 10px; padding: 9px 11px; }
+  .push-preview-summary div + div { border-top: 1px solid #e2e8f0; }
+  .push-preview-summary dt { color: #64748b; font-size: 10px; font-weight: 900; }
+  .push-preview-summary dd { min-width: 0; margin: 0; color: #0f172a; font-size: 10px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
+  .push-preview-disclaimer { margin: 0; color: #64748b; font-size: 10px; line-height: 1.45; text-align: center; }
+  .push-editor__footer { position: sticky; bottom: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid #e2e8f0; background: rgba(255,255,255,.98); padding: 14px 20px; box-shadow: 0 -10px 25px rgba(15,23,42,.06); }
+  .push-editor__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+  .push-confirm { display: grid; place-items: center; }
+  .push-confirm:not([open]) { display: none; }
+  .push-confirm__card { width: min(520px, 100%); border: 1px solid #e2e8f0; border-radius: 22px; background: #fff; padding: 24px; text-align: center; box-shadow: 0 30px 90px rgba(15,23,42,.34); }
+  .push-confirm__icon { width: 56px; height: 56px; display: grid; place-items: center; margin: 0 auto; border-radius: 17px; background: #fff7ed; color: #c2410c; font-size: 26px; font-weight: 1000; }
+  .push-confirm h2 { margin: 15px 0 0; font-size: 22px; font-weight: 1000; letter-spacing: -.03em; }
+  .push-confirm > p, .push-confirm__card > p { margin: 8px 0 0; color: #475569; font-size: 13px; line-height: 1.55; font-weight: 700; }
+  .push-confirm__summary { display: grid; gap: 0; margin: 18px 0 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 13px; text-align: left; }
+  .push-confirm__summary div { display: grid; grid-template-columns: 130px minmax(0,1fr); gap: 10px; padding: 10px 12px; }
+  .push-confirm__summary div + div { border-top: 1px solid #e2e8f0; }
+  .push-confirm__summary dt { color: #64748b; font-size: 11px; font-weight: 900; }
+  .push-confirm__summary dd { margin: 0; font-size: 11px; font-weight: 850; overflow-wrap: anywhere; }
+  .push-confirm__warning { margin-top: 13px; border-radius: 12px; background: #fff7ed; color: #9a3412; padding: 11px 12px; font-size: 10px; line-height: 1.5; font-weight: 750; text-align: left; }
+  .push-confirm__actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+  .push-confirm [data-confirm-submit][data-tone="danger"] { border-color: #be123c; background: linear-gradient(135deg,#e11d48,#be123c); box-shadow: 0 13px 28px rgba(190,18,60,.2); }
+  .push-toast { position: fixed; right: 22px; bottom: 24px; z-index: 160; width: min(390px, calc(100% - 30px)); border: 1px solid #bbf7d0; border-radius: 14px; background: #f0fdf4; color: #166534; padding: 13px 15px; box-shadow: 0 18px 50px rgba(15,23,42,.18); font-size: 12px; line-height: 1.5; font-weight: 900; }
+  .push-toast[data-tone="error"] { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+  @media (max-width: 1080px) {
+    .push-policy { grid-template-columns: 1fr; }
+    .push-campaign-card { grid-template-columns: 1fr; }
+    .push-campaign-card__metrics { grid-column: 1; }
+    .push-editor__body { grid-template-columns: 1fr; }
+    .push-preview-sticky { position: static; }
+    .android-device { width: min(390px, 100%); margin: 0 auto; }
+  }
+  @media (max-width: 720px) {
+    .push-admin { width: min(100% - 20px, 1220px); padding: 14px 0 92px; }
+    .push-hero { display: grid; padding: 20px; border-radius: 21px; }
+    .push-hero__action { width: 100%; }
+    .push-policy__item { padding: 12px; }
+    .push-list-panel { padding: 15px; border-radius: 20px; }
+    .push-filters { grid-template-columns: 1fr; }
+    .push-filter-select { min-height: 46px; }
+    .push-campaign-card { padding: 14px; }
+    .push-campaign-card__main { display: grid; }
+    .push-campaign-card__metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .push-campaign-card__metrics div:nth-child(3) { border-left: 0; border-top: 1px solid #e2e8f0; }
+    .push-campaign-card__metrics div:nth-child(4) { border-top: 1px solid #e2e8f0; }
+    .push-campaign-card__actions { justify-content: stretch; flex-wrap: wrap; }
+    .push-link-btn { flex: 1 1 auto; }
+    .push-editor, .push-confirm { padding: 0; }
+    .push-editor__card { max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
+    .push-editor__head { padding: 16px; }
+    .push-editor__head h2 { font-size: 21px; }
+    .push-editor__body { padding: 12px; }
+    .push-fieldset { border-radius: 15px; padding: 14px; }
+    .push-media-row { display: grid; }
+    .push-upload-btn { width: 100%; }
+    .push-inline-fields { grid-template-columns: 1fr; }
+    .push-estimate { align-items: stretch; flex-direction: column; }
+    .push-estimate .push-btn { width: 100%; }
+    .push-editor__footer { align-items: stretch; flex-direction: column-reverse; padding: 12px; }
+    .push-editor__footer > .push-btn { width: 100%; }
+    .push-editor__footer-actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .push-editor__footer-actions .push-btn:last-child { grid-column: 1 / -1; }
+    .push-confirm { padding: 12px; }
+    .push-confirm__card { padding: 20px 16px; border-radius: 18px; }
+    .push-confirm__summary div { grid-template-columns: 105px minmax(0,1fr); }
+    .push-confirm__actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .push-toast { right: 15px; bottom: 86px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .push-admin *, .push-admin *::before, .push-admin *::after { scroll-behavior: auto !important; transition: none !important; }
+  }
+</style>

@@ -38,6 +38,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   if (normalized === 'expirations') return { any: ['catalog.expirations.manage'] };
   if (normalized === 'promos/raffles') return { any: ['raffles.manage'] };
   if (normalized === 'promos') return { any: ['promotions.manage', 'coupons.manage'] };
+  if (normalized === 'push-campaigns') return { any: ['marketing.push.manage'] };
   if (normalized === 'notifications') return { any: ['notifications.view'] };
   if (normalized === 'security' || normalized.startsWith('security/')) return { any: ['security.view'] };
   if (normalized === 'store-settings') {
@@ -57,6 +58,11 @@ function primaryAdminCanReachSecurityGate(section: string, isPrimaryAdmin: boole
   return (normalized === 'security' || normalized.startsWith('security/')) && isPrimaryAdmin;
 }
 
+function primaryAdminCanReachPushCampaignsGate(section: string, isPrimaryAdmin: boolean) {
+  const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
+  return normalized === 'push-campaigns' && isPrimaryAdmin;
+}
+
 function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonly StorePermission[] }) {
   const candidates: ReadonlyArray<readonly [StorePermission, string]> = [
     ['analytics.view', 'pageviews'],
@@ -68,6 +74,7 @@ function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonl
     ['promotions.manage', 'promos'],
     ['coupons.manage', 'promos'],
     ['raffles.manage', 'promos/raffles'],
+    ['marketing.push.manage', 'push-campaigns'],
     ['notifications.view', 'notifications'],
     ['security.view', 'security'],
     ['store.settings.manage', 'store-settings'],
@@ -226,6 +233,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
         requestedSection,
         storeAccess.access.is_primary_admin === true,
       ) || primaryAdminCanReachSecurityGate(
+        requestedSection,
+        storeAccess.access.is_primary_admin === true,
+      ) || primaryAdminCanReachPushCampaignsGate(
         requestedSection,
         storeAccess.access.is_primary_admin === true,
       ) || (accessRule.primary === true

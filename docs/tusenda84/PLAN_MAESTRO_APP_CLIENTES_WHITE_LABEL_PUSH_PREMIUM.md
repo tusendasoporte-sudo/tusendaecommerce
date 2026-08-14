@@ -6,7 +6,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C07 COMPLETADO — variante PowerZona y navegación desde push |
+| Estado general | PZ-APP-C08 EN CURSO — panel Premium Campañas push |
 | Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-14 |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Iniciar exclusivamente PZ-APP-C08 en una tarea nueva; C08 no se inició en C07 |
+| Próximo prompt | Completar exclusivamente PZ-APP-C08; no iniciar C09 ni fases posteriores |
 
 ### Convención de estados
 
@@ -563,7 +563,7 @@ Estado vigente:
 | PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
-| PZ-APP-C08 | Panel Premium Campañas push | PENDIENTE | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
+| PZ-APP-C08 | Panel Premium Campañas push | EN CURSO | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
@@ -1846,3 +1846,106 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 #### Siguiente paso
 
 - C07 queda cerrado sin push adicional. Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C08 cuando el propietario lo solicite; antes deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, referencia remota real, worktrees, stash, `.tmp/` y secretos locales. No publicar este cierre ni iniciar C08 o fases posteriores en esta tarea.
+
+### 2026-08-14 — PZ-APP-C08 — Panel Premium Campañas push
+
+- Estado: EN CURSO
+- Responsable: Codex
+- Entorno: local; staging y producción fuera de alcance sin autorización separada
+- Branch: `codex/pz-app-c08`, worktree aislado creado desde `dev` en `e61e055fac5c3a00e87b974a38da4f2f1584104b`
+- Commit base: `e61e055fac5c3a00e87b974a38da4f2f1584104b`
+- Fecha/hora de inicio: 2026-08-14 16:10:31 -04:00
+- Fecha/hora de cierre:
+
+#### Objetivo en curso
+
+Implementar exclusivamente el panel administrativo Premium de campañas push C08: acceso, listado y filtros, borradores, carga y previsualización WebP, previsualización Android, destinos, audiencia estimada, envío inmediato, programación, cancelación, duplicado, estados, confirmaciones, errores y accesibilidad móvil/escritorio. Se reutilizan C04 y C05 sin rehacerlos; C09-C12 no se inician.
+
+#### Comprobaciones de inicio
+
+- Este worktree comenzó limpio y desacoplado exactamente en `e61e055fac5c3a00e87b974a38da4f2f1584104b`, el mismo commit de `dev`.
+- `dev` está diez commits por delante de `origin/dev`; `origin/dev` local y la consulta remota real `refs/heads/dev` apuntan a `4efb9a6a3d06bf78d81bdadb406748998718545f`.
+- El stash ajeno `stash@{0}: On main: WIP recibo orden desde main`, todos los worktrees ajenos, `.tmp/`, `.secrets/`, la identidad de firma staging y `google-services.json` permanecen intactos. Las rutas protegidas no existen en este worktree aislado.
+- El plan maestro v1.27 se leyó íntegramente. C01-C07 y C06A están `COMPLETADO`; la puerta C08 (`C04 + C05`) está satisfecha. C09-C12 permanecen `PENDIENTE`.
+
+#### Archivos previstos y justificación
+
+- La implementación se limita al inventario C08 de la sección 6.11 y a este plan vivo: rutas administrativas, vista, sidebar, middleware, cliente administrativo y pruebas focales de acceso/formulario.
+- Si C08 requiere otro archivo para consumir de forma segura un contrato C04/C05 ya existente o probar la interfaz, se registrará aquí antes de editarlo; no se ampliará el alcance a analítica C09.
+
+#### Migraciones o infraestructura
+
+- Ninguna prevista. No se hará push, despliegue, reinicio, parada ni cambio externo sin autorización explícita separada.
+
+#### Riesgos, deuda o bloqueos
+
+- El panel debe conservar las cuotas permanentes de 10 campañas diarias y 310 mensuales, y describir `accepted` como aceptación de Firebase, no entrega o lectura.
+- El frontend no sustituye las validaciones backend de plan, permiso, tienda y contenido; todas las mutaciones consumen los endpoints C04/C05 que las revalidan.
+- El relay storefront v2 data-only y el relay administrativo v1 permanecerán separados y sin cambios de contrato.
+
+#### Implementación local
+
+- Se añadieron las rutas legacy/canónica y una vista administrativa responsive con historial paginado, filtro de estado, búsqueda local, estados operativos, contadores C05 y acciones contextuales.
+- El editor crea y actualiza borradores completos, carga JPG/PNG/WebP exclusivamente mediante el procesador C04, muestra la WebP resultante y su vencimiento, y ofrece una previsualización Android para título, texto e imagen.
+- Los siete destinos permanecen tipados. La interfaz nunca acepta una URL libre: envía únicamente tipo, sección cerrada o relación PocketBase; C05 genera y devuelve la ruta canónica después de volver a comprobar tienda y vigencia. Pedido exige además una instalación vinculada y no expone token de recibo.
+- La audiencia cubre todas las activas, actividad 7/30 días, permiso confirmado, versión Android y país/región aproximada. La estimación solo se obtiene después de guardar y validar el borrador en C05; distingue estimación dinámica de snapshot iniciado.
+- Enviar ahora y programar requieren confirmación final con campaña, audiencia, destino, momento, cuotas 10/310 y la aclaración de que Firebase aceptado no significa entregado o leído. Cancelar y duplicar usan confirmaciones separadas; los errores backend se traducen sin revelar datos sensibles.
+- Middleware, sidebar y página vuelven a aplicar `marketing.push.manage` y `push_campaigns_enabled`. Un administrador principal sin Premium puede ver únicamente la explicación comercial; no se cargan campañas, instalaciones, borradores ni contadores. Un colaborador sin permiso recibe la puerta 403/404 vigente.
+- El navegador obtiene la sesión desde la cookie administrativa existente y nunca recibe el token como prop o atributo HTML del componente. Las solicitudes solo pueden usar rutas `/api/pz/storefront/v1/campaigns/*`, HTTPS —salvo localhost de desarrollo— y el header de soporte Master sanitizado cuando corresponde.
+- La vista incorpora mensajes `aria-live`, etiquetas, diálogos con título/descripción, foco de error, botones con nombres accesibles, navegación por teclado, targets táctiles, layout móvil/escritorio y reducción de movimiento.
+
+#### Archivos modificados
+
+- `frontend-powerzona/src/pages/admin/push-campaigns.astro`
+- `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`
+- `frontend-powerzona/src/components/admin/PushCampaignsView.astro`
+- `frontend-powerzona/src/components/admin/AdminSidebar.astro`
+- `frontend-powerzona/src/middleware.ts`
+- `frontend-powerzona/src/lib/storefrontPushAdmin.ts`
+- `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`
+- `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`
+- `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
+
+#### Migraciones o infraestructura
+
+- Ninguna. No se modificaron C04/C05, PocketBase, scheduler, Firebase, App Check, Cloudflare, firma Android, `google-services.json`, relay storefront v2 ni relay administrativo v1.
+
+#### Pruebas y resultados locales
+
+- Focal C08: `node --test tests/storefrontPushAdminAccess.test.mjs tests/storefrontPushAdminForm.test.mjs` → 11/11 aprobadas. Incluye doble gate, soporte Master, rutas/sidebar, contratos exactos de formulario, siete destinos sin URL libre, segmentos, programación, errores, estados y flujos simulados guardar → estimar → programar, cancelar y duplicar.
+- Regresión frontend proporcional: 64/64 aprobadas en C08, medios C04, relay storefront v2, capabilities, permisos, navegación e identidad del sidebar.
+- Regresión backend C04/C05: 30/30 aprobadas; confirma Premium+permiso, aislamiento, destinos/secciones, cuotas 10/310, WebP, lotes, fallos parciales, FID inválidos y separación v1/v2.
+- `npm.cmd run build` con Astro 6.4.3 → aprobado. Solo mostró las tres advertencias históricas de `getStaticPaths()` ignorado en rutas dinámicas de categoría, subcategoría y producto.
+- El build reutilizó mediante un junction temporal la instalación exacta de dependencias del worktree principal, cuyo `package-lock.json` tiene el mismo SHA-256. El junction se verificó como `ReparsePoint`, se retiró después y el destino original continuó intacto; no se instalaron ni descargaron paquetes.
+- `git diff --check` y revisión de whitespace de archivos nuevos → sin errores. `.tmp/`, `.secrets/`, `google-services.json`, identidad de firma staging, worktrees y stash ajenos permanecen intactos.
+
+#### PRUEBA MANUAL NECESARIA — pendiente de despliegue staging autorizado
+
+- Entorno previsto: frontend y PocketBase staging; producción fuera de alcance. La prueba debe ejecutarse sobre el commit C08 exacto después de un push y despliegue autorizados por separado.
+- Escritorio previsto: Chromium actual, viewport aproximado 1440 × 900. Móvil previsto: viewport 390 × 844 y, si está disponible, navegador del Samsung Fold5. No requiere instalar ni recompilar la app Android.
+- Evidencia solicitada: una captura sanitizada por viewport de la lista y del editor/preview; para acciones, anotar estado anterior, respuesta visible y estado posterior sin mostrar tokens, FID, credenciales ni datos privados de pedidos.
+
+| Caso | Escritorio | Móvil | Resultado esperado / evidencia |
+|---|---|---|---|
+| Ruta y navegación activa | [ ] | [ ] | `Campañas push` aparece bajo Promos, queda activo y `Nueva campaña` es accesible. |
+| Premium + permiso | [ ] | [ ] | Carga solo campañas de la tienda; otra tienda no aparece. |
+| Free/Básico y sin permiso | [ ] | [ ] | Principal sin Premium ve solo la explicación comercial; colaborador sin permiso no accede ni recibe datos. |
+| Listado, búsqueda y filtros | [ ] | [ ] | Estados, texto, destino y contadores se leen sin desbordes; paginación/filtros anuncian su resultado. |
+| Borrador y validaciones | [ ] | [ ] | Crear/editar borrador exige título, texto, audiencia y destino válidos; URL libre e ID inválido se rechazan. |
+| Carga y preview WebP | [ ] | [ ] | JPG/PNG válido termina como WebP, muestra dimensiones/peso/vencimiento y se previsualiza; archivo inválido muestra error. |
+| Previsualización Android | [ ] | [ ] | Título, cuerpo e imagen cambian en vivo; el contenido sigue legible sin imagen y con texto largo. |
+| Destino tipado | [ ] | [ ] | Portada/sección y al menos una relación válida muestran ruta canónica; relación ajena/inactiva falla cerrada. Pedido exige instalación vinculada. |
+| Audiencia estimada | [ ] | [ ] | El conteo aparece después de guardar/validar; `snapshot` y estimación dinámica se etiquetan correctamente. |
+| Confirmación de envío | [ ] | [ ] | Antes de enviar muestra campaña, audiencia, destino, momento, 10/310 y la advertencia Firebase; Volver no envía. |
+| Envío inmediato controlado | [ ] | [ ] | Tras confirmación, el estado y contadores C05 se actualizan una sola vez; no se promete entrega/lectura. |
+| Programación y cancelación | [ ] | [ ] | Fecha pasada falla; fecha futura queda `Programada`; cancelar antes de iniciar pasa a `Cancelada`. |
+| Duplicado | [ ] | [ ] | Crea un borrador separado, conserva contenido/destino/audiencia y advierte revisar el medio temporal. |
+| Errores y accesibilidad | [ ] | [ ] | Red/403/409/imagen muestran mensajes útiles; teclado, Escape, foco visible, lector y reducción de movimiento funcionan. |
+
+#### Despliegue
+
+- No realizado ni autorizado. Frontend staging permanece en `a8f3c20`; PocketBase staging, `origin/dev` y la referencia remota real permanecen en `4efb9a6`. Producción no se abrió ni modificó.
+
+#### Siguiente paso
+
+- Mantener exclusivamente C08 `EN CURSO`. Solicitar autorización separada para consolidar/publicar `dev` y desplegar solo frontend staging; después ejecutar la matriz manual de escritorio/móvil. No iniciar C09 aunque la implementación local C08 esté en verde.
