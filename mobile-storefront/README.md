@@ -17,7 +17,7 @@ La fuente versionada es `config/powerzona.properties`; `brands/powerzona/brand.j
 | `applicationId` debug | `com.tusenda84.powerzona.debug` |
 | Versión C07 | `2` / `0.2.0` |
 
-Los overrides `PZ_STOREFRONT_STORE_URL`, `PZ_STOREFRONT_STORE_KEY`, `PZ_STOREFRONT_APP_NAME` y `PZ_STOREFRONT_API_BASE_URL` siguen disponibles para builds controlados. Gradle falla si la URL, la clave, el paquete, la marca o los hashes no coinciden con la definición PowerZona.
+Los overrides `PZ_STOREFRONT_STORE_URL`, `PZ_STOREFRONT_STORE_KEY`, `PZ_STOREFRONT_APP_KEY`, `PZ_STOREFRONT_APP_NAME` y `PZ_STOREFRONT_API_BASE_URL` siguen disponibles para builds controlados. `APP_KEY` identifica la app Firebase configurada y `STORE_KEY` conserva el slug web; Gradle falla si la URL, las claves, el paquete, la marca o los hashes no coinciden con la definición PowerZona.
 
 La variante `release` permanece bloqueada en C07. `staging` exige API, Firebase y firma privada locales válidos; `debug` se compila sin secretos ni `google-services.json` y falla cerrado en las funciones nativas que requieran esa identidad.
 

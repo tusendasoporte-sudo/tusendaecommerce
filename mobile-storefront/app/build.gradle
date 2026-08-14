@@ -52,6 +52,7 @@ if (firebaseConfigFile.exists()) {
 def apiBaseUrl = (project.findProperty('PZ_STOREFRONT_API_BASE_URL') ?: '').toString().trim()
 def storeUrl = configuredValue('PZ_STOREFRONT_STORE_URL', 'store.url')
 def storeKey = configuredValue('PZ_STOREFRONT_STORE_KEY', 'store.key')
+def appKey = configuredValue('PZ_STOREFRONT_APP_KEY', 'app.key')
 def appDisplayName = configuredValue('PZ_STOREFRONT_APP_NAME', 'app.display_name')
 def configuredApplicationId = configuredValue('PZ_STOREFRONT_APPLICATION_ID', 'application.id')
 def configuredVersionCode = configuredValue('PZ_STOREFRONT_VERSION_CODE', 'version.code')
@@ -119,8 +120,12 @@ if (!validStoreUrl(storeUrl, storeKey)) {
 if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
     throw new GradleException('PZ_STOREFRONT_APP_NAME debe contener entre 1 y 60 caracteres visibles.')
 }
+if (!(appKey ==~ /[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]/)) {
+    throw new GradleException('PZ_STOREFRONT_APP_KEY debe ser una app_key publica valida.')
+}
 if (brandKey != 'powerzona'
         || storeKey != 'powerzona'
+        || appKey != 'powerzona-storefront-staging'
         || storeUrl != 'https://tusenda84.com/t/powerzona'
         || appDisplayName != 'PowerZona'
         || configuredApplicationId != 'com.tusenda84.powerzona') {
@@ -180,6 +185,7 @@ android {
         buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(apiBaseUrl)
         buildConfigField 'String', 'STORE_URL', javaStringLiteral(storeUrl)
         buildConfigField 'String', 'STORE_KEY', javaStringLiteral(storeKey)
+        buildConfigField 'String', 'APP_KEY', javaStringLiteral(appKey)
         buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(appDisplayName)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
         buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()

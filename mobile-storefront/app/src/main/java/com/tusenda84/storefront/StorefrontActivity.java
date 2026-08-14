@@ -249,7 +249,7 @@ public final class StorefrontActivity extends Activity {
     }
 
     private StorefrontPushPayload pushPayload(Intent intent) {
-        return StorefrontPushPayload.fromIntent(intent, StorefrontConfig.storeKey());
+        return StorefrontPushPayload.fromIntent(intent, StorefrontConfig.appKey());
     }
 
     private boolean openPushTarget(Intent intent) {

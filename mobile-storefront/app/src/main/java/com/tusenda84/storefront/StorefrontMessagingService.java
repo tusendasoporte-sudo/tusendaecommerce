@@ -31,11 +31,11 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
         Map<String, String> data = message.getData();
         String diagnostic = StorefrontPushPayload.diagnosticCode(
                 data,
-                StorefrontConfig.storeKey()
+                StorefrontConfig.appKey()
         );
         StorefrontPushPayload payload = StorefrontPushPayload.fromMap(
                 data,
-                StorefrontConfig.storeKey()
+                StorefrontConfig.appKey()
         );
         if (payload == null) {
             stagingDiagnostic("payload_rejected_" + diagnostic);

@@ -15,6 +15,7 @@ public final class PowerZonaDestinationsTest {
     @Test
     public void compiledVariantUsesOnlyTheApprovedPowerZonaIdentity() {
         assertEquals("powerzona", StorefrontConfig.storeKey());
+        assertEquals("powerzona-storefront-staging", StorefrontConfig.appKey());
         assertEquals("PowerZona", StorefrontConfig.displayName());
         assertEquals(HOME, StorefrontConfig.storeUrl());
         if ("debug".equals(BuildConfig.BUILD_TYPE)) {

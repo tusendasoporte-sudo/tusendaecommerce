@@ -54,7 +54,7 @@ final class StorefrontPushPayload {
 
     static StorefrontPushPayload fromMap(Map<String, String> source, String expectedStoreKey) {
         if (!"ok".equals(diagnosticCode(source, expectedStoreKey))) return null;
-        String storeKey = StorefrontConfig.normalizeStoreKey(source.get(STORE_KEY));
+        String storeKey = StorefrontConfig.normalizeAppKey(source.get(STORE_KEY));
         String campaignId = clean(source.get(CAMPAIGN_ID));
         String title = clean(source.get(TITLE));
         String body = clean(source.get(BODY));
@@ -76,8 +76,8 @@ final class StorefrontPushPayload {
         if (source == null) return "missing_data";
         String schemaVersion = clean(source.get(SCHEMA_VERSION));
         String channel = clean(source.get(CHANNEL));
-        String storeKey = StorefrontConfig.normalizeStoreKey(source.get(STORE_KEY));
-        String expected = StorefrontConfig.normalizeStoreKey(expectedStoreKey);
+        String storeKey = StorefrontConfig.normalizeAppKey(source.get(STORE_KEY));
+        String expected = StorefrontConfig.normalizeAppKey(expectedStoreKey);
         String campaignId = clean(source.get(CAMPAIGN_ID));
         String title = clean(source.get(TITLE));
         String body = clean(source.get(BODY));

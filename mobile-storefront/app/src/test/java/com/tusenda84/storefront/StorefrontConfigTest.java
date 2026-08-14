@@ -31,6 +31,12 @@ public final class StorefrontConfigTest {
         assertEquals("powerzona", StorefrontConfig.normalizeStoreKey("powerzona"));
         assertEquals("", StorefrontConfig.normalizeStoreKey("Power Zona"));
         assertEquals(
+                "powerzona-storefront-staging",
+                StorefrontConfig.normalizeAppKey("powerzona-storefront-staging")
+        );
+        assertEquals("powerzona_runtime", StorefrontConfig.normalizeAppKey("powerzona_runtime"));
+        assertEquals("", StorefrontConfig.normalizeAppKey("Power Zona"));
+        assertEquals(
                 "https://tusenda84.com/t/powerzona",
                 StorefrontConfig.normalizeStoreUrl(
                         "https://TuSenda84.com/t/powerzona",

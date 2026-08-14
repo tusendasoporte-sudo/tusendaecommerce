@@ -11,9 +11,9 @@ import org.junit.Test;
 public final class StorefrontPushPayloadTest {
     @Test
     public void parsesOnlyTheStorefrontContractForTheCompiledStore() {
-        StorefrontPushPayload payload = StorefrontPushPayload.fromMap(validPayload(), "powerzona");
-        assertEquals("ok", StorefrontPushPayload.diagnosticCode(validPayload(), "powerzona"));
-        assertEquals("powerzona", payload.storeKey);
+        StorefrontPushPayload payload = StorefrontPushPayload.fromMap(validPayload(), "powerzona-storefront-staging");
+        assertEquals("ok", StorefrontPushPayload.diagnosticCode(validPayload(), "powerzona-storefront-staging"));
+        assertEquals("powerzona-storefront-staging", payload.storeKey);
         assertEquals("abc123def456ghi", payload.campaignId);
         assertEquals("Oferta PowerZona", payload.title);
         assertEquals("Producto disponible por tiempo limitado.", payload.body);
@@ -25,17 +25,17 @@ public final class StorefrontPushPayloadTest {
     public void rejectsCrossTenantUnknownSchemaAndFreeUrlTypes() {
         Map<String, String> crossTenant = validPayload();
         crossTenant.put(StorefrontPushPayload.STORE_KEY, "otra");
-        assertEquals("invalid_store", StorefrontPushPayload.diagnosticCode(crossTenant, "powerzona"));
-        assertNull(StorefrontPushPayload.fromMap(crossTenant, "powerzona"));
+        assertEquals("invalid_store", StorefrontPushPayload.diagnosticCode(crossTenant, "powerzona-storefront-staging"));
+        assertNull(StorefrontPushPayload.fromMap(crossTenant, "powerzona-storefront-staging"));
 
         Map<String, String> schema = validPayload();
         schema.put(StorefrontPushPayload.SCHEMA_VERSION, "2");
-        assertNull(StorefrontPushPayload.fromMap(schema, "powerzona"));
+        assertNull(StorefrontPushPayload.fromMap(schema, "powerzona-storefront-staging"));
 
         Map<String, String> freeUrl = validPayload();
         freeUrl.put(StorefrontPushPayload.TARGET_TYPE, "url");
         freeUrl.put(StorefrontPushPayload.TARGET_PATH, "https://evil.example");
-        assertNull(StorefrontPushPayload.fromMap(freeUrl, "powerzona"));
+        assertNull(StorefrontPushPayload.fromMap(freeUrl, "powerzona-storefront-staging"));
     }
 
     @Test
@@ -43,7 +43,7 @@ public final class StorefrontPushPayloadTest {
         Map<String, String> order = validPayload();
         order.put(StorefrontPushPayload.TARGET_TYPE, "order");
         order.put(StorefrontPushPayload.TARGET_PATH, "");
-        StorefrontPushPayload payload = StorefrontPushPayload.fromMap(order, "powerzona");
+        StorefrontPushPayload payload = StorefrontPushPayload.fromMap(order, "powerzona-storefront-staging");
         assertEquals("", payload.targetPath);
     }
 
@@ -51,19 +51,19 @@ public final class StorefrontPushPayloadTest {
     public void rejectsOversizedNotificationCopy() {
         Map<String, String> title = validPayload();
         title.put(StorefrontPushPayload.TITLE, "x".repeat(121));
-        assertEquals("invalid_title", StorefrontPushPayload.diagnosticCode(title, "powerzona"));
-        assertNull(StorefrontPushPayload.fromMap(title, "powerzona"));
+        assertEquals("invalid_title", StorefrontPushPayload.diagnosticCode(title, "powerzona-storefront-staging"));
+        assertNull(StorefrontPushPayload.fromMap(title, "powerzona-storefront-staging"));
 
         Map<String, String> body = validPayload();
         body.put(StorefrontPushPayload.BODY, "x".repeat(1001));
-        assertNull(StorefrontPushPayload.fromMap(body, "powerzona"));
+        assertNull(StorefrontPushPayload.fromMap(body, "powerzona-storefront-staging"));
     }
 
     private static Map<String, String> validPayload() {
         Map<String, String> value = new HashMap<>();
         value.put(StorefrontPushPayload.SCHEMA_VERSION, "1");
         value.put(StorefrontPushPayload.CHANNEL, "storefront");
-        value.put(StorefrontPushPayload.STORE_KEY, "powerzona");
+        value.put(StorefrontPushPayload.STORE_KEY, "powerzona-storefront-staging");
         value.put(StorefrontPushPayload.CAMPAIGN_ID, "abc123def456ghi");
         value.put(StorefrontPushPayload.TITLE, "Oferta PowerZona");
         value.put(StorefrontPushPayload.BODY, "Producto disponible por tiempo limitado.");

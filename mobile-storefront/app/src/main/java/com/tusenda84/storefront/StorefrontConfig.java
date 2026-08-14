@@ -14,6 +14,7 @@ final class StorefrontConfig {
     static final String RESOLVE_TARGET_PATH = "/api/storefront/v1/campaigns/resolve-target";
 
     private static final Pattern STORE_KEY = Pattern.compile("^[a-z0-9][a-z0-9-]{1,62}$");
+    private static final Pattern APP_KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$");
 
     private StorefrontConfig() {}
 
@@ -23,6 +24,10 @@ final class StorefrontConfig {
 
     static String storeKey() {
         return normalizeStoreKey(BuildConfig.STORE_KEY);
+    }
+
+    static String appKey() {
+        return normalizeAppKey(BuildConfig.APP_KEY);
     }
 
     static String storeUrl() {
@@ -64,6 +69,11 @@ final class StorefrontConfig {
         return STORE_KEY.matcher(value).matches() ? value : "";
     }
 
+    static String normalizeAppKey(String raw) {
+        String value = clean(raw).toLowerCase(Locale.ROOT);
+        return APP_KEY.matcher(value).matches() ? value : "";
+    }
+
     static String normalizeStoreUrl(String raw, String rawStoreKey) {
         String value = clean(raw);
         String key = normalizeStoreKey(rawStoreKey);
@@ -89,7 +99,7 @@ final class StorefrontConfig {
     }
 
     static boolean isConfigured() {
-        return !storeKey().isEmpty() && !storeUrl().isEmpty();
+        return !appKey().isEmpty() && !storeKey().isEmpty() && !storeUrl().isEmpty();
     }
 
     private static String normalizeUrlOrigin(String raw) {
