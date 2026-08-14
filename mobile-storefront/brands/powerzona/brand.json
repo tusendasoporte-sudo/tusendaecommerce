@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "brand_key": "powerzona",
+  "store_key": "powerzona",
+  "display_name": "PowerZona",
+  "application_id": "com.tusenda84.powerzona",
+  "store_url": "https://tusenda84.com/t/powerzona",
+  "firebase_android": {
+    "package_name": "com.tusenda84.powerzona",
+    "configuration_file": "app/google-services.json",
+    "tracked_in_git": false
+  },
+  "assets": {
+    "icon": {
+      "file": "icon.png",
+      "source": "docs/tusenda84/brand/powerzona/powerzona-icon-symbol-v3.png",
+      "sha256": "e284d6746df6e11f22c344eac4a117855c61cf8e737a51db3cec1d7415c8dadb"
+    },
+    "splash": {
+      "file": "splash.png",
+      "source": "docs/tusenda84/brand/powerzona/powerzona-splash-premium-v3.png",
+      "sha256": "6934893ef19c110e30facc2ef87eb1a91a26d4b0346cd190f90ea02f3f007bdf"
+    }
+  },
+  "palette": {
+    "deep_sapphire": "#071F63",
+    "energy_cobalt": "#155EEB",
+    "flash_blue": "#4A8DFF",
+    "platinum": "#C7D0DE",
+    "luminous_ice": "#E9F1FF",
+    "pearl_white": "#FFFFFF",
+    "ink": "#081735",
+    "secondary_text": "#465574",
+    "base_background": "#F8FAFF"
+  }
+}

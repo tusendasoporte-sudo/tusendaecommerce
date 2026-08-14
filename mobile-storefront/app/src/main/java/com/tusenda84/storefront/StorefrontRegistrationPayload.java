@@ -8,6 +8,7 @@ final class StorefrontRegistrationPayload {
     private static final Pattern ANDROID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$");
     private static final Pattern LOCALE = Pattern.compile("^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$");
     private static final Pattern TIMEZONE = Pattern.compile("^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:/[A-Za-z0-9_+-]+){1,3})$");
+    private static final Pattern CAMPAIGN = Pattern.compile("^[a-z0-9]{15}$");
 
     private StorefrontRegistrationPayload() {}
 
@@ -72,6 +73,11 @@ final class StorefrontRegistrationPayload {
 
     static String empty() {
         return "{}";
+    }
+
+    static String resolveCampaignTarget(String campaignId) {
+        require(campaignId, 15, CAMPAIGN);
+        return "{\"campaign_id\":" + quote(campaignId) + "}";
     }
 
     private static void require(String value, int max, Pattern pattern) {

@@ -1,71 +1,92 @@
-# Storefront Android white-label — PZ-APP-C06
+# Storefront Android white-label — variante PowerZona C07
 
-`mobile-storefront` es el shell Android público y reutilizable para tiendas Premium. Está separado de `mobile-admin`, no contiene autenticación administrativa y abre únicamente el storefront público configurado.
+`mobile-storefront` es el shell Android público para tiendas Premium. Sigue separado de `mobile-admin`, no contiene autenticación administrativa y sólo abre el storefront público configurado.
 
-La implementación C06 reutiliza la identidad y el cliente nativo App Check/FCM auditados en C06A. C07 sigue pendiente: iconos, splash, branding final de PowerZona y la matriz completa de destinos no forman parte de este cierre.
+C07 materializa exclusivamente la variante PowerZona sobre la base C03–C06: configuración declarativa, marca v3 aprobada, navegación push tipada y resolución autenticada de pedidos. No incluye C08, firma o publicación de producción, cambios de Firebase ni despliegues.
 
-## Configuración white-label
+## Configuración PowerZona
 
-El build recibe la tienda de forma declarativa:
+La fuente versionada es `config/powerzona.properties`; `brands/powerzona/brand.json` fija la identidad visual y comprueba los hashes de los maestros aprobados.
 
-| Propiedad Gradle | Ejemplo | Regla |
+| Valor | PowerZona |
+|---|---|
+| Storefront | `https://tusenda84.com/t/powerzona` |
+| Store key | `powerzona` |
+| Nombre | `PowerZona` |
+| `applicationId` staging confirmado | `com.tusenda84.powerzona` |
+| `applicationId` debug | `com.tusenda84.powerzona.debug` |
+| Versión C07 | `2` / `0.2.0` |
+
+Los overrides `PZ_STOREFRONT_STORE_URL`, `PZ_STOREFRONT_STORE_KEY`, `PZ_STOREFRONT_APP_NAME` y `PZ_STOREFRONT_API_BASE_URL` siguen disponibles para builds controlados. Gradle falla si la URL, la clave, el paquete, la marca o los hashes no coinciden con la definición PowerZona.
+
+La variante `release` permanece bloqueada en C07. `staging` exige API, Firebase y firma privada locales válidos; `debug` se compila sin secretos ni `google-services.json` y falla cerrado en las funciones nativas que requieran esa identidad.
+
+## Marca v3
+
+- Icono maestro: `brands/powerzona/icon.png`, copia byte-idéntica del v3 aprobado, SHA-256 `e284d6749069fec8843e24d237f5bf70d1c1ae90e1155c5f455d7415c8dadb`.
+- Splash maestro: `brands/powerzona/splash.png`, copia byte-idéntica del v3 aprobado, SHA-256 `6934893e59033857906526a6f77bfecbd6f6eb1ba33c16be0c043f007bdf`.
+- Paleta autorizada: `#071F63`, `#155EEB`, `#4A8DFF`, `#C7D0DE`, `#E9F1FF`, `#FFFFFF`, `#081735`, `#465574` y `#F8FAFF`.
+- El launcher adaptativo usa una zona segura uniforme para conservar el símbolo completo bajo máscaras Android. El splash Android 12+ reutiliza ese foreground; versiones anteriores usan el maestro vertical completo.
+
+No se usan activos v1/v2 ni se genera una marca alternativa.
+
+## Destinos desde push
+
+El payload acepta sólo `schema_version=1`, `channel=storefront`, la tienda esperada, un `campaign_id` exacto y un destino de lista cerrada.
+
+| Tipo | Ruta aceptada | Comportamiento seguro |
 |---|---|---|
-| `PZ_STOREFRONT_STORE_URL` | `https://tusenda84.com/t/powerzona` | HTTPS exacto, sin query ni fragmento y con ruta `/t/{store_key}` |
-| `PZ_STOREFRONT_STORE_KEY` | `powerzona` | Minúsculas, números y guiones; debe coincidir con la URL |
-| `PZ_STOREFRONT_APP_NAME` | `PowerZona` | Nombre visible de 1 a 60 caracteres |
-| `PZ_STOREFRONT_API_BASE_URL` | origen de staging | Opcional en debug; obligatorio y HTTPS puro en staging |
+| `home` | `/t/powerzona` | Portada |
+| `product` | `/t/powerzona/producto/{slug}` | Slug único permitido o portada |
+| `category` | `/t/powerzona/categoria/{slug}` | Slug único permitido o portada |
+| `section` | `/buscar`, `/links`, `/regalos`, `/rifa` o `/checkout` bajo la tienda | Sección permitida o portada |
+| `raffle` | `/t/powerzona/rifa[/{slug}]` | Rifa pública vigente o fallback del servidor |
+| `coupon` | `/t/powerzona?coupon={valor}` | Sintaxis cerrada; el storefront valida/aplica el cupón |
+| `order` | Sin recibo en FCM | Resuelve el recibo por backend autenticado; si no está disponible, abre portada |
 
-Los valores por defecto de debug son deliberadamente inertes (`example.invalid`, `store`, `Storefront`). Ninguna URL, FID, credencial ni token se expone al JavaScript del WebView.
+`StorefrontActivity` procesa el mismo contrato en `onCreate` y `onNewIntent`, por lo que cubre proceso cerrado, background y foreground. Hosts ajenos, otros tenants, rutas administrativas, controles, paths ambiguos, puertos y credenciales se bloquean.
 
-## Variantes y separación
+### Pedidos
 
-- `debug`: `com.tusenda84.powerzona.debug`, firma debug local y sufijo `-debug`. Puede coexistir con la app de staging.
-- `staging`: conserva `com.tusenda84.powerzona`, la identidad privada de C06A y exige API, Firebase y firma local válidos.
-- `release`: bloqueada deliberadamente durante C06. No se genera firma ni artefacto de producción.
-- `mobile-admin`: continúa siendo una aplicación independiente; no comparte `applicationId` con el debug storefront.
+El cliente llama `campaigns/resolve-target` con App Check y la credencial cifrada de instalación. El backend exige tienda, instalación, campaña, entrega y vínculo de pedido coincidentes y activos. Sólo devuelve una ruta `/orden/{numero}/{receiptToken}` después de validar el recibo; el token nunca viaja en FCM ni en logs. Cualquier ausencia, vencimiento o relación cruzada produce el mismo fallback seguro sin revelar existencia.
 
-El `applicationId` base de staging se conserva por compatibilidad con la Firebase app auditada en C06A. La variante/identidad final de PowerZona se completa en C07.
+## Notificaciones
 
-## Seguridad del shell
+Foreground crea una notificación local con el texto contractual. Una `image_url` opcional sólo se descarga si es HTTPS, sin redirecciones, usuario o puerto, termina en `.webp`, responde `image/webp` y no supera 100 KiB; el bitmap se muestra con `BigPictureStyle`. Si falla, se conserva texto con `BigTextStyle`. Background y proceso cerrado continúan usando el payload del relay storefront v2 de C05.
 
-- WebView con JavaScript y DOM storage solo para el storefront, sin `addJavascriptInterface`, acceso a archivos o contenido, selector de archivos, geolocalización, mixed content ni ventanas múltiples.
-- Tráfico cleartext deshabilitado, errores TLS cancelados y Safe Browsing activo cuando la plataforma lo permite.
-- Navegación interna limitada al host configurado y a `/t/{store_key}` o recibos públicos; rutas administrativas, API, otros tenants, puertos, credenciales y paths ambiguos se bloquean.
-- HTTPS externo y esquemas explícitos `tel`, `mailto`, `sms`, `smsto`, `geo` y `market` se delegan al sistema. Esquemas inseguros se bloquean.
-- Descargas solo se delegan al navegador cuando proceden del storefront permitido.
-- Estados offline/HTTP 5xx tienen overlay nativo con reintento y regreso seguro a portada.
-
-## Notificaciones e instalación C03
-
-La tarjeta de permiso aparece con contexto después de cargar la tienda. La primera acción solicita `POST_NOTIFICATIONS`; tras una denegación ofrece abrir Ajustes y desaparece al recuperar el permiso.
-
-El cliente nativo registra la instalación con C03 al iniciar y cuando rota el token/FID, conserva la credencial cifrada con Android Keystore y nunca la entrega al WebView. Si no existen Firebase/API válidos, debug falla cerrado y el storefront sigue navegable.
-
-`StorefrontMessagingService` valida `schema_version`, `channel`, `store_key`, `campaign_id`, `target_type`, `target_path` e `image_url`. Los mensajes data recibidos en foreground crean una notificación local; el manifiesto define icono/canal por defecto para background y proceso cerrado. El `Intent` de apertura se procesa tanto en `onCreate` como en `onNewIntent`. El destino `order` permanece con fallback a portada hasta el resolvedor autorizado de C07.
+El icono monocromo y el color de notificación son recursos PowerZona. Permiso contextual, rotación FID y almacenamiento de credencial reutilizan C03/C06 sin exponer identificadores al WebView.
 
 ## Archivos privados fuera de Git
 
-La raíz ignora `.secrets/` y este proyecto ignora `app/google-services.json`, keystores y builds. La firma de staging se resuelve desde `.secrets/mobile-storefront-staging.properties` o desde la ruta indicada por `PZ_STOREFRONT_SIGNING_PROPERTIES`; no debe copiarse, regenerarse ni reutilizarse para producción.
+La raíz ignora `.secrets/`; este proyecto ignora `app/google-services.json`, keystores y builds. La firma staging se resuelve desde `.secrets/mobile-storefront-staging.properties` o `PZ_STOREFRONT_SIGNING_PROPERTIES`. No debe copiarse, regenerarse ni reutilizarse para producción.
 
-La huella pública de staging auditada en C06A se mantiene sin cambios:
-
-```text
-12:5B:DC:CC:B5:53:0D:94:FC:7C:0C:E3:32:21:BE:78:52:96:0C:45:3E:D2:F0:47:46:29:82:FC:C5:4F:B3:72
-```
-
-No se debe añadir `google-services.json` a Git, habilitar App Check debug/enforcement ni modificar Firebase para compilar C06.
+No se debe añadir `google-services.json` a Git, habilitar App Check debug/enforcement, modificar Firebase ni generar firma Android de producción para compilar C07.
 
 ## Build debug reproducible
 
-Requisitos: JDK 17, Android SDK 36 y dependencias Gradle declaradas en el proyecto.
+Requisitos auditados: JDK de Android Studio con target Java 17, Android SDK 36 y Gradle del proyecto.
 
 ```powershell
-./gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon `
-  -PPZ_STOREFRONT_STORE_URL="https://tusenda84.com/t/powerzona" `
-  -PPZ_STOREFRONT_STORE_KEY="powerzona" `
-  -PPZ_STOREFRONT_APP_NAME="PowerZona"
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+$env:ANDROID_HOME = 'E:\Android\Sdk'
+./gradlew.bat clean testDebugUnitTest lintDebug assembleDebug --no-daemon
 ```
 
-La APK queda en `app/build/outputs/apk/debug/app-debug.apk`. El build debug no necesita secretos, firma de staging, `google-services.json` ni acceso a staging.
+Artefacto local C07:
 
-Las pruebas unitarias cubren configuración, payload de registro, allowlist/normalización de navegación y parsing/fallback de destinos push. La matriz manual C06 incluye apertura pública sin login, Atrás, rotación, offline/recuperación, permiso/Ajustes y apertura de payload contractual en foreground, background y proceso cerrado. El envío visual FCM real y cada destino de negocio se repiten en C07/C11 con autorización de staging y teléfono físico.
+```text
+app/build/outputs/apk/debug/app-debug.apk
+package: com.tusenda84.powerzona.debug
+version: 0.2.0-debug (2)
+size: 5,271,541 bytes
+SHA-256: 62e57c34e02e81e1f4f1ceb8d98e37a15c50dfb22405c89e78f0590a0e156f08
+debug certificate SHA-256: 3ef106bebf2393438c55c48453797c0229097668e5290511ea0771bf6090935c
+```
+
+Dos builds limpios consecutivos produjeron el mismo SHA-256. El cierre local aprobó 5 suites/22 pruebas, 0 fallos/errores/omitidas y lint 0. La inspección del APK encontró 0 entradas o strings de `google-services.json`, keystore, service account, `.secrets` o clave privada.
+
+## Validación y límite manual C07
+
+El APK final se instaló primero en `Pixel_4a` API 36 con `adb install -r`. `com.tusenda84.powerzona` staging permaneció instalado e intacto. Los siete tipos se ejercitaron con intents contractuales en foreground, background y proceso cerrado; la URL real del WebView se inspeccionó por un port-forward ADB local temporal. El pedido sin credencial cayó a portada y todos los procesos cerrados tuvieron PID vacío antes de recrearse.
+
+Esto valida el lifecycle y el enrutamiento local, pero no sustituye FCM real. Antes de cerrar C07 siguen siendo obligatorios, con autorización separada: campaña controlada de staging/Firebase, teléfono físico, cada destino en los tres estados, pedido real, cupón válido/inválido, imagen WebP, texto, permiso y observación final del splash. Hasta entonces C07 permanece `EN CURSO`.

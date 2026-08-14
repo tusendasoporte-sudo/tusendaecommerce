@@ -7,7 +7,6 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.graphics.Insets;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -50,9 +49,11 @@ public final class StorefrontActivity extends Activity {
     private boolean pageReady;
     private boolean registrationSyncInFlight;
     private boolean permissionSyncInFlight;
+    private int pushResolutionGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(R.style.Theme_PowerZonaStorefront);
         super.onCreate(savedInstanceState);
         configureWindow();
         setContentView(R.layout.activity_storefront);
@@ -76,16 +77,15 @@ public final class StorefrontActivity extends Activity {
         }
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            String pushTarget = resolvePushTarget(getIntent());
-            openInternalUrl(pushTarget.isEmpty() ? StorefrontConfig.storeUrl() : pushTarget);
+            if (!openPushTarget(getIntent())) openStoreHome();
         }
         syncInstallation();
     }
 
     private void configureWindow() {
         Window window = getWindow();
-        window.setStatusBarColor(Color.WHITE);
-        window.setNavigationBarColor(Color.WHITE);
+        window.setStatusBarColor(getColor(R.color.pz_brand_base_background));
+        window.setNavigationBarColor(getColor(R.color.pz_brand_base_background));
         window.getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         );
@@ -248,26 +248,41 @@ public final class StorefrontActivity extends Activity {
         }
     }
 
-    private String resolvePushTarget(Intent intent) {
-        StorefrontPushPayload payload = StorefrontPushPayload.fromIntent(
-                intent,
-                StorefrontConfig.storeKey()
-        );
-        if (payload == null) return "";
-        return StorefrontDeepLink.resolvePushTarget(
+    private StorefrontPushPayload pushPayload(Intent intent) {
+        return StorefrontPushPayload.fromIntent(intent, StorefrontConfig.storeKey());
+    }
+
+    private boolean openPushTarget(Intent intent) {
+        StorefrontPushPayload payload = pushPayload(intent);
+        if (payload == null) return false;
+        int generation = ++pushResolutionGeneration;
+        if ("order".equals(payload.targetType)) {
+            progressBar.setVisibility(View.VISIBLE);
+            client.resolveCampaignTarget(payload.campaignId, result -> {
+                if (generation != pushResolutionGeneration || isFinishing() || isDestroyed()) return;
+                String target = result.ok ? result.targetUrl : StorefrontConfig.storeUrl();
+                if (!result.ok) {
+                    Toast.makeText(this, R.string.push_target_unavailable, Toast.LENGTH_LONG).show();
+                }
+                openInternalUrl(target);
+            });
+            return true;
+        }
+        String target = StorefrontDeepLink.resolvePushTarget(
                 StorefrontConfig.storeUrl(),
                 StorefrontConfig.storeKey(),
                 payload.targetType,
                 payload.targetPath
         );
+        openInternalUrl(target.isEmpty() ? StorefrontConfig.storeUrl() : target);
+        return true;
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        String target = resolvePushTarget(intent);
-        if (!target.isEmpty()) openInternalUrl(target);
+        openPushTarget(intent);
     }
 
     private void openStoreHome() {

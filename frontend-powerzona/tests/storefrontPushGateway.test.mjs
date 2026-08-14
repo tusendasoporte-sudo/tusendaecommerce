@@ -19,6 +19,8 @@ import {
 import {
   STOREFRONT_MAX_BODY_BYTES,
   canonicalStorefrontJson,
+  mapStorefrontResolvedTarget,
+  normalizeStorefrontCampaignTargetPayload,
   normalizeStorefrontEmptyPayload,
   normalizeStorefrontHeartbeatPayload,
   normalizeStorefrontPermissionPayload,
@@ -80,6 +82,24 @@ test('contratos publicos son exactos y nunca aceptan store_id o IP del telefono'
     notification_permission: 'denied',
   });
   assert.equal(normalizeStorefrontPermissionPayload({ notification_permission: 'allowed' }), null);
+  assert.deepEqual(normalizeStorefrontCampaignTargetPayload({ campaign_id: 'abc123def456ghi' }), {
+    campaign_id: 'abc123def456ghi',
+  });
+  assert.equal(normalizeStorefrontCampaignTargetPayload({ campaign_id: 'abc123def456ghi', store_id: 'otra' }), null);
+  assert.deepEqual(mapStorefrontResolvedTarget({
+    ok: true,
+    target_type: 'order',
+    target_path: '/orden/PZ-84/AbCdEfGhIjKlMnOp',
+  }), {
+    ok: true,
+    target_type: 'order',
+    target_path: '/orden/PZ-84/AbCdEfGhIjKlMnOp',
+  });
+  assert.equal(mapStorefrontResolvedTarget({
+    ok: true,
+    target_type: 'order',
+    target_path: '/t/otra/admin',
+  }), null);
 });
 
 test('limita cuerpo real y declarado, y solo acepta Bearer con credencial opaca', async () => {
@@ -340,7 +360,7 @@ test('consumo bootstrap establece cookie HttpOnly Secure y solo redirige a ruta 
   assert.doesNotMatch(response.headers.get('set-cookie'), new RegExp(code));
 });
 
-test('inventario C03 expone seis rutas y no incluye C04 ni relay v2', () => {
+test('inventario C03+C07 conserva el gateway y añade solo el resolvedor tipado', () => {
   const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
   const gateway = read('../src/lib/storefrontPushAppCheck.ts');
   const routes = [
@@ -350,6 +370,7 @@ test('inventario C03 expone seis rutas y no incluye C04 ni relay v2', () => {
     '../src/pages/api/storefront/v1/installations/disable.ts',
     '../src/pages/api/storefront/v1/session/bootstrap.ts',
     '../src/pages/api/storefront/v1/session/bootstrap/[code].ts',
+    '../src/pages/api/storefront/v1/campaigns/resolve-target.ts',
   ].map(read).join('\n');
   assert.match(gateway, /verifyToken\(token\)/);
   assert.match(gateway, /environmentValue\('PZ_STOREFRONT_FIREBASE_PROJECT_ID'\)/);
@@ -364,5 +385,7 @@ test('inventario C03 expone seis rutas y no incluye C04 ni relay v2', () => {
   assert.match(routes, /installations_disable/);
   assert.match(routes, /session_bootstrap/);
   assert.match(routes, /consumeStorefrontBootstrap/);
-  assert.doesNotMatch(routes, /push\/v2|media|campaigns/);
+  assert.match(routes, /campaigns_resolve_target/);
+  assert.match(routes, /normalizeStorefrontCampaignTargetPayload/);
+  assert.doesNotMatch(routes, /push\/v2|media/);
 });

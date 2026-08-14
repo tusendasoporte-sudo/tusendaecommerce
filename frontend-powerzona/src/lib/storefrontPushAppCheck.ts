@@ -41,6 +41,7 @@ const ACTION_LIMITS = Object.freeze({
   installations_disable: 12,
   session_bootstrap: 12,
   session_consume: 24,
+  campaigns_resolve_target: 30,
 });
 
 type StorefrontAction = keyof typeof ACTION_LIMITS;

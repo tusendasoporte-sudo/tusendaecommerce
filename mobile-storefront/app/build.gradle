@@ -2,16 +2,60 @@ plugins {
     id 'com.android.application'
 }
 
+def storeConfigFile = rootProject.file('config/powerzona.properties')
+if (!storeConfigFile.exists()) {
+    throw new GradleException('Falta config/powerzona.properties para la variante PowerZona C07.')
+}
+def storeProperties = new Properties()
+storeConfigFile.withInputStream { stream -> storeProperties.load(stream) }
+
+def configuredValue = { String projectProperty, String configProperty ->
+    (project.findProperty(projectProperty) ?: storeProperties.getProperty(configProperty) ?: '')
+            .toString().trim()
+}
+
+def brandKey = configuredValue('PZ_STOREFRONT_BRAND_KEY', 'brand.key')
+def brandConfigFile = rootProject.file("brands/${brandKey}/brand.json")
+if (!brandConfigFile.exists()) {
+    throw new GradleException("Falta brands/${brandKey}/brand.json para la variante configurada.")
+}
+def brandConfig = new groovy.json.JsonSlurper().parseText(brandConfigFile.getText('UTF-8')) as Map
+def brandDirectory = brandConfigFile.parentFile
+def brandAsset = { String key ->
+    def entry = (brandConfig.assets as Map)?.get(key) as Map
+    entry ? new File(brandDirectory, entry.file?.toString() ?: '') : null
+}
+def sha256 = { File file ->
+    def digest = java.security.MessageDigest.getInstance('SHA-256')
+    file.withInputStream { stream ->
+        byte[] buffer = new byte[8192]
+        int read
+        while ((read = stream.read(buffer)) != -1) digest.update(buffer, 0, read)
+    }
+    digest.digest().encodeHex().toString()
+}
+
+def validateBrandAsset = { String key ->
+    def entry = (brandConfig.assets as Map)?.get(key) as Map
+    def file = brandAsset(key)
+    def expected = entry?.sha256?.toString()?.trim()?.toLowerCase()
+    if (file == null || !file.exists() || !(expected ==~ /[a-f0-9]{64}/) || sha256(file) != expected) {
+        throw new GradleException("El recurso PowerZona ${key} no coincide con el maestro v3 aprobado.")
+    }
+}
+
 def firebaseConfigFile = file('google-services.json')
 if (firebaseConfigFile.exists()) {
     apply plugin: 'com.google.gms.google-services'
 }
 
 def apiBaseUrl = (project.findProperty('PZ_STOREFRONT_API_BASE_URL') ?: '').toString().trim()
-def storeUrl = (project.findProperty('PZ_STOREFRONT_STORE_URL') ?: 'https://example.invalid/t/store')
-        .toString().trim()
-def storeKey = (project.findProperty('PZ_STOREFRONT_STORE_KEY') ?: 'store').toString().trim()
-def appDisplayName = (project.findProperty('PZ_STOREFRONT_APP_NAME') ?: 'Storefront').toString().trim()
+def storeUrl = configuredValue('PZ_STOREFRONT_STORE_URL', 'store.url')
+def storeKey = configuredValue('PZ_STOREFRONT_STORE_KEY', 'store.key')
+def appDisplayName = configuredValue('PZ_STOREFRONT_APP_NAME', 'app.display_name')
+def configuredApplicationId = configuredValue('PZ_STOREFRONT_APPLICATION_ID', 'application.id')
+def configuredVersionCode = configuredValue('PZ_STOREFRONT_VERSION_CODE', 'version.code')
+def configuredVersionName = configuredValue('PZ_STOREFRONT_VERSION_NAME', 'version.name')
 def destructiveTestsEnabled = (project.findProperty('PZ_ALLOW_STAGING_DESTRUCTIVE_TESTS') ?: 'false')
         .toString().trim().equalsIgnoreCase('true')
 def configuredSigningPropertiesPath = System.getenv('PZ_STOREFRONT_SIGNING_PROPERTIES')?.trim()
@@ -75,6 +119,31 @@ if (!validStoreUrl(storeUrl, storeKey)) {
 if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
     throw new GradleException('PZ_STOREFRONT_APP_NAME debe contener entre 1 y 60 caracteres visibles.')
 }
+if (brandKey != 'powerzona'
+        || storeKey != 'powerzona'
+        || storeUrl != 'https://tusenda84.com/t/powerzona'
+        || appDisplayName != 'PowerZona'
+        || configuredApplicationId != 'com.tusenda84.powerzona') {
+    throw new GradleException('La variante C07 debe conservar exactamente la identidad PowerZona aprobada.')
+}
+if (brandConfig.schema_version != 1
+        || brandConfig.brand_key != brandKey
+        || brandConfig.store_key != storeKey
+        || brandConfig.display_name != appDisplayName
+        || brandConfig.application_id != configuredApplicationId
+        || brandConfig.store_url != storeUrl
+        || (brandConfig.firebase_android as Map)?.package_name != configuredApplicationId
+        || (brandConfig.firebase_android as Map)?.tracked_in_git != false) {
+    throw new GradleException('brands/powerzona/brand.json no coincide con la configuración C07 autorizada.')
+}
+def versionCodeValue
+try { versionCodeValue = Integer.parseInt(configuredVersionCode) } catch (Exception ignored) { versionCodeValue = 0 }
+if (versionCodeValue < 1 || versionCodeValue > 2_147_483_647
+        || !(configuredVersionName ==~ /[0-9]+\.[0-9]+\.[0-9]+/)) {
+    throw new GradleException('La versión PowerZona debe usar versionCode positivo y versionName semántico.')
+}
+validateBrandAsset('icon')
+validateBrandAsset('splash')
 
 if (stagingPackagingRequested) {
     if (!signingConfigured) {
@@ -90,7 +159,7 @@ if (stagingPackagingRequested) {
     }
 }
 if (releasePackagingRequested) {
-    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C06.')
+    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C07.')
 }
 
 def javaStringLiteral = { String value ->
@@ -102,11 +171,11 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.tusenda84.powerzona'
+        applicationId configuredApplicationId
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '0.1.0'
+        versionCode versionCodeValue
+        versionName configuredVersionName
 
         buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(apiBaseUrl)
         buildConfigField 'String', 'STORE_URL', javaStringLiteral(storeUrl)
@@ -137,11 +206,13 @@ android {
         debug {
             applicationIdSuffix '.debug'
             versionNameSuffix '-debug'
+            manifestPlaceholders = [storefrontAppName: "${appDisplayName} Debug"]
         }
         staging {
             initWith release
             matchingFallbacks = ['release']
             versionNameSuffix '-staging'
+            manifestPlaceholders = [storefrontAppName: "${appDisplayName} Staging"]
             minifyEnabled false
             shrinkResources false
             if (signingConfigured) signingConfig signingConfigs.staging

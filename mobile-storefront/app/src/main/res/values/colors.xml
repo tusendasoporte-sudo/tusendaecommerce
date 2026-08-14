@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="pz_staging_primary">#123F9A</color>
-    <color name="pz_staging_surface">#F8FAFC</color>
-    <color name="pz_staging_text">#0F172A</color>
-    <color name="pz_staging_muted">#475569</color>
-    <color name="pz_staging_permission_surface">#FFFFFFFF</color>
+    <color name="pz_brand_deep_sapphire">#071F63</color>
+    <color name="pz_brand_energy_cobalt">#155EEB</color>
+    <color name="pz_brand_flash_blue">#4A8DFF</color>
+    <color name="pz_brand_platinum">#C7D0DE</color>
+    <color name="pz_brand_luminous_ice">#E9F1FF</color>
+    <color name="pz_brand_pearl_white">#FFFFFF</color>
+    <color name="pz_brand_ink">#081735</color>
+    <color name="pz_brand_secondary_text">#465574</color>
+    <color name="pz_brand_base_background">#F8FAFF</color>
 </resources>

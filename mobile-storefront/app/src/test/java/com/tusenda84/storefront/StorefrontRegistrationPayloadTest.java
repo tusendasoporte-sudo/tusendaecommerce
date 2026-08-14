@@ -42,6 +42,10 @@ public final class StorefrontRegistrationPayloadTest {
                 StorefrontRegistrationPayload.permission("denied")
         );
         assertEquals("{}", StorefrontRegistrationPayload.empty());
+        assertEquals(
+                "{\"campaign_id\":\"abc123def456ghi\"}",
+                StorefrontRegistrationPayload.resolveCampaignTarget("abc123def456ghi")
+        );
     }
 
     @Test
@@ -50,6 +54,7 @@ public final class StorefrontRegistrationPayloadTest {
                 "short", "0.1.0", 1, "16", "Pixel", "en-US", "UTC", "granted"
         ));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.permission("allowed"));
+        assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.resolveCampaignTarget("short"));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.heartbeat(
                 "0.1.0", 1, "16", "Pixel\nInjected", "en-US", "UTC"
         ));

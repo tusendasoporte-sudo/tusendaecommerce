@@ -46,3 +46,11 @@ routerAdd(
   $apis.bodyLimit(4096),
   $apis.skipSuccessActivityLog()
 );
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/resolve-target",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "campaigns_resolve_target"),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);

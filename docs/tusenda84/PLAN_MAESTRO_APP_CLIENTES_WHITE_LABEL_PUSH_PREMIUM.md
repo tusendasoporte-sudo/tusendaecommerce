@@ -6,7 +6,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C06 COMPLETADO — base Android white-label `mobile-storefront` |
+| Estado general | PZ-APP-C07 EN CURSO — variante PowerZona y navegación desde push |
 | Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-14 |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Iniciar exclusivamente PZ-APP-C07 en una tarea nueva; no iniciar C08 ni fases posteriores |
+| Próximo prompt | Completar exclusivamente PZ-APP-C07; no iniciar C08 ni fases posteriores |
 
 ### Convención de estados
 
@@ -562,7 +562,7 @@ Estado vigente:
 | PZ-APP-C06A | Identidad de firma y cliente App Check de staging | COMPLETADO | C01 | Completada: token Play Integrity y matriz C03 real en Fold5 | Sol — Extra High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
-| PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
+| PZ-APP-C07 | Variante PowerZona y deep links | EN CURSO | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | PENDIENTE | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
@@ -1707,3 +1707,100 @@ Implementar exclusivamente la base Android white-label C06 sobre el proyecto mí
 #### Siguiente paso
 
 - Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C07 desde el cierre consolidado de C06. Antes deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, worktrees, stash, `.tmp/` y secretos locales. C08 y fases posteriores no deben iniciarse en esa tarea.
+
+### 2026-08-14 — PZ-APP-C07 — Variante PowerZona y navegación desde push
+
+- Estado: EN CURSO
+- Responsable: Codex
+- Entorno: local; emulador después de las pruebas automatizadas; staging, Firebase y producción fuera de alcance sin autorización separada
+- Branch: trabajo en worktree desacoplado desde el cierre local de `dev`; consolidación en `dev` pendiente del cierre
+- Commit base: `17704dfce6304d84d74b20171c0c9c775d947020`
+- Fecha/hora de inicio: 2026-08-14 06:31:01 -04:00
+- Fecha/hora de cierre: pendiente
+
+#### Objetivo en curso
+
+Implementar exclusivamente la variante PowerZona y la navegación segura desde push definida por C07: configuración y marca v3 aprobada, recursos Android finales, identificador confirmado y destinos portada, producto, categoría, sección, orden, rifa y cupón con fallback seguro en foreground, background y proceso cerrado. Se reutilizan C03-C06 sin rehacerlos. C08-C12 no se inician.
+
+#### Comprobaciones de inicio
+
+- Este worktree comenzó limpio y desacoplado en `17704dfce6304d84d74b20171c0c9c775d947020`; `dev` local apunta al mismo cierre C06.
+- La referencia local `origin/dev` y la consulta remota real `refs/heads/dev` apuntan a `ad0e9deab2bcc494b76df18a66f5148032bb8acf`; C06 permanece exclusivamente local y no se publicará sin autorización separada.
+- Los commits C06 locales forman la cadena `3634f23878a2448f07c4a5cf0ebc4ba2fd809ea7` → `769c8826433d31100996a4c617ad4cd1f35481b4` → `17704dfce6304d84d74b20171c0c9c775d947020`.
+- El worktree principal `dev` está limpio y tres commits por delante de `origin/dev`; `.tmp/` y `.secrets/` existen allí, están ignorados y se preservarán sin abrirlos ni modificarlos. Este worktree no contiene esas rutas.
+- El stash ajeno `On main: WIP recibo orden desde main`, todos los worktrees ajenos y la identidad de firma de staging quedan intactos.
+- El plan maestro v1.27 se leyó íntegramente. C01, C02, C03, C04, C06A, C05 y C06 están `COMPLETADO`; la puerta C07 (`C05 + C06`) está satisfecha. C08-C12 permanecen `PENDIENTE`.
+
+#### Archivos previstos y justificación
+
+- La implementación se limita al inventario C07 de la sección 6.11 y a este plan vivo. C03-C06 se reutilizan como base auditada y no se rehacen.
+- Archivos Android adicionales registrados antes de editarlos: `mobile-storefront/app/build.gradle`, `app/src/main/AndroidManifest.xml`, `StorefrontActivity.java`, `StorefrontConfig.java`, `StorefrontDeepLink.java`, `StorefrontRegistrationClient.java`, `StorefrontRegistrationPayload.java`, `StorefrontNotifications.java`, pruebas C06 relacionadas, `README.md` y recursos bajo `app/src/main/res/`. Son necesarios para consumir la configuración PowerZona, aplicar launcher/splash/paleta v3, distinguir staging, resolver órdenes autenticadas y mostrar la WebP en foreground; no añaden otra marca ni adelantan C10.
+- Recursos Android adicionales registrados: densidades `mipmap-*`, icono adaptativo `mipmap-anydpi-v26`, splash de arranque por versión, paleta/tema PowerZona e icono monocromo de notificación. Todos se derivan únicamente de los maestros v3 aprobados; v1 y v2 no se usan.
+- Archivos gateway adicionales registrados antes de editarlos: `frontend-powerzona/src/lib/storefrontPushContracts.ts`, `frontend-powerzona/src/lib/storefrontPushAppCheck.ts` y `frontend-powerzona/tests/storefrontPushGateway.test.mjs`. Son la extensión mínima del sobre firmado/App Check C03 para exponer `campaigns/resolve-target` sin duplicar seguridad ni filtrar el token de recibo en FCM.
+- Prueba C03 adicional registrada al detectarse su inventario de seis rutas: `backend-powerzona/tests/pz_storefront_installations.test.cjs`. C07 debe actualizarla para exigir exactamente la séptima ruta privada `campaigns/resolve-target`, con body limit y omisión de activity logs, sin relajar las seis rutas existentes.
+- Antes de incorporar cualquier otro archivo adicional necesario para completar navegación, recursos Android o documentación de pruebas C07, se registrará aquí su ruta y justificación.
+
+#### Migraciones o infraestructura
+
+- Ninguna. No se cambió ni redesplegó PocketBase, frontend, relay, Firebase, App Check, Cloudflare, Coolify, staging o producción.
+
+#### Implementación local
+
+- Se añadió `mobile-storefront/config/powerzona.properties` y `mobile-storefront/brands/powerzona/brand.json` como fuente declarativa de nombre, URL, store key, paquete, versión, paleta y hashes. Gradle valida la identidad PowerZona y conserva los overrides controlados; `release` sigue bloqueada.
+- Los maestros v3 aprobados se copiaron byte-idénticos a `brands/powerzona/icon.png` y `splash.png`. Launcher adaptativo, round icon, monocromo, splash pre-Android 12, splash Android 12+, layouts, barras y estados nativos usan exclusivamente la paleta autorizada. Tras detectar recorte por máscara circular en el emulador, los foregrounds derivados recibieron una zona segura uniforme; el maestro aprobado no se alteró.
+- `StorefrontDeepLink` cubre portada, producto, categoría, las cinco secciones permitidas, rifa y cupón con allowlists estrictas y fallback a portada. `onCreate` y `onNewIntent` comparten el mismo manejo para proceso cerrado, background y foreground.
+- `order` ya no confía en una ruta FCM. La app envía únicamente `campaign_id` al nuevo resolvedor App Check + credencial. Backend revalida app, instalación, tienda, campaña, entrega aceptada/desconocida, vínculo activo y pedido del mismo tenant; sólo entonces devuelve `/orden/{numero}/{receiptToken}`. Ausencia, vencimiento, formato inválido o cruce de tenant/instalación producen el mismo 404/fallback sin filtrar el recibo.
+- Se incorporaron la ruta gateway `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`, la prueba backend `backend-powerzona/tests/pz_storefront_order_targets.test.cjs` y `PowerZonaDestinationsTest.java` para aislar el contrato C07. La ruta reutiliza el sobre interno firmado, App Check y autenticación de instalación C03; no modifica el relay administrativo v1.
+- Foreground descarga la imagen sólo por HTTPS sin credenciales, puerto o redirecciones, exige `.webp`/`image/webp`, limita a 100 KiB y 1200×630, y degrada a `BigTextStyle` si falla. Background/cerrada conservan el relay storefront v2 de C05.
+
+#### Validación automatizada local
+
+- Backend proporcional: `node --test tests/pz_storefront_installations.test.cjs tests/pz_storefront_order_targets.test.cjs tests/pz_storefront_campaigns.test.cjs tests/pz_storefront_push_dispatch.test.cjs` → 34 pruebas, 33 aprobadas, 0 fallos y 1 omitida porque el binario PocketBase runtime no está dentro de este worktree.
+- Frontend proporcional: `node --test tests/storefrontPushGateway.test.mjs tests/pushRelayV2Payload.test.mjs` → 18/18 aprobadas. `npm run build` terminó correctamente; sólo mostró las tres advertencias históricas de Astro sobre `getStaticPaths` ignorado en rutas dinámicas. El junction temporal de `node_modules` auditado se retiró y no quedó en Git.
+- Android: dos ejecuciones finales de `clean testDebugUnitTest lintDebug assembleDebug --no-daemon` → 5 suites, 22/22 pruebas, 0 fallos, 0 errores, 0 omitidas, lint 0 y APK byte-idéntica.
+- APK final: `com.tusenda84.powerzona.debug`, `0.2.0-debug`/code 2, minSdk 26, target/compileSdk 36, 5.271.541 bytes, SHA-256 `62e57c34e02e81e1f4f1ceb8d98e37a15c50dfb22405c89e78f0590a0e156f08`. Firma debug v2, un firmante, certificado SHA-256 `3ef106bebf2393438c55c48453797c0229097668e5290511ea0771bf6090935c`.
+- La inspección del APK encontró 0 entradas y 0 strings de `google-services.json`, keystore, service account, `.secrets` o clave privada. `git diff --check` quedó limpio antes de esta actualización documental.
+
+#### Validación local en emulador
+
+- El APK final se instaló primero mediante `adb install -r` en `Pixel_4a`, Android 16/API 36. Debug pasó de `0.1.0-debug` a `0.2.0-debug`; `com.tusenda84.powerzona` permaneció exactamente en `0.1.0-staging`.
+- La portada PowerZona cargó sin login y se comprobó visualmente la marca. El cajón de aplicaciones confirmó `PowerZona Debug` con el símbolo v3 completo y `PowerZona Storefront Staging` como paquete separado.
+- Una matriz sintética envió los siete tipos contractuales en foreground, background y proceso cerrado. Los 21 `am start` terminaron con exit 0; foreground/background recuperaron foco y URL interna permitida. En los siete casos cerrados `pidof` quedó vacío antes de abrir y el proceso se recreó; los dos sockets WebView inicialmente tardíos (home/producto) se repitieron con espera suficiente.
+- Portada, categoría, buscar, rifa y cupón se observaron en su URL exacta. El producto sintético abrió `/t/powerzona/producto/creatina` y el sitio lo rotuló correctamente como no disponible. `order`, sin identidad Firebase/credencial en debug, cayó a portada con el fallback esperado.
+- El primer harness ADB fue descartado porque pasó `image_url` vacío con sintaxis inválida; no se contó como evidencia. La matriz corregida omitió el campo opcional y registró código de arranque, PID, foco y URL.
+- Durante la captura intensiva de frames el AVD se cerró inesperadamente sin que se ejecutara un comando de apagado. Tras informar recurso, impacto y prueba, se reinició únicamente `Pixel_4a` conservando userdata; boot, API y versiones debug/staging quedaron intactos. No se repitió la captura intensiva.
+- Se capturó el splash del sistema antes de ajustar la zona segura y se verificó que Android usaba el foreground PowerZona; esa evidencia reveló el recorte y motivó la corrección. El recurso final compila y el launcher final muestra el símbolo completo, pero el emulador no expuso un frame estable del splash posterior. Esa observación visual final queda en la matriz manual pendiente y no se presenta como aprobada.
+
+#### Matriz manual requerida
+
+| Destino | Foreground emulador | Background emulador | Cerrada emulador | FCM real + teléfono físico |
+|---|---|---|---|---|
+| Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [ ] pendiente |
+| Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [ ] pendiente |
+| Categoría | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] pendiente |
+| Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
+| Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [ ] pedido real autorizado |
+| Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] vigente/vencida |
+| Cupón | [x] URL sintáctica | [x] URL sintáctica | [x] PID vacío + URL | [ ] válido/inválido servidor |
+
+| Comprobación visual/operativa | Emulador local | Teléfono físico + FCM real |
+|---|---|---|
+| Icono final | [x] símbolo completo y paquetes separados | [ ] pendiente |
+| Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
+| Imagen WebP y texto | [ ] implementación/pruebas; falta entrega real | [ ] pendiente |
+| Permiso concedido/denegado | [x] base C06 preservada | [ ] repetir en C07 |
+| App abierta/background/cerrada | [x] lifecycle sintético | [ ] notificación real pendiente |
+
+#### Riesgos, deuda o bloqueos
+
+- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. La matriz FCM real y cualquier uso de staging/Firebase requieren aviso y autorización separada antes de tocar esos recursos.
+- La identidad de firma de staging, secretos locales ignorados y `google-services.json` no se leerán, regenerarán ni alterarán. No se generará firma de producción ni se habilitará enforcement.
+- C07 permanece `EN CURSO`: no puede marcarse `COMPLETADO` hasta que el propietario autorice y confirme la matriz FCM real/teléfono, incluidos pedido, cupón válido/inválido, WebP/texto, permiso e inspección final de splash. Esa autorización no se infiere de la solicitud de trabajo local.
+
+#### Despliegue
+
+- No realizado ni autorizado. No se ejecutó push, despliegue, cambio de Firebase/App Check, firma de producción ni cambio externo. Sólo se instaló la variante debug en el emulador local y se reinició ese AVD después de su cierre inesperado, con aviso y verificación antes/después.
+
+#### Siguiente paso
+
+- Solicitar autorización explícita y separada para usar exclusivamente staging/Firebase y el teléfono físico en la matriz manual C07. Completar y confirmar esa tabla antes de cerrar C07. No iniciar PZ-APP-C08 ni fases posteriores.

@@ -20,7 +20,8 @@ final class StorefrontDeepLink {
             "/buscar", "/links", "/regalos", "/rifa", "/checkout"
     );
     private static final Pattern SLUG = Pattern.compile("^[a-z0-9][a-z0-9_-]{0,159}$");
-    private static final Pattern RECEIPT_SEGMENT = Pattern.compile("^[A-Za-z0-9_-]{6,200}$");
+    private static final Pattern ORDER_NUMBER_SEGMENT = Pattern.compile("^[A-Za-z0-9_-]{1,80}$");
+    private static final Pattern RECEIPT_TOKEN_SEGMENT = Pattern.compile("^[A-Za-z0-9_-]{6,80}$");
     private static final Pattern COUPON_VALUE = Pattern.compile("^[A-Za-z0-9._~%+-]{1,160}$");
 
     private StorefrontDeepLink() {}
@@ -58,7 +59,7 @@ final class StorefrontDeepLink {
         String targetPath = clean(rawTargetPath);
         if (home.isEmpty()) return "";
         if ("home".equals(type)) return targetPath.equals("/t/" + key) ? home : home;
-        if ("order".equals(type)) return home; // C07 resolverá el recibo sin incluir su token en FCM.
+        if ("order".equals(type)) return home; // El recibo se resuelve con credencial, nunca desde FCM.
         if (!isAllowedPushPath(type, targetPath, key)) return home;
 
         try {
@@ -67,6 +68,15 @@ final class StorefrontDeepLink {
         } catch (URISyntaxException error) {
             return home;
         }
+    }
+
+    static String resolveServerOrderTarget(String configuredStoreUrl, String rawTargetPath) {
+        URI configured = parseAbsoluteHttps(configuredStoreUrl);
+        String targetPath = clean(rawTargetPath);
+        if (configured == null || targetPath.length() > 500 || !isReceiptPath(targetPath)) {
+            return StorefrontConfig.normalizeStoreUrl(configuredStoreUrl, StorefrontConfig.storeKey());
+        }
+        return "https://" + configured.getHost().toLowerCase(Locale.ROOT) + targetPath;
     }
 
     private static boolean isAllowedInternalNavigation(URI candidate, String configuredStoreUrl) {
@@ -132,8 +142,8 @@ final class StorefrontDeepLink {
         return parts.length == 4
                 && parts[0].isEmpty()
                 && "orden".equals(parts[1])
-                && RECEIPT_SEGMENT.matcher(parts[2]).matches()
-                && RECEIPT_SEGMENT.matcher(parts[3]).matches();
+                && ORDER_NUMBER_SEGMENT.matcher(parts[2]).matches()
+                && RECEIPT_TOKEN_SEGMENT.matcher(parts[3]).matches();
     }
 
     private static URI parseAbsoluteHttps(String raw) {

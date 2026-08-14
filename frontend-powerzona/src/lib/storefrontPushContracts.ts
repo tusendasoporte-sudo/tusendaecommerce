@@ -4,6 +4,7 @@ export const STOREFRONT_MAX_BODY_BYTES = Object.freeze({
   permission: 512,
   disable: 256,
   session_bootstrap: 256,
+  resolve_target: 512,
 });
 
 export const STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
@@ -16,6 +17,8 @@ const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
 const TIMEZONE_PATTERN = /^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,3})$/;
 const PERMISSION_STATES = Object.freeze(['unknown', 'granted', 'denied'] as const);
+const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+const ORDER_TARGET_PATH_PATTERN = /^\/orden\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{6,80}$/;
 
 export type NotificationPermission = typeof PERMISSION_STATES[number];
 
@@ -153,6 +156,21 @@ export function normalizeStorefrontPermissionPayload(value: unknown) {
 
 export function normalizeStorefrontEmptyPayload(value: unknown) {
   return exactKeys(value, []) ? Object.freeze({}) : null;
+}
+
+export function normalizeStorefrontCampaignTargetPayload(value: unknown) {
+  if (!exactKeys(value, ['campaign_id'])) return null;
+  const campaignId = boundedText((value as Record<string, unknown>).campaign_id, 15, RECORD_ID_PATTERN);
+  return campaignId ? Object.freeze({ campaign_id: campaignId }) : null;
+}
+
+export function mapStorefrontResolvedTarget(value: unknown) {
+  if (!exactKeys(value, ['ok', 'target_path', 'target_type'])) return null;
+  const source = value as Record<string, unknown>;
+  if (source.ok !== true || source.target_type !== 'order'
+    || typeof source.target_path !== 'string'
+    || !ORDER_TARGET_PATH_PATTERN.test(source.target_path)) return null;
+  return Object.freeze({ ok: true, target_type: 'order', target_path: source.target_path });
 }
 
 export function storefrontInstallationCredential(request: Request) {

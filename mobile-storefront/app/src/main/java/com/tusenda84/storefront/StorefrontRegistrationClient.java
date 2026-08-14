@@ -39,6 +39,10 @@ final class StorefrontRegistrationClient {
         void complete(Result result);
     }
 
+    interface TargetCallback {
+        void complete(TargetResult result);
+    }
+
     static final class Result {
         final boolean ok;
         final String message;
@@ -57,8 +61,30 @@ final class StorefrontRegistrationClient {
         }
     }
 
+    static final class TargetResult {
+        final boolean ok;
+        final String targetUrl;
+
+        private TargetResult(boolean ok, String targetUrl) {
+            this.ok = ok;
+            this.targetUrl = targetUrl;
+        }
+
+        static TargetResult ok(String targetUrl) {
+            return new TargetResult(true, targetUrl);
+        }
+
+        static TargetResult fail() {
+            return new TargetResult(false, "");
+        }
+    }
+
     private interface Operation {
         Result run() throws Exception;
+    }
+
+    private interface TargetOperation {
+        TargetResult run() throws Exception;
     }
 
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
@@ -66,6 +92,7 @@ final class StorefrontRegistrationClient {
             "^https://[^/]+/api/storefront/v1/session/bootstrap/pzb_v1_[A-Za-z0-9]{48}$"
     );
     private static final Pattern SAFE_ERROR = Pattern.compile("^[a-z0-9_]{1,80}$");
+    private static final Pattern CAMPAIGN_PATTERN = Pattern.compile("^[a-z0-9]{15}$");
     private static final int RESPONSE_LIMIT = 65_536;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -147,6 +174,10 @@ final class StorefrontRegistrationClient {
             if (result.ok) StorefrontInstallationStore.clearCredential(context);
             return result;
         });
+    }
+
+    void resolveCampaignTarget(String campaignId, TargetCallback callback) {
+        executeTarget(callback, () -> resolveCampaignTargetInternal(campaignId));
     }
 
     private Result registerInternal(
@@ -234,6 +265,33 @@ final class StorefrontRegistrationClient {
             return Result.fail("El gateway devolvió un bootstrap no válido.");
         }
         return consumeBootstrap(bootstrapUrl);
+    }
+
+    private TargetResult resolveCampaignTargetInternal(String campaignId) throws Exception {
+        Result readiness = readiness();
+        if (!readiness.ok || !CAMPAIGN_PATTERN.matcher(clean(campaignId)).matches()) {
+            return TargetResult.fail();
+        }
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return TargetResult.fail();
+        HttpResult response = post(
+                StorefrontConfig.RESOLVE_TARGET_PATH,
+                StorefrontRegistrationPayload.resolveCampaignTarget(campaignId),
+                credential,
+                false
+        );
+        if (!response.ok()) return TargetResult.fail();
+        JSONObject payload = new JSONObject(response.body);
+        if (!payload.optBoolean("ok", false) || !"order".equals(payload.optString("target_type", ""))) {
+            return TargetResult.fail();
+        }
+        String targetUrl = StorefrontDeepLink.resolveServerOrderTarget(
+                StorefrontConfig.storeUrl(),
+                payload.optString("target_path", "")
+        );
+        return targetUrl.equals(StorefrontConfig.storeUrl())
+                ? TargetResult.fail()
+                : TargetResult.ok(targetUrl);
     }
 
     private Result consumeBootstrap(String bootstrapUrl) throws Exception {
@@ -362,6 +420,19 @@ final class StorefrontRegistrationClient {
                 result = Result.fail(safeFailure(error));
             }
             Result delivered = result;
+            MAIN.post(() -> callback.complete(delivered));
+        });
+    }
+
+    private void executeTarget(TargetCallback callback, TargetOperation operation) {
+        EXECUTOR.execute(() -> {
+            TargetResult result;
+            try {
+                result = operation.run();
+            } catch (Exception ignored) {
+                result = TargetResult.fail();
+            }
+            TargetResult delivered = result;
             MAIN.post(() -> callback.complete(delivered));
         });
     }

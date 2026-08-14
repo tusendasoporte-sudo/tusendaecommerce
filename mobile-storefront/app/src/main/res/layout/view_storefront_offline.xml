@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:text="@string/offline_title"
-        android:textColor="@color/pz_staging_text"
+        android:textColor="@color/pz_brand_ink"
         android:textSize="24sp"
         android:textStyle="bold" />
 
@@ -23,7 +23,7 @@
         android:layout_marginTop="12dp"
         android:gravity="center"
         android:text="@string/offline_message"
-        android:textColor="@color/pz_staging_muted"
+        android:textColor="@color/pz_brand_secondary_text"
         android:textSize="15sp" />
 
     <Button
@@ -31,14 +31,18 @@
         android:layout_width="220dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
+        android:backgroundTint="@color/pz_brand_energy_cobalt"
         android:text="@string/retry"
-        android:textAllCaps="false" />
+        android:textAllCaps="false"
+        android:textColor="@color/pz_brand_pearl_white" />
 
     <Button
         android:id="@+id/storefront_home"
         android:layout_width="220dp"
         android:layout_height="wrap_content"
+        android:backgroundTint="@color/pz_brand_deep_sapphire"
         android:text="@string/open_store_home"
-        android:textAllCaps="false" />
+        android:textAllCaps="false"
+        android:textColor="@color/pz_brand_pearl_white" />
 
 </LinearLayout>

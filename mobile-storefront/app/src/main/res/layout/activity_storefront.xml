@@ -10,7 +10,7 @@
         android:id="@+id/storefront_webview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/pz_staging_surface"
+        android:background="@color/pz_brand_base_background"
         android:contentDescription="@string/storefront_web_content" />
 
     <ProgressBar
@@ -20,7 +20,8 @@
         android:layout_height="3dp"
         android:layout_gravity="top"
         android:max="100"
-        android:progressTint="@color/pz_staging_primary"
+        android:progressBackgroundTint="@color/pz_brand_platinum"
+        android:progressTint="@color/pz_brand_flash_blue"
         android:visibility="gone" />
 
     <include
@@ -34,7 +35,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_margin="16dp"
-        android:background="@color/pz_staging_permission_surface"
+        android:background="@color/pz_brand_luminous_ice"
         android:elevation="10dp"
         android:gravity="center_vertical"
         android:orientation="vertical"
@@ -45,7 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/notification_card_title"
-            android:textColor="@color/pz_staging_text"
+            android:textColor="@color/pz_brand_ink"
             android:textSize="17sp"
             android:textStyle="bold" />
 
@@ -55,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
             android:text="@string/notification_card_prompt"
-            android:textColor="@color/pz_staging_muted"
+            android:textColor="@color/pz_brand_secondary_text"
             android:textSize="14sp" />
 
         <Button
@@ -63,8 +64,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
+            android:backgroundTint="@color/pz_brand_energy_cobalt"
             android:text="@string/notification_enable"
-            android:textAllCaps="false" />
+            android:textAllCaps="false"
+            android:textColor="@color/pz_brand_pearl_white" />
     </LinearLayout>
 
 </FrameLayout>

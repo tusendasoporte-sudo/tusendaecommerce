@@ -11,6 +11,7 @@ final class StorefrontConfig {
     static final String PERMISSION_PATH = "/api/storefront/v1/installations/permission";
     static final String DISABLE_PATH = "/api/storefront/v1/installations/disable";
     static final String BOOTSTRAP_PATH = "/api/storefront/v1/session/bootstrap";
+    static final String RESOLVE_TARGET_PATH = "/api/storefront/v1/campaigns/resolve-target";
 
     private static final Pattern STORE_KEY = Pattern.compile("^[a-z0-9][a-z0-9-]{1,62}$");
 

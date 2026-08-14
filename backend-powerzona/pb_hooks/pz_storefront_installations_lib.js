@@ -15,6 +15,9 @@ const secretContract = typeof __hooks === "undefined"
 const APP_CONFIGS_COLLECTION = "storefront_app_configs";
 const INSTALLATIONS_COLLECTION = "storefront_installations";
 const WEB_SESSIONS_COLLECTION = "storefront_web_sessions";
+const CAMPAIGNS_COLLECTION = "push_campaigns";
+const DELIVERIES_COLLECTION = "push_campaign_deliveries";
+const ORDER_LINKS_COLLECTION = "storefront_order_links";
 const INTERNAL_SECRET_ENV = "PZ_STOREFRONT_INTERNAL_SECRET";
 const CREDENTIAL_SECRET_ENV = "PZ_STOREFRONT_CREDENTIAL_SECRET";
 const INTERNAL_HEADERS = Object.freeze({
@@ -31,6 +34,9 @@ const APP_ID_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,255}$/;
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
+const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
+const RECEIPT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{6,80}$/;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$/;
 const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
@@ -47,6 +53,7 @@ const ACTION_LIMITS = Object.freeze({
   installations_disable: 12,
   session_bootstrap: 12,
   session_consume: 24,
+  campaigns_resolve_target: 30,
 });
 const SAFE_ERRORS = new Set([
   "unauthorized",
@@ -61,6 +68,7 @@ const SAFE_ERRORS = new Set([
   "client_ip_unavailable",
   "rate_limited",
   "bootstrap_not_found",
+  "target_not_available",
   "storefront_secrets_unavailable",
   "registration_unavailable",
   "request_unavailable",
@@ -310,6 +318,12 @@ function parseBootstrapConsumePayload(value) {
   return BOOTSTRAP_CODE_PATTERN.test(code) ? Object.freeze({ code }) : null;
 }
 
+function parseCampaignResolvePayload(value) {
+  if (!exactPayload(value, ["campaign_id"])) return null;
+  const campaignId = safeText(bodyValue(value, "campaign_id"));
+  return RECORD_ID_PATTERN.test(campaignId) ? Object.freeze({ campaignId }) : null;
+}
+
 function parseEnvelope(body, action) {
   if (!exactPayload(body, ["app_id", "credential", "client", "payload"])) return null;
   const appId = bodyValue(body, "app_id");
@@ -329,6 +343,7 @@ function parseEnvelope(body, action) {
   else if (action === "installations_permission") payload = parsePermissionPayload(bodyValue(body, "payload"));
   else if (action === "installations_disable" || action === "session_bootstrap") payload = parseEmptyPayload(bodyValue(body, "payload"));
   else if (action === "session_consume") payload = parseBootstrapConsumePayload(bodyValue(body, "payload"));
+  else if (action === "campaigns_resolve_target") payload = parseCampaignResolvePayload(bodyValue(body, "payload"));
   if (!payload) return null;
   return Object.freeze({ appId, credential, client, payload });
 }
@@ -605,6 +620,54 @@ function disableInstallation(app, context, credentialSecret) {
   return Object.freeze({ ok: true, disabled: true, already_disabled: alreadyDisabled });
 }
 
+function resolveCampaignTarget(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  const campaignId = context.payload.campaignId;
+  const installationId = safeText(resolved.installation.id || recordString(resolved.installation, "id"));
+  const campaign = findById(app, CAMPAIGNS_COLLECTION, campaignId);
+  if (!campaign
+    || relationId(campaign, "store") !== resolved.storeId
+    || recordString(campaign, "target_type") !== "order"
+    || !["processing", "sent", "partially_sent"].includes(recordString(campaign, "status"))) {
+    throw new StorefrontInstallationError("target_not_available");
+  }
+
+  const delivery = findFirst(
+    app,
+    DELIVERIES_COLLECTION,
+    'store = {:store} && campaign = {:campaign} && installation = {:installation} && (status = "accepted" || status = "unknown")',
+    { store: resolved.storeId, campaign: campaignId, installation: installationId },
+  );
+  const orderId = relationId(campaign, "target_order");
+  const link = orderId ? findFirst(
+    app,
+    ORDER_LINKS_COLLECTION,
+    'store = {:store} && installation = {:installation} && order = {:order} && status = "active"',
+    { store: resolved.storeId, installation: installationId, order: orderId },
+  ) : null;
+  const order = orderId ? findById(app, "orders", orderId) : null;
+  if (!delivery
+    || !link
+    || relationId(link, "store") !== resolved.storeId
+    || relationId(link, "installation") !== installationId
+    || relationId(link, "order") !== orderId
+    || !order
+    || relationId(order, "store") !== resolved.storeId) {
+    throw new StorefrontInstallationError("target_not_available");
+  }
+
+  const orderNumber = recordString(order, "order_number");
+  const receiptToken = recordString(order, "receipt_token");
+  if (!ORDER_NUMBER_PATTERN.test(orderNumber) || !RECEIPT_TOKEN_PATTERN.test(receiptToken)) {
+    throw new StorefrontInstallationError("target_not_available");
+  }
+  return Object.freeze({
+    ok: true,
+    target_type: "order",
+    target_path: `/orden/${orderNumber}/${receiptToken}`,
+  });
+}
+
 function randomAlphaNumeric(length, security) {
   const value = safeText(security.randomStringWithAlphabet(length, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"));
   if (value.length !== length || !/^[A-Za-z0-9]+$/.test(value)) {
@@ -726,7 +789,7 @@ function setPrivateHeaders(e) {
 
 function statusForError(code) {
   if (["unauthorized", "invalid_credential", "credential_required"].includes(code)) return 401;
-  if (["app_not_available", "bootstrap_not_found"].includes(code)) return 404;
+  if (["app_not_available", "bootstrap_not_found", "target_not_available"].includes(code)) return 404;
   if (["store_not_available", "plan_not_available"].includes(code)) return 403;
   if (["installation_disabled", "installation_not_available"].includes(code)) return 409;
   if (code === "invalid_payload") return 400;
@@ -740,7 +803,7 @@ function errorCode(error) {
 }
 
 function logSafeFailure(action, code) {
-  if (["invalid_payload", "unauthorized", "invalid_credential", "credential_required", "rate_limited", "bootstrap_not_found"].includes(code)) return;
+  if (["invalid_payload", "unauthorized", "invalid_credential", "credential_required", "rate_limited", "bootstrap_not_found", "target_not_available"].includes(code)) return;
   try {
     $app.logger().error(
       "Storefront installation request failed safely.",
@@ -758,6 +821,7 @@ function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "installations_disable") return disableInstallation(app, context, credentialSecret);
   if (action === "session_bootstrap") return createBootstrapSession(app, context, credentialSecret);
   if (action === "session_consume") return consumeBootstrapSession(app, context, credentialSecret);
+  if (action === "campaigns_resolve_target") return resolveCampaignTarget(app, context, credentialSecret);
   throw new StorefrontInstallationError("invalid_payload");
 }
 
@@ -810,6 +874,7 @@ module.exports = {
   mapInstallation,
   normalizeIp,
   parseBootstrapConsumePayload,
+  parseCampaignResolvePayload,
   parseClient,
   parseEmptyPayload,
   parseEnvelope,
@@ -817,6 +882,7 @@ module.exports = {
   parsePermissionPayload,
   parseRegisterPayload,
   registerInstallation,
+  resolveCampaignTarget,
   resetMemoryForTests,
   sessionDigest,
   updateInstallationPermission,
