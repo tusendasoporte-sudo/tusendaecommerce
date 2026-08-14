@@ -56,14 +56,18 @@ test('rechaza campos extra, destinos administrativos, URL no HTTPS y más de 500
   assert.equal(normalizePushRelayV2Payload(oversized), null);
 });
 
-test('el mensaje FCM usa restrictedPackageName, tag estable e imagen híbrida', () => {
+test('el mensaje FCM data-only delega contenido, imagen y PendingIntent a la app', () => {
   const normalized = normalizePushRelayV2Payload(payload());
   const message = buildStorefrontMulticastMessage(normalized);
   assert.equal(message.android.restrictedPackageName, 'com.tusenda84.powerzona');
-  assert.equal(message.android.notification.tag, 'pz_storefront_campaign0000001');
   assert.equal(message.android.collapseKey, 'pz_storefront_campaign0000001');
-  assert.equal(message.notification.imageUrl, payload().message.image_url);
+  assert.equal(Object.hasOwn(message, 'notification'), false);
+  assert.equal(Object.hasOwn(message.android, 'notification'), false);
   assert.equal(message.data.channel, 'storefront');
+  assert.equal(message.data.title, payload().message.title);
+  assert.equal(message.data.body, payload().message.body);
+  assert.equal(message.data.image_url, payload().message.image_url);
+  assert.equal(message.data.target_path, payload().message.target_path);
 });
 
 test('clasifica FID inválido, fallos transitorios con Retry-After y permanentes', () => {

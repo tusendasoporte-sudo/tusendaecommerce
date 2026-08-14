@@ -7,6 +7,8 @@ import androidx.annotation.NonNull;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.util.Map;
+
 @SuppressLint("MissingFirebaseInstanceTokenRefresh") // Firebase Messaging 25 uses onRegistered(FID).
 public final class StorefrontMessagingService extends FirebaseMessagingService {
     @Override
@@ -23,17 +25,17 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onMessageReceived(@NonNull RemoteMessage message) {
+        Map<String, String> data = message.getData();
         StorefrontPushPayload payload = StorefrontPushPayload.fromMap(
-                message.getData(),
+                data,
                 StorefrontConfig.storeKey()
         );
         if (payload == null) return;
-        RemoteMessage.Notification notification = message.getNotification();
         StorefrontNotifications.show(
                 this,
                 payload,
-                notification == null ? StorefrontConfig.displayName() : notification.getTitle(),
-                notification == null ? "" : notification.getBody()
+                payload.title,
+                payload.body
         );
     }
 }

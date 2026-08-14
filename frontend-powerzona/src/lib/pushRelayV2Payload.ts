@@ -127,19 +127,15 @@ export function normalizePushRelayV2Payload(value: any) {
 }
 
 export function buildStorefrontMulticastMessage(payload: any) {
-  const imageUrl = payload.message.image_url || undefined;
   return {
     fids: payload.deliveries.map((delivery: any) => delivery.fid),
-    notification: {
-      title: payload.message.title,
-      body: payload.message.body,
-      ...(imageUrl ? { imageUrl } : {}),
-    },
     data: {
       schema_version: payload.message.schema_version,
       channel: payload.message.channel,
       store_key: payload.message.store_key,
       campaign_id: payload.message.campaign_id,
+      title: payload.message.title,
+      body: payload.message.body,
       target_type: payload.message.target_type,
       target_path: payload.message.target_path,
       image_url: payload.message.image_url,
@@ -149,12 +145,6 @@ export function buildStorefrontMulticastMessage(payload: any) {
       ttl: 86_400_000,
       collapseKey: `pz_storefront_${payload.message.campaign_id}`,
       restrictedPackageName: payload.app.package_name,
-      notification: {
-        channelId: 'pz_storefront_marketing',
-        icon: 'ic_notification',
-        tag: `pz_storefront_${payload.message.campaign_id}`,
-        ...(imageUrl ? { imageUrl } : {}),
-      },
     },
   };
 }

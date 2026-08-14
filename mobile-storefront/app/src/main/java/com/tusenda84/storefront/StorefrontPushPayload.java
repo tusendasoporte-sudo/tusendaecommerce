@@ -14,6 +14,8 @@ final class StorefrontPushPayload {
     static final String CHANNEL = "channel";
     static final String STORE_KEY = "store_key";
     static final String CAMPAIGN_ID = "campaign_id";
+    static final String TITLE = "title";
+    static final String BODY = "body";
     static final String TARGET_TYPE = "target_type";
     static final String TARGET_PATH = "target_path";
     static final String IMAGE_URL = "image_url";
@@ -26,6 +28,8 @@ final class StorefrontPushPayload {
 
     final String storeKey;
     final String campaignId;
+    final String title;
+    final String body;
     final String targetType;
     final String targetPath;
     final String imageUrl;
@@ -33,12 +37,16 @@ final class StorefrontPushPayload {
     private StorefrontPushPayload(
             String storeKey,
             String campaignId,
+            String title,
+            String body,
             String targetType,
             String targetPath,
             String imageUrl
     ) {
         this.storeKey = storeKey;
         this.campaignId = campaignId;
+        this.title = title;
+        this.body = body;
         this.targetType = targetType;
         this.targetPath = targetPath;
         this.imageUrl = imageUrl;
@@ -51,6 +59,8 @@ final class StorefrontPushPayload {
         String storeKey = StorefrontConfig.normalizeStoreKey(source.get(STORE_KEY));
         String expected = StorefrontConfig.normalizeStoreKey(expectedStoreKey);
         String campaignId = clean(source.get(CAMPAIGN_ID));
+        String title = clean(source.get(TITLE));
+        String body = clean(source.get(BODY));
         String targetType = clean(source.get(TARGET_TYPE));
         String targetPath = clean(source.get(TARGET_PATH));
         String imageUrl = clean(source.get(IMAGE_URL));
@@ -58,10 +68,19 @@ final class StorefrontPushPayload {
         if (!"1".equals(schemaVersion) || !"storefront".equals(channel)) return null;
         if (expected.isEmpty() || !expected.equals(storeKey)) return null;
         if (!CAMPAIGN.matcher(campaignId).matches() || !TARGET_TYPES.contains(targetType)) return null;
+        if (title.length() > 120 || body.length() > 1000) return null;
         if (targetPath.length() > 500 || containsControl(targetPath)) return null;
         if (!imageUrl.isEmpty() && (!HTTPS_IMAGE.matcher(imageUrl).matches() || containsControl(imageUrl))) return null;
         if (!"order".equals(targetType) && targetPath.isEmpty()) return null;
-        return new StorefrontPushPayload(storeKey, campaignId, targetType, targetPath, imageUrl);
+        return new StorefrontPushPayload(
+                storeKey,
+                campaignId,
+                title,
+                body,
+                targetType,
+                targetPath,
+                imageUrl
+        );
     }
 
     static StorefrontPushPayload fromIntent(Intent intent, String expectedStoreKey) {
@@ -81,6 +100,8 @@ final class StorefrontPushPayload {
         intent.putExtra(CHANNEL, "storefront");
         intent.putExtra(STORE_KEY, storeKey);
         intent.putExtra(CAMPAIGN_ID, campaignId);
+        intent.putExtra(TITLE, title);
+        intent.putExtra(BODY, body);
         intent.putExtra(TARGET_TYPE, targetType);
         intent.putExtra(TARGET_PATH, targetPath);
         intent.putExtra(IMAGE_URL, imageUrl);
@@ -92,6 +113,8 @@ final class StorefrontPushPayload {
                 CHANNEL,
                 STORE_KEY,
                 CAMPAIGN_ID,
+                TITLE,
+                BODY,
                 TARGET_TYPE,
                 TARGET_PATH,
                 IMAGE_URL

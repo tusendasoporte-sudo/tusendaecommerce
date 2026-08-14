@@ -420,7 +420,7 @@ El procesador SSR de imagen será `POST /api/admin/storefront-push/media`. El re
 
 ### 6.5 Deep links y navegación segura
 
-El payload FCM llevará como máximo `schema_version`, `channel`, `store_key`, `campaign_id`, `target_type`, `target_path` cuando sea público y `image_url`; se mantendrá holgadamente por debajo de 4096 bytes. `target_path` siempre se genera en servidor.
+El payload FCM data-only llevará como máximo `schema_version`, `channel`, `store_key`, `campaign_id`, `title`, `body`, `target_type`, `target_path` cuando sea público y `image_url`; se mantendrá holgadamente por debajo de 4096 bytes. `target_path` siempre se genera en servidor. La app construye la notificación local y su `PendingIntent` para conservar el mismo contrato validado en foreground, background y proceso cerrado.
 
 | Tipo | Fuente autorizada | Ruta canónica / regla |
 |---|---|---|
@@ -458,9 +458,9 @@ El Dockerfile no prueba que Coolify tenga el volumen montado. Antes de C04 se de
 - Permiso definitivo: `marketing.push.manage`; se añade al catálogo asignable y a la plantilla `marketing_promotions`. El administrador principal activo lo obtiene por la semántica vigente; colaboradores requieren asignación explícita.
 - El backend comprueba capability y permiso al guardar contenido enviable, calcular audiencia, programar, enviar ahora, cancelar y duplicar; el scheduler vuelve a comprobar plan, tienda activa y autorización vigente del creador antes de reclamar destinatarios.
 - Free/Básico pueden ver una explicación comercial, pero no datos de instalaciones, borradores o métricas del módulo.
-- Cuota diaria aprobada por el propietario: máximo 6 campañas iniciadas por tienda en cada día calendario de su zona horaria configurada. Los borradores y las campañas canceladas antes de comenzar no cuentan.
-- Frecuencia aprobada por instalación: una instalación elegible puede recibir las 6 campañas de ese día. El contador se reinicia con el día calendario de la tienda; las alertas administrativas no cuentan para este límite.
-- Cuota mensual aprobada por el propietario: máximo 186 campañas iniciadas por tienda, suficiente para mantener 6 diarias durante un mes de 31 días.
+- Cuota diaria aprobada por el propietario: máximo 10 campañas iniciadas por tienda en cada día calendario de su zona horaria configurada. Los borradores y las campañas canceladas antes de comenzar no cuentan.
+- Frecuencia aprobada por instalación: una instalación elegible puede recibir las 10 campañas de ese día. El contador se reinicia con el día calendario de la tienda; las alertas administrativas no cuentan para este límite.
+- Cuota mensual aprobada por el propietario: máximo 186 campañas iniciadas por tienda.
 - Audiencia aprobada por el propietario: no existe un máximo fijo de instalaciones por campaña. Una campaña dirigida a todos se procesa para todas las instalaciones activas y elegibles, sin excluir silenciosamente las que superen 20 000 o 100 000.
 - FCM es un producto sin coste por cantidad de mensajes. El límite técnico oficial actual del API HTTP v1 es una cuota predeterminada de 600 000 mensajes downstream por minuto y proyecto, sujeta a cambio o ampliación; no es una cuota mensual de facturación. El motor consultará/monitorizará la cuota real, enviará en lotes de hasta 500, distribuirá la carga y respetará `Retry-After` ante `429 RESOURCE_EXHAUSTED`.
 - Si una tienda baja de Premium: conservar borradores, medios e historial en solo lectura; bloquear nuevas acciones; pasar lo programado aún no iniciado a `paused_plan`; no reanudar automáticamente al recuperar Premium. Un administrador autorizado debe revisar y reprogramar para evitar un envío antiguo inesperado.
@@ -544,7 +544,7 @@ Estado vigente:
 
 1. Identidad: nombre `PowerZona`, `applicationId` `com.tusenda84.powerzona`, maestro premium v3, símbolo launcher sin wordmark, splash vertical y paleta v3 exacta aprobados. V1 y v2 A/B quedan solo como historial rechazado.
 2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP de hasta 1200 × 630 y 100 KiB, cuota 250 MiB/100 por tienda, vencimiento absoluto a 24 horas, alerta global a 35 GiB y límite global de carga a 40 GiB.
-3. Campañas: aprobados 6 por día, 186 por mes, que cada instalación elegible pueda recibir las 6 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
+3. Campañas: aprobadas 10 por día, 186 por mes, que cada instalación elegible pueda recibir las 10 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
 4. Downgrade aprobado: historial/borradores/medios en solo lectura; programadas pasan a `paused_plan` y requieren reprogramación manual tras recuperar Premium.
 5. Retención aprobada: IP completa cifrada 30 días; entregas/eventos 180 días; campañas 24 meses; agregados 36 meses.
 6. Atribución aprobada: ventana de siete días desde el toque; orden solo con sesión/instalación verificada y cupón solo aplicado por validación server-side.
@@ -957,7 +957,7 @@ Todas las decisiones requeridas para cerrar PZ-APP-C01 quedaron resueltas y regi
 - [x] Vencimiento de imágenes push: borrado físico automático a las 24 horas; el cliente conserva por su cuenta cualquier copia necesaria.
 - [x] Presupuesto de archivos de tiendas: alerta crítica al Master desde 35 GiB y bloqueo duro de nuevas cargas por encima de 40 GiB.
 - [x] Retención del IP completo y de eventos individuales: 30 y 180 días respectivamente.
-- [x] Límite diario: 6 campañas iniciadas por tienda; cada instalación elegible puede recibir las 6 en el día calendario de la tienda.
+- [x] Límite diario: 10 campañas iniciadas por tienda; cada instalación elegible puede recibir las 10 en el día calendario de la tienda.
 - [x] Límite mensual: 186 campañas iniciadas por tienda.
 - [x] Audiencia por campaña: todas las instalaciones activas y elegibles, sin máximo fijo; lotes de hasta 500 y control de velocidad según la cuota vigente de FCM.
 - [x] Proveedor/mecanismo del trabajo programado: `cronAdd` de PocketBase cada minuto, con lease transaccional, snapshot único y entregas idempotentes.
@@ -1183,7 +1183,7 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 - Reservar `marketing.push.manage` y `push_campaigns_enabled`.
 - Mantener el relay administrativo v1 sin cambios y crear v2 para storefront.
 - Decisión humana inicial, sustituida posteriormente: máximo 5 campañas por tienda al día y 155 al mes.
-- Decisión humana vigente: máximo 6 campañas por tienda al día, 186 al mes y cada instalación elegible puede recibir las 6 diarias.
+- Decisión humana vigente: máximo 10 campañas por tienda al día, 186 al mes y cada instalación elegible puede recibir las 10 diarias.
 - Decisión humana registrada: sin máximo fijo de audiencia; cada campaña alcanza a todas las instalaciones elegibles y el backend respeta la cuota técnica de FCM.
 - Decisión humana registrada: la app white-label es exclusiva de Premium; un downgrade suspende push/provisión sin romper el escaparate instalado.
 - Decisión humana registrada: medios en PocketBase `pb_data/storage` del servidor Tu Senda 84, con alias, límites y retención definidos en 6.6 y 6.13.
@@ -1598,7 +1598,7 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 
 - Se añadió el ciclo de vida administrativo y el cron `pz_storefront_push_campaigns` cada minuto, con revalidación de tienda activa, Premium, creador y `marketing.push.manage` antes de reclamar trabajo.
 - La audiencia se deriva exclusivamente desde instalaciones `active` con permiso `granted`, `store` coincidente y `storefront_app_configs` activa. El snapshot se materializa una sola vez en `push_campaign_deliveries`, sin máximo artificial de audiencia y con retención de 180 días.
-- Las cuotas son 6 campañas iniciadas por día y 186 por mes calendario en la zona IANA de la campaña. Una tienda no puede mezclar zonas horarias entre campañas ya iniciadas.
+- Las cuotas son 10 campañas iniciadas por día y 186 por mes calendario en la zona IANA de la campaña. Una tienda no puede mezclar zonas horarias entre campañas ya iniciadas.
 - El dispatch reclama como máximo 500 entregas por lote mediante `claim_token` y lease transaccional. Reintenta solo fallos transitorios seguros hasta tres intentos, respeta `Retry-After`, marca un lease ambiguo como `unknown` sin reintento y terminaliza trabajo restante si una campaña falla durante una revalidación.
 - El relay v2 valida un contrato exacto por `delivery_id`, agrupa por `app_key`/paquete/Firebase app, usa credenciales y secreto storefront separados, restringe el paquete Android y devuelve resultados parciales. Un FID inválido permanente cambia la instalación a `invalid`.
 - Los destinos se generan en servidor y quedan limitados a portada, producto, categoría, sección, orden, rifa y cupón. Orden no incluye token en FCM; rifas vencidas usan el respaldo público seguro.
@@ -1752,14 +1752,22 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - `StorefrontDeepLink` cubre portada, producto, categoría, las cinco secciones permitidas, rifa y cupón con allowlists estrictas y fallback a portada. `onCreate` y `onNewIntent` comparten el mismo manejo para proceso cerrado, background y foreground.
 - `order` ya no confía en una ruta FCM. La app envía únicamente `campaign_id` al nuevo resolvedor App Check + credencial. Backend revalida app, instalación, tienda, campaña, entrega aceptada/desconocida, vínculo activo y pedido del mismo tenant; sólo entonces devuelve `/orden/{numero}/{receiptToken}`. Ausencia, vencimiento, formato inválido o cruce de tenant/instalación producen el mismo 404/fallback sin filtrar el recibo.
 - Se incorporaron la ruta gateway `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`, la prueba backend `backend-powerzona/tests/pz_storefront_order_targets.test.cjs` y `PowerZonaDestinationsTest.java` para aislar el contrato C07. La ruta reutiliza el sobre interno firmado, App Check y autenticación de instalación C03; no modifica el relay administrativo v1.
-- Foreground descarga la imagen sólo por HTTPS sin credenciales, puerto o redirecciones, exige `.webp`/`image/webp`, limita a 100 KiB y 1200×630, y degrada a `BigTextStyle` si falla. Background/cerrada conservan el relay storefront v2 de C05.
+- La app descarga la imagen sólo por HTTPS sin credenciales, puerto o redirecciones, exige `.webp`/`image/webp`, limita a 100 KiB y 1200×630, y degrada a `BigTextStyle` si falla. El relay storefront v2 de C05 entrega un mensaje data-only de alta prioridad para que foreground, background y proceso cerrado construyan localmente la misma notificación y el mismo `PendingIntent`; el relay administrativo v1 permanece sin cambios.
+
+#### Corrección durante la matriz FCM física
+
+- El propietario corrigió la decisión operativa vigente a un máximo de 10 campañas iniciadas por tienda al día. Se actualizó `DAILY_CAMPAIGN_LIMIT` a 10 y se mantuvo el máximo mensual existente de 186; una prueba explícita fija ambos valores.
+- La campaña de producto con el slug provisional incorrecto abrió Home. La repetición posterior con la URL pública confirmada de `Audifonos M90 Pro Ultra Calidad` también abrió Home en segundo plano, demostrando que el slug no era la causa raíz.
+- Los logs del teléfono mostraron que el mensaje híbrido `notification + data` llegaba mediante un `PendingIntent` generado por Firebase y la actividad recibía extras sin un contrato de navegación utilizable. En foreground el mismo formato tampoco produjo una notificación visible de forma fiable.
+- La corrección limita el relay storefront v2 a FCM data-only: título, texto, imagen y destino viajan como datos validados; PowerZona analiza el contrato y crea localmente la notificación y su `PendingIntent`. No se modificó el relay administrativo v1 ni se envió otra campaña antes de compilar, desplegar e instalar la corrección.
+- La versión móvil de corrección es `0.2.1`/code 3. C07 permanece `EN CURSO` hasta repetir la recepción real y confirmar manualmente que el toque abre el producto M90, además de continuar la matriz autorizada sin exceder la cuota diaria.
 
 #### Validación automatizada local
 
 - Backend proporcional: `node --test tests/pz_storefront_installations.test.cjs tests/pz_storefront_order_targets.test.cjs tests/pz_storefront_campaigns.test.cjs tests/pz_storefront_push_dispatch.test.cjs` → 34 pruebas, 33 aprobadas, 0 fallos y 1 omitida porque el binario PocketBase runtime no está dentro de este worktree.
 - Frontend proporcional: `node --test tests/storefrontPushGateway.test.mjs tests/pushRelayV2Payload.test.mjs` → 18/18 aprobadas. `npm run build` terminó correctamente; sólo mostró las tres advertencias históricas de Astro sobre `getStaticPaths` ignorado en rutas dinámicas. El junction temporal de `node_modules` auditado se retiró y no quedó en Git.
-- Android: dos ejecuciones finales de `clean testDebugUnitTest lintDebug assembleDebug --no-daemon` → 5 suites, 22/22 pruebas, 0 fallos, 0 errores, 0 omitidas, lint 0 y APK byte-idéntica.
-- APK final: `com.tusenda84.powerzona.debug`, `0.2.0-debug`/code 2, minSdk 26, target/compileSdk 36, 5.271.541 bytes, SHA-256 `62e57c34e02e81e1f4f1ceb8d98e37a15c50dfb22405c89e78f0590a0e156f08`. Firma debug v2, un firmante, certificado SHA-256 `3ef106bebf2393438c55c48453797c0229097668e5290511ea0771bf6090935c`.
+- Android, después de la corrección data-only: `clean testDebugUnitTest lintDebug assembleDebug --no-daemon` → 5 suites, 23/23 pruebas, 0 fallos, 0 errores, 0 omitidas y lint 0.
+- APK debug de corrección: `com.tusenda84.powerzona.debug`, `0.2.1-debug`/code 3, minSdk 26, target/compileSdk 36, 5.271.545 bytes, SHA-256 `3ef92e0316bd1d2085f0016c7527746c7e1263a81f2a0a5f3116a83826e4a3cf`. La instalación en emulador y el build firmado de staging quedan pendientes tras consolidar y desplegar el relay corregido.
 - La inspección del APK encontró 0 entradas y 0 strings de `google-services.json`, keystore, service account, `.secrets` o clave privada. `git diff --check` quedó limpio antes de esta actualización documental.
 
 #### Validación local en emulador

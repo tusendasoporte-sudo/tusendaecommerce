@@ -14,6 +14,8 @@ public final class StorefrontPushPayloadTest {
         StorefrontPushPayload payload = StorefrontPushPayload.fromMap(validPayload(), "powerzona");
         assertEquals("powerzona", payload.storeKey);
         assertEquals("abc123def456ghi", payload.campaignId);
+        assertEquals("Oferta PowerZona", payload.title);
+        assertEquals("Producto disponible por tiempo limitado.", payload.body);
         assertEquals("product", payload.targetType);
         assertEquals("/t/powerzona/producto/bateria-12v", payload.targetPath);
     }
@@ -43,12 +45,25 @@ public final class StorefrontPushPayloadTest {
         assertEquals("", payload.targetPath);
     }
 
+    @Test
+    public void rejectsOversizedNotificationCopy() {
+        Map<String, String> title = validPayload();
+        title.put(StorefrontPushPayload.TITLE, "x".repeat(121));
+        assertNull(StorefrontPushPayload.fromMap(title, "powerzona"));
+
+        Map<String, String> body = validPayload();
+        body.put(StorefrontPushPayload.BODY, "x".repeat(1001));
+        assertNull(StorefrontPushPayload.fromMap(body, "powerzona"));
+    }
+
     private static Map<String, String> validPayload() {
         Map<String, String> value = new HashMap<>();
         value.put(StorefrontPushPayload.SCHEMA_VERSION, "1");
         value.put(StorefrontPushPayload.CHANNEL, "storefront");
         value.put(StorefrontPushPayload.STORE_KEY, "powerzona");
         value.put(StorefrontPushPayload.CAMPAIGN_ID, "abc123def456ghi");
+        value.put(StorefrontPushPayload.TITLE, "Oferta PowerZona");
+        value.put(StorefrontPushPayload.BODY, "Producto disponible por tiempo limitado.");
         value.put(StorefrontPushPayload.TARGET_TYPE, "product");
         value.put(StorefrontPushPayload.TARGET_PATH, "/t/powerzona/producto/bateria-12v");
         value.put(StorefrontPushPayload.IMAGE_URL, "https://media.example/push/image.webp");
