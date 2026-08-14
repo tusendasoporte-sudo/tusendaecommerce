@@ -6,7 +6,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C07 EN CURSO — variante PowerZona y navegación desde push |
+| Estado general | PZ-APP-C07 COMPLETADO — variante PowerZona y navegación desde push |
 | Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-14 |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Completar exclusivamente PZ-APP-C07; no iniciar C08 ni fases posteriores |
+| Próximo prompt | Iniciar exclusivamente PZ-APP-C08 en una tarea nueva; C08 no se inició en C07 |
 
 ### Convención de estados
 
@@ -562,7 +562,7 @@ Estado vigente:
 | PZ-APP-C06A | Identidad de firma y cliente App Check de staging | COMPLETADO | C01 | Completada: token Play Integrity y matriz C03 real en Fold5 | Sol — Extra High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
-| PZ-APP-C07 | Variante PowerZona y deep links | EN CURSO | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
+| PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | PENDIENTE | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
@@ -736,7 +736,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] El WebView limita hosts, descargas y esquemas.
 - [x] Existen pruebas para configuración y parsing de destinos.
 
-### [ ] PZ-APP-C07 — Variante PowerZona y navegación desde push
+### [x] PZ-APP-C07 — Variante PowerZona y navegación desde push
 
 **Objetivo:** generar la primera app de clientes con la marca PowerZona y verificar sus destinos.
 
@@ -750,12 +750,12 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] La app muestra únicamente la identidad PowerZona.
-- [ ] Cada destino abre la ruta correcta desde app abierta y cerrada.
-- [ ] Los enlaces externos no permitidos se bloquean o abren de forma controlada.
-- [ ] El cupón inválido no produce descuento.
-- [ ] La app de staging no se confunde con producción.
-- [ ] La APK debug se probó en emulador.
+- [x] La app muestra únicamente la identidad PowerZona.
+- [x] Cada destino abre la ruta correcta desde app abierta y cerrada.
+- [x] Los enlaces externos no permitidos se bloquean o abren de forma controlada.
+- [x] El cupón inválido no produce descuento.
+- [x] La app de staging no se confunde con producción.
+- [x] La APK debug se probó en emulador.
 
 ### [ ] PZ-APP-C08 — Panel Premium Campañas push
 
@@ -1710,16 +1710,16 @@ Implementar exclusivamente la base Android white-label C06 sobre el proyecto mí
 
 ### 2026-08-14 — PZ-APP-C07 — Variante PowerZona y navegación desde push
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex
 - Entorno: local, emulador, frontend/PocketBase staging y Samsung SM-F946U1 físico autorizados; Firebase no fue modificado y producción permanece fuera de alcance
-- Branch: `dev`; staging desplegado hasta `a8f3c20` y correcciones móviles posteriores conservadas localmente
+- Branch: `dev`; frontend staging desplegado en `a8f3c20`, PocketBase staging y `origin/dev` en `4efb9a6`, cierre documental posterior conservado localmente
 - Commit base: `17704dfce6304d84d74b20171c0c9c775d947020`
 - Commit de implementación local: `5d7a8e4c239aa7e70fbeb9373544d7498d0bf7a6`
 - Fecha/hora de inicio: 2026-08-14 06:31:01 -04:00
-- Fecha/hora de cierre: pendiente
+- Fecha/hora de cierre: 2026-08-14 15:53:23 -04:00
 
-#### Objetivo en curso
+#### Objetivo completado
 
 Implementar exclusivamente la variante PowerZona y la navegación segura desde push definida por C07: configuración y marca v3 aprobada, recursos Android finales, identificador confirmado y destinos portada, producto, categoría, sección, orden, rifa y cupón con fallback seguro en foreground, background y proceso cerrado. Se reutilizan C03-C06 sin rehacerlos. C08-C12 no se inician.
 
@@ -1782,6 +1782,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Para la variante vencida, `Rifa C07 Fold5` se cambió temporalmente y sólo en staging de `active`/`link_enabled=true` a `archived`/`false`, conservando intactas sus fechas y demás campos. La campaña `6c1f9u9cx3ve2wm`, `PowerZona Rifa C07 vencida`, terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas y persistió únicamente el fallback `/t/powerzona/rifa`. Antes de la prueba manual se restauró exactamente `active`/`true`; PocketBase confirmó las fechas originales y el detalle renderizado volvió a mostrar `Rifa C07 Fold5` sin error ni 404. Con PowerZona viva en background, el propietario confirmó que el toque de la campaña vencida abrió el listado general, no el detalle.
 - La campaña `96r045wim1bk0ic`, titulada `PowerZona Cupón C07 válido`, apuntó al fixture vigente `PZC07F5A84`. PocketBase generó exclusivamente en servidor `/t/powerzona?coupon=PZC07F5A84`, terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas, y Android publicó `pz_storefront_96r045wim1bk0ic` mientras PowerZona estaba en foreground. El propietario confirmó que el toque abrió correctamente el storefront y reconoció el cupón.
 - Para probar la revalidación en servidor, la campaña `ok6rk8dz47w0gb4`, `PowerZona Cupón C07 inválido`, se programó mientras el mismo fixture seguía vigente y después se cambió temporalmente sólo `active=true` a `false` en PocketBase staging. En ejecución, el servidor la terminalizó `failed` con `target_unavailable`, 0 seleccionadas, 0 aceptadas, 0 fallos de transporte y 0 inválidas; Android no registró notificación ni tag de esa campaña. El fixture se restauró inmediatamente a `active=true` con código, fechas, descuento y límites intactos.
+- En la comprobación visual final, el propietario cerró PowerZona en el Fold5, inspeccionó el launcher y abrió la app en frío. Confirmó que el icono muestra completo el símbolo azul/plata `PZ` con rayo y que el splash presenta el mismo símbolo centrado, sin recorte, antes de cargar correctamente el storefront.
 
 #### Validación automatizada local
 
@@ -1822,21 +1823,21 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 | Comprobación visual/operativa | Emulador local | Teléfono físico + FCM real |
 |---|---|---|
-| Icono final | [x] símbolo completo y paquetes separados | [ ] pendiente |
-| Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
-| Imagen WebP y texto | [ ] implementación/pruebas locales | [x] portada cerrada con medio WebP, título y texto confirmados |
+| Icono final | [x] símbolo completo y paquetes separados | [x] propietario confirmó símbolo completo, sin recorte |
+| Splash final | [x] recurso final compilado; el emulador no expuso frame estable posterior | [x] propietario confirmó símbolo centrado, sin recorte, en arranque frío |
+| Imagen WebP y texto | [x] implementación y pruebas locales | [x] portada cerrada con medio WebP, título y texto confirmados |
 | Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado hasta `0.2.4` |
 | App abierta/background/cerrada | [x] lifecycle sintético | [x] foreground Aminos, background M90 y proceso cerrado Portada aprobados |
 
 #### Riesgos, deuda o bloqueos
 
-- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. El propietario autorizó las tres acciones C07 en staging/teléfono y, después de consumir 10/10, autorizó superar temporalmente el techo sólo hasta terminar esta tarea. Cada cambio de cuota/flujo sigue requiriendo aviso operativo; no se cambiará el límite permanente 10/310 ni producción.
+- La prueba manual obligatoria de C07 quedó completa en emulador y teléfono físico para destinos, lifecycle, permiso, WebP/texto, cupón e identidad visual. La autorización excepcional para superar temporalmente el techo durante las pruebas termina con el cierre de C07; los límites permanentes permanecen en 10 campañas diarias y 310 mensuales.
 - La identidad de firma de staging, secretos locales ignorados y `google-services.json` no se leerán, regenerarán ni alterarán. No se generará firma de producción ni se habilitará enforcement.
-- C07 permanece `EN CURSO`: no puede marcarse `COMPLETADO` hasta que el propietario autorice y confirme la matriz FCM real/teléfono, incluidos pedido, cupón válido/inválido, WebP/texto, permiso e inspección final de splash. Esa autorización no se infiere de la solicitud de trabajo local.
+- El propietario confirmó la matriz FCM real/teléfono, incluidos pedido, rifa vigente/vencida, cupón válido/inválido, WebP/texto, permiso, icono y splash. Los seis criterios de aceptación quedan satisfechos y C07 pasa a `COMPLETADO`; C08-C12 permanecen `PENDIENTE`.
 
 #### Despliegue
 
-- `dev`, `origin/dev` y la referencia remota real quedaron exactamente en `4efb9a6`. Frontend staging permanece desplegado en `a8f3c20`; PocketBase staging se redesplegó exclusivamente en `4efb9a6` y Coolify lo confirmó `Running` tras un rolling update terminado.
+- Antes del commit documental de cierre, `dev` estaba limpio en `dc769df` y nueve commits por delante de `origin/dev`; `origin/dev` y la consulta remota real permanecían exactamente en `4efb9a6`. Frontend staging permanece desplegado en `a8f3c20`; PocketBase staging se redesplegó exclusivamente en `4efb9a6` y Coolify lo confirmó `Running` tras un rolling update terminado.
 - Smoke checks posteriores confirmaron PocketBase y storefront HTTP 200, persistencia de campañas y procesamiento correcto de `section=search`. El relay storefront v2 data-only, las cuotas 10/310 y el relay administrativo v1 separado no se modificaron.
 - El APK `0.2.4-staging` se instaló primero en emulador y después en el Samsung SM-F946U1, conservando userdata y permiso. El teléfono actualizó code 5 → 6, recreó el proceso y abrió Aminos directamente desde proceso cerrado sin el error público; la repetición FCM real confirmó además la apertura correcta de Aminos desde foreground.
 - Esta actualización documental posterior al push permanece local y cualquier publicación adicional requiere otra autorización explícita separada.
@@ -1844,4 +1845,4 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Siguiente paso
 
-- Completar exclusivamente las otras cuatro secciones (`links`, `gifts`, `raffles`, `checkout`), orden real, rifa, cupón válido/inválido, icono y splash. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea, no publicar esta evidencia documental sin otra autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
+- C07 queda cerrado sin push adicional. Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C08 cuando el propietario lo solicite; antes deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, referencia remota real, worktrees, stash, `.tmp/` y secretos locales. No publicar este cierre ni iniciar C08 o fases posteriores en esta tarea.
