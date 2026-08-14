@@ -1856,6 +1856,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Commit base: `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit de implementación local: `07c5df9a82081639667df01b55d25b4b9dbb7179`
 - Commit de corrección focal post-smoke: `90579f8bce8ec64767616bda37080cf411354513`
+- Commit de corrección focal post-matriz mutable: `f485e84877dc83dbacbadd60b0bcaea885921cd8`
 - Fecha/hora de inicio: 2026-08-14 16:10:31 -04:00
 - Fecha/hora de cierre:
 
@@ -1884,7 +1885,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - El panel debe conservar las cuotas permanentes de 10 campañas diarias y 310 mensuales, y describir `accepted` como aceptación de Firebase, no entrega o lectura.
 - El frontend no sustituye las validaciones backend de plan, permiso, tienda y contenido; todas las mutaciones consumen los endpoints C04/C05 que las revalidan.
 - El relay storefront v2 data-only y el relay administrativo v1 permanecerán separados y sin cambios de contrato.
-- La ejecución manual mutable encontró dos regresiones directas de C08 en el frontend desplegado: un ID inválido oculto seguía participando en `reportValidity()` al volver a Portada/Sección, y una campaña nueva usaba `America/Havana` aunque las campañas iniciadas que fijan la cuota de PowerZona usan `America/New_York`. Ambas correcciones están implementadas y probadas solo en local; requieren publicación y redespliegue frontend autorizados antes de repetir el único envío.
+- La ejecución manual mutable encontró dos regresiones directas de C08 en el frontend desplegado: un ID inválido oculto seguía participando en `reportValidity()` al volver a Portada/Sección, y una campaña nueva usaba `America/Havana` aunque las campañas iniciadas que fijan la cuota de PowerZona usan `America/New_York`. Ambas correcciones quedaron publicadas y redesplegadas en frontend staging mediante `f485e84`; falta autorizar y ejecutar un único reintento FCM antes de cerrar el caso.
 
 #### Implementación local
 
@@ -1973,7 +1974,9 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - PocketBase no se redesplegó: continúa `Running` en `4efb9a6a3d06bf78d81bdadb406748998718545f`. Su historial confirmó que el último deployment fue el manual previo de C07, cuatro horas antes de este smoke. Firebase, App Check, Cloudflare y producción no se modificaron.
 - Con una segunda autorización explícita, `dev`, `origin/dev` y la referencia remota real avanzaron por fast-forward hasta `6d59951238850ae3c07c093013c74ea74f473fb6`. Coolify ejecutó el deployment frontend `qgan6bh58jsv4d0ewjp2l16k`: build aprobado, las mismas tres advertencias históricas, rolling update `Finished`, recurso `Running` y commit activo `6d59951`.
 - Smoke posterior: storefront HTTP 200, ruta C08 anónima protegida con redirección, historial Master de 33 campañas, biblioteca C04 con una WebP vigente y PocketBase HTTP 200. PocketBase continuó `Running` en `4efb9a6`; no se redesplegó ni modificó. Producción, Firebase, App Check y Cloudflare permanecieron fuera de alcance.
+- Con una tercera autorización explícita, `dev`, `origin/dev` y la referencia remota real avanzaron por fast-forward desde `6d59951` hasta `f485e84877dc83dbacbadd60b0bcaea885921cd8`, sin force ni divergencia. Coolify ejecutó exclusivamente el deployment frontend `exwkqlu4cp4b5vqzdyfqmnme`: importó ese hash, aprobó el build con las tres advertencias históricas, completó el rolling update, retiró el contenedor anterior y dejó `powerzona-frontend-staging` `Running` con commit activo `f485e84`.
+- Smoke posterior a `f485e84`: storefront y salud PocketBase respondieron HTTP 200; la ruta C08 anónima mantuvo la redirección 302. Con la sesión Master existente, el panel mostró 35 campañas; un borrador no persistido tomó `America/New_York`, rechazó `abc` como ID de Producto y, al volver a Portada, dejó ese control oculto/deshabilitado fuera de `:invalid` y limpió el error. El editor se cerró sin guardar, permanecieron 35 campañas y no apareció `QA-C08-smoke-no-guardar`. PocketBase no se reinició ni redesplegó y continúa en `4efb9a6`; producción, Firebase, App Check y Cloudflare no se modificaron.
 
 #### Siguiente paso
 
-- Mantener exclusivamente C08 `EN CURSO`. Publicar y redesplegar la corrección frontend de campos condicionales/zona horaria solo con autorización separada; después solicitar una nueva autorización explícita para un único reintento FCM, completar los casos manuales aún abiertos y cerrar solo C08. No iniciar C09.
+- Mantener exclusivamente C08 `EN CURSO`. La corrección frontend de campos condicionales/zona horaria ya está publicada y validada en staging. Solicitar una nueva autorización explícita para un único reintento FCM, completar los casos manuales aún abiertos y cerrar solo C08. No iniciar C09.
