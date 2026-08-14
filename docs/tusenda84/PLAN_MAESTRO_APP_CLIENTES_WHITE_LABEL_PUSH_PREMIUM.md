@@ -1766,7 +1766,9 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - La prueba M90 aprobada consumió la octava campaña. La novena, `PowerZona Aminos abierta`, publicó correctamente en foreground, pero al tocarla el dominio público mostró `Internal server error`; por tanto, esa navegación no se aprobó.
 - La ruta pública `/t/powerzona/categoria/aminos` responde HTTP 200 con el cuerpo literal de error, mientras la misma ruta del frontend staging renderiza `aminos`, `0 productos` y `1 subcategorías`. Producción permanece fuera de alcance. `0.2.4`/code 6 hace que sólo el build `staging` derive `STORE_URL` de `PZ_STOREFRONT_API_BASE_URL` y añada `/t/powerzona`; debug y la definición de marca conservan la URL pública, y release continúa bloqueada.
 - Gradle aplica `google-services.json` y `FIREBASE_CONFIGURED=true` únicamente al empaquetado staging. Esto recupera el build debug sin cliente Firebase `.debug`, preserva el archivo privado sin modificarlo y mantiene la identidad staging existente.
-- El propietario autorizó expresamente continuar las notificaciones C07 más allá del techo diario hasta terminar esta tarea. La décima campaña, `PowerZona Aminos staging`, fue aceptada y Android registró `notification_posted` con la app abierta; el toque y el contenido final esperan confirmación manual. El límite permanente sigue siendo 10/310 y cualquier ampliación temporal se limitará a staging, se anunciará antes y se restaurará al cerrar la matriz.
+- El propietario autorizó expresamente continuar las notificaciones C07 más allá del techo diario hasta terminar esta tarea. La décima campaña, `PowerZona Aminos staging`, fue aceptada y Android registró `notification_posted` con la app abierta, pero la notificación se cerró antes de validar el toque. El límite permanente sigue siendo 10/310; no se cambió globalmente para estas repeticiones.
+- Una primera repetición de staging (`7ilv2ak6gim2313`) heredó por error el destino sección/buscar al duplicar el fixture. El cron la marcó `failed` con `invalid_target`, 0 dispositivos seleccionados y 0 notificaciones; se conservó como evidencia y no se reintentó ni eliminó.
+- La repetición corregida `7bvs4f2pyvus2rl`, titulada `PowerZona Aminos foreground 2`, se creó sólo después de verificar `target_type=category`, categoría `aminos` y `/t/powerzona/categoria/aminos`. El cron registró `sent`, 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas; Android registró `notification_posted`, la app permaneció en foreground y el propietario confirmó que al tocarla abrió la página de Aminos sin caer en Home ni mostrar `Internal server error`.
 
 #### Validación automatizada local
 
@@ -1799,7 +1801,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 |---|---|---|---|---|
 | Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [ ] pendiente |
 | Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.3`: M90 exacto, background, notificación visible y toque abre artículo correcto |
-| Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [!] `0.2.3` público dio error; `0.2.4` foreground publicada, toque pendiente de confirmar |
+| Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.4`: Aminos real en foreground, notificación visible y toque abre la categoría correcta sin error |
 | Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
 | Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [ ] pedido real autorizado |
 | Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] vigente/vencida |
@@ -1811,7 +1813,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
 | Imagen WebP y texto | [ ] implementación/pruebas; falta entrega real | [ ] pendiente |
 | Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado hasta `0.2.4` |
-| App abierta/background/cerrada | [x] lifecycle sintético | [!] background real aprobado; foreground publicado y pendiente de toque; proceso cerrado pendiente |
+| App abierta/background/cerrada | [x] lifecycle sintético | [!] foreground real aprobado con Aminos y background real aprobado con M90; proceso cerrado pendiente |
 
 #### Riesgos, deuda o bloqueos
 
@@ -1822,10 +1824,10 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 #### Despliegue
 
 - `dev`, la referencia remota real, frontend staging y PocketBase staging quedaron publicados/desplegados con autorización hasta `a8f3c20`. Smoke checks posteriores confirmaron ambos runtimes sanos, relay storefront v2 data-only y cuotas efectivas 10/310; el relay administrativo v1 permaneció separado.
-- Los commits móviles `cf846b5`, `fdfa87a`, documental `e377d65` y de aislamiento staging `1417dee` no se publicaron ni desplegaron. `dev` local está en `1417dee`, cuatro commits por delante de `origin/dev`; cualquier push nuevo requiere autorización explícita y separada.
-- El APK `0.2.4-staging` se instaló primero en emulador y después en el Samsung SM-F946U1, conservando userdata y permiso. El teléfono actualizó code 5 → 6, recreó el proceso y abrió Aminos directamente desde proceso cerrado sin el error público; la décima notificación real quedó activa para la confirmación manual foreground.
+- Los commits móviles `cf846b5`, `fdfa87a`, documental `e377d65`, de aislamiento staging `1417dee` y documental `cccf0e5` no se publicaron ni desplegaron; cualquier push nuevo requiere autorización explícita y separada.
+- El APK `0.2.4-staging` se instaló primero en emulador y después en el Samsung SM-F946U1, conservando userdata y permiso. El teléfono actualizó code 5 → 6, recreó el proceso y abrió Aminos directamente desde proceso cerrado sin el error público; la repetición FCM real confirmó además la apertura correcta de Aminos desde foreground.
 - No se modificó Firebase/App Check, no se generó firma de producción y producción permaneció fuera de alcance.
 
 #### Siguiente paso
 
-- Confirmar manualmente que `PowerZona Aminos staging` abre la categoría correcta. Después, si hacen falta más campañas hoy, aplicar sólo en PocketBase staging una ampliación temporal anunciada y restaurarla a 10/310 al terminar. Completar estados/destinos, icono, splash, WebP/texto, pedido real, rifa y cupón válido/inválido antes de cerrar C07. No publicar los commits locales sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
+- Completar exclusivamente las pruebas C07 aún pendientes: portada, cinco secciones, orden real, rifa y cupón válido/inválido en teléfono; proceso cerrado real; e inspección final de icono, splash y WebP/texto. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea, no publicar los commits locales sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
