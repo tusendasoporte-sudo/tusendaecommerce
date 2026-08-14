@@ -460,7 +460,7 @@ El Dockerfile no prueba que Coolify tenga el volumen montado. Antes de C04 se de
 - Free/Básico pueden ver una explicación comercial, pero no datos de instalaciones, borradores o métricas del módulo.
 - Cuota diaria aprobada por el propietario: máximo 10 campañas iniciadas por tienda en cada día calendario de su zona horaria configurada. Los borradores y las campañas canceladas antes de comenzar no cuentan.
 - Frecuencia aprobada por instalación: una instalación elegible puede recibir las 10 campañas de ese día. El contador se reinicia con el día calendario de la tienda; las alertas administrativas no cuentan para este límite.
-- Cuota mensual aprobada por el propietario: máximo 186 campañas iniciadas por tienda.
+- Cuota mensual aprobada por el propietario: máximo 310 campañas iniciadas por tienda, equivalente a 10 diarias durante un mes de 31 días.
 - Audiencia aprobada por el propietario: no existe un máximo fijo de instalaciones por campaña. Una campaña dirigida a todos se procesa para todas las instalaciones activas y elegibles, sin excluir silenciosamente las que superen 20 000 o 100 000.
 - FCM es un producto sin coste por cantidad de mensajes. El límite técnico oficial actual del API HTTP v1 es una cuota predeterminada de 600 000 mensajes downstream por minuto y proyecto, sujeta a cambio o ampliación; no es una cuota mensual de facturación. El motor consultará/monitorizará la cuota real, enviará en lotes de hasta 500, distribuirá la carga y respetará `Retry-After` ante `429 RESOURCE_EXHAUSTED`.
 - Si una tienda baja de Premium: conservar borradores, medios e historial en solo lectura; bloquear nuevas acciones; pasar lo programado aún no iniciado a `paused_plan`; no reanudar automáticamente al recuperar Premium. Un administrador autorizado debe revisar y reprogramar para evitar un envío antiguo inesperado.
@@ -544,7 +544,7 @@ Estado vigente:
 
 1. Identidad: nombre `PowerZona`, `applicationId` `com.tusenda84.powerzona`, maestro premium v3, símbolo launcher sin wordmark, splash vertical y paleta v3 exacta aprobados. V1 y v2 A/B quedan solo como historial rechazado.
 2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP de hasta 1200 × 630 y 100 KiB, cuota 250 MiB/100 por tienda, vencimiento absoluto a 24 horas, alerta global a 35 GiB y límite global de carga a 40 GiB.
-3. Campañas: aprobadas 10 por día, 186 por mes, que cada instalación elegible pueda recibir las 10 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
+3. Campañas: aprobadas 10 por día, 310 por mes, que cada instalación elegible pueda recibir las 10 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
 4. Downgrade aprobado: historial/borradores/medios en solo lectura; programadas pasan a `paused_plan` y requieren reprogramación manual tras recuperar Premium.
 5. Retención aprobada: IP completa cifrada 30 días; entregas/eventos 180 días; campañas 24 meses; agregados 36 meses.
 6. Atribución aprobada: ventana de siete días desde el toque; orden solo con sesión/instalación verificada y cupón solo aplicado por validación server-side.
@@ -958,7 +958,7 @@ Todas las decisiones requeridas para cerrar PZ-APP-C01 quedaron resueltas y regi
 - [x] Presupuesto de archivos de tiendas: alerta crítica al Master desde 35 GiB y bloqueo duro de nuevas cargas por encima de 40 GiB.
 - [x] Retención del IP completo y de eventos individuales: 30 y 180 días respectivamente.
 - [x] Límite diario: 10 campañas iniciadas por tienda; cada instalación elegible puede recibir las 10 en el día calendario de la tienda.
-- [x] Límite mensual: 186 campañas iniciadas por tienda.
+- [x] Límite mensual: 310 campañas iniciadas por tienda.
 - [x] Audiencia por campaña: todas las instalaciones activas y elegibles, sin máximo fijo; lotes de hasta 500 y control de velocidad según la cuota vigente de FCM.
 - [x] Proveedor/mecanismo del trabajo programado: `cronAdd` de PocketBase cada minuto, con lease transaccional, snapshot único y entregas idempotentes.
 - [x] Comportamiento cuando una tienda baja de Premium: solo lectura y `paused_plan`, sin reanudación automática; el escaparate instalado no se rompe.
@@ -1183,7 +1183,7 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 - Reservar `marketing.push.manage` y `push_campaigns_enabled`.
 - Mantener el relay administrativo v1 sin cambios y crear v2 para storefront.
 - Decisión humana inicial, sustituida posteriormente: máximo 5 campañas por tienda al día y 155 al mes.
-- Decisión humana vigente: máximo 10 campañas por tienda al día, 186 al mes y cada instalación elegible puede recibir las 10 diarias.
+- Decisión humana vigente: máximo 10 campañas por tienda al día, 310 al mes y cada instalación elegible puede recibir las 10 diarias.
 - Decisión humana registrada: sin máximo fijo de audiencia; cada campaña alcanza a todas las instalaciones elegibles y el backend respeta la cuota técnica de FCM.
 - Decisión humana registrada: la app white-label es exclusiva de Premium; un downgrade suspende push/provisión sin romper el escaparate instalado.
 - Decisión humana registrada: medios en PocketBase `pb_data/storage` del servidor Tu Senda 84, con alias, límites y retención definidos en 6.6 y 6.13.
@@ -1598,7 +1598,7 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 
 - Se añadió el ciclo de vida administrativo y el cron `pz_storefront_push_campaigns` cada minuto, con revalidación de tienda activa, Premium, creador y `marketing.push.manage` antes de reclamar trabajo.
 - La audiencia se deriva exclusivamente desde instalaciones `active` con permiso `granted`, `store` coincidente y `storefront_app_configs` activa. El snapshot se materializa una sola vez en `push_campaign_deliveries`, sin máximo artificial de audiencia y con retención de 180 días.
-- Las cuotas son 10 campañas iniciadas por día y 186 por mes calendario en la zona IANA de la campaña. Una tienda no puede mezclar zonas horarias entre campañas ya iniciadas.
+- Las cuotas son 10 campañas iniciadas por día y 310 por mes calendario en la zona IANA de la campaña. Una tienda no puede mezclar zonas horarias entre campañas ya iniciadas.
 - El dispatch reclama como máximo 500 entregas por lote mediante `claim_token` y lease transaccional. Reintenta solo fallos transitorios seguros hasta tres intentos, respeta `Retry-After`, marca un lease ambiguo como `unknown` sin reintento y terminaliza trabajo restante si una campaña falla durante una revalidación.
 - El relay v2 valida un contrato exacto por `delivery_id`, agrupa por `app_key`/paquete/Firebase app, usa credenciales y secreto storefront separados, restringe el paquete Android y devuelve resultados parciales. Un FID inválido permanente cambia la instalación a `invalid`.
 - Los destinos se generan en servidor y quedan limitados a portada, producto, categoría, sección, orden, rifa y cupón. Orden no incluye token en FCM; rifas vencidas usan el respaldo público seguro.
@@ -1756,7 +1756,8 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Corrección durante la matriz FCM física
 
-- El propietario corrigió la decisión operativa vigente a un máximo de 10 campañas iniciadas por tienda al día. Se actualizó `DAILY_CAMPAIGN_LIMIT` a 10 y se mantuvo el máximo mensual existente de 186; una prueba explícita fija ambos valores.
+- El propietario corrigió la decisión operativa vigente a un máximo de 10 campañas iniciadas por tienda al día y después elevó el máximo mensual a 310 para cubrir 10 diarias en meses de 31 días. Las pruebas explícitas fijan ambos valores.
+- Diez diarias es un techo comercial, no un objetivo de envío ni un umbral de bloqueo de FCM. Está muy por debajo de los límites técnicos por dispositivo, pero se espaciarán las campañas, se evitarán duplicados y se enviará prioridad alta sólo cuando el contenido sea visible y oportuno: FCM puede degradar prioridad ante patrones que no muestran notificaciones y el usuario puede retirar el permiso. En una futura publicación Play, promociones por notificación deberán seguir siendo una función integral y relevante de la app.
 - La campaña de producto con el slug provisional incorrecto abrió Home. La repetición posterior con la URL pública confirmada de `Audifonos M90 Pro Ultra Calidad` también abrió Home en segundo plano, demostrando que el slug no era la causa raíz.
 - Los logs del teléfono mostraron que el mensaje híbrido `notification + data` llegaba mediante un `PendingIntent` generado por Firebase y la actividad recibía extras sin un contrato de navegación utilizable. En foreground el mismo formato tampoco produjo una notificación visible de forma fiable.
 - La corrección limita el relay storefront v2 a FCM data-only: título, texto, imagen y destino viajan como datos validados; PowerZona analiza el contrato y crea localmente la notificación y su `PendingIntent`. No se modificó el relay administrativo v1 ni se envió otra campaña antes de compilar, desplegar e instalar la corrección.
@@ -1812,7 +1813,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 #### Despliegue
 
 - La implementación inicial C07 se publicó en `dev`; frontend y PocketBase staging fueron desplegados hasta `9bf0e8c`. El commit de prueba `d9da00b` fue publicado después sin alterar el runtime.
-- La corrección quedó consolidada localmente en `dev` como `9debf8e`. El intento de push fue rechazado por la política de aprobación y no se reintentó ni rodeó. Por tanto, `origin/dev` sigue en `d9da00b`, el relay storefront v2 de staging todavía es híbrido y la cuota efectiva de PocketBase staging continúa en 6 aunque el código local ya fija 10/186.
+- La corrección de navegación quedó consolidada localmente en `dev` como `9debf8e`. El intento de push fue rechazado por la política de aprobación y no se reintentó ni rodeó. Por tanto, `origin/dev` sigue en `d9da00b`, el relay storefront v2 de staging todavía es híbrido y las cuotas efectivas de PocketBase staging continúan en 6/186 aunque el código local ya fija 10/310.
 - El APK `0.2.1-staging` se instaló primero en `Pixel_4a` y después en el Samsung SM-F946U1 físico. En el teléfono pasó de `0.2.0-staging`/code 2 a `0.2.1-staging`/code 3, conservó el permiso concedido y quedó de nuevo en segundo plano con Launcher al frente. No se envió otra campaña.
 - No se modificó Firebase/App Check, no se generó firma de producción y producción permaneció fuera de alcance.
 

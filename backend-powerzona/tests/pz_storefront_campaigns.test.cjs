@@ -285,7 +285,7 @@ test('audiencia y snapshot se aíslan por tienda y son idempotentes sin límite 
 
 test('cuotas diarias/mensuales usan el calendario IANA de la tienda', () => {
   assert.equal(campaigns.DAILY_CAMPAIGN_LIMIT, 10);
-  assert.equal(campaigns.MONTHLY_CAMPAIGN_LIMIT, 186);
+  assert.equal(campaigns.MONTHLY_CAMPAIGN_LIMIT, 310);
   const app = createApp();
   const item = app.add(campaign());
   for (let index = 0; index < campaigns.DAILY_CAMPAIGN_LIMIT; index += 1) {
