@@ -1948,12 +1948,12 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 | Duplicado | [ ] | [ ] | Crea un borrador separado, conserva contenido/destino/audiencia y advierte revisar el medio temporal. |
 | Errores y accesibilidad | [ ] | [ ] | Red/403/409/imagen muestran mensajes útiles; teclado, Escape, foco visible, lector y reducción de movimiento funcionan. |
 
-#### Ejecución manual parcial — primer despliegue staging
+#### Ejecución manual parcial — staging
 
 - Escritorio 1440 × 900: ruta canónica, sidebar `Promos > Campañas push`, encabezado Premium, límites 10/310, historial de 33 campañas, filtro `Enviada` con 21 resultados y ausencia de desborde horizontal aprobados en modo soporte Master.
 - Móvil 390 × 844: header móvil, acción `Nueva`, 33 campañas, búsqueda `M90` con cinco resultados anunciados y ausencia de desborde horizontal aprobados. El editor abrió sin persistir datos; título/cuerpo actualizaron en vivo el preview Android, sección `checkout` y audiencia por versión mostraron sus campos condicionales, no existe entrada de URL libre y el cierre visible funcionó. La simulación automatizada no consiguió generar un evento Escape nativo confiable, aunque el listener `cancel` está implementado; ese gesto queda pendiente de comprobación humana.
 - El smoke no creó borradores, no duplicó/canceló campañas, no subió medios y no envió FCM; por tanto no consumió cuota ni modificó datos staging.
-- La biblioteca WebP falló cerrada en modo soporte Master por el contexto descrito arriba. La corrección está localmente validada, pero esta matriz permanece pendiente hasta autorizar, publicar y desplegar ese commit; móvil y acciones mutables todavía no se marcan.
+- La biblioteca WebP falló cerrada en modo soporte Master durante el primer despliegue por el contexto descrito arriba. Después de publicar la corrección, el segundo smoke cargó correctamente una WebP vigente y mostró dimensiones `640 × 320`, peso `6.5 KiB` y vencimiento; no se subió ni eliminó ningún medio. La carga válida/inválida, acciones mutables y envío FCM todavía no se marcan.
 
 #### Despliegue
 
@@ -1961,8 +1961,9 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - `dev` avanzó por fast-forward desde `e61e055` hasta `d5cbdc9`; `origin/dev` y la referencia remota real quedaron en `d5cbdc9f6f748c57c217cf53b280bbf1d1dab64a`.
 - Coolify ejecutó el deployment `fzb6b8zuqgrdylqj82krnslt`: build aprobado, rolling update terminado, recurso frontend `Running` y commit activo `d5cbdc9`. Storefront y salud de PocketBase devolvieron HTTP 200.
 - PocketBase no se redesplegó: continúa `Running` en `4efb9a6a3d06bf78d81bdadb406748998718545f`. Su historial confirmó que el último deployment fue el manual previo de C07, cuatro horas antes de este smoke. Firebase, App Check, Cloudflare y producción no se modificaron.
-- El fix focal del contexto Master permanece solo local y requiere autorización separada para un segundo push/redeploy. El frontend público sigue operativo; en `d5cbdc9` la biblioteca WebP del panel falla únicamente bajo soporte Master.
+- Con una segunda autorización explícita, `dev`, `origin/dev` y la referencia remota real avanzaron por fast-forward hasta `6d59951238850ae3c07c093013c74ea74f473fb6`. Coolify ejecutó el deployment frontend `qgan6bh58jsv4d0ewjp2l16k`: build aprobado, las mismas tres advertencias históricas, rolling update `Finished`, recurso `Running` y commit activo `6d59951`.
+- Smoke posterior: storefront HTTP 200, ruta C08 anónima protegida con redirección, historial Master de 33 campañas, biblioteca C04 con una WebP vigente y PocketBase HTTP 200. PocketBase continuó `Running` en `4efb9a6`; no se redesplegó ni modificó. Producción, Firebase, App Check y Cloudflare permanecieron fuera de alcance.
 
 #### Siguiente paso
 
-- Mantener exclusivamente C08 `EN CURSO`. Commit local de la corrección focal, solicitar autorización separada para publicarlo/redesplegar solo frontend staging y después completar la matriz manual de escritorio/móvil. No iniciar C09.
+- Mantener exclusivamente C08 `EN CURSO`. Solicitar autorización separada antes de crear/subir fixtures, guardar/duplicar/cancelar/programar campañas o enviar FCM en staging; después completar la matriz manual y cerrar solo C08. No iniciar C09.
