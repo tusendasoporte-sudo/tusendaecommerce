@@ -1884,6 +1884,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - El panel debe conservar las cuotas permanentes de 10 campañas diarias y 310 mensuales, y describir `accepted` como aceptación de Firebase, no entrega o lectura.
 - El frontend no sustituye las validaciones backend de plan, permiso, tienda y contenido; todas las mutaciones consumen los endpoints C04/C05 que las revalidan.
 - El relay storefront v2 data-only y el relay administrativo v1 permanecerán separados y sin cambios de contrato.
+- La ejecución manual mutable encontró dos regresiones directas de C08 en el frontend desplegado: un ID inválido oculto seguía participando en `reportValidity()` al volver a Portada/Sección, y una campaña nueva usaba `America/Havana` aunque las campañas iniciadas que fijan la cuota de PowerZona usan `America/New_York`. Ambas correcciones están implementadas y probadas solo en local; requieren publicación y redespliegue frontend autorizados antes de repetir el único envío.
 
 #### Implementación local
 
@@ -1895,6 +1896,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - Middleware, sidebar y página vuelven a aplicar `marketing.push.manage` y `push_campaigns_enabled`. Un administrador principal sin Premium puede ver únicamente la explicación comercial; no se cargan campañas, instalaciones, borradores ni contadores. Un colaborador sin permiso recibe la puerta 403/404 vigente.
 - El navegador obtiene la sesión desde la cookie administrativa existente y nunca recibe el token como prop o atributo HTML del componente. Las solicitudes solo pueden usar rutas `/api/pz/storefront/v1/campaigns/*`, HTTPS —salvo localhost de desarrollo— y el header de soporte Master sanitizado cuando corresponde.
 - La vista incorpora mensajes `aria-live`, etiquetas, diálogos con título/descripción, foco de error, botones con nombres accesibles, navegación por teclado, targets táctiles, layout móvil/escritorio y reducción de movimiento.
+- La corrección posterior a la matriz mutable desactiva los controles condicionales mientras están ocultos, por lo que una referencia o segmento inválido anterior no bloquea un destino/audiencia nuevos. También deriva la zona horaria de cuota desde una campaña con `started_at`, mantiene esa ancla al filtrar y la aplica a borradores/duplicados editables sin reducir la validación C05.
 
 #### Archivos modificados
 
@@ -1924,8 +1926,9 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - `git diff --check` y revisión de whitespace de archivos nuevos → sin errores. `.tmp/`, `.secrets/`, `google-services.json`, identidad de firma staging, worktrees y stash ajenos permanecen intactos.
 - Smoke del primer despliegue encontró una regresión directa de C08 exclusiva del modo soporte Master: el panel resolvía correctamente las 33 campañas, pero `/api/admin/push-media` no recibía el slug de la tienda y mostraba `No se pudo cargar la biblioteca de imágenes.` El proxy seguía aplicando autenticación, Premium y permiso, pero no podía construir el contexto Master desde una ruta API sin `/t/<slug>`.
 - Corrección focal local: la vista propaga el slug canónico en las peticiones GET/POST de medios y el proxy lo entrega a `requireCurrentStoreForAdmin`; un usuario de tienda continúa usando su tienda asignada y el backend C04 vuelve a validar el acceso. Pruebas C08 → 11/11; regresión focal C08+C04 → 21/21; build Astro aprobado con las mismas tres advertencias históricas de rutas dinámicas. No se descargaron dependencias: se reutilizó una unión temporal verificada y retirada, conservando intacto el `node_modules` principal.
+- Corrección focal posterior a la matriz mutable: 34/34 pruebas de C08, C04 y gateway storefront aprobadas, incluida la nueva regresión de anclaje de zona horaria; `npm.cmd run build` aprobado con las mismas tres advertencias históricas. El junction temporal de `node_modules` se verificó y retiró, y el origen quedó intacto. El primer intento de build dentro del sandbox no pudo actualizar `.astro/content.d.ts`; la repetición autorizada fuera del sandbox terminó correctamente.
 
-#### PRUEBA MANUAL NECESARIA — pendiente de despliegue staging autorizado
+#### PRUEBA MANUAL NECESARIA — ejecución parcial autorizada en staging
 
 - Entorno previsto: frontend y PocketBase staging; producción fuera de alcance. La prueba debe ejecutarse sobre el commit C08 exacto después de un push y despliegue autorizados por separado.
 - Escritorio previsto: Chromium actual, viewport aproximado 1440 × 900. Móvil previsto: viewport 390 × 844 y, si está disponible, navegador del Samsung Fold5. No requiere instalar ni recompilar la app Android.
@@ -1933,19 +1936,19 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 
 | Caso | Escritorio | Móvil | Resultado esperado / evidencia |
 |---|---|---|---|
-| Ruta y navegación activa | [ ] | [ ] | `Campañas push` aparece bajo Promos, queda activo y `Nueva campaña` es accesible. |
-| Premium + permiso | [ ] | [ ] | Carga solo campañas de la tienda; otra tienda no aparece. |
+| Ruta y navegación activa | [x] | [x] | `Campañas push` aparece bajo Promos, queda activo y `Nueva campaña` es accesible. |
+| Premium + permiso | [x] | [x] | Carga solo campañas de la tienda; otra tienda no aparece. |
 | Free/Básico y sin permiso | [ ] | [ ] | Principal sin Premium ve solo la explicación comercial; colaborador sin permiso no accede ni recibe datos. |
-| Listado, búsqueda y filtros | [ ] | [ ] | Estados, texto, destino y contadores se leen sin desbordes; paginación/filtros anuncian su resultado. |
-| Borrador y validaciones | [ ] | [ ] | Crear/editar borrador exige título, texto, audiencia y destino válidos; URL libre e ID inválido se rechazan. |
-| Carga y preview WebP | [ ] | [ ] | JPG/PNG válido termina como WebP, muestra dimensiones/peso/vencimiento y se previsualiza; archivo inválido muestra error. |
+| Listado, búsqueda y filtros | [x] | [x] | Estados, texto, destino y contadores se leen sin desbordes; paginación/filtros anuncian su resultado. |
+| Borrador y validaciones | [x] | [ ] | Crear/editar borrador exige título, texto, audiencia y destino válidos; URL libre e ID inválido se rechazan. |
+| Carga y preview WebP | [x] | [ ] | JPG/PNG válido termina como WebP, muestra dimensiones/peso/vencimiento y se previsualiza; archivo inválido muestra error. |
 | Previsualización Android | [ ] | [ ] | Título, cuerpo e imagen cambian en vivo; el contenido sigue legible sin imagen y con texto largo. |
 | Destino tipado | [ ] | [ ] | Portada/sección y al menos una relación válida muestran ruta canónica; relación ajena/inactiva falla cerrada. Pedido exige instalación vinculada. |
-| Audiencia estimada | [ ] | [ ] | El conteo aparece después de guardar/validar; `snapshot` y estimación dinámica se etiquetan correctamente. |
-| Confirmación de envío | [ ] | [ ] | Antes de enviar muestra campaña, audiencia, destino, momento, 10/310 y la advertencia Firebase; Volver no envía. |
+| Audiencia estimada | [x] | [ ] | El conteo aparece después de guardar/validar; `snapshot` y estimación dinámica se etiquetan correctamente. |
+| Confirmación de envío | [x] | [ ] | Antes de enviar muestra campaña, audiencia, destino, momento, 10/310 y la advertencia Firebase; Volver no envía. |
 | Envío inmediato controlado | [ ] | [ ] | Tras confirmación, el estado y contadores C05 se actualizan una sola vez; no se promete entrega/lectura. |
 | Programación y cancelación | [ ] | [ ] | Fecha pasada falla; fecha futura queda `Programada`; cancelar antes de iniciar pasa a `Cancelada`. |
-| Duplicado | [ ] | [ ] | Crea un borrador separado, conserva contenido/destino/audiencia y advierte revisar el medio temporal. |
+| Duplicado | [x] | [ ] | Crea un borrador separado, conserva contenido/destino/audiencia y advierte revisar el medio temporal. |
 | Errores y accesibilidad | [ ] | [ ] | Red/403/409/imagen muestran mensajes útiles; teclado, Escape, foco visible, lector y reducción de movimiento funcionan. |
 
 #### Ejecución manual parcial — staging
@@ -1954,6 +1957,13 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - Móvil 390 × 844: header móvil, acción `Nueva`, 33 campañas, búsqueda `M90` con cinco resultados anunciados y ausencia de desborde horizontal aprobados. El editor abrió sin persistir datos; título/cuerpo actualizaron en vivo el preview Android, sección `checkout` y audiencia por versión mostraron sus campos condicionales, no existe entrada de URL libre y el cierre visible funcionó. La simulación automatizada no consiguió generar un evento Escape nativo confiable, aunque el listener `cancel` está implementado; ese gesto queda pendiente de comprobación humana.
 - El smoke no creó borradores, no duplicó/canceló campañas, no subió medios y no envió FCM; por tanto no consumió cuota ni modificó datos staging.
 - La biblioteca WebP falló cerrada en modo soporte Master durante el primer despliegue por el contexto descrito arriba. Después de publicar la corrección, el segundo smoke cargó correctamente una WebP vigente y mostró dimensiones `640 × 320`, peso `6.5 KiB` y vencimiento; no se subió ni eliminó ningún medio. La carga válida/inválida, acciones mutables y envío FCM todavía no se marcan.
+- Con autorización mutable explícita se probó un PNG sintético local de `800 × 420` y 7933 bytes: C04 lo convirtió en el medio temporal `n4387ur2s81ki1s`, WebP de 700 bytes con URL HTTPS y vencimiento el 15 de agosto de 2026 a las 19:33. Un PNG falsificado de 26 bytes fue rechazado y no agregó otra opción. Los dos archivos fuente bajo `%TEMP%` se eliminaron después de la prueba; el medio remoto conservará su vencimiento normal de 24 horas.
+- El ID corto `abc` se rechazó antes de crear una campaña. La misma secuencia reveló que el control oculto seguía invalidando el formulario al cambiar a Portada; el workaround manual fue vaciarlo desde Producto y la corrección local ahora desactiva controles condicionales ocultos.
+- El borrador `kn521lolj869683`, con destino Sección `/t/powerzona/buscar`, audiencia `notification_permission` y la WebP nueva, fue validado por C05 y estimó exactamente 1 instalación. La confirmación inmediata mostró campaña, audiencia, destino, momento, límites 10/310 y la advertencia Firebase; `Volver` cerró el diálogo sin iniciar ni alterar contadores.
+- Ese borrador se programó para el 14 de agosto de 2026 a las 19:55 y quedó `Programada`; se canceló antes de iniciar y pasó a `Cancelada` con contadores 0. La prueba de fecha pasada no se ejecutó, por lo que la fila combinada permanece sin marcar.
+- El duplicado `pbbs5nt55loy64x` se creó como borrador separado y conservó contenido, destino, audiencia y medio temporal. Se renombró `QA-C08-20260814-envio`; su estimación volvió a ser 1 instalación.
+- Se ejecutó exactamente un intento de envío inmediato, conforme a la autorización. C05 lo dejó `Fallida` con `timezone_mismatch`, 0 seleccionadas, 0 aceptadas, 0 fallidas y 0 FID inválidos: no alcanzó FCM, no notificó al Fold5 y no fijó `started_at`, por lo que no consumió una campaña de las cuotas 10/310. Dos campañas C07 iniciadas confirmaron el ancla histórica `America/New_York`, mientras el frontend desplegado había propuesto `America/Havana`; no se reintentó ni se alteraron cuotas.
+- La puerta Free/prueba gratuita se comprobó con la tienda existente `ywqrbs12gzr9ky6`: mostró solo la explicación comercial y no expuso campañas. No existía una sesión de colaborador sin permiso disponible y no se crearon ni alteraron usuarios, por lo que esa mitad de la fila queda pendiente. Escape nativo y lector de pantalla continúan pendientes de comprobación humana; los listeners, nombres accesibles, foco visible y reducción de movimiento permanecen cubiertos por código/pruebas.
 
 #### Despliegue
 
@@ -1966,4 +1976,4 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 
 #### Siguiente paso
 
-- Mantener exclusivamente C08 `EN CURSO`. Solicitar autorización separada antes de crear/subir fixtures, guardar/duplicar/cancelar/programar campañas o enviar FCM en staging; después completar la matriz manual y cerrar solo C08. No iniciar C09.
+- Mantener exclusivamente C08 `EN CURSO`. Publicar y redesplegar la corrección frontend de campos condicionales/zona horaria solo con autorización separada; después solicitar una nueva autorización explícita para un único reintento FCM, completar los casos manuales aún abiertos y cerrar solo C08. No iniciar C09.

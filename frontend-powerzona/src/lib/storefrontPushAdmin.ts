@@ -193,6 +193,23 @@ export function normalizeStorefrontPushCampaigns(value: unknown) {
     .filter((campaign): campaign is StorefrontPushCampaign => campaign !== null);
 }
 
+export function resolveStorefrontPushQuotaTimezone(
+  campaigns: readonly StorefrontPushCampaign[],
+  fallback: unknown = 'America/Havana',
+) {
+  let fallbackTimezone = 'America/Havana';
+  try {
+    fallbackTimezone = validateTimezone(fallback);
+  } catch (_) {}
+  for (const campaign of campaigns) {
+    if (!campaign.started_at || !campaign.timezone) continue;
+    try {
+      return validateTimezone(campaign.timezone);
+    } catch (_) {}
+  }
+  return fallbackTimezone;
+}
+
 export async function resolveStorefrontPushAdminAccess(
   adminContext: Pick<AdminStoreContext, 'store' | 'storeId' | 'isMasterSupport'>,
   options: { baseUrl?: string; token: string; storeAccess?: StoreAccessContext | null },

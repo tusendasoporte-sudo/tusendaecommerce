@@ -10,6 +10,7 @@ import {
   mutateStorefrontPushCampaign,
   normalizeStorefrontPushCampaign,
   previewStorefrontPushAudience,
+  resolveStorefrontPushQuotaTimezone,
   saveStorefrontPushCampaign,
   scheduleStorefrontPushCampaign,
   storefrontPushAdminErrorMessage,
@@ -224,6 +225,18 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
   assert.match(storefrontPushAdminErrorMessage('media_expires_before_send'), /vencerá antes del envío/);
 });
 
+test('fija la zona horaria de cuota desde una campaña ya iniciada', () => {
+  const draft = normalizeStorefrontPushCampaign(campaignFixture({ timezone: 'America/Havana' }));
+  const started = normalizeStorefrontPushCampaign(campaignFixture({
+    id: 'camp00000000004',
+    status: 'sent',
+    timezone: 'UTC',
+    started_at: '2026-08-14T16:00:00.000Z',
+  }));
+  assert.equal(resolveStorefrontPushQuotaTimezone([draft], 'America/Havana'), 'America/Havana');
+  assert.equal(resolveStorefrontPushQuotaTimezone([draft, started], 'America/Havana'), 'UTC');
+});
+
 test('el componente contiene todos los flujos C08, confirmaciones y accesibilidad responsive', () => {
   const source = pushCampaignViewSource;
   for (const marker of [
@@ -239,6 +252,9 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
   assert.match(source, /data-only v2/);
+  assert.match(source, /referenceInput\.disabled = state\.editorReadonly \|\| !isReference/);
+  assert.match(source, /versionInput\.disabled = state\.editorReadonly \|\| audienceType !== 'app_version'/);
+  assert.match(source, /resolveStorefrontPushQuotaTimezone\(state\.campaigns, state\.quotaTimezone\)/);
   assert.match(source, /root\.dataset\.storeSlug/);
   assert.match(source, /\/api\/admin\/push-media\?store=\$\{encodeURIComponent\(storeSlug\)\}/);
   assert.equal((source.match(/fetch\(mediaEndpoint/g) || []).length, 2);

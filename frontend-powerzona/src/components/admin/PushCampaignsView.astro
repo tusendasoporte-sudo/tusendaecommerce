@@ -265,7 +265,7 @@ const {
             <label class="push-field">
               <span>Fecha y hora programada</span>
               <input name="scheduled_at" data-field="scheduled_at" type="datetime-local" />
-              <small>La hora se convierte a UTC al guardar; la cuota diaria usa {defaultTimezone}.</small>
+              <small data-timezone-help>La hora se convierte a UTC al guardar; la cuota diaria usa {defaultTimezone}.</small>
             </label>
             <div class="push-warning">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1.8 21h20.4L12 3Zm1 14h-2v-2h2v2Zm0-4h-2V8h2v5Z" /></svg>
@@ -352,6 +352,7 @@ const {
     previewStorefrontPushAudience,
     readStorefrontPushAdminAuthToken,
     readStorefrontPushAdminCookie,
+    resolveStorefrontPushQuotaTimezone,
     saveStorefrontPushCampaign,
     scheduleStorefrontPushCampaign,
     STOREFRONT_PUSH_BODY_MAX,
@@ -403,6 +404,7 @@ const {
       audience: null,
       confirmed: null,
       editorReadonly: false,
+      quotaTimezone: defaultTimezone,
       toastTimer: 0,
     };
 
@@ -547,6 +549,7 @@ const {
           query: { page: state.page, status: statusFilter?.value || undefined },
         });
         state.campaigns = normalizeStorefrontPushCampaigns(result.campaigns);
+        state.quotaTimezone = resolveStorefrontPushQuotaTimezone(state.campaigns, state.quotaTimezone);
         loaded = true;
       } catch (error) {
         state.campaigns = [];
@@ -628,6 +631,12 @@ const {
     function updateConditionalFields() {
       const targetType = field('target_type')?.value || 'home';
       const audienceSelect = field('audience_type');
+      const referenceInput = field('target_ref');
+      const sectionSelect = field('target_section');
+      const installationInput = field('installation_id');
+      const versionInput = field('app_version_code');
+      const countryInput = field('country_code');
+      const regionInput = field('region_code');
       const referenceField = one('[data-target-reference-field]');
       const sectionField = one('[data-target-section-field]');
       const installationField = one('[data-audience-installation-field]');
@@ -637,6 +646,9 @@ const {
       referenceField.classList.toggle('hidden', !isReference);
       sectionField.classList.toggle('hidden', targetType !== 'section');
       installationField.classList.toggle('hidden', targetType !== 'order');
+      referenceInput.disabled = state.editorReadonly || !isReference;
+      sectionSelect.disabled = state.editorReadonly || targetType !== 'section';
+      installationInput.disabled = state.editorReadonly || targetType !== 'order';
       const labels = {
         product: ['ID del producto', 'Usa el ID del producto activo de esta tienda.'],
         category: ['ID de la categoría', 'Usa el ID de una categoría activa de esta tienda.'],
@@ -656,6 +668,9 @@ const {
       const audienceType = audienceSelect.value;
       versionField.classList.toggle('hidden', audienceType !== 'app_version');
       regionField.classList.toggle('hidden', audienceType !== 'country_region');
+      versionInput.disabled = state.editorReadonly || audienceType !== 'app_version';
+      countryInput.disabled = state.editorReadonly || audienceType !== 'country_region';
+      regionInput.disabled = state.editorReadonly || audienceType !== 'country_region';
       updatePreview();
     }
     function updatePreview() {
@@ -715,7 +730,8 @@ const {
       state.editing = null;
       state.audience = null;
       field('campaign_id').value = '';
-      field('timezone').value = defaultTimezone;
+      field('timezone').value = state.quotaTimezone;
+      one('[data-timezone-help]').textContent = `La hora se convierte a UTC al guardar; la cuota diaria usa ${state.quotaTimezone}.`;
       field('target_type').value = 'home';
       field('audience_type').value = 'all_active';
       field('media_id').value = '';
@@ -739,7 +755,8 @@ const {
       field('title').value = campaign.title;
       field('body').value = campaign.body;
       field('media_id').value = campaign.media_id;
-      field('timezone').value = campaign.timezone || defaultTimezone;
+      field('timezone').value = state.quotaTimezone || campaign.timezone || defaultTimezone;
+      one('[data-timezone-help]').textContent = `La hora se convierte a UTC al guardar; la cuota diaria usa ${field('timezone').value}.`;
       field('audience_type').value = campaign.audience_type || 'all_active';
       field('target_type').value = campaign.target_type || 'home';
       field('target_ref').value = campaign.target_ref || '';
@@ -901,9 +918,9 @@ const {
       if (button && card) listAction(card.dataset.campaignId, button.dataset.action);
     });
     ['title', 'body', 'media_id'].forEach((name) => field(name)?.addEventListener('input', updatePreview));
-    field('target_type')?.addEventListener('change', updateConditionalFields);
+    field('target_type')?.addEventListener('change', () => { clearFormMessages(); updateConditionalFields(); });
     field('target_section')?.addEventListener('change', updatePreview);
-    field('audience_type')?.addEventListener('change', updateConditionalFields);
+    field('audience_type')?.addEventListener('change', () => { clearFormMessages(); updateConditionalFields(); });
     one('[data-media-upload]')?.addEventListener('change', (event) => {
       const file = event.currentTarget.files?.[0];
       uploadMedia(file);
