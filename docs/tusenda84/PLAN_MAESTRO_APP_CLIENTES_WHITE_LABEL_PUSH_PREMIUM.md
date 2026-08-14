@@ -6,7 +6,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C05 COMPLETADO — motor de campañas y entrega FCM |
+| Estado general | PZ-APP-C06 COMPLETADO — base Android white-label `mobile-storefront` |
 | Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-14 |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Iniciar exclusivamente PZ-APP-C06; no iniciar C07 ni fases posteriores |
+| Próximo prompt | Iniciar exclusivamente PZ-APP-C07 en una tarea nueva; no iniciar C08 ni fases posteriores |
 
 ### Convención de estados
 
@@ -118,7 +118,7 @@ Se crearán modelos específicos para la app pública. Los nombres definitivos a
 
 No se creará una colección pública de lotes: el bloqueo, intento y resultado se conservarán en `push_campaign_deliveries` y en campos de control de `push_campaigns`.
 
-### 4.4 Estado alcanzado al cerrar PZ-APP-C05
+### 4.4 Estado alcanzado al cerrar PZ-APP-C06
 
 - [x] C02 creó y validó el modelo privado multi-tienda, migraciones, reglas, índices y retención del canal storefront.
 - [x] C03 registró instalaciones públicas con App Check/Play Integrity real, credenciales rotables, heartbeat, permiso, bootstrap y disable.
@@ -126,6 +126,8 @@ No se creará una colección pública de lotes: el bloqueo, intento y resultado 
 - [x] C06A aportó únicamente la identidad Android y cliente mínimo de staging necesarios para cerrar la puerta física de C03.
 - [x] C05 dejó desplegado en staging el motor de campañas, cron por minuto y relay storefront v2 separado; la matriz inmediata/programada/invalidación/no duplicación fue aprobada y los datos técnicos quedaron limpiados.
 - [x] El relay administrativo v1 continúa separado y funcional. Producción, Firebase, enforcement y las fases C06-C12 no se modificaron durante C05.
+- [x] C06 convirtió el cliente mínimo de C06A en un shell público Android white-label: configuración estricta por tienda, WebView seguro, offline/reintento, permiso contextual, registro C03 y recepción/apertura FCM para los tres estados de la app.
+- [x] El APK debug reproducible usa `com.tusenda84.powerzona.debug`, coexistió con staging en el emulador y no incorporó secretos, firma de staging ni `google-services.json`; C07-C12 continúan sin iniciar.
 
 ## 5. Arquitectura objetivo
 
@@ -559,7 +561,7 @@ Estado vigente:
 | PZ-APP-C04 | Canal persistente de imágenes WebP | COMPLETADO | C02 | Completada: carga, visualización, persistencia, limpieza y restauración aislada en staging | Terra — High |
 | PZ-APP-C06A | Identidad de firma y cliente App Check de staging | COMPLETADO | C01 | Completada: token Play Integrity y matriz C03 real en Fold5 | Sol — Extra High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
-| PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03, C06A | Sí: emulador y teléfono | Sol — High |
+| PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | PENDIENTE | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
@@ -712,7 +714,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] Un fallo parcial queda visible y auditable.
 - [x] Las alertas administrativas actuales continúan funcionando.
 
-### [ ] PZ-APP-C06 — Base Android white-label
+### [x] PZ-APP-C06 — Base Android white-label
 
 **Objetivo:** crear `mobile-storefront` como shell Android reutilizable para tiendas públicas.
 
@@ -726,13 +728,13 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] El proyecto compila desde una instalación limpia de dependencias.
-- [ ] No comparte `applicationId` con la app administrativa.
-- [ ] La tienda abre sin inicio de sesión.
-- [ ] El permiso se solicita con contexto y puede reactivarse desde una tarjeta visible.
-- [ ] El FID se registra y su rotación se procesa correctamente.
-- [ ] El WebView limita hosts, descargas y esquemas.
-- [ ] Existen pruebas para configuración y parsing de destinos.
+- [x] El proyecto compila desde una instalación limpia de dependencias.
+- [x] No comparte `applicationId` con la app administrativa.
+- [x] La tienda abre sin inicio de sesión.
+- [x] El permiso se solicita con contexto y puede reactivarse desde una tarjeta visible.
+- [x] El FID se registra y su rotación se procesa correctamente.
+- [x] El WebView limita hosts, descargas y esquemas.
+- [x] Existen pruebas para configuración y parsing de destinos.
 
 ### [ ] PZ-APP-C07 — Variante PowerZona y navegación desde push
 
@@ -1641,3 +1643,67 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 #### Siguiente paso
 
 - Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C06 desde este cierre confirmado de C05. Antes de comenzar deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, worktrees, stash, `.tmp/` y secretos locales. C07 y fases posteriores no deben iniciarse en esta tarea.
+
+### 2026-08-14 — PZ-APP-C06 — Base Android white-label `mobile-storefront`
+
+- Estado: COMPLETADO
+- Responsable: Codex
+- Entorno: local; staging, Firebase y producción fuera de alcance sin autorización separada
+- Branch: `dev`; trabajo preparado en worktree desacoplado desde `ad0e9deab2bcc494b76df18a66f5148032bb8acf` y consolidado localmente por fast-forward al cierre
+- Commit base: `ad0e9deab2bcc494b76df18a66f5148032bb8acf`
+- Commit de implementación: `3634f23878a2448f07c4a5cf0ebc4ba2fd809ea7`
+- Fecha/hora de inicio: 2026-08-14 05:40:10 -04:00
+- Fecha/hora de cierre: 2026-08-14 06:19:26 -04:00
+
+#### Objetivo ejecutado
+
+Implementar exclusivamente la base Android white-label C06 sobre el proyecto mínimo autorizado de C06A: shell público separado de `mobile-admin`, WebView seguro, navegación permitida, estados sin conexión, permiso contextual de notificaciones, registro y rotación de FID mediante el contrato C03, recepción FCM y build debug reproducible. C07-C12, producción, publicación, firma de producción, enforcement y cambios externos permanecen fuera de alcance.
+
+#### Comprobaciones de inicio
+
+- Este worktree, la raíz Git y el remoto `https://github.com/tusendasoporte-sudo/tusendaecommerce.git` fueron confirmados. El árbol comenzó limpio y desacoplado en `ad0e9deab2bcc494b76df18a66f5148032bb8acf`.
+- `dev`, la referencia local `origin/dev` y la consulta remota real `refs/heads/dev` apuntan exactamente a `ad0e9deab2bcc494b76df18a66f5148032bb8acf`.
+- Se auditaron los worktrees activos y el stash ajeno `On main: WIP recibo orden desde main`; no se tocarán. Este worktree no contiene `.tmp/` ni `.secrets/`.
+- El plan maestro v1.27 se leyó íntegramente. C01, C02, C03, C04, C05 y C06A están `COMPLETADO`; las dependencias declaradas de C06 están satisfechas. C07-C12 continúan `PENDIENTE`.
+
+#### Archivos previstos y justificación
+
+- Se limita la implementación al inventario C06 de la sección 6.11 dentro de `mobile-storefront` y a este plan vivo. C06A se reutiliza como base auditada; no se rehacen C03-C05.
+- Si C06 requiere un archivo Android adicional para separar y probar navegación, payloads, estado offline o permiso contextual, se registrará en esta bitácora antes de incorporarlo, conforme al contrato de inventario.
+- Archivos auxiliares C06 registrados antes de incorporarlos: `StorefrontPushPayload.java` para validar el contrato FCM sin confiar en extras arbitrarios; `StorefrontNotifications.java` para aislar canal, notificación foreground/data y `PendingIntent`; y `res/drawable/ic_notification.xml`, recurso técnico requerido por el `icon: ic_notification` ya emitido por el relay storefront v2 de C05. Permanecen genéricos y no adelantan la identidad final ni los destinos verificados de C07.
+
+#### Archivos modificados
+
+- Configuración y documentación: `mobile-storefront/README.md`, `settings.gradle`, `app/build.gradle`, `app/proguard-rules.pro`, `app/src/main/AndroidManifest.xml` y este plan maestro.
+- Shell nativo: `StorefrontActivity.java`, `StorefrontApplication.java`, `StorefrontConfig.java`, `StorefrontInstallationStore.java`, `StorefrontRegistrationClient.java`, `StorefrontMessagingService.java`, `StorefrontDeepLink.java`, `StorefrontPushPayload.java` y `StorefrontNotifications.java`.
+- Recursos: `activity_storefront.xml`, `view_storefront_offline.xml`, `ic_notification.xml` y valores de strings, colores y tema.
+- Pruebas: `StorefrontConfigTest.java`, `StorefrontRegistrationPayloadTest.java`, `StorefrontDeepLinkTest.java` y `StorefrontPushPayloadTest.java`.
+
+#### Migraciones o infraestructura
+
+- Ninguna. No se cambió ni redesplegó PocketBase, relay, Cloudflare, Firebase, App Check, producción o staging.
+
+#### Pruebas y resultados
+
+- `testDebugUnitTest lintDebug assembleDebug --no-daemon` con URL/key/nombre declarativos de PowerZona: exit `0`; 4 suites, 16 pruebas, 0 fallos, 0 errores, 0 omitidas y 0 issues de lint.
+- APK local: `app-debug.apk`, `com.tusenda84.powerzona.debug`, `0.1.0-debug`, minSdk 26, target/compileSdk 36, 3,749,098 bytes, SHA-256 `bbd4fa324bb10f0f2fa2de929c65d93ffe6f33efefc9b216238d3c5357bff5a2`.
+- Firma del APK: certificado Android Debug SHA-256 `3ef106bebf2393438c55c48453797c0229097668e5290511ea0771bf6090935c`; no se usó ni cambió la firma de staging. El APK tiene 0 entradas sensibles y Git tiene 0 candidatos rastreados de `google-services.json`, keystore, service account o `.secrets`.
+- Emulador `Pixel_4a`, Android 16/API 36: la tienda pública abrió sin login; se aprobaron navegación, Atrás, rotación con restauración, overlay offline y recuperación online.
+- Permiso Android: la tarjeta contextual abrió el diálogo, reflejó la denegación, llevó a Ajustes y desapareció tras conceder `POST_NOTIFICATIONS`.
+- Payload contractual validado localmente mediante `onNewIntent`/`onCreate`: foreground abrió `/t/powerzona/buscar`, background `/t/powerzona/links` y proceso cerrado `/t/powerzona/regalos`. El proceso detenido tuvo PID vacío antes de la reapertura.
+- `com.tusenda84.powerzona` `0.1.0-staging` permaneció instalado e intacto junto a `com.tusenda84.powerzona.debug` `0.1.0-debug`.
+- El registro/rotación FID mantiene el cliente y contrato C03 probado realmente en C06A/Fold5; el build debug sin Firebase falla cerrado. No se reenvió una campaña real ni se modificó Firebase: la matriz visual por destino y teléfono físico corresponde a C07/C11.
+
+#### Riesgos, deuda o bloqueos
+
+- No queda bloqueo C06. Solo estuvo conectado el emulador; la base real App Check/FID/permiso ya fue aprobada en el Fold5 durante C03/C06A y la repetición visual completa en teléfono físico queda asignada expresamente a C07.
+- `order` conserva fallback seguro a portada hasta el resolvedor de recibos de C07. No se adelantaron branding final, destinos de negocio completos, publicación, AAB ni firma de producción.
+- La identidad de firma de staging, secretos locales ignorados, `.tmp/` y `google-services.json` no se leyeron, regeneraron ni alteraron.
+
+#### Despliegue
+
+- No realizado ni autorizado. No se ejecutó push, despliegue, reinicio, parada ni cambio sobre staging, Firebase, Cloudflare, Coolify o producción.
+
+#### Siguiente paso
+
+- Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C07 desde el cierre consolidado de C06. Antes deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, worktrees, stash, `.tmp/` y secretos locales. C08 y fases posteriores no deben iniciarse en esa tarea.
