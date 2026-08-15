@@ -72,6 +72,15 @@ routerAdd(
   $apis.skipSuccessActivityLog(),
 );
 
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/delete",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleDelete(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(4096),
+);
+
 cronAdd(
   "pz_storefront_push_campaigns",
   "* * * * *",
@@ -80,6 +89,21 @@ cronAdd(
       require(`${__hooks}/pz_storefront_campaigns_lib.js`).runCampaignScheduler($app, new Date());
     } catch (_) {
       try { $app.logger().error("Storefront campaign scheduler failed safely.", "code", "PZ_STOREFRONT_CAMPAIGN_SCHEDULER_FAILED"); } catch (_) {}
+    }
+  },
+);
+
+cronAdd(
+  "pz_storefront_push_campaign_cleanup",
+  "*/5 * * * *",
+  () => {
+    try {
+      const result = require(`${__hooks}/pz_storefront_campaigns_lib.js`).cleanupExpiredCampaigns($app, new Date());
+      if (result.failed > 0) {
+        try { $app.logger().error("Storefront campaign cleanup was partially blocked.", "code", "PZ_STOREFRONT_CAMPAIGN_CLEANUP_PARTIAL", "failed", result.failed); } catch (_) {}
+      }
+    } catch (_) {
+      try { $app.logger().error("Storefront campaign cleanup failed safely.", "code", "PZ_STOREFRONT_CAMPAIGN_CLEANUP_FAILED"); } catch (_) {}
     }
   },
 );

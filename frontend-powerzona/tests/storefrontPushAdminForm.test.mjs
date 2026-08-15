@@ -6,6 +6,7 @@ import {
   buildStorefrontPushCampaignPayload,
   buildStorefrontPushSchedulePayload,
   campaignStatusLabel,
+  deleteStorefrontPushCampaigns,
   filterStorefrontPushCampaigns,
   mutateStorefrontPushCampaign,
   normalizeStorefrontPushCampaign,
@@ -13,6 +14,8 @@ import {
   resolveStorefrontPushQuotaTimezone,
   saveStorefrontPushCampaign,
   scheduleStorefrontPushCampaign,
+  STOREFRONT_PUSH_DELETE_LIMIT,
+  STOREFRONT_PUSH_PAGE_SIZE,
   storefrontPushAdminErrorMessage,
   storefrontPushAdminRequest,
   storefrontPushCampaignActions,
@@ -180,7 +183,9 @@ test('flujo simulado end-to-end guarda, estima y programa usando solo C05', asyn
   assert.equal(calls[0].body.target_path, undefined);
 });
 
-test('listado, cancelación y duplicado usan rutas acotadas y respuestas normalizadas', async () => {
+test('listado, cancelación, duplicado y borrado usan rutas acotadas y respuestas normalizadas', async () => {
+  assert.equal(STOREFRONT_PUSH_PAGE_SIZE, 10);
+  assert.equal(STOREFRONT_PUSH_DELETE_LIMIT, 50);
   const calls = [];
   const fakeFetch = async (url, init) => {
     calls.push({ url: String(url), init });
@@ -202,6 +207,38 @@ test('listado, cancelación y duplicado usan rutas acotadas y respuestas normali
     '/api/pz/storefront/v1/campaigns/duplicate',
   ]);
 
+  const deleted = await deleteStorefrontPushCampaigns(client, ['camp00000000001', 'camp00000000002'], async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({
+      ok: true,
+      deleted_ids: ['camp00000000001', 'camp00000000002'],
+      deleted_count: 2,
+      deliveries_deleted: 4,
+      events_deleted: 3,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  });
+  assert.deepEqual(deleted, {
+    deleted_ids: ['camp00000000001', 'camp00000000002'],
+    deleted_count: 2,
+    deliveries_deleted: 4,
+    events_deleted: 3,
+  });
+  assert.equal(new URL(calls.at(-1).url).pathname, '/api/pz/storefront/v1/campaigns/delete');
+  assert.deepEqual(JSON.parse(calls.at(-1).init.body), {
+    campaign_ids: ['camp00000000001', 'camp00000000002'],
+  });
+  await assert.rejects(
+    () => deleteStorefrontPushCampaigns(client, []),
+    (error) => error.code === 'invalid_payload',
+  );
+  await assert.rejects(
+    () => deleteStorefrontPushCampaigns(
+      client,
+      Array.from({ length: 51 }, (_, index) => `bulk${String(index).padStart(11, '0')}`),
+    ),
+    (error) => error.code === 'invalid_payload',
+  );
+
   await assert.rejects(
     () => storefrontPushAdminRequest(client, '/api/internal/push/v2/send', { fetchImpl: fakeFetch }),
     (error) => error.code === 'invalid_request_path',
@@ -219,6 +256,8 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
   assert.equal(storefrontPushCampaignActions('draft').edit, true);
   assert.equal(storefrontPushCampaignActions('scheduled').cancel, true);
   assert.equal(storefrontPushCampaignActions('processing').cancel, false);
+  assert.equal(storefrontPushCampaignActions('sent').delete, true);
+  assert.equal(storefrontPushCampaignActions('processing').delete, false);
   assert.deepEqual(filterStorefrontPushCampaigns([draft, sent], 'aminos').map((item) => item.id), ['camp00000000003']);
   assert.match(storefrontPushAdminErrorMessage('daily_quota_exceeded'), /10 campañas diarias/);
   assert.match(storefrontPushAdminErrorMessage('monthly_quota_exceeded'), /310 campañas mensuales/);
@@ -242,9 +281,14 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   for (const marker of [
     'data-campaign-list', 'data-status-filter', 'data-new-campaign', 'data-save-draft',
     'data-media-upload', 'image/jpeg,image/png,image/webp', 'data-preview-image',
-    'data-preview-title', 'data-target-validation', 'data-estimate-audience',
+    'data-preview-title', 'data-target-validation', 'data-estimate-audience', 'data-audience-result',
     'data-send-now', 'data-schedule-campaign', 'data-confirm-dialog',
-    "data-action=\"duplicate\"", "data-action=\"cancel\"",
+    'data-edit-campaign', 'data-cancel-campaign',
+    'data-select-all', 'data-select-campaign', 'data-delete-selected',
+    'data-action="detail"', 'data-action="duplicate"', 'data-action="delete"',
+    'pagination-bar push-pagination', 'pagination-summary', 'pagination-actions',
+    'data-page-previous', 'data-page-label', 'data-page-next',
+    'push-policy__premium-icon', 'push-policy__heading', 'push-policy__badge', 'push-policy__list',
   ]) assert.equal(source.includes(marker), true, marker);
   assert.match(source, /aria-live="polite"/);
   assert.match(source, /aria-live="assertive"/);
@@ -252,9 +296,30 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
   assert.match(source, /data-only v2/);
+  assert.match(source, /Retención de \{STOREFRONT_PUSH_RETENTION_DAYS\} días/);
+  assert.match(source, /\{STOREFRONT_PUSH_DAILY_LIMIT\} campañas por día/);
+  assert.match(source, /\{STOREFRONT_PUSH_MONTHLY_LIMIT\} campañas por mes/);
+  assert.match(source, /Aceptado no significa leído/);
+  assert.match(source, /--policy-accent: #5b21b6; --policy-border: #ddd6fe; --policy-soft: #f5f3ff/);
+  assert.doesNotMatch(source, /push-policy__item/);
+  assert.match(source, /result\.quota_timezone \|\| state\.quotaTimezone/);
+  assert.doesNotMatch(source, /push-campaign-card__metrics|Resultados operativos de la campaña|<dt>Seleccionadas|<dt>Aceptadas FCM|<dt>FID inválidos/);
+  assert.doesNotMatch(source, /data-action="\$\{actions\.edit|data-action="cancel"/);
+  assert.match(source, /Esta acción no se puede deshacer/);
+  assert.match(source, /Las cuotas permanentes 10\/310 no se reinician/);
+  assert.match(source, /calculateOpenedAudience\(campaign\)/);
+  assert.match(source, /one\('\[data-audience-estimate\]'\)\.textContent = 'Calculando…'/);
+  assert.match(source, /requestId !== state\.audienceRequestId \|\| state\.editing\?\.id !== campaign\.id/);
+  assert.match(source, /campaign\.status === 'draft' && !state\.editorReadonly/);
+  assert.match(source, /Los cambios de audiencia requieren un nuevo cálculo/);
+  assert.match(source, /Se muestran hasta 10 campañas por página/);
+  assert.match(source, /state\.hasMore = typeof result\.has_more === 'boolean'/);
+  assert.match(source, /nextButton\.disabled = state\.loading \|\| !state\.hasMore/);
+  assert.match(source, /\.push-campaign-card \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto;[^}]*align-items: center/);
+  assert.match(source, /\.push-campaign-card__actions \{[^}]*align-self: center;[^}]*justify-content: flex-end/);
   assert.match(source, /referenceInput\.disabled = state\.editorReadonly \|\| !isReference/);
   assert.match(source, /versionInput\.disabled = state\.editorReadonly \|\| audienceType !== 'app_version'/);
-  assert.match(source, /resolveStorefrontPushQuotaTimezone\(state\.campaigns, state\.quotaTimezone\)/);
+  assert.match(source, /resolveStorefrontPushQuotaTimezone\([\s\S]{0,120}state\.campaigns[\s\S]{0,120}result\.quota_timezone/);
   assert.match(source, /root\.dataset\.storeSlug/);
   assert.match(source, /\/api\/admin\/push-media\?store=\$\{encodeURIComponent\(storeSlug\)\}/);
   assert.equal((source.match(/fetch\(mediaEndpoint/g) || []).length, 2);

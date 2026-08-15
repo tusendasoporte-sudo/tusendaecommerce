@@ -47,6 +47,7 @@ function store(id = STORE_A, overrides = {}) {
     plan_started_at: '2026-01-01T00:00:00.000Z',
     plan_expires_at: '',
     primary_admin_user: id === STORE_A ? USER_A : '',
+    push_campaign_quota_state: {},
     ...overrides,
   });
 }
@@ -57,7 +58,9 @@ function matches(item, filter, params) {
     if (params[key] !== undefined && value(key) !== String(params[key])) return false;
   }
   if (params.now !== undefined) {
-    const field = filter.includes('scheduled_at') ? 'scheduled_at' : 'lock_expires_at';
+    const field = filter.includes('scheduled_at')
+      ? 'scheduled_at'
+      : (filter.includes('delete_after') ? 'delete_after' : 'lock_expires_at');
     const raw = value(field);
     if (raw && new Date(raw).getTime() > new Date(params.now).getTime()) return false;
   }
@@ -66,6 +69,7 @@ function matches(item, filter, params) {
   if (filter.includes('notification_permission = "granted"') && value('notification_permission') !== 'granted') return false;
   if (filter.includes('started_at != ""') && !value('started_at')) return false;
   if (filter.includes('scheduled_at != ""') && !value('scheduled_at')) return false;
+  if (filter.includes('delete_after != ""') && !value('delete_after')) return false;
   return true;
 }
 
@@ -73,7 +77,7 @@ function createApp() {
   const tables = new Map();
   const collectionNames = [
     'stores', 'users', 'store_user_access', 'storefront_app_configs', 'storefront_installations',
-    'push_campaigns', 'push_campaign_deliveries', 'push_media', 'products', 'categories',
+    'push_campaigns', 'push_campaign_deliveries', 'push_events', 'push_media', 'products', 'categories',
     'orders', 'raffles', 'manual_coupons', 'storefront_order_links',
   ];
   const collections = new Map(collectionNames.map((name) => [name, { name }]));
@@ -120,6 +124,11 @@ function createApp() {
       }
       add(item);
       return item;
+    },
+    delete(item) {
+      const items = rows(item.collectionName);
+      const index = items.findIndex((candidate) => candidate.id === item.id);
+      if (index >= 0) items.splice(index, 1);
     },
     runInTransaction(callback) { callback(this); },
     db() { throw new Error('sql_not_available_in_unit_test'); },
@@ -177,6 +186,8 @@ function campaign(id = 'campaign0000001', overrides = {}) {
 }
 
 test('contratos de entrada son exactos y validan límites, zona y audiencia', () => {
+  assert.equal(campaigns.CAMPAIGN_PAGE_SIZE, 10);
+  assert.equal(campaigns.DELETE_CAMPAIGN_LIMIT, 50);
   const valid = campaigns.parseSavePayload({
     audience_config: {}, audience_type: 'all_active', body: 'Mensaje', target_type: 'home',
     timezone: 'America/New_York', title: 'Campaña',
@@ -201,6 +212,15 @@ test('contratos de entrada son exactos y validan límites, zona y audiencia', ()
     campaigns.normalizedAudienceConfig('all_active', { internal: true, toJSON: () => ({}) }, 'home'),
     {},
   );
+  assert.deepEqual(campaigns.parseCampaignIdsPayload({
+    campaign_ids: ['deletecamp00001', 'deletecamp00002'],
+  }), { campaignIds: ['deletecamp00001', 'deletecamp00002'] });
+  assert.equal(campaigns.parseCampaignIdsPayload({ campaign_ids: [] }), null);
+  assert.equal(campaigns.parseCampaignIdsPayload({ campaign_ids: ['deletecamp00001', 'deletecamp00001'] }), null);
+  assert.equal(campaigns.parseCampaignIdsPayload({
+    campaign_ids: Array.from({ length: 51 }, (_, index) => `bulk${String(index).padStart(11, '0')}`),
+  }), null);
+  assert.equal(campaigns.parseCampaignIdsPayload({ campaign_ids: ['deletecamp00001'], store_id: STORE_A }), null);
 });
 
 test('calendario IANA usa el formato estable del runtime PocketBase', () => {
@@ -264,6 +284,42 @@ test('acceso exige simultáneamente Premium y marketing.push.manage', () => {
   denied.rows('users')[0].set('role', 'store_staff');
   const deniedContext = campaigns.loadCampaignAccessContext(denied, { id: USER_A }, '');
   assert.throws(() => campaigns.assertCampaignAccess(denied, deniedContext), (error) => error.code === 'permission_denied');
+});
+
+test('listado devuelve diez campañas por página e informa si existe la siguiente', () => {
+  const app = createApp();
+  for (let index = 1; index <= 21; index += 1) {
+    app.add(campaign(`campaign${String(index).padStart(7, '0')}`));
+  }
+  const listPage = (page) => campaigns.handleList({
+    app,
+    requestInfo() {
+      return {
+        auth: app.findRecordById('users', USER_A),
+        headers: {},
+        query: new URLSearchParams({ page: String(page) }),
+      };
+    },
+    response: { header: () => new Map() },
+    json: (status, body) => ({ status, body }),
+  });
+
+  const first = listPage(1);
+  const second = listPage(2);
+  const last = listPage(3);
+  assert.equal(first.status, 200);
+  assert.equal(first.body.per_page, 10);
+  assert.equal(first.body.campaigns.length, 10);
+  assert.equal(first.body.has_more, true);
+  assert.equal(second.body.campaigns.length, 10);
+  assert.equal(second.body.has_more, true);
+  assert.equal(last.body.campaigns.length, 1);
+  assert.equal(last.body.has_more, false);
+
+  app.delete(app.findRecordById('push_campaigns', 'campaign0000021'));
+  const exactLast = listPage(2);
+  assert.equal(exactLast.body.campaigns.length, 10);
+  assert.equal(exactLast.body.has_more, false);
 });
 
 test('audiencia y snapshot se aíslan por tienda y son idempotentes sin límite artificial', () => {
@@ -333,6 +389,129 @@ test('cuotas diarias/mensuales usan el calendario IANA de la tienda', () => {
   );
 });
 
+test('la cuota diaria sobrevive al borrado del contenido de las campañas', () => {
+  const app = createApp();
+  const starts = {};
+  for (let index = 0; index < campaigns.DAILY_CAMPAIGN_LIMIT; index += 1) {
+    starts[`quota${String(index).padStart(10, '0')}`] = `2026-08-13T1${index}:00:00.000Z`;
+  }
+  app.rows('stores')[0].set('push_campaign_quota_state', {
+    timezone: 'America/New_York',
+    starts,
+  });
+  const item = app.add(campaign());
+  assert.throws(
+    () => campaigns.assertCampaignQuota(app, item, new Date('2026-08-13T20:00:00.000Z')),
+    (error) => error.code === 'daily_quota_exceeded',
+  );
+  assert.equal(app.rows('push_campaigns').length, 1);
+});
+
+test('retención borra a los siete días de hijos a padre y preserva campañas activas', () => {
+  assert.equal(campaigns.CAMPAIGN_RETENTION_DAYS, 7);
+  const app = createApp();
+  const expired = app.add(campaign('expiredcamp0001', {
+    status: 'sent',
+    started_at: '2026-08-03T14:00:00.000Z',
+    completed_at: '2026-08-04T14:00:00.000Z',
+    delete_after: '2026-08-11T14:00:00.000Z',
+  }));
+  app.add(record('push_campaign_deliveries', 'delivery0000001', {
+    store: STORE_A, campaign: expired.id, status: 'accepted', delete_after: '2027-01-01T00:00:00.000Z',
+  }));
+  app.add(record('push_events', 'event0000000001', {
+    store: STORE_A, campaign: expired.id, delivery: 'delivery0000001', event_type: 'opened',
+  }));
+  app.add(campaign('scheduledcamp01', {
+    status: 'scheduled', scheduled_at: '2026-08-20T14:00:00.000Z', delete_after: '2026-08-01T00:00:00.000Z',
+  }));
+  app.add(campaign('processingcamp1', {
+    status: 'processing', started_at: '2026-08-01T00:00:00.000Z', delete_after: '2026-08-01T00:00:00.000Z',
+  }));
+  app.add(campaign('pausedplancamp1', {
+    status: 'paused_plan', scheduled_at: '2026-08-05T00:00:00.000Z', delete_after: '2026-08-01T00:00:00.000Z',
+  }));
+
+  const summary = campaigns.cleanupExpiredCampaigns(app, new Date('2026-08-14T14:00:00.000Z'));
+  assert.deepEqual(summary, { deleted: 1, deliveries: 1, events: 1, failed: 0 });
+  assert.equal(app.rows('push_campaigns').some((item) => item.id === expired.id), false);
+  assert.deepEqual(app.rows('push_campaigns').map((item) => item.id).sort(), [
+    'pausedplancamp1', 'processingcamp1', 'scheduledcamp01',
+  ]);
+  assert.equal(app.rows('push_campaign_deliveries').length, 0);
+  assert.equal(app.rows('push_events').length, 0);
+  const quota = campaigns.campaignQuotaState(app.rows('stores')[0]);
+  assert.equal(quota.timezone, 'America/New_York');
+  assert.equal(quota.starts[expired.id], '2026-08-03T14:00:00.000Z');
+});
+
+test('borrado manual elimina campañas e hijos, conserva cuota y bloquea procesamiento u otra tienda', () => {
+  assert.equal(campaigns.DELETE_CAMPAIGN_LIMIT, 50);
+  const app = createApp();
+  const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
+  const sent = app.add(campaign('deletecamp00001', {
+    status: 'sent',
+    started_at: '2026-08-14T14:00:00.000Z',
+    completed_at: '2026-08-14T14:05:00.000Z',
+  }));
+  const draft = app.add(campaign('deletecamp00002'));
+  app.add(record('push_campaign_deliveries', 'delivery0000001', {
+    store: STORE_A, campaign: sent.id, status: 'accepted',
+  }));
+  app.add(record('push_events', 'event0000000001', {
+    store: STORE_A, campaign: sent.id, delivery: 'delivery0000001', event_type: 'opened',
+  }));
+
+  const summary = campaigns.deleteCampaignsPermanently(
+    app,
+    context,
+    [sent.id, draft.id],
+    new Date('2026-08-14T16:00:00.000Z'),
+  );
+  assert.deepEqual(summary, {
+    deleted_ids: [sent.id, draft.id],
+    deleted_count: 2,
+    deliveries_deleted: 1,
+    events_deleted: 1,
+  });
+  assert.equal(app.rows('push_campaigns').length, 0);
+  assert.equal(app.rows('push_campaign_deliveries').length, 0);
+  assert.equal(app.rows('push_events').length, 0);
+  assert.equal(campaigns.campaignQuotaState(app.rows('stores')[0]).starts[sent.id], sent.getString('started_at'));
+
+  const processing = app.add(campaign('processcamp0001', { status: 'processing' }));
+  assert.throws(
+    () => campaigns.deleteCampaignsPermanently(app, context, [processing.id], new Date()),
+    (error) => error.code === 'campaign_not_deletable',
+  );
+  const local = app.add(campaign('deletecamp00003'));
+  const foreign = app.add(campaign('foreigncamp0001', { store: STORE_B }));
+  assert.throws(
+    () => campaigns.deleteCampaignsPermanently(app, context, [local.id, foreign.id], new Date()),
+    (error) => error.code === 'campaign_not_found',
+  );
+  assert.equal(app.rows('push_campaigns').some((item) => item.id === local.id), true);
+});
+
+test('borradores y estados terminales vencen en siete días; activos no tienen caducidad', () => {
+  const app = createApp();
+  app.add(appConfig('appconfig000001', STORE_A));
+  const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
+  const now = new Date('2026-08-14T16:30:00.000Z');
+  const draft = campaigns.createOrUpdateDraft(app, context, {
+    campaignId: '', mediaId: '', targetRef: '', title: 'Retención', body: 'Siete días',
+    timezone: 'America/New_York', audienceType: 'all_active', audienceConfig: {},
+    targetType: 'home', targetSection: '',
+  }, now);
+  assert.equal(draft.getString('delete_after'), '2026-08-21T16:30:00.000Z');
+  campaigns.scheduleCampaign(app, context, {
+    campaignId: draft.id, mode: 'scheduled', scheduledAt: new Date('2026-08-15T16:30:00.000Z'),
+  }, now, { config: { endpoint: 'https://relay.invalid' } });
+  assert.equal(draft.getString('delete_after'), '');
+  campaigns.cancelCampaign(app, context, draft.id, now);
+  assert.equal(draft.getString('delete_after'), '2026-08-21T16:30:00.000Z');
+});
+
 test('lock transaccional impide que dos workers materialicen la campaña completa', () => {
   const app = createApp();
   app.add(appConfig('appconfig000001', STORE_A));
@@ -382,7 +561,7 @@ test('fallo terminal conserva ambigüedad reclamada y cancela solo trabajo segur
   assert.equal(app.rows('push_campaign_deliveries')[1].getString('status'), 'unknown');
 });
 
-test('rutas exponen solo C05, cron por minuto y mantienen relay administrativo v1 separado', () => {
+test('rutas exponen solo C05, crons acotados y mantienen relay administrativo v1 separado', () => {
   const routes = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_storefront_campaigns.pb.js'), 'utf8');
   const relayV1 = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_push_dispatch.pb.js'), 'utf8');
   assert.match(routes, /\/api\/pz\/storefront\/v1\/campaigns/);
@@ -392,8 +571,12 @@ test('rutas exponen solo C05, cron por minuto y mantienen relay administrativo v
   assert.match(routes, /\.handleSchedule\(e\)/);
   assert.match(routes, /\.handleCancel\(e\)/);
   assert.match(routes, /\.handleDuplicate\(e\)/);
+  assert.match(routes, /campaigns\/delete/);
+  assert.match(routes, /\.handleDelete\(e\)/);
   assert.doesNotMatch(routes, /\[handler\]\(e\)/);
   assert.match(routes, /cronAdd\([\s\S]*pz_storefront_push_campaigns[\s\S]*"\* \* \* \* \*"/);
+  assert.match(routes, /pz_storefront_push_campaign_cleanup[\s\S]*"\*\/5 \* \* \* \*"/);
+  assert.match(routes, /cleanupExpiredCampaigns/);
   assert.match(relayV1, /continueNotificationCreated/);
   assert.doesNotMatch(routes, /continueNotificationCreated|store_notifications/);
 });

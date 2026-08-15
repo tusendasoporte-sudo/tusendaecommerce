@@ -32,9 +32,11 @@ export const STOREFRONT_PUSH_AUDIENCE_TYPES = Object.freeze([
 
 export const STOREFRONT_PUSH_DAILY_LIMIT = 10;
 export const STOREFRONT_PUSH_MONTHLY_LIMIT = 310;
+export const STOREFRONT_PUSH_RETENTION_DAYS = 7;
 export const STOREFRONT_PUSH_TITLE_MAX = 120;
 export const STOREFRONT_PUSH_BODY_MAX = 1000;
-export const STOREFRONT_PUSH_PAGE_SIZE = 50;
+export const STOREFRONT_PUSH_PAGE_SIZE = 10;
+export const STOREFRONT_PUSH_DELETE_LIMIT = 50;
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const TIMEZONE_PATTERN = /^(?:UTC|[A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+)$/;
@@ -457,12 +459,44 @@ export async function mutateStorefrontPushCampaign(
   return campaign;
 }
 
+export async function deleteStorefrontPushCampaigns(
+  client: StorefrontPushAdminClient,
+  campaignIdsValue: readonly unknown[],
+  fetchImpl?: typeof fetch,
+) {
+  if (!Array.isArray(campaignIdsValue)) throw new StorefrontPushAdminError('invalid_payload');
+  const campaignIds = [...new Set(campaignIdsValue.map((campaignId) => exactRecordId(campaignId)))];
+  if (campaignIds.length < 1 || campaignIds.length > STOREFRONT_PUSH_DELETE_LIMIT) {
+    throw new StorefrontPushAdminError('invalid_payload');
+  }
+  const result = await storefrontPushAdminRequest(client, '/api/pz/storefront/v1/campaigns/delete', {
+    method: 'POST', body: { campaign_ids: campaignIds }, fetchImpl,
+  });
+  const deletedIds = Array.isArray(result.deleted_ids)
+    ? result.deleted_ids.filter((campaignId: unknown) => RECORD_ID_PATTERN.test(text(campaignId, 15)))
+    : [];
+  const deletedCount = integer(result.deleted_count);
+  if (deletedIds.length !== campaignIds.length
+    || new Set(deletedIds).size !== deletedIds.length
+    || deletedCount !== campaignIds.length
+    || deletedIds.some((campaignId: string) => !campaignIds.includes(campaignId))) {
+    throw new StorefrontPushAdminError('campaign_invalid_response', 502);
+  }
+  return Object.freeze({
+    deleted_ids: Object.freeze([...deletedIds]),
+    deleted_count: deletedCount,
+    deliveries_deleted: integer(result.deliveries_deleted),
+    events_deleted: integer(result.events_deleted),
+  });
+}
+
 export function storefrontPushCampaignActions(statusValue: unknown) {
   const status = normalizedStatus(statusValue);
   return Object.freeze({
     edit: status === 'draft',
     schedule: status === 'draft' || status === 'paused_plan',
     cancel: ['draft', 'scheduled', 'paused_plan'].includes(status),
+    delete: status !== 'processing',
     duplicate: true,
     detail: true,
   });
@@ -532,6 +566,8 @@ export function storefrontPushAdminErrorMessage(codeValue: unknown) {
     campaign_not_editable: 'Solo los borradores se pueden editar.',
     campaign_not_schedulable: 'La campaña ya comenzó o no se puede programar.',
     campaign_not_cancelable: 'La campaña ya comenzó y no se puede cancelar.',
+    campaign_not_deletable: 'Espera a que termine el procesamiento antes de borrar la campaña.',
+    campaign_delete_failed: 'No se pudieron borrar las campañas seleccionadas.',
     partial_delivery_failure: 'Firebase aceptó solo una parte de los mensajes.',
     invalid_fid: 'Una o más instalaciones dejaron de ser válidas para Firebase.',
     daily_quota_exceeded: `Se alcanzó el límite permanente de ${STOREFRONT_PUSH_DAILY_LIMIT} campañas diarias.`,

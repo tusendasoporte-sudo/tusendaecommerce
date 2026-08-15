@@ -90,6 +90,8 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
     PZ_SECURITY_HMAC_SECRET: 'runtime-security-hmac-c05-abcdefghijklmnopqrstuvwxyz',
     PZ_SECURITY_AES_KEY: '12345678901234567890123456789012',
     PZ_PUSH_RELAY_SECRET: 'runtime-admin-relay-c05-abcdefghijklmnopqrstuvwxyz',
+    PZ_STOREFRONT_PUSH_RELAY_URL: 'https://runtime-c05.example.com/api/internal/push/v2/send',
+    PZ_STOREFRONT_PUSH_RELAY_SECRET: 'runtime-storefront-relay-c05-abcdefghijklmnopqrstuvwxyz',
   };
   const superEmail = 'pz-c05-super@example.com';
   const superPassword = 'Qa-C05-super-password-2026!';
@@ -174,6 +176,33 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
     });
     assert.equal(versionPreview.status, 200, versionPreview.raw);
     assert.equal(versionPreview.data.audience.count, 0);
+
+    const started = await request(baseUrl, '/api/pz/storefront/v1/campaigns/schedule', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: { campaign_id: saved.data.campaign.id, mode: 'now' },
+    });
+    assert.equal(started.status, 200, started.raw);
+    assert.equal(started.data.campaign.status, 'failed');
+    assert.equal(started.data.campaign.failure_code, 'no_eligible_installations');
+    assert.notEqual(started.data.campaign.started_at, '');
+
+    const rawCampaign = await request(
+      baseUrl,
+      `/api/collections/push_campaigns/records/${saved.data.campaign.id}`,
+      { token: superToken },
+    );
+    assert.equal(rawCampaign.status, 200, rawCampaign.raw);
+    const completedAt = new Date(rawCampaign.data.completed_at).getTime();
+    const deleteAfter = new Date(rawCampaign.data.delete_after).getTime();
+    assert.equal(deleteAfter - completedAt, 7 * 86_400_000);
+
+    const listed = await request(baseUrl, '/api/pz/storefront/v1/campaigns', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+    });
+    assert.equal(listed.status, 200, listed.raw);
+    assert.equal(listed.data.quota_timezone, 'America/New_York');
   } finally {
     await stop(runtime);
     fs.rmSync(dataDirectory, { recursive: true, force: true });

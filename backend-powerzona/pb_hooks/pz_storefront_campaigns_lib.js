@@ -30,10 +30,15 @@ const REGION_PATTERN = /^[A-Za-z0-9._ -]{1,80}$/;
 const DAILY_CAMPAIGN_LIMIT = 10;
 const MONTHLY_CAMPAIGN_LIMIT = 310;
 const DELIVERY_RETENTION_DAYS = 180;
-const CAMPAIGN_RETENTION_MONTHS = 24;
+const CAMPAIGN_RETENTION_DAYS = 7;
+const QUOTA_ENTRY_RETENTION_DAYS = 40;
+const STORE_QUOTA_STATE_FIELD = "push_campaign_quota_state";
 const CAMPAIGN_LOCK_SECONDS = 300;
 const MAX_BATCHES_PER_RUN = 20;
 const SCHEDULER_CAMPAIGN_LIMIT = 50;
+const CLEANUP_CAMPAIGN_LIMIT = 100;
+const DELETE_CAMPAIGN_LIMIT = 50;
+const CAMPAIGN_PAGE_SIZE = 10;
 const MEDIA_SEND_BUFFER_SECONDS = 300;
 const SECTION_PATHS = Object.freeze({
   search: "/buscar",
@@ -54,6 +59,7 @@ const SAFE_ERRORS = new Set([
   "campaign_not_editable",
   "campaign_not_schedulable",
   "campaign_not_cancelable",
+  "campaign_not_deletable",
   "campaign_already_started",
   "invalid_title",
   "invalid_body",
@@ -76,6 +82,7 @@ const SAFE_ERRORS = new Set([
   "campaign_schedule_failed",
   "campaign_cancel_failed",
   "campaign_duplicate_failed",
+  "campaign_delete_failed",
   "campaign_processing_failed",
 ]);
 
@@ -141,13 +148,6 @@ function addDays(value, days) {
   return date.toISOString();
 }
 
-function addMonths(value, months) {
-  const date = value instanceof Date ? new Date(value.getTime()) : parsedDate(value);
-  if (!date) return "";
-  date.setUTCMonth(date.getUTCMonth() + Math.max(0, Number(months) || 0));
-  return date.toISOString();
-}
-
 function bounded(value, max) {
   return String(value === null || value === undefined ? "" : value).trim().slice(0, max);
 }
@@ -186,6 +186,63 @@ function jsonObject(value) {
   } catch (_) {
     return null;
   }
+}
+
+function campaignQuotaState(store) {
+  let value = null;
+  if (store && typeof store.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
+    try {
+      const model = new DynamicModel({ timezone: "", starts: {} });
+      store.unmarshalJSONField(STORE_QUOTA_STATE_FIELD, model);
+      value = { timezone: model.timezone, starts: jsonObject(model.starts) || {} };
+    } catch (_) {}
+  }
+  if (!value) value = jsonObject(recordValue(store, STORE_QUOTA_STATE_FIELD)) || {};
+  const rawStarts = value.starts && typeof value.starts === "object" && !Array.isArray(value.starts)
+    ? value.starts
+    : {};
+  const starts = {};
+  Object.keys(rawStarts).forEach((campaignId) => {
+    const startedAt = parsedDate(rawStarts[campaignId]);
+    if (RECORD_ID_PATTERN.test(campaignId) && startedAt) starts[campaignId] = startedAt.toISOString();
+  });
+  const timezone = bounded(value.timezone, 80);
+  return { timezone: isValidTimezone(timezone) ? timezone : "", starts };
+}
+
+function prunedCampaignQuotaStarts(starts, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  const cutoff = now.getTime() - QUOTA_ENTRY_RETENTION_DAYS * 86_400_000;
+  const result = {};
+  Object.keys(starts || {}).forEach((campaignId) => {
+    const startedAt = parsedDate(starts[campaignId]);
+    if (RECORD_ID_PATTERN.test(campaignId) && startedAt && startedAt.getTime() >= cutoff) {
+      result[campaignId] = startedAt.toISOString();
+    }
+  });
+  return result;
+}
+
+function recordCampaignQuotaUsage(app, campaign, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  const campaignId = recordId(campaign);
+  const storeId = relationId(campaign, "store");
+  const startedAt = parsedDate(recordValue(campaign, "started_at"));
+  const timezone = recordString(campaign, "timezone");
+  if (!RECORD_ID_PATTERN.test(campaignId) || !RECORD_ID_PATTERN.test(storeId) || !startedAt || !isValidTimezone(timezone)) {
+    return false;
+  }
+  const store = findRecord(app, "stores", storeId);
+  if (!store) throw codedError("campaign_processing_failed");
+  const state = campaignQuotaState(store);
+  if (state.timezone && state.timezone !== timezone) throw codedError("timezone_mismatch");
+  const starts = prunedCampaignQuotaStarts(state.starts, now);
+  if (startedAt.getTime() >= now.getTime() - QUOTA_ENTRY_RETENTION_DAYS * 86_400_000) {
+    starts[campaignId] = startedAt.toISOString();
+  }
+  store.set(STORE_QUOTA_STATE_FIELD, { timezone: state.timezone || timezone, starts });
+  app.save(store);
+  return true;
 }
 
 function recordAudienceConfig(record) {
@@ -233,7 +290,7 @@ function errorStatus(code) {
   if (["unauthorized", "permission_denied", "plan_not_available"].includes(code)) return 403;
   if (["campaign_not_found", "target_not_found", "media_not_found"].includes(code)) return 404;
   if ([
-    "campaign_not_editable", "campaign_not_schedulable", "campaign_not_cancelable",
+    "campaign_not_editable", "campaign_not_schedulable", "campaign_not_cancelable", "campaign_not_deletable",
     "campaign_already_started", "daily_quota_exceeded", "monthly_quota_exceeded",
     "timezone_mismatch", "media_expires_before_send",
   ].includes(code)) return 409;
@@ -673,7 +730,7 @@ function createOrUpdateDraft(app, context, payload, nowValue) {
   campaign.set("timezone", payload.timezone);
   campaign.set("scheduled_at", "");
   campaign.set("failure_code", "");
-  campaign.set("delete_after", addMonths(now, CAMPAIGN_RETENTION_MONTHS));
+  campaign.set("delete_after", addDays(now, CAMPAIGN_RETENTION_DAYS));
   applyTarget(campaign, target);
   schema.assertValidState(CAMPAIGNS_COLLECTION, "draft");
   schema.assertTenantIsolation(app, CAMPAIGNS_COLLECTION, campaign);
@@ -798,8 +855,17 @@ function materializeAudience(app, campaign, nowValue) {
   return selected.length;
 }
 
-function startedCampaigns(app, storeId) {
-  const records = [];
+function startedCampaignUsage(app, storeId) {
+  const usage = new Map();
+  const store = findRecord(app, "stores", storeId);
+  const quotaState = campaignQuotaState(store);
+  Object.keys(quotaState.starts).forEach((campaignId) => {
+    usage.set(campaignId, {
+      campaignId,
+      startedAt: quotaState.starts[campaignId],
+      timezone: quotaState.timezone,
+    });
+  });
   for (let offset = 0; ; offset += 500) {
     const page = findRecordsStrict(
       app,
@@ -810,18 +876,36 @@ function startedCampaigns(app, storeId) {
       offset,
       { store: storeId },
     );
-    page.forEach((item) => records.push(item));
+    page.forEach((item) => usage.set(recordId(item), {
+      campaignId: recordId(item),
+      startedAt: recordString(item, "started_at"),
+      timezone: recordString(item, "timezone"),
+    }));
     if (page.length < 500) break;
   }
-  return records;
+  return { quotaTimezone: quotaState.timezone, usage: Array.from(usage.values()) };
 }
 
-function assertStoreTimezoneConsistency(app, campaign, started) {
+function parseCampaignIdsPayload(body) {
+  if (!exactPayload(body, ["campaign_ids"], [])) return null;
+  const rawIds = bodyValue(body, "campaign_ids");
+  if (!Array.isArray(rawIds) || rawIds.length < 1 || rawIds.length > DELETE_CAMPAIGN_LIMIT) return null;
+  const campaignIds = [];
+  for (const value of rawIds) {
+    const campaignId = bounded(value, 15);
+    if (!RECORD_ID_PATTERN.test(campaignId) || campaignIds.includes(campaignId)) return null;
+    campaignIds.push(campaignId);
+  }
+  return { campaignIds };
+}
+
+function assertStoreTimezoneConsistency(campaign, quotaTimezone, started) {
   const timezone = recordString(campaign, "timezone");
+  if (quotaTimezone && quotaTimezone !== timezone) throw codedError("timezone_mismatch");
   const different = started.find((item) => (
-    recordId(item) !== recordId(campaign)
-    && recordString(item, "timezone")
-    && recordString(item, "timezone") !== timezone
+    item.campaignId !== recordId(campaign)
+    && item.timezone
+    && item.timezone !== timezone
   ));
   if (different) throw codedError("timezone_mismatch");
 }
@@ -831,13 +915,14 @@ function assertCampaignQuota(app, campaign, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   const timezone = recordString(campaign, "timezone");
   const current = calendarKeys(now, timezone);
-  const started = startedCampaigns(app, relationId(campaign, "store"));
-  assertStoreTimezoneConsistency(app, campaign, started);
+  const state = startedCampaignUsage(app, relationId(campaign, "store"));
+  const started = state.usage;
+  assertStoreTimezoneConsistency(campaign, state.quotaTimezone, started);
   let daily = 0;
   let monthly = 0;
   started.forEach((item) => {
-    const startedAt = parsedDate(recordValue(item, "started_at"));
-    if (!startedAt || recordId(item) === recordId(campaign)) return;
+    const startedAt = parsedDate(item.startedAt);
+    if (!startedAt || item.campaignId === recordId(campaign)) return;
     const keys = calendarKeys(startedAt, timezone);
     if (keys.month === current.month) monthly += 1;
     if (keys.day === current.day) daily += 1;
@@ -899,7 +984,7 @@ function markCampaignFailure(campaign, code, now, partial) {
   campaign.set("status", partial ? "partially_sent" : "failed");
   campaign.set("failure_code", bounded(code, 80));
   campaign.set("completed_at", now.toISOString());
-  campaign.set("delete_after", addMonths(now, CAMPAIGN_RETENTION_MONTHS));
+  campaign.set("delete_after", addDays(now, CAMPAIGN_RETENTION_DAYS));
   campaign.set("lock_token", "");
   campaign.set("lock_expires_at", "");
 }
@@ -909,6 +994,7 @@ function pauseCampaignForPlan(campaign) {
   campaign.set("failure_code", "plan_not_available");
   campaign.set("lock_token", "");
   campaign.set("lock_expires_at", "");
+  campaign.set("delete_after", "");
 }
 
 function terminalizeOutstandingDeliveries(app, campaignId, now) {
@@ -987,8 +1073,11 @@ function acquireCampaignLock(app, campaignId, nowValue, options) {
     campaign.set("status", "processing");
     campaign.set("lock_token", lockToken);
     campaign.set("lock_expires_at", addSeconds(now, CAMPAIGN_LOCK_SECONDS));
-    if (!recordString(campaign, "started_at")) campaign.set("started_at", now.toISOString());
+    campaign.set("delete_after", "");
+    const firstStart = !recordString(campaign, "started_at");
+    if (firstStart) campaign.set("started_at", now.toISOString());
     txApp.save(campaign);
+    if (firstStart) recordCampaignQuotaUsage(txApp, campaign, now);
     const selectedCount = materializeAudience(txApp, campaign, now);
     campaign.set("selected_count", selectedCount);
     txApp.save(campaign);
@@ -1040,7 +1129,7 @@ function finalizeCampaign(app, campaignId, lockToken, nowValue) {
       campaign.set("status", "sent");
       campaign.set("failure_code", "");
       campaign.set("completed_at", now.toISOString());
-      campaign.set("delete_after", addMonths(now, CAMPAIGN_RETENTION_MONTHS));
+      campaign.set("delete_after", addDays(now, CAMPAIGN_RETENTION_DAYS));
       campaign.set("lock_token", "");
       campaign.set("lock_expires_at", "");
     } else if (counts.accepted > 0) {
@@ -1093,6 +1182,7 @@ function scheduleCampaign(app, context, payload, nowValue, options) {
     current.set("completed_at", "");
     current.set("lock_token", "");
     current.set("lock_expires_at", "");
+    current.set("delete_after", "");
     txApp.save(current);
     return current;
   });
@@ -1118,7 +1208,7 @@ function cancelCampaign(app, context, campaignId, nowValue) {
     campaign.set("failure_code", "");
     campaign.set("lock_token", "");
     campaign.set("lock_expires_at", "");
-    campaign.set("delete_after", addMonths(now, CAMPAIGN_RETENTION_MONTHS));
+    campaign.set("delete_after", addDays(now, CAMPAIGN_RETENTION_DAYS));
     txApp.save(campaign);
     return campaign;
   });
@@ -1228,6 +1318,103 @@ function runCampaignScheduler(app, nowValue, options) {
   return { paused, processed: results.length, results };
 }
 
+function deleteCampaignRecords(app, collection, campaignId) {
+  let deleted = 0;
+  for (;;) {
+    const page = findRecordsStrict(
+      app,
+      collection,
+      "campaign = {:campaign}",
+      "id",
+      500,
+      0,
+      { campaign: campaignId },
+    );
+    if (!page.length) return deleted;
+    page.forEach((record) => {
+      app.delete(record);
+      deleted += 1;
+    });
+  }
+}
+
+function deleteCampaignsPermanently(app, context, campaignIds, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  assertCampaignAccess(app, context);
+  if (!Array.isArray(campaignIds)
+    || campaignIds.length < 1
+    || campaignIds.length > DELETE_CAMPAIGN_LIMIT
+    || campaignIds.some((id, index) => !RECORD_ID_PATTERN.test(String(id || "")) || campaignIds.indexOf(id) !== index)) {
+    throw codedError("invalid_payload");
+  }
+  return runTransaction(app, (txApp) => {
+    const records = campaignIds.map((campaignId) => {
+      const campaign = findRecord(txApp, CAMPAIGNS_COLLECTION, campaignId);
+      if (!campaign || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
+      if (recordString(campaign, "status") === "processing") throw codedError("campaign_not_deletable");
+      return campaign;
+    });
+    const summary = { deleted_ids: [], deleted_count: 0, deliveries_deleted: 0, events_deleted: 0 };
+    records.forEach((campaign) => {
+      const campaignId = recordId(campaign);
+      if (recordString(campaign, "started_at")) recordCampaignQuotaUsage(txApp, campaign, now);
+      summary.events_deleted += deleteCampaignRecords(txApp, "push_events", campaignId);
+      summary.deliveries_deleted += deleteCampaignRecords(txApp, DELIVERIES_COLLECTION, campaignId);
+      txApp.delete(campaign);
+      summary.deleted_ids.push(campaignId);
+      summary.deleted_count += 1;
+    });
+    return summary;
+  });
+}
+
+function cleanupExpiredCampaigns(app, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  const summary = { deleted: 0, deliveries: 0, events: 0, failed: 0 };
+  for (let batch = 0; batch < MAX_BATCHES_PER_RUN; batch += 1) {
+    const due = findRecordsStrict(
+      app,
+      CAMPAIGNS_COLLECTION,
+      'delete_after != "" && delete_after <= {:now}'
+        + ' && (status = "draft" || status = "sent" || status = "partially_sent"'
+        + ' || status = "failed" || status = "canceled")',
+      "delete_after,id",
+      CLEANUP_CAMPAIGN_LIMIT,
+      0,
+      { now: now.toISOString() },
+    );
+    if (!due.length) break;
+    let deletedThisBatch = 0;
+    due.forEach((candidate) => {
+      try {
+        const result = runTransaction(app, (txApp) => {
+          const campaign = findRecord(txApp, CAMPAIGNS_COLLECTION, recordId(candidate));
+          const status = recordString(campaign, "status");
+          const deleteAfter = parsedDate(recordValue(campaign, "delete_after"));
+          if (!campaign
+            || !["draft", "sent", "partially_sent", "failed", "canceled"].includes(status)
+            || !deleteAfter
+            || deleteAfter.getTime() > now.getTime()) return null;
+          if (recordString(campaign, "started_at")) recordCampaignQuotaUsage(txApp, campaign, now);
+          const events = deleteCampaignRecords(txApp, "push_events", recordId(campaign));
+          const deliveries = deleteCampaignRecords(txApp, DELIVERIES_COLLECTION, recordId(campaign));
+          txApp.delete(campaign);
+          return { deliveries, events };
+        });
+        if (!result) return;
+        summary.deleted += 1;
+        summary.deliveries += result.deliveries;
+        summary.events += result.events;
+        deletedThisBatch += 1;
+      } catch (_) {
+        summary.failed += 1;
+      }
+    });
+    if (due.length < CLEANUP_CAMPAIGN_LIMIT || deletedThisBatch === 0) break;
+  }
+  return summary;
+}
+
 function requestContext(e) {
   const info = e.requestInfo();
   const app = e.app || $app;
@@ -1312,6 +1499,24 @@ function handleDuplicate(e) {
   }
 }
 
+function handleDelete(e) {
+  setPrivateHeaders(e);
+  try {
+    const request = requestContext(e);
+    const payload = parseCampaignIdsPayload(request.info && request.info.body || {});
+    if (!payload) throw codedError("invalid_payload");
+    const summary = deleteCampaignsPermanently(
+      request.app,
+      request.context,
+      payload.campaignIds,
+      new Date(),
+    );
+    return e.json(200, { ok: true, ...summary });
+  } catch (error) {
+    return sendError(e, error, "campaign_delete_failed");
+  }
+}
+
 function queryValue(info, key) {
   const query = info && info.query;
   if (!query) return "";
@@ -1332,16 +1537,25 @@ function handleList(e) {
       ? "store = {:store} && status = {:status}"
       : "store = {:store}";
     const params = { store: request.context.storeId, ...(status ? { status } : {}) };
-    const records = findRecordsStrict(
+    const pageRecords = findRecordsStrict(
       request.app,
       CAMPAIGNS_COLLECTION,
       filter,
       "-created,id",
-      50,
-      (page - 1) * 50,
+      CAMPAIGN_PAGE_SIZE + 1,
+      (page - 1) * CAMPAIGN_PAGE_SIZE,
       params,
     );
-    return e.json(200, { ok: true, page, per_page: 50, campaigns: records.map(mapCampaign) });
+    const hasMore = pageRecords.length > CAMPAIGN_PAGE_SIZE;
+    const records = pageRecords.slice(0, CAMPAIGN_PAGE_SIZE);
+    return e.json(200, {
+      ok: true,
+      page,
+      per_page: CAMPAIGN_PAGE_SIZE,
+      has_more: hasMore,
+      quota_timezone: campaignQuotaState(request.context.store).timezone,
+      campaigns: records.map(mapCampaign),
+    });
   } catch (error) {
     return sendError(e, error, "campaign_processing_failed");
   }
@@ -1369,28 +1583,37 @@ module.exports = {
   CAMPAIGNS_COLLECTION,
   CAMPAIGN_CAPABILITY,
   CAMPAIGN_LOCK_SECONDS,
+  CAMPAIGN_PAGE_SIZE,
   CAMPAIGN_PERMISSION,
-  CAMPAIGN_RETENTION_MONTHS,
+  CAMPAIGN_RETENTION_DAYS,
+  CLEANUP_CAMPAIGN_LIMIT,
+  DELETE_CAMPAIGN_LIMIT,
   DAILY_CAMPAIGN_LIMIT,
   DELIVERY_RETENTION_DAYS,
   MAX_BATCHES_PER_RUN,
   MONTHLY_CAMPAIGN_LIMIT,
+  QUOTA_ENTRY_RETENTION_DAYS,
   SECTION_PATHS,
+  STORE_QUOTA_STATE_FIELD,
   TERMINAL_DELIVERY_STATES,
   acquireCampaignLock,
   assertCampaignAccess,
   assertCampaignQuota,
   calendarKeys,
+  campaignQuotaState,
   cancelCampaign,
+  cleanupExpiredCampaigns,
   createOrUpdateDraft,
   creatorAuthorized,
   deliverySummary,
+  deleteCampaignsPermanently,
   duplicateCampaign,
   eligibleInstallations,
   finalizeCampaign,
   handleAudiencePreview,
   handleCancel,
   handleDetail,
+  handleDelete,
   handleDuplicate,
   handleList,
   handleSave,
@@ -1402,11 +1625,13 @@ module.exports = {
   materializeAudience,
   normalizedAudienceConfig,
   parseCampaignIdPayload,
+  parseCampaignIdsPayload,
   parseSavePayload,
   parseSchedulePayload,
   pauseDowngradedScheduledCampaigns,
   previewAudience,
   processCampaignById,
+  recordCampaignQuotaUsage,
   recordAudienceConfig,
   renewCampaignLock,
   requireAuthenticatedUser,

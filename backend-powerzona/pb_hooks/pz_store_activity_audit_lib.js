@@ -19,6 +19,7 @@ const FILE_VALUE_FIELDS = new Set(["images", "image", "attachment"]);
 const STORE_SPECIALIZED_FIELDS = new Set([
   "plan", "plan_started_at", "plan_expires_at", "plan_duration_months",
   "plan_is_permanent", "free_trial_used", "primary_admin_user", "protected",
+  "push_campaign_quota_state",
 ]);
 
 const COLLECTION_CONFIG = Object.freeze({

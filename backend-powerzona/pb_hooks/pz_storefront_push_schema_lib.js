@@ -49,7 +49,8 @@ const RETENTION_POLICY = Object.freeze({
   web_session_days_after_expiration: 30,
   delivery_days: 180,
   event_days: 180,
-  campaign_months: 24,
+  campaign_days: 7,
+  campaign_quota_entry_days: 40,
   daily_aggregate_months: 36,
 });
 
