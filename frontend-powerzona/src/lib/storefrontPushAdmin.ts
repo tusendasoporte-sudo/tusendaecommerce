@@ -90,6 +90,24 @@ export type StorefrontPushAdminClient = Readonly<{
   adminDeviceToken?: string;
 }>;
 
+export type StorefrontPushTargetOption = Readonly<{
+  id: string;
+  label: string;
+  detail: string;
+}>;
+
+export type StorefrontPushCouponOption = Readonly<{
+  id: string;
+  code: string;
+}>;
+
+export type StorefrontPushTargetOptions = Readonly<{
+  categories: readonly StorefrontPushTargetOption[];
+  products: readonly StorefrontPushTargetOption[];
+  raffles: readonly StorefrontPushTargetOption[];
+  coupons: readonly StorefrontPushCouponOption[];
+}>;
+
 export type StorefrontPushCampaignForm = Readonly<{
   campaign_id?: unknown;
   title?: unknown;
@@ -296,13 +314,12 @@ export function buildStorefrontPushCampaignPayload(formValue: StorefrontPushCamp
   if (!STOREFRONT_PUSH_TARGET_TYPES.includes(targetType)) {
     throw new StorefrontPushAdminError('invalid_target');
   }
-  const targetSection = text(form.target_section, 30);
-  const targetRef = text(form.target_ref, 15);
-  if (targetType === 'home' && (targetSection || targetRef)) {
-    throw new StorefrontPushAdminError('invalid_target');
-  }
+  const targetSection = targetType === 'section' ? text(form.target_section, 30) : '';
+  const targetRef = ['product', 'category', 'order', 'raffle', 'coupon'].includes(targetType)
+    ? text(form.target_ref, 15)
+    : '';
   if (targetType === 'section') {
-    if (targetRef || !STOREFRONT_PUSH_TARGET_SECTIONS.includes(targetSection as any)) {
+    if (!STOREFRONT_PUSH_TARGET_SECTIONS.includes(targetSection as any)) {
       throw new StorefrontPushAdminError('invalid_target');
     }
   } else if (targetType !== 'home') {
@@ -492,6 +509,44 @@ export async function previewStorefrontPushAudience(
     count: integer(result?.audience?.count),
     snapshot: result?.audience?.snapshot === true,
   });
+}
+
+export function normalizeStorefrontPushTargetOptions(value: unknown): StorefrontPushTargetOptions {
+  const source = recordObject(value);
+  const normalizeTargets = (items: unknown) => Object.freeze((Array.isArray(items) ? items : [])
+    .map((item) => {
+      const option = recordObject(item);
+      const id = text(option.id, 15);
+      const label = text(option.label, 180);
+      if (!RECORD_ID_PATTERN.test(id) || !label) return null;
+      return Object.freeze({ id, label, detail: text(option.detail, 180) });
+    })
+    .filter((item): item is StorefrontPushTargetOption => item !== null));
+  const coupons = Object.freeze((Array.isArray(source.coupons) ? source.coupons : [])
+    .map((item) => {
+      const option = recordObject(item);
+      const id = text(option.id, 15);
+      const code = text(option.code, 40).toUpperCase();
+      if (!RECORD_ID_PATTERN.test(id) || !/^[A-Z0-9_-]{2,40}$/.test(code)) return null;
+      return Object.freeze({ id, code });
+    })
+    .filter((item): item is StorefrontPushCouponOption => item !== null));
+  return Object.freeze({
+    categories: normalizeTargets(source.categories),
+    products: normalizeTargets(source.products),
+    raffles: normalizeTargets(source.raffles),
+    coupons,
+  });
+}
+
+export async function readStorefrontPushTargetOptions(
+  client: StorefrontPushAdminClient,
+  fetchImpl?: typeof fetch,
+) {
+  const result = await storefrontPushAdminRequest(client, '/api/pz/storefront/v1/campaigns/targets', {
+    fetchImpl,
+  });
+  return normalizeStorefrontPushTargetOptions(result.targets);
 }
 
 export async function scheduleStorefrontPushCampaign(

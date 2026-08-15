@@ -204,17 +204,42 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
                 <option value="coupon">Cupón</option>
               </select>
             </label>
-            <label class="push-field hidden" data-target-reference-field>
-              <span data-target-reference-label>ID del destino</span>
+            <input type="hidden" name="target_ref" data-field="target_ref" />
+            <div class="push-target-picker hidden" data-target-options-field>
+              <label class="push-field" data-target-search-field>
+                <span data-target-options-label>Buscar destino</span>
+                <input type="search" autocomplete="off" data-target-search placeholder="Buscar por nombre" />
+              </label>
+              <label class="push-field">
+                <span class="sr-only" data-target-select-label>Selecciona un destino</span>
+                <select data-target-option-select>
+                  <option value="">Cargando opciones…</option>
+                </select>
+              </label>
+              <small class="push-target-picker__status" role="status" aria-live="polite" data-target-options-status></small>
+            </div>
+            <label class="push-field hidden" data-target-coupon-field>
+              <span>Código del cupón</span>
               <input
-                name="target_ref"
-                data-field="target_ref"
+                type="text"
+                maxlength="40"
+                pattern="[A-Za-z0-9_-]{2,40}"
+                autocomplete="off"
+                placeholder="Ej. VERANO20"
+                data-target-coupon-code
+              />
+              <small>Escribe el código de un cupón activo y vigente de esta tienda.</small>
+            </label>
+            <label class="push-field hidden" data-target-reference-field>
+              <span>ID del pedido</span>
+              <input
                 maxlength="15"
                 pattern="[a-z0-9]{15}"
                 autocomplete="off"
                 placeholder="ID de 15 caracteres"
+                data-target-order-ref
               />
-              <small data-target-reference-help>El backend comprobará que el registro esté activo y pertenezca a esta tienda.</small>
+              <small>El pedido y la instalación deben tener un vínculo seguro activo.</small>
             </label>
             <label class="push-field hidden" data-target-section-field>
               <span>Sección pública</span>
@@ -287,9 +312,15 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
               <span>Zona horaria de cuota</span>
               <input name="timezone" data-field="timezone" value={defaultTimezone} readonly />
             </label>
-            <label class="push-field">
+            <label class="push-schedule-switch">
+              <input type="checkbox" name="schedule_enabled" data-field="schedule_enabled" />
+              <span aria-hidden="true"></span>
+              <strong>Programar envío</strong>
+              <small>Desactivado: la campaña se envía en el momento de confirmar.</small>
+            </label>
+            <label class="push-field push-field--disabled" data-scheduled-at-field>
               <span>Fecha y hora programada</span>
-              <input name="scheduled_at" data-field="scheduled_at" type="datetime-local" />
+              <input name="scheduled_at" data-field="scheduled_at" type="datetime-local" disabled />
               <small data-timezone-help>La hora se convierte a UTC al guardar; la cuota diaria usa {defaultTimezone}.</small>
             </label>
             <div class="push-warning">
@@ -364,7 +395,6 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
           <button class="push-btn push-btn--secondary" type="button" data-edit-campaign hidden>Editar</button>
           <button class="push-btn push-btn--secondary push-btn--danger" type="button" data-cancel-campaign hidden>Cancelar campaña</button>
           <button class="push-btn push-btn--secondary" type="button" data-save-draft>Guardar borrador</button>
-          <button class="push-btn push-btn--secondary" type="button" data-schedule-campaign>Programar</button>
           <button class="push-btn push-btn--primary" type="button" data-send-now>Enviar ahora</button>
         </div>
       </footer>
@@ -400,6 +430,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     readStorefrontPushCampaignDetail,
     readStorefrontPushAdminAuthToken,
     readStorefrontPushAdminCookie,
+    readStorefrontPushTargetOptions,
     resolveStorefrontPushQuotaTimezone,
     saveStorefrontPushCampaign,
     scheduleStorefrontPushCampaign,
@@ -451,6 +482,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     const state = {
       campaigns: [],
       media: [],
+      targets: { categories: [], products: [], raffles: [], coupons: [] },
+      targetsLoaded: false,
+      targetsError: false,
       page: 1,
       hasMore: false,
       loading: false,
@@ -671,6 +705,124 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       select.value = state.media.some((item) => item.id === selectedId) ? selectedId : '';
       updatePreview();
     }
+    function normalizedSearch(value) {
+      return String(value || '').trim().toLocaleLowerCase('es')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    function targetItems(targetType = field('target_type')?.value || 'home') {
+      const key = ({ category: 'categories', product: 'products', raffle: 'raffles' })[targetType];
+      return key ? state.targets[key] : [];
+    }
+    function targetOptionText(item, targetType) {
+      if (!item?.detail) return item?.label || 'Destino';
+      if (targetType === 'raffle') return `${item.label} · cierra ${formatDate(item.detail)}`;
+      return `${item.label} · ${item.detail}`;
+    }
+    function renderTargetOptions() {
+      const targetType = field('target_type')?.value || 'home';
+      const select = one('[data-target-option-select]');
+      const status = one('[data-target-options-status]');
+      if (!select || !status) return;
+      const selectedId = field('target_ref')?.value || '';
+      const items = targetItems(targetType);
+      const query = normalizedSearch(one('[data-target-search]')?.value || '');
+      let visible = query
+        ? items.filter((item) => normalizedSearch(`${item.label} ${item.detail}`).includes(query))
+        : [...items];
+      const selected = items.find((item) => item.id === selectedId);
+      if (selected && !visible.some((item) => item.id === selected.id)) visible = [selected, ...visible];
+      const placeholder = state.targetsError
+        ? 'No se pudieron cargar los destinos'
+        : !state.targetsLoaded
+          ? 'Cargando opciones…'
+          : items.length
+            ? 'Selecciona una opción'
+            : 'No hay opciones activas';
+      select.innerHTML = [
+        `<option value="">${escapeHtml(placeholder)}</option>`,
+        ...visible.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(targetOptionText(item, targetType))}</option>`),
+      ].join('');
+      select.value = visible.some((item) => item.id === selectedId) ? selectedId : '';
+      if (state.targetsError) status.textContent = 'No pudimos cargar los destinos de esta tienda. Intenta actualizar la página.';
+      else if (!state.targetsLoaded) status.textContent = 'Cargando destinos activos de esta tienda…';
+      else if (!items.length) status.textContent = `No hay ${targetType === 'category' ? 'categorías' : targetType === 'product' ? 'productos' : 'rifas'} activas disponibles.`;
+      else if (query) status.textContent = `${visible.length} coincidencia${visible.length === 1 ? '' : 's'} de ${items.length}.`;
+      else status.textContent = `${items.length} ${items.length === 1 ? 'opción activa' : 'opciones activas'}.`;
+    }
+    function syncCouponReference() {
+      const input = one('[data-target-coupon-code]');
+      if (!input) return;
+      const code = String(input.value || '').trim().toUpperCase();
+      if (input.value !== code) input.value = code;
+      const match = state.targets.coupons.find((coupon) => coupon.code === code);
+      field('target_ref').value = match?.id || '';
+      input.setCustomValidity(code && state.targetsLoaded && !match
+        ? 'El código no existe, está inactivo o ya no está vigente.'
+        : '');
+    }
+    function syncTargetInputsFromReference() {
+      const targetType = field('target_type')?.value || 'home';
+      const targetRef = field('target_ref')?.value || '';
+      if (['category', 'product', 'raffle'].includes(targetType)) {
+        renderTargetOptions();
+        one('[data-target-option-select]').value = targetItems(targetType).some((item) => item.id === targetRef)
+          ? targetRef
+          : '';
+      } else if (targetType === 'coupon') {
+        const coupon = state.targets.coupons.find((item) => item.id === targetRef);
+        if (coupon) one('[data-target-coupon-code]').value = coupon.code;
+      } else if (targetType === 'order') {
+        one('[data-target-order-ref]').value = targetRef;
+      }
+    }
+    function resetTargetSelection() {
+      field('target_ref').value = '';
+      one('[data-target-search]').value = '';
+      one('[data-target-option-select]').value = '';
+      one('[data-target-coupon-code]').value = '';
+      one('[data-target-coupon-code]').setCustomValidity('');
+      one('[data-target-order-ref]').value = '';
+      one('[data-target-order-ref]').setCustomValidity('');
+      one('[data-preview-path]').textContent = 'Pendiente de validar';
+      renderTargetOptions();
+    }
+    function prepareTargetReference() {
+      const targetType = field('target_type')?.value || 'home';
+      if (['home', 'section'].includes(targetType)) {
+        field('target_ref').value = '';
+        return;
+      }
+      if (['category', 'product', 'raffle'].includes(targetType)) {
+        const select = one('[data-target-option-select]');
+        field('target_ref').value = select.value || '';
+        select.setCustomValidity(select.value ? '' : 'Selecciona un destino activo de esta tienda.');
+        return;
+      }
+      if (targetType === 'coupon') {
+        syncCouponReference();
+        const input = one('[data-target-coupon-code]');
+        if (!input.value.trim()) input.setCustomValidity('Escribe el código del cupón.');
+        else if (!field('target_ref').value) input.setCustomValidity('El código no existe, está inactivo o ya no está vigente.');
+        return;
+      }
+      const orderInput = one('[data-target-order-ref]');
+      field('target_ref').value = String(orderInput.value || '').trim();
+    }
+    async function loadTargets() {
+      try {
+        state.targets = await readStorefrontPushTargetOptions(client);
+        state.targetsLoaded = true;
+        state.targetsError = false;
+        syncTargetInputsFromReference();
+      } catch (_) {
+        state.targets = { categories: [], products: [], raffles: [], coupons: [] };
+        state.targetsLoaded = false;
+        state.targetsError = true;
+      } finally {
+        renderTargetOptions();
+        updateConditionalFields();
+      }
+    }
     async function loadMedia() {
       const mediaStatus = one('[data-media-status]');
       try {
@@ -694,13 +846,16 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       const mediaStatus = one('[data-media-status]');
       const label = one('[data-media-upload-label]');
       if (!file) return;
+      clearFormMessages();
       if (file.size > 8 * 1024 * 1024) {
         mediaStatus.textContent = 'La imagen supera el máximo de 8 MiB.';
         return;
       }
+      const buttons = all('button');
+      const previousButtonStates = buttons.map((button) => button.disabled);
       label.textContent = 'Convirtiendo…';
       mediaStatus.textContent = 'Validando y convirtiendo a WebP…';
-      all('button').forEach((button) => { button.disabled = true; });
+      buttons.forEach((button) => { button.disabled = true; });
       try {
         const payload = new FormData();
         payload.append('file', file);
@@ -723,40 +878,68 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         mediaStatus.textContent = storefrontPushAdminErrorMessage(error?.code || error?.message);
       } finally {
         label.textContent = 'Cargar imagen';
-        all('button').forEach((button) => { button.disabled = false; });
+        buttons.forEach((button, index) => { button.disabled = previousButtonStates[index]; });
       }
+    }
+    function updateScheduleFields() {
+      const toggle = field('schedule_enabled');
+      const input = field('scheduled_at');
+      const wrapper = one('[data-scheduled-at-field]');
+      const action = one('[data-send-now]');
+      const enabled = toggle?.checked === true;
+      if (!enabled && !state.editorReadonly) input.value = '';
+      input.disabled = state.editorReadonly || !enabled;
+      input.required = enabled && !state.editorReadonly;
+      wrapper.classList.toggle('push-field--disabled', !enabled);
+      action.textContent = enabled ? 'Programar campaña' : 'Enviar ahora';
+      action.dataset.mode = enabled ? 'scheduled' : 'now';
     }
     function updateConditionalFields() {
       const targetType = field('target_type')?.value || 'home';
       const audienceSelect = field('audience_type');
-      const referenceInput = field('target_ref');
       const sectionSelect = field('target_section');
       const installationInput = field('installation_id');
       const versionInput = field('app_version_code');
       const countryInput = field('country_code');
       const regionInput = field('region_code');
       const referenceField = one('[data-target-reference-field]');
+      const optionsField = one('[data-target-options-field]');
+      const couponField = one('[data-target-coupon-field]');
+      const searchField = one('[data-target-search-field]');
+      const optionSelect = one('[data-target-option-select]');
+      const couponInput = one('[data-target-coupon-code]');
+      const orderInput = one('[data-target-order-ref]');
       const sectionField = one('[data-target-section-field]');
       const installationField = one('[data-audience-installation-field]');
       const versionField = one('[data-audience-version-field]');
       const regionField = one('[data-audience-region-field]');
-      const isReference = !['home', 'section'].includes(targetType);
-      referenceField.classList.toggle('hidden', !isReference);
+      const isOptionsTarget = ['category', 'product', 'raffle'].includes(targetType);
+      referenceField.classList.toggle('hidden', targetType !== 'order');
+      optionsField.classList.toggle('hidden', !isOptionsTarget);
+      couponField.classList.toggle('hidden', targetType !== 'coupon');
+      searchField.classList.toggle('hidden', targetType === 'raffle');
       sectionField.classList.toggle('hidden', targetType !== 'section');
       installationField.classList.toggle('hidden', targetType !== 'order');
-      referenceInput.disabled = state.editorReadonly || !isReference;
+      optionSelect.disabled = state.editorReadonly || !isOptionsTarget;
+      optionSelect.required = isOptionsTarget && !state.editorReadonly;
+      couponInput.disabled = state.editorReadonly || targetType !== 'coupon';
+      couponInput.required = targetType === 'coupon' && !state.editorReadonly;
+      orderInput.disabled = state.editorReadonly || targetType !== 'order';
+      orderInput.required = targetType === 'order' && !state.editorReadonly;
       sectionSelect.disabled = state.editorReadonly || targetType !== 'section';
       installationInput.disabled = state.editorReadonly || targetType !== 'order';
-      const labels = {
-        product: ['ID del producto', 'Usa el ID del producto activo de esta tienda.'],
-        category: ['ID de la categoría', 'Usa el ID de una categoría activa de esta tienda.'],
-        order: ['ID del pedido', 'El pedido y la instalación deben tener un vínculo seguro activo.'],
-        raffle: ['ID de la rifa', 'Si la rifa venció, el backend puede usar el listado seguro como respaldo.'],
-        coupon: ['ID del cupón', 'El cupón se vuelve a validar al ejecutar la campaña.'],
+      const pickerLabels = {
+        product: ['Buscar producto', 'Selecciona un producto activo'],
+        category: ['Buscar categoría', 'Selecciona una categoría activa'],
+        raffle: ['Rifa activa', 'Selecciona una rifa activa'],
       };
-      const label = labels[targetType] || ['ID del destino', 'El backend comprobará la tienda y disponibilidad.'];
-      one('[data-target-reference-label]').textContent = label[0];
-      one('[data-target-reference-help]').textContent = label[1];
+      const pickerLabel = pickerLabels[targetType] || ['Buscar destino', 'Selecciona un destino'];
+      one('[data-target-options-label]').textContent = pickerLabel[0];
+      one('[data-target-select-label]').textContent = pickerLabel[1];
+      one('[data-target-search]').placeholder = targetType === 'product'
+        ? 'Buscar por nombre o referencia'
+        : 'Buscar por nombre';
+      renderTargetOptions();
       if (targetType === 'order') {
         audienceSelect.value = 'all_active';
         audienceSelect.disabled = true;
@@ -769,6 +952,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       versionInput.disabled = state.editorReadonly || audienceType !== 'app_version';
       countryInput.disabled = state.editorReadonly || audienceType !== 'country_region';
       regionInput.disabled = state.editorReadonly || audienceType !== 'country_region';
+      updateScheduleFields();
       updatePreview();
     }
     function updatePreview() {
@@ -783,7 +967,12 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         home: 'Portada de la tienda', product: 'Producto', category: 'Categoría', section: 'Sección',
         order: 'Seguimiento de pedido', raffle: 'Rifa', coupon: 'Cupón',
       };
-      one('[data-preview-target]').textContent = targetLabels[targetType] || 'Destino';
+      const selectedOption = targetItems(targetType).find((item) => item.id === (field('target_ref')?.value || ''));
+      const couponCode = String(one('[data-target-coupon-code]')?.value || '').trim();
+      const targetDetail = selectedOption?.label || (targetType === 'coupon' ? couponCode : '');
+      one('[data-preview-target]').textContent = targetDetail
+        ? `${targetLabels[targetType] || 'Destino'}: ${targetDetail}`
+        : targetLabels[targetType] || 'Destino';
       one('[data-preview-audience]').textContent = campaignAudienceLabel(field('audience_type')?.value || 'all_active');
       const media = mediaById(field('media_id')?.value || '');
       const preview = one('[data-preview-image]');
@@ -795,6 +984,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       else preview.removeAttribute('src');
     }
     function formValue() {
+      const targetType = field('target_type')?.value || 'home';
       return {
         campaign_id: field('campaign_id')?.value || '',
         title: field('title')?.value || '',
@@ -806,25 +996,23 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         country_code: field('country_code')?.value || '',
         region_code: field('region_code')?.value || '',
         installation_id: field('installation_id')?.value || '',
-        target_type: field('target_type')?.value || 'home',
-        target_ref: field('target_ref')?.value || '',
-        target_section: field('target_section')?.value || '',
+        target_type: targetType,
+        target_ref: ['home', 'section'].includes(targetType) ? '' : field('target_ref')?.value || '',
+        target_section: targetType === 'section' ? field('target_section')?.value || '' : '',
       };
     }
     function setEditorReadonly(readonly) {
       state.editorReadonly = readonly;
-      all('[data-field]').forEach((control) => {
-        if (control.dataset.field !== 'scheduled_at') control.disabled = readonly;
-      });
+      all('[data-field]').forEach((control) => { control.disabled = readonly; });
       one('[data-media-upload]').disabled = readonly;
       one('[data-save-draft]').hidden = readonly;
       const canSchedule = !state.editing || ['draft', 'paused_plan'].includes(state.editing.status);
       const actions = storefrontPushCampaignActions(state.editing?.status || 'draft');
       one('[data-edit-campaign]').hidden = !(readonly && state.editing && actions.edit);
       one('[data-cancel-campaign]').hidden = !(readonly && state.editing && actions.cancel);
-      one('[data-schedule-campaign]').hidden = readonly || !canSchedule;
       one('[data-send-now]').hidden = readonly || !canSchedule;
       if (!readonly && field('target_type')?.value === 'order') field('audience_type').disabled = true;
+      updateConditionalFields();
     }
     function resetEditor() {
       window.clearTimeout(state.audienceTimer);
@@ -839,6 +1027,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       field('target_type').value = 'home';
       field('audience_type').value = 'all_active';
       field('media_id').value = '';
+      field('schedule_enabled').checked = false;
+      field('scheduled_at').value = '';
+      resetTargetSelection();
       one('[data-editor-title]').textContent = 'Nueva campaña';
       one('[data-editor-state]').textContent = 'Borrador nuevo';
       one('[data-preview-path]').textContent = 'Pendiente de validar';
@@ -877,6 +1068,11 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-metrics-note]').textContent = metrics.measurement_note || '';
       panel.hidden = false;
     }
+    function localDateTimeInputValue(value) {
+      const date = new Date(String(value || ''));
+      if (!Number.isFinite(date.getTime())) return '';
+      return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    }
     function fillEditor(campaign, edit, metrics = null) {
       resetEditor();
       state.editing = campaign;
@@ -894,11 +1090,14 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       field('country_code').value = campaign.audience_config?.country_code || '';
       field('region_code').value = campaign.audience_config?.region_code || '';
       field('installation_id').value = campaign.audience_config?.installation_id || '';
+      field('schedule_enabled').checked = Boolean(campaign.scheduled_at);
+      field('scheduled_at').value = localDateTimeInputValue(campaign.scheduled_at);
+      syncTargetInputsFromReference();
       one('[data-editor-title]').textContent = edit ? 'Editar borrador' : 'Detalle de campaña';
       one('[data-editor-state]').textContent = campaignStatusLabel(campaign.status);
       one('[data-preview-path]').textContent = campaign.target_path || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Pendiente de validar');
       if (campaign.selected_count || campaign.status !== 'draft') {
-        one('[data-audience-estimate]').textContent = `${campaign.selected_count} instalación${campaign.selected_count === 1 ? '' : 'es'}`;
+        one('[data-audience-estimate]').textContent = `${campaign.selected_count} ${campaign.selected_count === 1 ? 'instalación' : 'instalaciones'}`;
         one('[data-audience-note]').textContent = 'Conteo guardado por el motor de campañas.';
       }
       renderMediaOptions(campaign.media_id);
@@ -910,6 +1109,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     }
     async function saveDraft(options = {}) {
       clearFormMessages();
+      prepareTargetReference();
       if (!form.reportValidity()) throw new Error('invalid_payload');
       const campaign = await saveStorefrontPushCampaign(client, formValue());
       state.editing = campaign;
@@ -921,7 +1121,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       return campaign;
     }
     function renderAudienceEstimate(audience) {
-      one('[data-audience-estimate]').textContent = `${audience.count} instalación${audience.count === 1 ? '' : 'es'}`;
+      one('[data-audience-estimate]').textContent = `${audience.count} ${audience.count === 1 ? 'instalación' : 'instalaciones'}`;
       one('[data-audience-note]').textContent = audience.snapshot
         ? 'Conteo congelado al iniciar la campaña.'
         : 'Estimación actual; puede variar hasta que comience el envío.';
@@ -997,6 +1197,13 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         }
         if (!options.silent) showFormSuccess('Audiencia calculada y validada para esta tienda.');
         return { campaign, audience };
+      } catch (error) {
+        if (requestId === state.audienceRequestId) {
+          state.audience = null;
+          one('[data-audience-estimate]').textContent = 'No se pudo calcular';
+          one('[data-audience-note]').textContent = storefrontPushAdminErrorMessage(error?.code || error?.message);
+        }
+        throw error;
       } finally {
         if (requestId === state.audienceRequestId) result.removeAttribute('aria-busy');
       }
@@ -1037,7 +1244,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
           warning: `Este envío cuenta dentro de los límites permanentes de 10 diarios y 310 mensuales. Firebase aceptado no significa entregado o leído.`,
           rows: [
             ['Campaña', campaign.title],
-            ['Audiencia estimada', `${audience.count} instalación${audience.count === 1 ? '' : 'es'}`],
+            ['Audiencia estimada', `${audience.count} ${audience.count === 1 ? 'instalación' : 'instalaciones'}`],
             ['Destino', campaign.target_path || 'Ruta privada segura'],
             ['Momento', mode === 'now' ? 'Ahora' : formatDate(scheduledDate.toISOString())],
           ],
@@ -1195,10 +1402,29 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     ['title', 'body', 'media_id'].forEach((name) => field(name)?.addEventListener('input', updatePreview));
     field('target_type')?.addEventListener('change', () => {
       clearFormMessages();
+      resetTargetSelection();
       updateConditionalFields();
       markAudienceEstimateStale();
     });
-    field('target_section')?.addEventListener('change', updatePreview);
+    field('target_section')?.addEventListener('change', () => {
+      one('[data-preview-path]').textContent = 'Se validará al guardar';
+      updatePreview();
+    });
+    one('[data-target-search]')?.addEventListener('input', renderTargetOptions);
+    one('[data-target-option-select]')?.addEventListener('change', (event) => {
+      event.currentTarget.setCustomValidity('');
+      field('target_ref').value = event.currentTarget.value || '';
+      one('[data-preview-path]').textContent = event.currentTarget.value ? 'Se validará al guardar' : 'Pendiente de validar';
+      updatePreview();
+    });
+    one('[data-target-coupon-code]')?.addEventListener('input', () => {
+      syncCouponReference();
+      one('[data-preview-path]').textContent = field('target_ref').value ? 'Se validará al guardar' : 'Pendiente de validar';
+      updatePreview();
+    });
+    one('[data-target-order-ref]')?.addEventListener('input', (event) => {
+      field('target_ref').value = String(event.currentTarget.value || '').trim();
+    });
     field('audience_type')?.addEventListener('change', () => {
       clearFormMessages();
       updateConditionalFields();
@@ -1207,6 +1433,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     ['app_version_code', 'country_code', 'region_code', 'installation_id'].forEach((name) => {
       field(name)?.addEventListener('input', markAudienceEstimateStale);
     });
+    field('schedule_enabled')?.addEventListener('change', updateScheduleFields);
     one('[data-media-upload]')?.addEventListener('change', (event) => {
       const file = event.currentTarget.files?.[0];
       uploadMedia(file);
@@ -1231,8 +1458,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       } catch (error) { showFormError(error); }
       finally { setBusy(false); }
     });
-    one('[data-send-now]')?.addEventListener('click', () => dispatchCampaign('now'));
-    one('[data-schedule-campaign]')?.addEventListener('click', () => dispatchCampaign('scheduled'));
+    one('[data-send-now]')?.addEventListener('click', (event) => {
+      dispatchCampaign(event.currentTarget.dataset.mode === 'scheduled' ? 'scheduled' : 'now');
+    });
     one('[data-confirm-cancel]')?.addEventListener('click', () => resolveConfirmation(false));
     confirmForm?.addEventListener('submit', (event) => { event.preventDefault(); resolveConfirmation(true); });
     confirmDialog?.addEventListener('cancel', (event) => { event.preventDefault(); resolveConfirmation(false); });
@@ -1240,13 +1468,14 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     editor?.addEventListener('click', (event) => { if (event.target === editor) closeDialog(editor); });
 
     resetEditor();
-    Promise.all([loadMedia(), loadCampaigns()]);
+    Promise.all([loadMedia(), loadCampaigns(), loadTargets()]);
   })();
 </script>
 
 <style is:global>
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   .hidden { display: none !important; }
+  .push-admin [hidden] { display: none !important; }
   .push-admin { width: min(1220px, calc(100% - 36px)); margin: 0 auto; padding: 28px 0 72px; color: #0f172a; }
   .push-admin *, .push-admin *::before, .push-admin *::after { box-sizing: border-box; }
   .push-admin button, .push-admin input, .push-admin select, .push-admin textarea { font: inherit; }
@@ -1345,6 +1574,18 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-field input[readonly] { background: #f8fafc; color: #475569; }
   .push-field input:disabled, .push-field select:disabled, .push-field textarea:disabled { background: #f1f5f9; color: #475569; opacity: 1; }
   .push-field small, .push-help { margin: 0; color: #64748b; font-size: 11px; line-height: 1.48; font-weight: 650; }
+  .push-field--disabled { opacity: .68; }
+  .push-target-picker { display: grid; gap: 10px; border: 1px solid #dbeafe; border-radius: 15px; background: #f8fbff; padding: 13px; }
+  .push-target-picker__status { color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 700; }
+  .push-schedule-switch { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; column-gap: 11px; row-gap: 2px; border: 1px solid #dbe5f1; border-radius: 14px; background: #f8fafc; padding: 11px 13px; cursor: pointer; }
+  .push-schedule-switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .push-schedule-switch > span { grid-row: 1 / span 2; position: relative; width: 42px; height: 24px; border-radius: 999px; background: #cbd5e1; transition: background .18s ease; }
+  .push-schedule-switch > span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 2px 7px rgba(15,23,42,.2); transition: transform .18s ease; }
+  .push-schedule-switch input:checked + span { background: #2563eb; }
+  .push-schedule-switch input:checked + span::after { transform: translateX(18px); }
+  .push-schedule-switch input:focus-visible + span { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }
+  .push-schedule-switch strong { color: #0f172a; font-size: 13px; font-weight: 900; }
+  .push-schedule-switch small { color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 650; }
   .push-media-row { display: flex; align-items: end; gap: 10px; }
   .push-field--grow { flex: 1 1 auto; }
   .push-upload-btn { min-height: 44px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #bfdbfe; border-radius: 13px; background: #eff6ff; color: #1d4ed8; padding: 10px 13px; font-size: 12px; font-weight: 950; cursor: pointer; }

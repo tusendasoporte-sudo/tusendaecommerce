@@ -292,6 +292,59 @@ test('acceso exige simultáneamente Premium y marketing.push.manage', () => {
   assert.throws(() => campaigns.assertCampaignAccess(denied, deniedContext), (error) => error.code === 'permission_denied');
 });
 
+test('destinos del editor muestran solo registros activos de la tienda y cupones por código', () => {
+  const app = createApp();
+  const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
+  const now = new Date('2026-08-15T16:00:00.000Z');
+  app.add(record('categories', 'category0000001', {
+    store: STORE_A, name: 'Proteínas', slug: 'proteinas', active: true,
+  }));
+  app.add(record('categories', 'category0000002', {
+    store: STORE_A, name: 'Oculta', slug: 'oculta', active: false,
+  }));
+  app.add(record('categories', 'category0000003', {
+    store: STORE_B, name: 'Otra tienda', slug: 'otra-tienda', active: true,
+  }));
+  app.add(record('products', 'product00000001', {
+    store: STORE_A, name: 'Creatina', slug: 'creatina', internal_ref: 'SKU-01', active: true,
+  }));
+  app.add(record('products', 'product00000002', {
+    store: STORE_A, name: 'Producto oculto', slug: 'oculto', active: false,
+  }));
+  app.add(record('raffles', 'raffle000000001', {
+    store: STORE_A, title: 'Rifa agosto', slug: 'rifa-agosto', status: 'active',
+    is_configured: true, link_enabled: true, selection_manually_closed: false,
+    starts_at: '2026-08-14T16:00:00.000Z', closes_at: '2026-08-20T16:00:00.000Z',
+    draw_at: '2026-08-21T16:00:00.000Z',
+  }));
+  app.add(record('raffles', 'raffle000000002', {
+    store: STORE_A, title: 'Rifa cerrada', slug: 'rifa-cerrada', status: 'selection_closed',
+    is_configured: true, link_enabled: true, closes_at: '2026-08-14T16:00:00.000Z',
+  }));
+  app.add(record('manual_coupons', 'coupon000000001', {
+    store: STORE_A, code: 'verano20', active: true,
+    starts_at: '2026-08-01T00:00:00.000Z', ends_at: '2026-08-31T23:59:59.000Z',
+  }));
+  app.add(record('manual_coupons', 'coupon000000002', {
+    store: STORE_A, code: 'VENCIDO', active: true, ends_at: '2026-08-14T23:59:59.000Z',
+  }));
+
+  assert.deepEqual(campaigns.listTargetOptions(app, context, now), {
+    categories: [{ id: 'category0000001', label: 'Proteínas' }],
+    products: [{ id: 'product00000001', label: 'Creatina', detail: 'SKU-01' }],
+    raffles: [{
+      id: 'raffle000000001', label: 'Rifa agosto', detail: '2026-08-20T16:00:00.000Z',
+    }],
+    coupons: [{ id: 'coupon000000001', code: 'VERANO20' }],
+  });
+  assert.throws(
+    () => campaigns.resolveTarget(
+      app, context.store, 'raffle', 'raffle000000002', '', {}, now,
+    ),
+    (error) => error.code === 'target_unavailable',
+  );
+});
+
 test('listado devuelve diez campañas por página e informa si existe la siguiente', () => {
   const app = createApp();
   for (let index = 1; index <= 21; index += 1) {
@@ -650,8 +703,10 @@ test('rutas exponen solo C05, crons acotados y mantienen relay administrativo v1
   const relayV1 = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_push_dispatch.pb.js'), 'utf8');
   assert.match(routes, /\/api\/pz\/storefront\/v1\/campaigns/);
   assert.match(routes, /audience-preview/);
+  assert.match(routes, /campaigns\/targets/);
   assert.match(routes, /\.handleSave\(e\)/);
   assert.match(routes, /\.handleAudiencePreview\(e\)/);
+  assert.match(routes, /\.handleTargets\(e\)/);
   assert.match(routes, /\.handleSchedule\(e\)/);
   assert.match(routes, /\.handleCancel\(e\)/);
   assert.match(routes, /\.handleDuplicate\(e\)/);

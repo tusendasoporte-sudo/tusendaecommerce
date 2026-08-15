@@ -14,6 +14,16 @@ routerAdd(
 
 routerAdd(
   "GET",
+  "/api/pz/storefront/v1/campaigns/targets",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleTargets(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "GET",
   "/api/pz/storefront/v1/campaigns/{id}",
   (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleDetail(e),
   campaignAuth,

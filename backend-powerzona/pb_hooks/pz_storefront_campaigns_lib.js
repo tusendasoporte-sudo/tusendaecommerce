@@ -41,6 +41,7 @@ const SCHEDULER_CAMPAIGN_LIMIT = 50;
 const CLEANUP_CAMPAIGN_LIMIT = 100;
 const DELETE_CAMPAIGN_LIMIT = 50;
 const CAMPAIGN_PAGE_SIZE = 10;
+const TARGET_OPTION_LIMIT = 5000;
 const MEDIA_SEND_BUFFER_SECONDS = 300;
 const SECTION_PATHS = Object.freeze({
   search: "/buscar",
@@ -352,6 +353,25 @@ function findRecordsStrict(app, collection, filter, sort, limit, offset, params)
   ) || []);
 }
 
+function findAllRecordsStrict(app, collection, filter, sort, params, limitValue) {
+  const maximum = Math.max(1, Math.min(Number(limitValue) || TARGET_OPTION_LIMIT, TARGET_OPTION_LIMIT));
+  const records = [];
+  for (let offset = 0; offset < maximum; offset += 500) {
+    const page = findRecordsStrict(
+      app,
+      collection,
+      filter,
+      sort,
+      Math.min(500, maximum - offset),
+      offset,
+      params,
+    );
+    records.push(...page);
+    if (page.length < Math.min(500, maximum - offset)) break;
+  }
+  return records;
+}
+
 function runTransaction(app, callback) {
   let result;
   if (app && typeof app.runInTransaction === "function") {
@@ -599,6 +619,84 @@ function couponAvailable(coupon, now) {
     && (!endsAt || endsAt.getTime() >= now.getTime());
 }
 
+function raffleAvailable(raffle, now) {
+  if (!raffle
+    || !boolValue(recordValue(raffle, "is_configured"))
+    || !boolValue(recordValue(raffle, "link_enabled"))
+    || boolValue(recordValue(raffle, "selection_manually_closed"))) return false;
+  const status = recordString(raffle, "status");
+  if ([
+    "draft", "scheduled", "selection_closed", "result_pending", "winner_published",
+    "no_winner_published", "finalized", "archived",
+  ].includes(status)) return false;
+  const startsAt = parsedDate(recordValue(raffle, "starts_at"));
+  const closesAt = parsedDate(recordValue(raffle, "closes_at"));
+  const drawAt = parsedDate(recordValue(raffle, "draw_at"));
+  return (!startsAt || startsAt.getTime() <= now.getTime())
+    && !!closesAt
+    && closesAt.getTime() > now.getTime()
+    && (!drawAt || drawAt.getTime() > now.getTime());
+}
+
+function targetOption(id, label, detail) {
+  const option = { id: bounded(id, 15), label: bounded(label, 180) };
+  const safeDetail = bounded(detail, 180);
+  if (safeDetail) option.detail = safeDetail;
+  return option;
+}
+
+function sortTargetOptions(options) {
+  return options.sort((left, right) => {
+    const a = String(left.label || "").toLowerCase();
+    const b = String(right.label || "").toLowerCase();
+    if (a === b) return String(left.id).localeCompare(String(right.id));
+    return a.localeCompare(b);
+  });
+}
+
+function listTargetOptions(app, context, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  assertCampaignAccess(app, context);
+  const recordsForStore = (collection, sort) => findAllRecordsStrict(
+    app,
+    collection,
+    "store = {:store}",
+    sort,
+    { store: context.storeId },
+    TARGET_OPTION_LIMIT,
+  );
+  const validSlug = (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(recordString(value, "slug").toLowerCase());
+  const categories = recordsForStore("categories", "name,id")
+    .filter((item) => boolValue(recordValue(item, "active")) && validSlug(item))
+    .map((item) => targetOption(recordId(item), recordString(item, "name") || "Categoría"));
+  const products = recordsForStore("products", "name,id")
+    .filter((item) => boolValue(recordValue(item, "active")) && validSlug(item))
+    .map((item) => targetOption(
+      recordId(item),
+      recordString(item, "name") || "Producto",
+      recordString(item, "internal_ref"),
+    ));
+  const raffles = recordsForStore("raffles", "title,id")
+    .filter((item) => raffleAvailable(item, now) && validSlug(item))
+    .map((item) => targetOption(
+      recordId(item),
+      recordString(item, "title") || recordString(item, "name") || "Rifa activa",
+      recordString(item, "closes_at"),
+    ));
+  const coupons = recordsForStore("manual_coupons", "code,id")
+    .filter((item) => couponAvailable(item, now) && /^[A-Za-z0-9_-]{2,40}$/.test(recordString(item, "code")))
+    .map((item) => ({
+      id: bounded(recordId(item), 15),
+      code: bounded(recordString(item, "code"), 40).toUpperCase(),
+    }));
+  return {
+    categories: sortTargetOptions(categories),
+    products: sortTargetOptions(products),
+    raffles: sortTargetOptions(raffles),
+    coupons: coupons.sort((left, right) => left.code.localeCompare(right.code)),
+  };
+}
+
 function resolveTarget(app, store, targetType, targetRef, targetSection, audienceConfig, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   const storeId = recordId(store);
@@ -648,11 +746,10 @@ function resolveTarget(app, store, targetType, targetRef, targetSection, audienc
   if (targetType === "raffle") {
     const raffle = validateStoreRelation(app, "raffles", targetRef, storeId);
     const raffleSlug = bounded(recordString(raffle, "slug"), 90).toLowerCase();
-    const active = !["draft", "archived"].includes(recordString(raffle, "status"))
-      && boolValue(recordValue(raffle, "link_enabled"));
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raffleSlug)) throw codedError("target_unavailable");
+    if (!raffleAvailable(raffle, now)
+      || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(raffleSlug)) throw codedError("target_unavailable");
     result.target_raffle = targetRef;
-    result.target_path = active ? `${base}/rifa/${raffleSlug}` : `${base}/rifa`;
+    result.target_path = `${base}/rifa/${raffleSlug}`;
     return result;
   }
   if (targetType === "coupon") {
@@ -1688,6 +1785,19 @@ function handleList(e) {
   }
 }
 
+function handleTargets(e) {
+  setPrivateHeaders(e);
+  try {
+    const request = requestContext(e);
+    return e.json(200, {
+      ok: true,
+      targets: listTargetOptions(request.app, request.context, new Date()),
+    });
+  } catch (error) {
+    return sendError(e, error, "campaign_processing_failed");
+  }
+}
+
 function handleDetail(e) {
   setPrivateHeaders(e);
   try {
@@ -1751,9 +1861,11 @@ module.exports = {
   handleList,
   handleSave,
   handleSchedule,
+  handleTargets,
   installationMatchesAudience,
   isValidTimezone,
   loadCampaignAccessContext,
+  listTargetOptions,
   mapCampaign,
   materializeAudience,
   normalizedAudienceConfig,
@@ -1770,6 +1882,7 @@ module.exports = {
   recordAudienceConfig,
   renewCampaignLock,
   requireAuthenticatedUser,
+  raffleAvailable,
   resolveTarget,
   runCampaignScheduler,
   scheduleCampaign,

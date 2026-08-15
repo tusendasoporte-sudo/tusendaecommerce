@@ -11,8 +11,10 @@ import {
   filterStorefrontPushCampaigns,
   mutateStorefrontPushCampaign,
   normalizeStorefrontPushCampaign,
+  normalizeStorefrontPushTargetOptions,
   previewStorefrontPushAudience,
   readStorefrontPushCampaignDetail,
+  readStorefrontPushTargetOptions,
   resolveStorefrontPushQuotaTimezone,
   saveStorefrontPushCampaign,
   scheduleStorefrontPushCampaign,
@@ -93,6 +95,38 @@ test('construye el contrato exacto de borrador y nunca acepta una URL libre', ()
     () => buildStorefrontPushCampaignPayload({ ...baseForm, target_type: 'url', target_ref: 'https://evil.test' }),
     (error) => error.code === 'invalid_target',
   );
+
+  assert.deepEqual(buildStorefrontPushCampaignPayload({
+    ...baseForm,
+    target_ref: 'stale0000000001',
+    target_section: 'search',
+  }), buildStorefrontPushCampaignPayload(baseForm));
+});
+
+test('normaliza y carga únicamente opciones seguras para los selectores de destino', async () => {
+  const payload = {
+    categories: [{ id: 'category0000001', label: 'Proteínas' }, { id: 'bad', label: 'Inválida' }],
+    products: [{ id: 'product00000001', label: 'Creatina', detail: 'SKU-01' }],
+    raffles: [{ id: 'raffle000000001', label: 'Rifa agosto', detail: '2026-08-20T12:00:00Z' }],
+    coupons: [{ id: 'coupon000000001', code: 'verano20' }, { id: 'bad', code: 'NO' }],
+  };
+  const normalized = normalizeStorefrontPushTargetOptions(payload);
+  assert.deepEqual(normalized.categories, [{ id: 'category0000001', label: 'Proteínas', detail: '' }]);
+  assert.deepEqual(normalized.products, [{ id: 'product00000001', label: 'Creatina', detail: 'SKU-01' }]);
+  assert.deepEqual(normalized.raffles, [{ id: 'raffle000000001', label: 'Rifa agosto', detail: '2026-08-20T12:00:00Z' }]);
+  assert.deepEqual(normalized.coupons, [{ id: 'coupon000000001', code: 'VERANO20' }]);
+
+  const calls = [];
+  const result = await readStorefrontPushTargetOptions(client, async (url, init) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ ok: true, targets: payload }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  assert.equal(result.products[0].label, 'Creatina');
+  assert.equal(new URL(calls[0].url).pathname, '/api/pz/storefront/v1/campaigns/targets');
+  assert.equal(calls[0].init.method, 'GET');
 });
 
 test('normaliza secciones, relaciones, pedidos y segmentos sin campos libres', () => {
@@ -347,7 +381,8 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
     'data-campaign-list', 'data-status-filter', 'data-new-campaign', 'data-save-draft',
     'data-media-upload', 'image/jpeg,image/png,image/webp', 'data-preview-image',
     'data-preview-title', 'data-target-validation', 'data-estimate-audience', 'data-audience-result',
-    'data-send-now', 'data-schedule-campaign', 'data-confirm-dialog',
+    'data-send-now', 'data-field="schedule_enabled"', 'data-scheduled-at-field', 'data-confirm-dialog',
+    'data-target-options-field', 'data-target-search', 'data-target-option-select', 'data-target-coupon-code',
     'data-edit-campaign', 'data-cancel-campaign',
     'data-select-all', 'data-select-campaign', 'data-delete-selected',
     'data-action="detail"', 'data-action="duplicate"', 'data-action="delete"',
@@ -387,7 +422,14 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /nextButton\.disabled = state\.loading \|\| !state\.hasMore/);
   assert.match(source, /\.push-campaign-card \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto;[^}]*align-items: center/);
   assert.match(source, /\.push-campaign-card__actions \{[^}]*align-self: center;[^}]*justify-content: flex-end/);
-  assert.match(source, /referenceInput\.disabled = state\.editorReadonly \|\| !isReference/);
+  assert.match(source, /target_section: targetType === 'section'/);
+  assert.match(source, /target_ref: \['home', 'section'\]\.includes\(targetType\) \? ''/);
+  assert.match(source, /one\('\[data-audience-estimate\]'\)\.textContent = 'No se pudo calcular'/);
+  assert.match(source, /action\.dataset\.mode = enabled \? 'scheduled' : 'now'/);
+  assert.match(source, /async function uploadMedia\(file\) \{[\s\S]*?if \(!file\) return;[\s\S]*?clearFormMessages\(\);/);
+  assert.match(source, /previousButtonStates = buttons\.map\(\(button\) => button\.disabled\)/);
+  assert.match(source, /readStorefrontPushTargetOptions\(client\)/);
+  assert.match(source, /optionSelect\.disabled = state\.editorReadonly \|\| !isOptionsTarget/);
   assert.match(source, /versionInput\.disabled = state\.editorReadonly \|\| audienceType !== 'app_version'/);
   assert.match(source, /resolveStorefrontPushQuotaTimezone\(state\.campaigns, result\.quota_timezone\)/);
   assert.match(source, /root\.dataset\.storeSlug/);
