@@ -383,7 +383,7 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
     'data-preview-title', 'data-target-validation', 'data-estimate-audience', 'data-audience-result',
     'data-send-now', 'data-field="schedule_enabled"', 'data-scheduled-at-field', 'data-confirm-dialog',
     'data-target-options-field', 'data-target-search', 'data-target-option-select', 'data-target-coupon-code',
-    'data-edit-campaign', 'data-cancel-campaign',
+    'data-edit-campaign', 'data-cancel-campaign', 'data-refresh-campaign-metrics',
     'data-select-all', 'data-select-campaign', 'data-delete-selected',
     'data-action="detail"', 'data-action="duplicate"', 'data-action="delete"',
     'pagination-bar push-pagination', 'pagination-summary', 'pagination-actions',
@@ -408,6 +408,9 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /data-campaign-metrics/);
   assert.match(source, /Embudo verificable/);
   assert.match(source, /readStorefrontPushCampaignDetail/);
+  assert.match(source, /refreshCampaignMetrics\(\{ silent: true \}\)/);
+  assert.match(source, /15_000/);
+  assert.doesNotMatch(source, /Una imagen caduca a las 24 horas/);
   assert.doesNotMatch(source, /data-action="\$\{actions\.edit|data-action="cancel"/);
   assert.match(source, /El contenido eliminado no se puede recuperar/);
   assert.match(source, /Las cuotas permanentes 10\/310 no se reinician/);

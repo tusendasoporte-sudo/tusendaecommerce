@@ -323,10 +323,6 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
               <input name="scheduled_at" data-field="scheduled_at" type="datetime-local" disabled />
               <small data-timezone-help>La hora se convierte a UTC al guardar; la cuota diaria usa {defaultTimezone}.</small>
             </label>
-            <div class="push-warning">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1.8 21h20.4L12 3Zm1 14h-2v-2h2v2Zm0-4h-2V8h2v5Z" /></svg>
-              <span>Una imagen caduca a las 24 horas. Para programar, debe seguir vigente al momento del envío.</span>
-            </div>
           </fieldset>
 
           <div class="push-form-message" role="alert" aria-live="assertive" tabindex="-1" data-form-error hidden></div>
@@ -367,6 +363,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
             <section class="push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
               <div class="push-preview-heading">
                 <div><span>Resultados</span><strong id="push-metrics-title">Embudo verificable</strong></div>
+                <button class="push-icon-btn" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
+                </button>
               </div>
               <div class="push-metrics__grid">
                 <div><span>Seleccionadas</span><strong data-metric="selected">0</strong><small>snapshot</small></div>
@@ -494,6 +493,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       audience: null,
       audienceRequestId: 0,
       audienceTimer: 0,
+      metricsRequestId: 0,
+      metricsTimer: 0,
       confirmed: null,
       editorReadonly: false,
       selectedCampaignIds: new Set(),
@@ -573,6 +574,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     }
     function closeDialog(dialog) {
       if (!dialog) return;
+      if (dialog === editor) stopCampaignMetricsPolling();
       if (typeof dialog.close === 'function') dialog.close();
       else dialog.removeAttribute('open');
       if (!editor?.open && !confirmDialog?.open) document.body.classList.remove('push-dialog-open');
@@ -1051,6 +1053,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     function resetEditor() {
       window.clearTimeout(state.audienceTimer);
       state.audienceTimer = 0;
+      stopCampaignMetricsPolling();
       form.reset();
       state.editing = null;
       state.audience = null;
@@ -1068,6 +1071,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-editor-state]').textContent = 'Borrador nuevo';
       one('[data-preview-path]').textContent = 'Pendiente de validar';
       one('[data-campaign-metrics]').hidden = true;
+      one('[data-refresh-campaign-metrics]').hidden = true;
       one('[data-audience-estimate]').textContent = 'Sin calcular';
       one('[data-audience-note]').textContent = 'Se calculará automáticamente al abrir el editor.';
       const minDate = new Date(Date.now() + 2 * 60_000);
@@ -1101,6 +1105,36 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-rate="orders_attributed"]').textContent = `Conversión de instalaciones: ${metricRate(metrics.buyer_installations, metrics.denominators?.conversion)}`;
       one('[data-metrics-note]').textContent = metrics.measurement_note || '';
       panel.hidden = false;
+    }
+    function stopCampaignMetricsPolling() {
+      window.clearTimeout(state.metricsTimer);
+      state.metricsTimer = 0;
+      state.metricsRequestId += 1;
+    }
+    function scheduleCampaignMetricsRefresh() {
+      window.clearTimeout(state.metricsTimer);
+      if (!state.editorReadonly || !state.editing || !editor?.open) return;
+      state.metricsTimer = window.setTimeout(() => refreshCampaignMetrics({ silent: true }), 15_000);
+    }
+    async function refreshCampaignMetrics(options = {}) {
+      const campaignId = state.editing?.id || '';
+      if (!campaignId || !state.editorReadonly) return;
+      const requestId = ++state.metricsRequestId;
+      const refreshButton = one('[data-refresh-campaign-metrics]');
+      refreshButton?.setAttribute('aria-busy', 'true');
+      try {
+        const detail = await readStorefrontPushCampaignDetail(client, campaignId);
+        if (requestId !== state.metricsRequestId || state.editing?.id !== campaignId) return;
+        state.editing = detail.campaign;
+        renderCampaignMetrics(detail.metrics);
+      } catch (error) {
+        if (!options.silent) showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
+      } finally {
+        if (requestId === state.metricsRequestId) {
+          refreshButton?.removeAttribute('aria-busy');
+          scheduleCampaignMetricsRefresh();
+        }
+      }
     }
     function localDateTimeInputValue(value) {
       const date = new Date(String(value || ''));
@@ -1139,7 +1173,11 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       updateConditionalFields();
       if (!editor.open) openDialog(editor);
       calculateOpenedAudience(campaign);
-      if (!edit) renderCampaignMetrics(metrics);
+      if (!edit) {
+        renderCampaignMetrics(metrics);
+        one('[data-refresh-campaign-metrics]').hidden = false;
+        scheduleCampaignMetricsRefresh();
+      }
     }
     async function saveDraft(options = {}) {
       clearFormMessages();
@@ -1406,6 +1444,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     });
     all('[data-close-editor]').forEach((button) => button.addEventListener('click', () => closeDialog(editor)));
     one('[data-refresh-campaigns]')?.addEventListener('click', loadCampaigns);
+    one('[data-refresh-campaign-metrics]')?.addEventListener('click', () => refreshCampaignMetrics());
     searchInput?.addEventListener('input', renderCampaigns);
     statusFilter?.addEventListener('change', () => { state.page = 1; loadCampaigns(); });
     selectAllButton?.addEventListener('click', () => {
@@ -1626,9 +1665,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-upload-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .push-upload-btn svg { width: 18px; height: 18px; fill: currentColor; }
   .push-media-status { min-height: 18px; color: #0369a1; font-size: 11px; line-height: 1.45; font-weight: 750; }
-  .push-validation-note, .push-warning { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; border: 1px solid #bfdbfe; border-radius: 13px; background: #eff6ff; padding: 11px 12px; color: #1e40af; font-size: 11px; line-height: 1.5; font-weight: 750; }
-  .push-warning { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
-  .push-validation-note svg, .push-warning svg { width: 20px; height: 20px; fill: currentColor; }
+  .push-validation-note { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; border: 1px solid #bfdbfe; border-radius: 13px; background: #eff6ff; padding: 11px 12px; color: #1e40af; font-size: 11px; line-height: 1.5; font-weight: 750; }
+  .push-validation-note svg { width: 20px; height: 20px; fill: currentColor; }
   .push-inline-fields { display: grid; grid-template-columns: minmax(110px,.35fr) minmax(0,1fr); gap: 10px; }
   .push-estimate { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #bfdbfe; border-radius: 15px; background: linear-gradient(135deg, #eff6ff, #f8fbff); padding: 13px; }
   .push-estimate > div { min-width: 0; display: grid; gap: 3px; }

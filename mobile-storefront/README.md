@@ -15,7 +15,7 @@ La fuente versionada es `config/powerzona.properties`; `brands/powerzona/brand.j
 | Nombre | `PowerZona` |
 | `applicationId` staging confirmado | `com.tusenda84.powerzona` |
 | `applicationId` debug | `com.tusenda84.powerzona.debug` |
-| Versión C07 | `6` / `0.2.4` |
+| Versión staging actual | `7` / `0.2.5` |
 
 Los overrides `PZ_STOREFRONT_STORE_URL`, `PZ_STOREFRONT_STORE_KEY`, `PZ_STOREFRONT_APP_KEY`, `PZ_STOREFRONT_APP_NAME` y `PZ_STOREFRONT_API_BASE_URL` siguen disponibles para builds controlados. `APP_KEY` identifica la app Firebase configurada y `STORE_KEY` conserva el slug web; Gradle falla si la URL, las claves, el paquete, la marca o los hashes no coinciden con la definición PowerZona. El build `staging` deriva su storefront del origen `PZ_STOREFRONT_API_BASE_URL` y añade `/t/powerzona`; `debug` y la definición de marca conservan la URL pública autorizada. Así la matriz física C07 no depende de producción.
 

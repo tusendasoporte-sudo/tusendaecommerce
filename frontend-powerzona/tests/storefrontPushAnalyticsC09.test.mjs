@@ -4,13 +4,21 @@ import test from 'node:test';
 
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
 
-test('el resumen se llama Analíticas, comparte cinco rangos y expone App instalaciones con Ver más', () => {
+test('el resumen se llama Analíticas, inicia en Hoy con un desplegable y expone App instalaciones con Ver más', () => {
   const source = read('../src/pages/admin/index.astro');
   for (const range of ['today', '7', '15', '30', '90']) {
-    assert.match(source, new RegExp(`data-range="${range}"`));
+    assert.match(source, new RegExp(`<option value="${range}"`));
   }
+  assert.match(source, /id="summary-period-select"/);
+  assert.match(source, /<option value="today" selected>Hoy<\/option>/);
+  assert.match(source, /Mostrando: Hoy\./);
+  assert.doesNotMatch(source, /pz_admin_summary_range/);
+  assert.doesNotMatch(source, /class="period-btn/);
   assert.match(source, /<h2 id="dashboard-traffic-title">Analíticas<\/h2>/);
-  assert.match(source, /data-analytics-tab="appinstallations"[^>]*>App instalaciones/);
+  assert.match(source, /id="visit-analytics-select"/);
+  assert.match(source, /<option value="visitors" selected>Visitantes del período<\/option>/);
+  assert.match(source, /<option value="appinstallations">App instalaciones<\/option>/);
+  assert.doesNotMatch(source, /class="visit-analytics-tab/);
   assert.match(source, /Instalaciones activas estimadas/);
   assert.match(source, /Nuevas del período/);
   assert.match(source, /Bajas detectadas/);

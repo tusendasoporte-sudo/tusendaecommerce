@@ -2391,19 +2391,35 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				font-weight: 650;
 			}
 
-			.summary-period-actions {
-				display: flex;
-				gap: 10px;
-				overflow-x: auto;
-				padding-bottom: 2px;
-				flex-wrap: nowrap;
+			.summary-period-control {
+				display: grid;
+				gap: 7px;
+				width: min(100%, 280px);
 			}
 
-			.summary-period-actions .period-btn {
-				min-height: 40px;
-				border-radius: 999px;
-				padding: 0 16px;
-				flex: 0 0 auto;
+			.summary-period-control label {
+				color: #475569;
+				font-size: 13px;
+				font-weight: 850;
+			}
+
+			.summary-period-select {
+				width: 100%;
+				min-height: 46px;
+				border: 1px solid #cbd5e1;
+				border-radius: 14px;
+				background: #ffffff;
+				color: #0f172a;
+				padding: 0 42px 0 14px;
+				font: inherit;
+				font-weight: 850;
+				cursor: pointer;
+			}
+
+			.summary-period-select:focus-visible {
+				outline: 3px solid rgba(37, 99, 235, 0.25);
+				outline-offset: 2px;
+				border-color: #2563eb;
 			}
 
 			.analytics-premium-card {
@@ -2676,33 +2692,35 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				flex-wrap: wrap;
 			}
 
-			.visit-analytics-tabs {
-				display: flex;
-				gap: 10px;
-				overflow-x: auto;
-				max-width: 100%;
-				padding: 6px;
-				border: 1px solid rgba(148, 163, 184, 0.18);
-				border-radius: 18px;
-				background: rgba(248, 250, 252, 0.85);
+			.visit-analytics-control {
+				display: grid;
+				gap: 7px;
+				width: min(100%, 320px);
 			}
 
-			.visit-analytics-tab {
-				min-height: 42px;
-				border: 0;
-				border-radius: 14px;
-				padding: 0 18px;
-				background: transparent;
+			.visit-analytics-control label {
 				color: #475569;
-				font-size: 14px;
-				font-weight: 900;
-				white-space: nowrap;
+				font-size: 13px;
+				font-weight: 850;
 			}
 
-			.visit-analytics-tab.is-active {
-				background: #0f172a;
-				color: #ffffff;
-				box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+			.visit-analytics-select {
+				width: 100%;
+				min-height: 46px;
+				border: 1px solid #cbd5e1;
+				border-radius: 14px;
+				background: #ffffff;
+				color: #0f172a;
+				padding: 0 42px 0 14px;
+				font: inherit;
+				font-weight: 850;
+				cursor: pointer;
+			}
+
+			.visit-analytics-select:focus-visible {
+				outline: 3px solid rgba(37, 99, 235, 0.25);
+				outline-offset: 2px;
+				border-color: #2563eb;
 			}
 
 			.visit-analytics-panel {
@@ -5259,15 +5277,18 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 								<h2>Periodo del resumen</h2>
 								<p>Este resumen muestra actividad reciente del periodo seleccionado.</p>
 							</div>
-							<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
+							<p id="range-label" class="dashboard-range-note">Mostrando: Hoy.</p>
 						</div>
 
-						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen" data-pz-scroll-hint>
-							<button class="period-btn" type="button" data-range="today" aria-selected="false">Hoy</button>
-							<button class="period-btn active" type="button" data-range="7" aria-selected="true">7 días</button>
-							<button class="period-btn" type="button" data-range="15" aria-selected="false">15 días</button>
-							<button class="period-btn" type="button" data-range="30" aria-selected="false">1 mes</button>
-							<button class="period-btn" type="button" data-range="90" aria-selected="false">90 días</button>
+						<div class="summary-period-control">
+							<label for="summary-period-select">Período</label>
+							<select id="summary-period-select" class="summary-period-select" aria-label="Período del resumen">
+								<option value="today" selected>Hoy</option>
+								<option value="7">7 días</option>
+								<option value="15">15 días</option>
+								<option value="30">1 mes</option>
+								<option value="90">90 días</option>
+							</select>
 						</div>
 					</section>
 
@@ -5279,13 +5300,16 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						</div>
 
 						<div class="visit-analytics-toolbar">
-							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas" data-pz-scroll-hint>
-								<button class="visit-analytics-tab is-active" type="button" data-analytics-tab="visitors" aria-selected="true">Visitantes del periodo</button>
-								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
-								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
-								<button class="visit-analytics-tab" type="button" data-analytics-tab="products" aria-selected="false">Productos más vistos</button>
-								<button class="visit-analytics-tab" type="button" data-analytics-tab="appinstallations" aria-selected="false">App instalaciones</button>
-								{landingQrAnalyticsVisible && <button class="visit-analytics-tab" type="button" data-analytics-tab="landingqr" aria-selected="false">Landing QR</button>}
+							<div class="visit-analytics-control">
+								<label for="visit-analytics-select">Vista analítica</label>
+								<select id="visit-analytics-select" class="visit-analytics-select" aria-label="Analíticas">
+									<option value="visitors" selected>Visitantes del período</option>
+									<option value="recurrent">Recurrentes</option>
+									<option value="pageviews">Páginas vistas</option>
+									<option value="products">Productos más vistos</option>
+									<option value="appinstallations">App instalaciones</option>
+									{landingQrAnalyticsVisible && <option value="landingqr">Landing QR</option>}
+								</select>
 							</div>
 						</div>
 
@@ -5308,7 +5332,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						<div class="visit-analytics-panel" data-analytics-panel="pageviews">
 							<div class="visit-analytics-panel-head">
 								<h3 class="visit-analytics-panel-title">Páginas vistas</h3>
-								<a id="traffic-pageviews-summary-link" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminPageviewsPath}?summary_range=7`}><span class="pz-admin-btn__label">Ver resumen general</span></a>
+								<a id="traffic-pageviews-summary-link" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminPageviewsPath}?summary_range=today`}><span class="pz-admin-btn__label">Ver resumen general</span></a>
 							</div>
 							<strong id="traffic-pageviews-total" class="visit-analytics-big-number">0</strong>
 							<p class="visit-analytics-panel-help">Total de páginas públicas abiertas durante el periodo.</p>
@@ -5566,10 +5590,10 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			const ADMIN_PAGEVIEWS_PATH = String(adminPageviewsPath || '/admin/pageviews');
 			const ADMIN_APP_INSTALLATIONS_PATH = String(adminAppInstallationsPath || '/admin/app-installations');
 			const ANALYTICS_MAX_RETENTION_DAYS = 90;
-			const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
 			const rangeLabel = document.getElementById('range-label');
+			const periodSelect = document.getElementById('summary-period-select');
 			const adminBellBtn = document.getElementById('admin-bell-btn');
 			const adminBellDropdown = document.getElementById('admin-bell-dropdown');
 			const kpiGrid = document.getElementById('kpi-grid');
@@ -5628,10 +5652,9 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
-			const periodButtons = Array.from(document.querySelectorAll('.period-btn'));
 			const expirationRangeButtons = Array.from(document.querySelectorAll('[data-expiration-range]'));
 			const expirationViewButtons = Array.from(document.querySelectorAll('[data-expiration-view]'));
-			const visitAnalyticsTabs = Array.from(document.querySelectorAll('.visit-analytics-tab'));
+			const visitAnalyticsSelect = document.getElementById('visit-analytics-select');
 			const visitAnalyticsPanels = Array.from(document.querySelectorAll('.visit-analytics-panel'));
 			const businessSummaryTabs = Array.from(document.querySelectorAll('[data-business-summary-tab]'));
 			const businessSummaryPanels = Array.from(document.querySelectorAll('[data-business-summary-panel]'));
@@ -5725,7 +5748,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (raw === '30') return '30';
 				if (raw === '90') return '90';
 
-				return '7';
+				return 'today';
 			}
 
 			function readInitialSummaryRange() {
@@ -5735,17 +5758,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					if (urlRange) return urlRange;
 				} catch (_) {}
 
-				try {
-					return localStorage.getItem(SUMMARY_RANGE_STORAGE_KEY) || '';
-				} catch (_) {
-					return '';
-				}
-			}
-
-			function persistSummaryRange(value) {
-				try {
-					localStorage.setItem(SUMMARY_RANGE_STORAGE_KEY, normalizeSummaryRange(value));
-				} catch (_) {}
+				return 'today';
 			}
 
 			function getSummaryRangeDays() {
@@ -5768,7 +5781,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (range === '30') return 'Últimos 30 días';
 				if (range === '90') return 'Últimos 90 días';
 
-				return 'Últimos 7 días';
+				return 'Hoy';
 			}
 
 			function syncPageviewsSummaryLink() {
@@ -5778,13 +5791,9 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				trafficPageviewsSummaryLink.setAttribute('href', `${ADMIN_PAGEVIEWS_PATH}?${params.toString()}`);
 			}
 
-			function syncSummaryRangeButtons() {
+			function syncSummaryRangeControl() {
 				const normalized = normalizeSummaryRange(selectedRange);
-				periodButtons.forEach((button) => {
-					const isActive = normalizeSummaryRange(button.dataset.range || '') === normalized;
-					button.classList.toggle('active', isActive);
-					button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-				});
+				if (periodSelect) periodSelect.value = normalized;
 			}
 
 			function formatUSD(value) {
@@ -7476,8 +7485,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 
 			function renderDashboard() {
 				selectedRange = normalizeSummaryRange(selectedRange);
-				persistSummaryRange(selectedRange);
-				syncSummaryRangeButtons();
+				syncSummaryRangeControl();
 				const metrics = computeMetrics();
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
 				rangeLabel.textContent = `Mostrando: ${getSummaryRangeLabel()}.`;
@@ -7609,13 +7617,13 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				return '';
 			}
 
-			function activateVisitAnalyticsTab(target, options = {}) {
-				const normalizedTarget = String(target || 'visitors').trim() || 'visitors';
-				visitAnalyticsTabs.forEach((item) => {
-					const isActive = item.dataset.analyticsTab === normalizedTarget;
-					item.classList.toggle('is-active', isActive);
-					item.setAttribute('aria-selected', isActive ? 'true' : 'false');
-				});
+			function activateVisitAnalyticsView(target, options = {}) {
+				const requestedTarget = String(target || 'visitors').trim() || 'visitors';
+				const availableTargets = visitAnalyticsSelect
+					? Array.from(visitAnalyticsSelect.options).map((option) => option.value)
+					: ['visitors'];
+				const normalizedTarget = availableTargets.includes(requestedTarget) ? requestedTarget : 'visitors';
+				if (visitAnalyticsSelect) visitAnalyticsSelect.value = normalizedTarget;
 				visitAnalyticsPanels.forEach((panel) => {
 					panel.classList.toggle('is-active', panel.dataset.analyticsPanel === normalizedTarget);
 				});
@@ -7632,17 +7640,15 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				}
 			}
 
-			visitAnalyticsTabs.forEach((button) => {
-				button.addEventListener('click', () => {
-					activateVisitAnalyticsTab(button.dataset.analyticsTab || 'visitors');
-				});
+			visitAnalyticsSelect?.addEventListener('change', () => {
+				activateVisitAnalyticsView(visitAnalyticsSelect.value || 'visitors');
 			});
 
 			window.addEventListener('hashchange', () => {
 				const target = getVisitAnalyticsTargetFromHash();
-				if (target) activateVisitAnalyticsTab(target, { syncHash: false });
+				if (target) activateVisitAnalyticsView(target, { syncHash: false });
 			});
-			activateVisitAnalyticsTab(getVisitAnalyticsTargetFromHash() || 'visitors', { syncHash: false });
+			activateVisitAnalyticsView(getVisitAnalyticsTargetFromHash() || 'visitors', { syncHash: false });
 
 			businessSummaryTabs.forEach((button) => {
 				button.addEventListener('click', () => {
@@ -7658,23 +7664,20 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				});
 			});
 
-			periodButtons.forEach((button) => {
-				button.addEventListener('click', async () => {
-					selectedRange = normalizeSummaryRange(button.dataset.range || '7');
-					persistSummaryRange(selectedRange);
-					syncSummaryRangeButtons();
-					try {
-						analyticsSummary = await fetchAnalyticsSummary();
-					} catch (_) {
-						analyticsSummary = null;
-					}
-					try {
-						appInstallationsSummary = await fetchAppInstallationsSummary();
-					} catch (_) {
-						appInstallationsSummary = null;
-					}
-					renderDashboard();
-				});
+			periodSelect?.addEventListener('change', async () => {
+				selectedRange = normalizeSummaryRange(periodSelect.value || 'today');
+				syncSummaryRangeControl();
+				try {
+					analyticsSummary = await fetchAnalyticsSummary();
+				} catch (_) {
+					analyticsSummary = null;
+				}
+				try {
+					appInstallationsSummary = await fetchAppInstallationsSummary();
+				} catch (_) {
+					appInstallationsSummary = null;
+				}
+				renderDashboard();
 			});
 
 			expirationRangeButtons.forEach((button) => {
@@ -7729,7 +7732,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				window.location.assign('/login');
 			});
 
-			syncSummaryRangeButtons();
+			syncSummaryRangeControl();
 
 			if (!POCKETBASE_URL) {
 				showAdmin();
