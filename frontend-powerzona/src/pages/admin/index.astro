@@ -5329,7 +5329,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 									<h3 class="visit-analytics-panel-title">Instalaciones activas estimadas</h3>
 									<p class="visit-analytics-panel-help">Estimación de instalaciones vigentes con actividad reciente.</p>
 								</div>
-								<a id="app-installations-more" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminAppInstallationsPath}?range=7`}><span class="pz-admin-btn__label">Ver más</span></a>
+								<a id="app-installations-more" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminAppInstallationsPath}?range=today`}><span class="pz-admin-btn__label">Ver más</span></a>
 							</div>
 							<strong id="app-installations-current" class="visit-analytics-big-number">0</strong>
 							<div class="analytics-landing-kpis analytics-landing-kpis--two">
@@ -7470,8 +7470,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						|| 'Las bajas son detecciones técnicas; no equivalen necesariamente a desinstalaciones.';
 				}
 				if (appInstallationsMore) {
-					const params = new URLSearchParams({ range: normalizeSummaryRange(selectedRange) });
-					appInstallationsMore.setAttribute('href', `${ADMIN_APP_INSTALLATIONS_PATH}?${params.toString()}`);
+					appInstallationsMore.setAttribute('href', `${ADMIN_APP_INSTALLATIONS_PATH}?range=today`);
 				}
 			}
 

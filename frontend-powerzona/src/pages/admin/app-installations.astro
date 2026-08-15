@@ -121,20 +121,8 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
       .section { background: #fff; border: 1px solid #dbe4ef; border-radius: 22px; padding: 20px; box-shadow: 0 12px 32px rgba(15, 23, 42, .06); }
       .muted { color: #64748b; }
       .section h2 { margin: 0 0 14px; font-size: 20px; }
-      .summary-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-      .premium-list-panel { overflow: hidden; background: rgba(255,255,255,.96); border: 1px solid #dbe4ef; border-radius: 22px; box-shadow: 0 12px 32px rgba(15,23,42,.06); }
-      .premium-list-head { padding: 18px 20px 14px; border-bottom: 1px solid #eef2f7; }
-      .premium-list-head h2 { margin: 0; font-size: 18px; }
-      .premium-list-head p { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.45; }
-      .premium-list { display: grid; padding: 0 20px; }
-      .premium-list-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 66px; padding: 13px 0; border-bottom: 1px solid #eef2f7; }
-      .premium-list-row:last-child { border-bottom: 0; }
-      .premium-list-label { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: #334155; font-size: 14px; font-weight: 900; }
-      .premium-list-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 999px; background: #2563eb; box-shadow: 0 0 0 5px #dbeafe; }
-      .premium-list-dot.green { background: #16a34a; box-shadow: 0 0 0 5px #dcfce7; }
-      .premium-list-dot.orange { background: #f97316; box-shadow: 0 0 0 5px #ffedd5; }
-      .premium-list-dot.slate { background: #64748b; box-shadow: 0 0 0 5px #f1f5f9; }
-      .premium-list-value { color: #0f172a; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; white-space: nowrap; }
+      .summary-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+      .summary-lists .admin-compact-summary { max-width: none; height: 100%; margin: 0; }
       .details-cta { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; border: 1px solid #dbe4ef; border-radius: 22px; background: linear-gradient(135deg, #fff 0%, #f8fbff 100%); box-shadow: 0 12px 32px rgba(15,23,42,.06); }
       .details-cta h2 { margin: 0; font-size: 19px; }
       .details-cta p { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 750; line-height: 1.45; }
@@ -193,29 +181,41 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
         ) : (
           <>
             <section class="summary-lists" aria-label="Resumen de instalaciones y permisos">
-              <article class="premium-list-panel">
-                <header class="premium-list-head">
-                  <h2>Resumen de instalaciones</h2>
-                  <p>Estado estimado y movimientos del período seleccionado.</p>
-                </header>
-                <div class="premium-list">
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot green" aria-hidden="true"></i>Instalaciones activas estimadas</span><strong class="premium-list-value">{Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US')}</strong></div>
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot" aria-hidden="true"></i>Nuevas del período</span><strong class="premium-list-value">{Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US')}</strong></div>
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot orange" aria-hidden="true"></i>Bajas detectadas</span><strong class="premium-list-value">{Number(metrics.bajas_detectadas || 0).toLocaleString('es-US')}</strong></div>
+              <section class="admin-compact-summary" aria-label="Resumen de instalaciones">
+                <div class="admin-compact-summary__head">
+                  <span class="admin-compact-summary__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M10 5h4M11 18h2"></path></svg>
+                  </span>
+                  <div>
+                    <p class="admin-compact-summary__eyebrow">Resumen</p>
+                    <h2 class="admin-compact-summary__title">Instalaciones</h2>
+                    <p class="admin-compact-summary__subtitle">Estado estimado y movimientos del período seleccionado.</p>
+                  </div>
                 </div>
-              </article>
+                <div class="admin-compact-summary__list">
+                  <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Instalaciones activas estimadas</p><p class="admin-compact-summary__value">{Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US')}</p></article>
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Nuevas del período</p><p class="admin-compact-summary__value">{Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US')}</p></article>
+                  <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">Bajas detectadas</p><p class="admin-compact-summary__value">{Number(metrics.bajas_detectadas || 0).toLocaleString('es-US')}</p></article>
+                </div>
+              </section>
 
-              <article class="premium-list-panel">
-                <header class="premium-list-head">
-                  <h2>Permisos de notificaciones</h2>
-                  <p>Distribución entre las instalaciones activas estimadas.</p>
-                </header>
-                <div class="premium-list">
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot green" aria-hidden="true"></i>Concedido</span><strong class="premium-list-value">{Number(permission.granted || 0).toLocaleString('es-US')}</strong></div>
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot orange" aria-hidden="true"></i>Denegado</span><strong class="premium-list-value">{Number(permission.denied || 0).toLocaleString('es-US')}</strong></div>
-                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot slate" aria-hidden="true"></i>Sin decidir</span><strong class="premium-list-value">{Number(permission.unknown || 0).toLocaleString('es-US')}</strong></div>
+              <section class="admin-compact-summary" aria-label="Permisos de notificaciones">
+                <div class="admin-compact-summary__head">
+                  <span class="admin-compact-summary__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                  </span>
+                  <div>
+                    <p class="admin-compact-summary__eyebrow">Resumen</p>
+                    <h2 class="admin-compact-summary__title">Permisos de notificaciones</h2>
+                    <p class="admin-compact-summary__subtitle">Distribución entre las instalaciones activas estimadas.</p>
+                  </div>
                 </div>
-              </article>
+                <div class="admin-compact-summary__list">
+                  <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Concedido</p><p class="admin-compact-summary__value">{Number(permission.granted || 0).toLocaleString('es-US')}</p></article>
+                  <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">Denegado</p><p class="admin-compact-summary__value">{Number(permission.denied || 0).toLocaleString('es-US')}</p></article>
+                  <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Sin decidir</p><p class="admin-compact-summary__value">{Number(permission.unknown || 0).toLocaleString('es-US')}</p></article>
+                </div>
+              </section>
             </section>
 
             <section class="details-cta" aria-label="Versiones y modelos">

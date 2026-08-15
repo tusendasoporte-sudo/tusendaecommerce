@@ -15,6 +15,8 @@ test('el resumen se llama Analíticas, comparte cinco rangos y expone App instal
   assert.match(source, /Nuevas del período/);
   assert.match(source, /Bajas detectadas/);
   assert.match(source, /id="app-installations-more"[^>]+>.*Ver más/s);
+  assert.match(source, /id="app-installations-more"[^>]+\?range=today/);
+  assert.match(source, /appInstallationsMore\.setAttribute\('href', `\$\{ADMIN_APP_INSTALLATIONS_PATH\}\?range=today`\)/);
   assert.match(source, /\/api\/pz\/storefront\/v1\/analytics\/installations/);
   assert.match(source, /fetchAppInstallationsSummary\(\)\.catch\(\(\) => null\)/);
   assert.match(source, /normalizeAppInstallationAnalytics/);
@@ -39,6 +41,7 @@ test('Ver más presenta solo agregados, privacidad explícita y los mismos rango
   const tenantDetailsRoute = read('../src/pages/t/[storeSlug]/admin/app-installation-details.astro');
   const middleware = read('../src/middleware.ts');
   const backendRoutes = read('../../backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js');
+  const backendAnalytics = read('../../backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js');
   assert.match(tenantRoute, /AdminAppInstallations/);
   assert.match(tenantDetailsRoute, /AdminAppInstallationDetails/);
   assert.match(middleware, /normalized === 'app-installation-details'/);
@@ -48,9 +51,11 @@ test('Ver más presenta solo agregados, privacidad explícita y los mismos rango
   assert.match(source, /new Set\(\['today', '7', '15', '30', '90'\]\)/);
   assert.match(source, /Instalaciones activas estimadas/);
   assert.doesNotMatch(source, /Estado actual/);
-  assert.match(source, /class="premium-list-panel"/);
-  assert.match(source, /Resumen de instalaciones/);
+  assert.match(source, /class="admin-compact-summary"/);
+  assert.match(source, /admin-compact-summary__list/);
+  assert.match(source, />Instalaciones<\/h2>/);
   assert.match(source, /Permisos de notificaciones/);
+  assert.doesNotMatch(source, /premium-list-panel|premium-list-row/);
   assert.match(source, />Más detalles</);
   assert.match(source, /app-installation-details/);
   assert.doesNotMatch(source, /const groups =/);
@@ -66,11 +71,17 @@ test('Ver más presenta solo agregados, privacidad explícita y los mismos rango
   assert.match(details, /const PAGE_SIZE = 10/);
   assert.match(details, /per_page: PAGE_SIZE/);
   assert.match(details, /installation_code/);
-  assert.match(details, /Identificador de app/);
+  assert.doesNotMatch(details, /app_identifier|package_name|Identificador de app|>Paquete</);
   assert.match(details, /class="pagination-bar"/);
   assert.match(details, /class="pagination-actions"/);
+  assert.match(details, /Listado de instalaciones/);
+  assert.match(details, /class="installation-list-head"/);
+  assert.match(details, /class="installation-row"/);
+  assert.match(details, /class="page-btn"/);
   assert.match(details, /10 por página/);
   assert.doesNotMatch(details, /fid_digest|app_set_digest|credential_digest|firebase_app_id/);
+  assert.doesNotMatch(backendAnalytics, /app_identifier:/);
+  assert.doesNotMatch(backendAnalytics, /package_name:/);
 });
 
 test('Campañas push queda como entrada independiente inmediatamente después de Promos y conserva la puerta Premium', () => {

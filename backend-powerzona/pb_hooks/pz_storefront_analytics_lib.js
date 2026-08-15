@@ -559,8 +559,6 @@ function buildInstallationDetails(app, context, pagination, nowValue, options) {
       device_model: recordString(row, "device_model") || "Modelo no informado",
       app_version: recordString(row, "app_version") || "Sin dato",
       android_version: recordString(row, "android_version") || "Sin dato",
-      app_identifier: recordString(appConfig, "app_key") || "Sin identificar",
-      package_name: recordString(appConfig, "package_name") || "Sin identificar",
     };
   });
   return {

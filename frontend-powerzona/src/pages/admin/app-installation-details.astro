@@ -61,9 +61,7 @@ const normalizeDetails = (value: any) => {
     || !/^APP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(item.installation_code)
     || !safeField(item.device_model, 120)
     || !safeField(item.app_version, 80)
-    || !safeField(item.android_version, 80)
-    || !safeField(item.app_identifier, 64)
-    || !safeField(item.package_name, 190))) return null;
+    || !safeField(item.android_version, 80))) return null;
   const expectedItems = value.total_items === 0
     ? 0
     : Math.min(PAGE_SIZE, value.total_items - (value.page - 1) * PAGE_SIZE);
@@ -100,24 +98,35 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
       body { margin: 0; min-height: 100vh; }
       .page { padding: 28px; display: grid; gap: 22px; }
       .back { color: #1d4ed8; font-weight: 850; width: fit-content; }
-      .list-shell { overflow: hidden; border: 1px solid #dbe4ef; border-radius: 24px; background: rgba(255,255,255,.97); box-shadow: 0 14px 38px rgba(15,23,42,.07); }
+      .installation-table-card { overflow: hidden; border: 1px solid #e5e7eb; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,42,.04); }
+      .installation-list-title { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 22px; border-bottom: 1px solid #eef2f7; }
+      .installation-list-title h2 { margin: 0; color: #0f172a; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
+      .installation-list-title p { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; }
+      .table-refresh { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #0f172a; padding: 0 17px; font-size: 13px; font-weight: 1000; text-decoration: none; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+      .installation-list-head, .installation-row { display: grid; grid-template-columns: minmax(190px, 1.05fr) minmax(180px, 1fr) minmax(130px, .7fr) minmax(120px, .65fr); gap: 14px; align-items: center; }
+      .installation-list-head { padding: 13px 18px; border-bottom: 1px solid #eef2f7; background: #fbfdff; color: #9ca3af; font-size: 11px; font-weight: 1000; letter-spacing: .04em; text-transform: uppercase; }
       .installation-list { display: grid; }
-      .installation-row { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(0, 2fr); gap: 22px; align-items: center; padding: 20px 22px; border-bottom: 1px solid #eef2f7; }
+      .installation-row { min-height: 78px; padding: 14px 18px; border-bottom: 1px solid #eef2f7; }
       .installation-row:last-child { border-bottom: 0; }
-      .installation-primary { min-width: 0; }
-      .installation-code { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 1000; letter-spacing: .04em; }
-      .installation-model { margin: 9px 0 0; color: #0f172a; font-size: 16px; font-weight: 1000; line-height: 1.3; overflow-wrap: anywhere; }
-      .installation-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
-      .installation-meta div { min-width: 0; padding: 12px 13px; border-radius: 14px; background: #f8fafc; }
-      .installation-meta dt { color: #64748b; font-size: 10px; font-weight: 1000; letter-spacing: .05em; text-transform: uppercase; }
-      .installation-meta dd { margin: 5px 0 0; color: #0f172a; font-size: 12px; font-weight: 900; line-height: 1.4; overflow-wrap: anywhere; }
+      .installation-row:hover { background: #fbfdff; }
+      .installation-cell { min-width: 0; color: #334155; font-size: 12px; font-weight: 850; line-height: 1.4; overflow-wrap: anywhere; }
+      .installation-code { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 1000; letter-spacing: .04em; white-space: nowrap; }
+      .installation-model { color: #0f172a; font-size: 14px; font-weight: 1000; }
       .empty-state, .error-state { padding: 42px 24px; text-align: center; color: #64748b; font-weight: 850; }
       .error-state { color: #9f1239; background: #fff1f2; }
-      .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #eef2f7; background: #fbfdff; flex-wrap: wrap; }
+      .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; border-top: 1px solid #eef2f7; background: #fbfdff; flex-wrap: wrap; }
       .pagination-summary { margin: 0; color: #64748b; font-size: 12px; font-weight: 900; }
       .pagination-actions { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-      @media (max-width: 980px) { .installation-row { grid-template-columns: 1fr; } .installation-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      @media (max-width: 640px) { .page { padding: 18px; } .installation-row { padding: 17px; } .installation-meta { grid-template-columns: 1fr; } .pagination-bar { align-items: stretch; flex-direction: column; } .pagination-actions { justify-content: center; } }
+      .page-btn { display: inline-flex; min-width: 38px; height: 38px; align-items: center; justify-content: center; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #0f172a; padding: 0 11px; font-size: 12px; font-weight: 1000; text-decoration: none; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+      .page-btn.is-active { border-color: #2563eb; background: #2563eb; color: #fff; box-shadow: 0 12px 24px rgba(37,99,235,.22); }
+      .page-btn.is-disabled { background: #f8fafc; color: #94a3b8; box-shadow: none; }
+      @media (max-width: 1180px) {
+        .installation-list-head { display: none; }
+        .installation-list { gap: 12px; padding: 14px; background: #f8fafc; }
+        .installation-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; min-height: 0; padding: 17px; border: 1px solid #e5e7eb; border-radius: 16px; background: #fff; box-shadow: 0 8px 18px rgba(15,23,42,.04); }
+        .installation-cell::before { content: attr(data-label); display: block; margin-bottom: 5px; color: #94a3b8; font-size: 10px; font-weight: 1000; letter-spacing: .05em; text-transform: uppercase; }
+      }
+      @media (max-width: 640px) { .page { padding: 18px; } .installation-list-title { align-items: stretch; flex-direction: column; } .table-refresh { width: 100%; } .installation-row { grid-template-columns: 1fr; } .pagination-bar { align-items: stretch; flex-direction: column; } .pagination-actions { justify-content: center; } }
     </style>
   </head>
   <body>
@@ -140,26 +149,32 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
           description="Instalaciones activas estimadas con identificadores administrativos seguros."
         />
 
-        <section class="list-shell" aria-label="Detalles de instalaciones activas">
+        <section class="installation-table-card" aria-labelledby="installation-list-title">
+          <header class="installation-list-title">
+            <div>
+              <h2 id="installation-list-title">Listado de instalaciones</h2>
+              <p>Consulta los modelos y versiones registrados para cada instalación activa estimada.</p>
+            </div>
+            <a class="table-refresh" href={pageHref(currentPage)}>Actualizar</a>
+          </header>
           {!details ? (
             <div class="error-state">No se pudieron cargar los detalles. No se mostraron datos parciales.</div>
           ) : items.length ? (
-            <div class="installation-list">
-              {items.map((item: any) => (
-                <article class="installation-row">
-                  <div class="installation-primary">
-                    <span class="installation-code">{item.installation_code}</span>
-                    <h2 class="installation-model">{item.device_model}</h2>
-                  </div>
-                  <dl class="installation-meta">
-                    <div><dt>Versión de app</dt><dd>{item.app_version}</dd></div>
-                    <div><dt>Versión Android</dt><dd>{item.android_version}</dd></div>
-                    <div><dt>Identificador de app</dt><dd>{item.app_identifier}</dd></div>
-                    <div><dt>Paquete</dt><dd>{item.package_name}</dd></div>
-                  </dl>
-                </article>
-              ))}
-            </div>
+            <>
+              <div class="installation-list-head" aria-hidden="true">
+                <span>Instalación</span><span>Modelo</span><span>Versión app</span><span>Android</span>
+              </div>
+              <div class="installation-list">
+                {items.map((item: any) => (
+                  <article class="installation-row">
+                    <div class="installation-cell" data-label="Instalación"><span class="installation-code">{item.installation_code}</span></div>
+                    <div class="installation-cell installation-model" data-label="Modelo">{item.device_model}</div>
+                    <div class="installation-cell" data-label="Versión app">{item.app_version}</div>
+                    <div class="installation-cell" data-label="Android">{item.android_version}</div>
+                  </article>
+                ))}
+              </div>
+            </>
           ) : (
             <div class="empty-state">No hay instalaciones activas estimadas para mostrar.</div>
           )}
@@ -169,14 +184,14 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
               <p class="pagination-summary">Mostrando {fromItem} a {toItem} de {totalItems} instalaciones · 10 por página</p>
               <nav class="pagination-actions" aria-label="Paginación de instalaciones">
                 {currentPage > 1
-                  ? <a href={pageHref(currentPage - 1)}>Anterior</a>
-                  : <span aria-disabled="true">Anterior</span>}
+                  ? <a class="page-btn" href={pageHref(currentPage - 1)}>Anterior</a>
+                  : <span class="page-btn is-disabled" aria-disabled="true">Anterior</span>}
                 {visiblePages.map((number) => (
-                  <a href={pageHref(number)} aria-current={number === currentPage ? 'page' : undefined}>{number}</a>
+                  <a class:list={['page-btn', number === currentPage && 'is-active']} href={pageHref(number)} aria-current={number === currentPage ? 'page' : undefined}>{number}</a>
                 ))}
                 {currentPage < totalPages
-                  ? <a href={pageHref(currentPage + 1)}>Próximo</a>
-                  : <span aria-disabled="true">Próximo</span>}
+                  ? <a class="page-btn" href={pageHref(currentPage + 1)}>Próximo</a>
+                  : <span class="page-btn is-disabled" aria-disabled="true">Próximo</span>}
               </nav>
             </footer>
           )}
