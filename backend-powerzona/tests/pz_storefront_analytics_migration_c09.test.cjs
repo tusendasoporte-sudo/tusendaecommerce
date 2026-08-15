@@ -146,8 +146,11 @@ test('C09 crea el agregado privado, amplía relaciones y fija exactamente 90 dí
   assert.equal(field(app.collections.get('push_events'), 'order').cascadeDelete, false);
   assert.equal(field(app.collections.get('push_events'), 'coupon').cascadeDelete, false);
   const orderIndex = app.collections.get('storefront_order_links').getIndex('idx_storefront_order_links_order_unique');
-  assert.match(orderIndex.where, /attribution_source/);
-  assert.equal(field(app.collections.get('settings'), 'analytics_retention_days').max, 90);
+  const eventOrderIndex = app.collections.get('push_events').getIndex('idx_push_events_order_unique');
+  assert.equal(orderIndex.columns, 'order');
+  assert.equal(eventOrderIndex.columns, 'order, event_type');
+  assert.equal(orderIndex.where, "attribution_source != 'none'");
+  assert.equal(field(app.collections.get('settings'), 'analytics_retention_days').max, 91);
   assert.equal(app.records.get('settings')[0].get('analytics_retention_days'), 90);
   assert.equal(app.records.get('push_campaign_deliveries')[0].getString('delete_after'), '2026-10-30T00:00:00.000Z');
   assert.equal(app.records.get('push_events')[0].getString('delete_after'), '2026-10-31T00:00:00.000Z');
@@ -160,7 +163,7 @@ test('rollback vacío restaura 180 días y rechaza perder cualquier evidencia C0
   first.down(clean);
   assert.equal(clean.collections.has('push_daily_stats'), false);
   assert.throws(() => field(clean.collections.get('push_campaigns'), 'redacted_at'), /field_not_found/);
-  assert.equal(field(clean.collections.get('settings'), 'analytics_retention_days').max, 30);
+  assert.equal(field(clean.collections.get('settings'), 'analytics_retention_days').max, 31);
   assert.equal(clean.records.get('push_campaign_deliveries')[0].getString('delete_after'), '2027-01-28T00:00:00.000Z');
   assert.equal(clean.records.get('push_events')[0].getString('delete_after'), '2027-01-29T00:00:00.000Z');
 

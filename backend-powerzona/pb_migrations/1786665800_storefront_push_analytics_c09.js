@@ -67,6 +67,11 @@ function fieldByName(collection, name) {
   try { return collection.fields.getByName(name); } catch (_) { return null; }
 }
 
+function fieldType(field) {
+  if (!field) return "";
+  try { return typeof field.type === "function" ? field.type() : String(field.type || ""); } catch (_) { return ""; }
+}
+
 function addField(collection, definition) {
   if (!fieldByName(collection, definition.name)) collection.fields.add(new Field(definition));
 }
@@ -122,8 +127,9 @@ function technicalRetentionBase(record) {
 function configureAnalyticsRetention(app, maximum) {
   const settings = app.findCollectionByNameOrId("settings");
   const field = fieldByName(settings, "analytics_retention_days");
-  if (field && field.type === "number") {
-    field.max = maximum;
+  if (fieldType(field) === "number") {
+    // PocketBase NumberField.max is an exclusive boundary (the value must be less than max).
+    field.max = maximum + 1;
     field.default = maximum;
     app.save(settings);
   }
@@ -159,17 +165,17 @@ migrate((app) => {
     orderLinks,
     "idx_storefront_order_links_order_unique",
     true,
-    "`order`",
-    "attribution_source IN ('coupon','destination_viewed')",
+    "order",
+    "attribution_source != 'none'",
   );
   addIndex(orderLinks, "idx_storefront_order_links_campaign_snapshot", false, "store, campaign_id_snapshot, created", "");
   app.save(orderLinks);
 
   addField(events, relationField("relation17866658008", "order", orders.id, false, true));
   addField(events, relationField("relation17866658009", "coupon", coupons.id, false, true));
-  addIndex(events, "idx_push_events_delivery_tap_unique", true, "delivery, event_type", "event_type IN ('opened','destination_viewed')");
+  addIndex(events, "idx_push_events_delivery_tap_unique", true, "delivery, event_type", "event_type = 'opened' OR event_type = 'destination_viewed'");
   addIndex(events, "idx_push_events_coupon_unique", true, "campaign, installation, coupon, event_type", "event_type = 'coupon_applied'");
-  addIndex(events, "idx_push_events_order_unique", true, "`order`, event_type", "event_type = 'order_attributed'");
+  addIndex(events, "idx_push_events_order_unique", true, "order, event_type", "event_type = 'order_attributed'");
   addIndex(events, "idx_push_events_installation_type_received", false, "store, installation, event_type, received_at", "");
   app.save(events);
 
