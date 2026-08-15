@@ -1,0 +1,187 @@
+---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import '../../styles/global.css';
+
+const PAGE_SIZE = 10;
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authToken = authPb.authStore.token;
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({
+    baseUrl: pocketbaseUrl,
+    token: authToken,
+    supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+  }).catch(() => null);
+const canViewAnalytics = adminContext.isMasterSupport || hasStorePermission({
+  permissions: storeAccessContext?.access.permissions,
+  is_primary_admin: storeAccessContext?.access.is_primary_admin,
+  blocked_by_plan: storeAccessContext?.access.blocked_by_plan,
+}, 'analytics.view');
+if (!canViewAnalytics) return Astro.redirect(getStoreAdminPath(adminContext.store.slug, 'pageviews'));
+
+const allowedRanges = new Set(['today', '7', '15', '30', '90']);
+const requestedRange = String(Astro.url.searchParams.get('range') || 'today').trim().toLowerCase();
+const returnRange = allowedRanges.has(requestedRange) ? requestedRange : 'today';
+const requestedPage = Number(Astro.url.searchParams.get('page') || 1);
+const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, 100_000) : 1;
+const response = await fetch(`${pocketbaseUrl}/api/pz/storefront/v1/analytics/installations/details`, {
+  method: 'POST',
+  headers: {
+    Accept: 'application/json',
+    Authorization: `Bearer ${authToken}`,
+    'Content-Type': 'application/json',
+    ...(adminContext.isMasterSupport ? { 'X-PZ-Support-Store': adminContext.storeId } : {}),
+  },
+  body: JSON.stringify({ page, per_page: PAGE_SIZE }),
+  cache: 'no-store',
+}).catch(() => null);
+const payload = response?.ok ? await response.json().catch(() => null) : null;
+const isCount = (value: unknown) => Number.isInteger(value) && Number(value) >= 0;
+const safeField = (value: unknown, max = 190) => typeof value === 'string'
+  && value.trim() === value && value.length > 0 && value.length <= max && !/[\u0000-\u001f\u007f]/.test(value);
+const normalizeDetails = (value: any) => {
+  if (!value || typeof value !== 'object' || value.ok !== true
+    || !Number.isSafeInteger(value.page) || value.page < 1
+    || value.per_page !== PAGE_SIZE
+    || !isCount(value.total_items)
+    || !Number.isSafeInteger(value.total_pages) || value.total_pages < 1
+    || value.page > value.total_pages
+    || value.active_estimate_window_days !== 30
+    || !Array.isArray(value.items) || value.items.length > PAGE_SIZE) return null;
+  if (value.items.some((item: any) => !item || typeof item !== 'object'
+    || !/^APP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(item.installation_code)
+    || !safeField(item.device_model, 120)
+    || !safeField(item.app_version, 80)
+    || !safeField(item.android_version, 80)
+    || !safeField(item.app_identifier, 64)
+    || !safeField(item.package_name, 190))) return null;
+  const expectedItems = value.total_items === 0
+    ? 0
+    : Math.min(PAGE_SIZE, value.total_items - (value.page - 1) * PAGE_SIZE);
+  return value.items.length === expectedItems ? value : null;
+};
+const details = normalizeDetails(payload);
+const items = details?.items || [];
+const currentPage = Number(details?.page || 1);
+const totalPages = Number(details?.total_pages || 1);
+const totalItems = Number(details?.total_items || 0);
+const fromItem = totalItems ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+const toItem = totalItems ? Math.min(totalItems, fromItem + items.length - 1) : 0;
+const pageWindowSize = 5;
+const firstPage = Math.max(1, Math.min(currentPage - 2, totalPages - pageWindowSize + 1));
+const lastPage = Math.min(totalPages, firstPage + pageWindowSize - 1);
+const visiblePages = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index);
+const detailsPath = getStoreAdminPath(adminContext.store.slug, 'app-installation-details');
+const analyticsPath = getStoreAdminPath(adminContext.store.slug, 'app-installations');
+const pageHref = (targetPage: number) => `${detailsPath}?range=${encodeURIComponent(returnRange)}&page=${targetPage}`;
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detalles de instalaciones | Admin</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #eef3f9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; }
+      .page { padding: 28px; display: grid; gap: 22px; }
+      .back { color: #1d4ed8; font-weight: 850; width: fit-content; }
+      .list-shell { overflow: hidden; border: 1px solid #dbe4ef; border-radius: 24px; background: rgba(255,255,255,.97); box-shadow: 0 14px 38px rgba(15,23,42,.07); }
+      .installation-list { display: grid; }
+      .installation-row { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(0, 2fr); gap: 22px; align-items: center; padding: 20px 22px; border-bottom: 1px solid #eef2f7; }
+      .installation-row:last-child { border-bottom: 0; }
+      .installation-primary { min-width: 0; }
+      .installation-code { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 1000; letter-spacing: .04em; }
+      .installation-model { margin: 9px 0 0; color: #0f172a; font-size: 16px; font-weight: 1000; line-height: 1.3; overflow-wrap: anywhere; }
+      .installation-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+      .installation-meta div { min-width: 0; padding: 12px 13px; border-radius: 14px; background: #f8fafc; }
+      .installation-meta dt { color: #64748b; font-size: 10px; font-weight: 1000; letter-spacing: .05em; text-transform: uppercase; }
+      .installation-meta dd { margin: 5px 0 0; color: #0f172a; font-size: 12px; font-weight: 900; line-height: 1.4; overflow-wrap: anywhere; }
+      .empty-state, .error-state { padding: 42px 24px; text-align: center; color: #64748b; font-weight: 850; }
+      .error-state { color: #9f1239; background: #fff1f2; }
+      .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 20px; border-top: 1px solid #eef2f7; background: #fbfdff; flex-wrap: wrap; }
+      .pagination-summary { margin: 0; color: #64748b; font-size: 12px; font-weight: 900; }
+      .pagination-actions { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+      @media (max-width: 980px) { .installation-row { grid-template-columns: 1fr; } .installation-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 640px) { .page { padding: 18px; } .installation-row { padding: 17px; } .installation-meta { grid-template-columns: 1fr; } .pagination-bar { align-items: stretch; flex-direction: column; } .pagination-actions { justify-content: center; } }
+    </style>
+  </head>
+  <body>
+    <main class="pz-admin-content">
+      <AdminSidebar
+        storeId={adminContext.storeId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={authToken}
+        storeAccessContext={storeAccessContext}
+        storeSlug={adminContext.store.slug || 'powerzona'}
+        storeName={adminContext.store.name || adminContext.store.slug}
+        storePlanValues={adminContext.store}
+        activeSection="overview"
+      />
+      <div class="pz-admin-content-inner page">
+        <a class="back" href={`${analyticsPath}?range=${encodeURIComponent(returnRange)}`}>← Volver a App instalaciones</a>
+        <AdminSectionHeader
+          kicker="Analíticas"
+          title="Versiones y modelos"
+          description="Instalaciones activas estimadas con identificadores administrativos seguros."
+        />
+
+        <section class="list-shell" aria-label="Detalles de instalaciones activas">
+          {!details ? (
+            <div class="error-state">No se pudieron cargar los detalles. No se mostraron datos parciales.</div>
+          ) : items.length ? (
+            <div class="installation-list">
+              {items.map((item: any) => (
+                <article class="installation-row">
+                  <div class="installation-primary">
+                    <span class="installation-code">{item.installation_code}</span>
+                    <h2 class="installation-model">{item.device_model}</h2>
+                  </div>
+                  <dl class="installation-meta">
+                    <div><dt>Versión de app</dt><dd>{item.app_version}</dd></div>
+                    <div><dt>Versión Android</dt><dd>{item.android_version}</dd></div>
+                    <div><dt>Identificador de app</dt><dd>{item.app_identifier}</dd></div>
+                    <div><dt>Paquete</dt><dd>{item.package_name}</dd></div>
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div class="empty-state">No hay instalaciones activas estimadas para mostrar.</div>
+          )}
+
+          {details && (
+            <footer class="pagination-bar">
+              <p class="pagination-summary">Mostrando {fromItem} a {toItem} de {totalItems} instalaciones · 10 por página</p>
+              <nav class="pagination-actions" aria-label="Paginación de instalaciones">
+                {currentPage > 1
+                  ? <a href={pageHref(currentPage - 1)}>Anterior</a>
+                  : <span aria-disabled="true">Anterior</span>}
+                {visiblePages.map((number) => (
+                  <a href={pageHref(number)} aria-current={number === currentPage ? 'page' : undefined}>{number}</a>
+                ))}
+                {currentPage < totalPages
+                  ? <a href={pageHref(currentPage + 1)}>Próximo</a>
+                  : <span aria-disabled="true">Próximo</span>}
+              </nav>
+            </footer>
+          )}
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

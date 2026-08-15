@@ -81,6 +81,8 @@ function createApp() {
     [installations.APP_CONFIGS_COLLECTION, { name: installations.APP_CONFIGS_COLLECTION }],
     [installations.INSTALLATIONS_COLLECTION, { name: installations.INSTALLATIONS_COLLECTION }],
     [installations.WEB_SESSIONS_COLLECTION, { name: installations.WEB_SESSIONS_COLLECTION }],
+    ['storefront_order_links', { name: 'storefront_order_links' }],
+    ['orders', { name: 'orders' }],
   ]);
   const add = (item) => records.set(`${item.collection}:${item.id}`, item);
   add(record('stores', STORE_A, {
@@ -131,6 +133,7 @@ function createApp() {
         if (params.appSetDigest !== undefined && item.getString('app_set_digest') !== params.appSetDigest) return false;
         if (params.credentialDigest !== undefined && item.getString('credential_digest') !== params.credentialDigest) return false;
         if (params.digest !== undefined && item.getString('session_digest') !== params.digest) return false;
+        if (params.order !== undefined && item.getString('order') !== params.order) return false;
         if (filter.includes('status = "pending"') && item.getString('status') !== 'pending') return false;
         return true;
       });
@@ -447,6 +450,68 @@ test('plan no Premium bloquea altas pero una app no elige store_id', () => {
   store.set('plan_is_permanent', false);
   store.set('plan_expires_at', '2026-08-20T00:00:00.000Z');
   assert.throws(() => installations.registerInstallation(app, context(), CREDENTIAL_SECRET, AES_KEY), assertCode('plan_not_available'));
+});
+
+test('la referencia administrativa distingue instalaciones sin exponer FID ni ids internos', () => {
+  const security = securityFixture();
+  const config = { security, credentialSecret: CREDENTIAL_SECRET };
+  const installationId = 'installstorea01';
+  const first = installations.installationAdminReference(STORE_A, installationId, config);
+  const repeated = installations.installationAdminReference(STORE_A, installationId, config);
+  const other = installations.installationAdminReference(STORE_A, 'installstorea02', config);
+  assert.match(first, /^APP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/);
+  assert.equal(repeated, first);
+  assert.notEqual(other, first);
+  assert.doesNotMatch(first, new RegExp(installationId, 'i'));
+  assert.doesNotMatch(first, new RegExp(FID_A.slice(0, 8), 'i'));
+});
+
+test('cada pedido de app conserva una sola relación privada con su instalación', () => {
+  const app = createApp();
+  const installation = record(installations.INSTALLATIONS_COLLECTION, 'installorigin01', {
+    store: STORE_A,
+    app_config: APP_A,
+    status: 'active',
+  });
+  const otherInstallation = record(installations.INSTALLATIONS_COLLECTION, 'installorigin02', {
+    store: STORE_A,
+    app_config: APP_A,
+    status: 'active',
+  });
+  const order = record('orders', 'orderorigin0001', { store: STORE_A, customer: 'customerorigin1' });
+  app.records.set(`${installation.collection}:${installation.id}`, installation);
+  app.records.set(`${otherInstallation.collection}:${otherInstallation.id}`, otherInstallation);
+  app.records.set(`${order.collection}:${order.id}`, order);
+
+  const first = installations.ensureOrderInstallationLink(
+    app,
+    { storeId: STORE_A, installation },
+    order,
+    NOW,
+  );
+  const repeated = installations.ensureOrderInstallationLink(
+    app,
+    { storeId: STORE_A, installation },
+    order,
+    new Date(NOW.getTime() + 1000),
+  );
+  assert.ok(first);
+  assert.equal(repeated.id, first.id);
+  assert.equal(first.getString('store'), STORE_A);
+  assert.equal(first.getString('installation'), installation.id);
+  assert.equal(first.getString('order'), order.id);
+  assert.equal(first.getString('status'), 'active');
+  assert.equal(first.getString('attribution_source'), 'none');
+  assert.equal(app.list('storefront_order_links').length, 1);
+
+  const conflicting = installations.ensureOrderInstallationLink(
+    app,
+    { storeId: STORE_A, installation: otherInstallation },
+    order,
+    NOW,
+  );
+  assert.equal(conflicting, null);
+  assert.equal(app.list('storefront_order_links').length, 1);
 });
 
 test('bootstrap es de un solo uso, cambia el digest y redirige solo al prefijo fijo', () => {

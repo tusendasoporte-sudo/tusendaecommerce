@@ -74,12 +74,7 @@ const metrics = analytics?.metrics || {};
 const permission = analytics?.permission || {};
 const rangeLabels = { today: 'Hoy', '7': '7 días', '15': '15 días', '30': '30 días', '90': '90 días' };
 const adminOverviewPath = getStoreAdminPath(adminContext.store.slug);
-
-const groups = [
-  ['Versiones de la app', analytics?.distributions?.app_versions || []],
-  ['Versiones de Android', analytics?.distributions?.android_versions || []],
-  ['Modelos', analytics?.distributions?.device_models || []],
-];
+const installationDetailsPath = getStoreAdminPath(adminContext.store.slug, 'app-installation-details');
 const chartRows = analytics?.daily || [];
 const chartWidth = 960;
 const chartLeft = 58;
@@ -123,19 +118,28 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
       .period-picker { width: min(100%, 280px); display: grid; gap: 7px; }
       .period-picker span { color: #475569; font-size: 13px; font-weight: 850; }
       .period-picker select { width: 100%; min-height: 46px; border: 1px solid #cbd5e1; border-radius: 14px; background: #fff; color: #0f172a; padding: 0 42px 0 14px; font: inherit; font-weight: 850; cursor: pointer; }
-      .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-      .card, .section { background: #fff; border: 1px solid #dbe4ef; border-radius: 22px; padding: 20px; box-shadow: 0 12px 32px rgba(15, 23, 42, .06); }
-      .card span, .muted { color: #64748b; }
-      .card strong { display: block; font-size: 34px; margin-top: 8px; }
+      .section { background: #fff; border: 1px solid #dbe4ef; border-radius: 22px; padding: 20px; box-shadow: 0 12px 32px rgba(15, 23, 42, .06); }
+      .muted { color: #64748b; }
       .section h2 { margin: 0 0 14px; font-size: 20px; }
-      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-      .permission-section { width: min(100%, 760px); }
-      .breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-      .permission-section .breakdown { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .breakdown div { background: #f8fafc; border-radius: 14px; padding: 13px; }
-      .breakdown strong { display: block; font-size: 22px; margin-top: 5px; }
-      .list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-      .list li { display: flex; justify-content: space-between; gap: 14px; padding: 10px 12px; border-radius: 12px; background: #f8fafc; }
+      .summary-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+      .premium-list-panel { overflow: hidden; background: rgba(255,255,255,.96); border: 1px solid #dbe4ef; border-radius: 22px; box-shadow: 0 12px 32px rgba(15,23,42,.06); }
+      .premium-list-head { padding: 18px 20px 14px; border-bottom: 1px solid #eef2f7; }
+      .premium-list-head h2 { margin: 0; font-size: 18px; }
+      .premium-list-head p { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.45; }
+      .premium-list { display: grid; padding: 0 20px; }
+      .premium-list-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 66px; padding: 13px 0; border-bottom: 1px solid #eef2f7; }
+      .premium-list-row:last-child { border-bottom: 0; }
+      .premium-list-label { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: #334155; font-size: 14px; font-weight: 900; }
+      .premium-list-dot { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 999px; background: #2563eb; box-shadow: 0 0 0 5px #dbeafe; }
+      .premium-list-dot.green { background: #16a34a; box-shadow: 0 0 0 5px #dcfce7; }
+      .premium-list-dot.orange { background: #f97316; box-shadow: 0 0 0 5px #ffedd5; }
+      .premium-list-dot.slate { background: #64748b; box-shadow: 0 0 0 5px #f1f5f9; }
+      .premium-list-value { color: #0f172a; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; white-space: nowrap; }
+      .details-cta { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; border: 1px solid #dbe4ef; border-radius: 22px; background: linear-gradient(135deg, #fff 0%, #f8fbff 100%); box-shadow: 0 12px 32px rgba(15,23,42,.06); }
+      .details-cta h2 { margin: 0; font-size: 19px; }
+      .details-cta p { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 750; line-height: 1.45; }
+      .details-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 17px; border: 1px solid #2563eb; border-radius: 13px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 950; text-decoration: none; white-space: nowrap; box-shadow: 0 10px 22px rgba(37,99,235,.2); }
+      .details-button:hover { background: #1d4ed8; }
       .chart-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
       .chart-head h2 { margin-bottom: 4px; }
       .chart-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: #475569; font-size: 13px; font-weight: 800; }
@@ -153,7 +157,7 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
       .chart-low-point { fill: #ef4444; }
       .notice { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px 16px; line-height: 1.55; }
       .error { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
-      @media (max-width: 800px) { .page { padding: 18px; } .cards, .grid { grid-template-columns: 1fr; } .breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); } .chart-head { display: grid; } }
+      @media (max-width: 800px) { .page { padding: 18px; } .summary-lists { grid-template-columns: 1fr; } .details-cta { align-items: stretch; flex-direction: column; } .details-button { width: 100%; } .chart-head { display: grid; } }
     </style>
   </head>
   <body>
@@ -188,34 +192,38 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
           <p class="notice error">No se pudo cargar la analítica de instalaciones. No se mostraron datos parciales.</p>
         ) : (
           <>
-            <section class="cards" aria-label="Métricas principales">
-              <article class="card"><span>Instalaciones activas estimadas</span><strong>{Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US')}</strong></article>
-              <article class="card"><span>Nuevas del período</span><strong>{Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US')}</strong></article>
-              <article class="card"><span>Bajas detectadas</span><strong>{Number(metrics.bajas_detectadas || 0).toLocaleString('es-US')}</strong></article>
+            <section class="summary-lists" aria-label="Resumen de instalaciones y permisos">
+              <article class="premium-list-panel">
+                <header class="premium-list-head">
+                  <h2>Resumen de instalaciones</h2>
+                  <p>Estado estimado y movimientos del período seleccionado.</p>
+                </header>
+                <div class="premium-list">
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot green" aria-hidden="true"></i>Instalaciones activas estimadas</span><strong class="premium-list-value">{Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US')}</strong></div>
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot" aria-hidden="true"></i>Nuevas del período</span><strong class="premium-list-value">{Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US')}</strong></div>
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot orange" aria-hidden="true"></i>Bajas detectadas</span><strong class="premium-list-value">{Number(metrics.bajas_detectadas || 0).toLocaleString('es-US')}</strong></div>
+                </div>
+              </article>
+
+              <article class="premium-list-panel">
+                <header class="premium-list-head">
+                  <h2>Permisos de notificaciones</h2>
+                  <p>Distribución entre las instalaciones activas estimadas.</p>
+                </header>
+                <div class="premium-list">
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot green" aria-hidden="true"></i>Concedido</span><strong class="premium-list-value">{Number(permission.granted || 0).toLocaleString('es-US')}</strong></div>
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot orange" aria-hidden="true"></i>Denegado</span><strong class="premium-list-value">{Number(permission.denied || 0).toLocaleString('es-US')}</strong></div>
+                  <div class="premium-list-row"><span class="premium-list-label"><i class="premium-list-dot slate" aria-hidden="true"></i>Sin decidir</span><strong class="premium-list-value">{Number(permission.unknown || 0).toLocaleString('es-US')}</strong></div>
+                </div>
+              </article>
             </section>
 
-            <p class="notice">{analytics.measurement_note}</p>
-
-            <article class="section permission-section">
-              <h2>Permiso de notificaciones en activas</h2>
-              <div class="breakdown">
-                <div><span>Concedido</span><strong>{Number(permission.granted || 0)}</strong></div>
-                <div><span>Denegado</span><strong>{Number(permission.denied || 0)}</strong></div>
-                <div><span>Sin decidir</span><strong>{Number(permission.unknown || 0)}</strong></div>
+            <section class="details-cta" aria-label="Versiones y modelos">
+              <div>
+                <h2>Versiones y modelos</h2>
+                <p>Consulta cada instalación activa con su código seguro, modelo, versión de app y Android.</p>
               </div>
-            </article>
-
-            <section class="grid">
-              {groups.map(([title, items]) => (
-                <article class="section">
-                  <h2>{title}</h2>
-                  <ul class="list">
-                    {(items as any[]).length ? (items as any[]).map((item) => (
-                      <li><span>{item.label}</span><strong>{Number(item.count || 0).toLocaleString('es-US')}</strong></li>
-                    )) : <li><span>Sin datos</span><strong>0</strong></li>}
-                  </ul>
-                </article>
-              ))}
+              <a class="details-button" href={`${installationDetailsPath}?range=${encodeURIComponent(range)}`}>Más detalles</a>
             </section>
 
             <section class="section">

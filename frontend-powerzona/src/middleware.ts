@@ -27,7 +27,9 @@ type AdminAccessRule = Readonly<{
 function adminAccessRule(section: string): AdminAccessRule | null {
   const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
   if (!normalized) return { all: ['analytics.view', 'orders.view', 'catalog.view'] };
-  if (normalized === 'pageviews' || normalized === 'app-installations') return { any: ['analytics.view'] };
+  if (normalized === 'pageviews' || normalized === 'app-installations' || normalized === 'app-installation-details') {
+    return { any: ['analytics.view'] };
+  }
   if (normalized === 'profits') return { all: ['orders.view', 'catalog.view'] };
   if (normalized === 'account' || normalized.startsWith('account/') || normalized === 'change-temporary-password') return null;
   if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };

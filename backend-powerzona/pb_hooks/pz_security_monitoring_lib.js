@@ -32,6 +32,7 @@ const STORE_NOTIFICATIONS_COLLECTION = "store_notifications";
 const SHIPPING_ZONES_COLLECTION = "shipping_zones";
 const STORES_COLLECTION = "stores";
 const ORDERS_COLLECTION = "orders";
+const STOREFRONT_ORDER_LINKS_COLLECTION = "storefront_order_links";
 const CUSTOMER_DETAIL_PER_PAGE = 10;
 const VISITOR_CUSTOMER_ORDERS_PER_PAGE = 5;
 const CUSTOMER_DETAIL_MAX_PAGE = 1000;
@@ -3330,6 +3331,22 @@ function collectCustomerPageviews(app, storeId, customerIds, sessionIds) {
   );
 }
 
+function collectCustomerAppOrderLinks(app, storeId, orders) {
+  const orderIds = uniqueIds((orders || []).map((order) => order && order.id));
+  const links = [];
+  for (let offset = 0; offset < orderIds.length; offset += 50) {
+    links.push(...listByStoreRelation(
+      app,
+      STOREFRONT_ORDER_LINKS_COLLECTION,
+      storeId,
+      "order",
+      orderIds.slice(offset, offset + 50),
+      "",
+    ));
+  }
+  return uniqueRecords(links);
+}
+
 function countDeleteScope(scope) {
   return {
     orders_affected: scope.orders.length,
@@ -3345,10 +3362,12 @@ function collectCustomerDeleteScope(app, storeId, canonicalId) {
   const customerIds = collectCanonicalAndAliasIds(app, storeId, canonicalId);
   const sessions = listByStoreRelation(app, VISITOR_SESSIONS_COLLECTION, storeId, "customer", customerIds, "");
   const sessionIds = sessions.map((session) => session.id);
+  const orders = listByStoreRelation(app, ORDERS_COLLECTION, storeId, "customer", customerIds, "");
 
   return {
     customerIds,
-    orders: listByStoreRelation(app, ORDERS_COLLECTION, storeId, "customer", customerIds, ""),
+    orders,
+    appOrderLinks: collectCustomerAppOrderLinks(app, storeId, orders),
     events: listByStoreRelation(app, SECURITY_EVENTS_COLLECTION, storeId, "customer", customerIds, ""),
     phones: listByStoreRelation(app, STORE_CUSTOMER_PHONES_COLLECTION, storeId, "customer", customerIds, ""),
     devices: listByStoreRelation(app, STORE_CUSTOMER_DEVICES_COLLECTION, storeId, "customer", customerIds, ""),
@@ -3419,6 +3438,7 @@ function deleteCustomerSecurityProfile(app, storeId, customer, actorId, reason) 
   const counts = countDeleteScope(scope);
   deleteInactiveCustomerBlocks(app, storeId, scope.customerIds);
   scope.orders.forEach((order) => eraseOrderSecurityIdentity(app, order, erasedAt));
+  deleteRecords(app, scope.appOrderLinks);
   deleteRecords(app, scope.pageviews);
   deleteRecords(app, scope.sessions);
   deleteRecords(app, scope.events);

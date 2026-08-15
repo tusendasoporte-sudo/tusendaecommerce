@@ -17,11 +17,15 @@ const masterDashboard = typeof __hooks === "undefined"
 const activity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const installationSecurity = typeof __hooks === "undefined"
+  ? require("./pz_storefront_installations_lib.js")
+  : require(`${__hooks}/pz_storefront_installations_lib.js`);
 
 const EVENTS_COLLECTION = "push_events";
 const DELIVERIES_COLLECTION = "push_campaign_deliveries";
 const CAMPAIGNS_COLLECTION = "push_campaigns";
 const INSTALLATIONS_COLLECTION = "storefront_installations";
+const APP_CONFIGS_COLLECTION = "storefront_app_configs";
 const DAILY_COLLECTION = "push_daily_stats";
 const ORDER_LINKS_COLLECTION = "storefront_order_links";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
@@ -30,6 +34,7 @@ const ANALYTICS_RANGES = Object.freeze({ today: 1, "7": 7, "15": 15, "30": 30, "
 const ATTRIBUTION_WINDOW_MS = schema.RETENTION_POLICY.attribution_days * 86_400_000;
 const RAW_RETENTION_DAYS = schema.RETENTION_POLICY.event_days;
 const ACTIVE_INSTALLATION_WINDOW_DAYS = 30;
+const INSTALLATION_DETAILS_PAGE_SIZE = 10;
 
 class StorefrontAnalyticsError extends Error {
   constructor(code) {
@@ -476,6 +481,100 @@ function groupedValues(rows, field, predicate) {
   return items;
 }
 
+function activeInstallationBounds(nowValue) {
+  const end = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date(nowValue || Date.now());
+  return {
+    end,
+    cutoff: new Date(end.getTime() - ACTIVE_INSTALLATION_WINDOW_DAYS * 86_400_000),
+  };
+}
+
+function activeInstallationFilter() {
+  return 'store = {:store} && status = "active" && last_seen_at >= {:cutoff} && last_seen_at <= {:end}';
+}
+
+function activeInstallationParams(storeId, bounds) {
+  return { store: storeId, cutoff: bounds.cutoff.toISOString(), end: bounds.end.toISOString() };
+}
+
+function activeInstallationCount(app, storeId, bounds) {
+  const counted = queryRows(app, `
+    SELECT COUNT(*) AS total
+    FROM storefront_installations
+    WHERE store = {:store}
+      AND status = 'active'
+      AND last_seen_at >= {:cutoff}
+      AND last_seen_at <= {:end}
+  `, activeInstallationParams(storeId, bounds), { total: 0 });
+  if (counted.length) return nonNegativeInteger(counted[0].total);
+  let total = 0;
+  for (let offset = 0; ; offset += 500) {
+    const page = findRecordsStrict(
+      app,
+      INSTALLATIONS_COLLECTION,
+      activeInstallationFilter(),
+      "id",
+      500,
+      offset,
+      activeInstallationParams(storeId, bounds),
+    );
+    total += page.length;
+    if (page.length < 500) return total;
+  }
+}
+
+function buildInstallationDetails(app, context, pagination, nowValue, options) {
+  const requestedPage = Number(pagination && pagination.page);
+  const perPage = Number(pagination && pagination.perPage);
+  if (!Number.isSafeInteger(requestedPage) || requestedPage < 1
+    || perPage !== INSTALLATION_DETAILS_PAGE_SIZE) {
+    throw new StorefrontAnalyticsError("invalid_payload");
+  }
+  const bounds = activeInstallationBounds(nowValue);
+  const totalItems = activeInstallationCount(app, context.storeId, bounds);
+  const totalPages = Math.max(1, Math.ceil(totalItems / INSTALLATION_DETAILS_PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const rows = totalItems ? findRecordsStrict(
+    app,
+    INSTALLATIONS_COLLECTION,
+    activeInstallationFilter(),
+    "-last_seen_at,-id",
+    INSTALLATION_DETAILS_PAGE_SIZE,
+    (page - 1) * INSTALLATION_DETAILS_PAGE_SIZE,
+    activeInstallationParams(context.storeId, bounds),
+  ) : [];
+  const appConfigs = new Map();
+  const referenceFor = options && typeof options.referenceFor === "function"
+    ? options.referenceFor
+    : (storeId, installationId) => installationSecurity.installationAdminReference(storeId, installationId);
+  const items = rows.map((row) => {
+    const appConfigId = relationId(row, "app_config");
+    if (!appConfigs.has(appConfigId)) appConfigs.set(appConfigId, findRecord(app, APP_CONFIGS_COLLECTION, appConfigId));
+    const appConfig = appConfigs.get(appConfigId);
+    if (!appConfig || relationId(appConfig, "store") !== context.storeId) {
+      throw new StorefrontAnalyticsError("analytics_failed");
+    }
+    return {
+      installation_code: referenceFor(context.storeId, recordId(row)),
+      device_model: recordString(row, "device_model") || "Modelo no informado",
+      app_version: recordString(row, "app_version") || "Sin dato",
+      android_version: recordString(row, "android_version") || "Sin dato",
+      app_identifier: recordString(appConfig, "app_key") || "Sin identificar",
+      package_name: recordString(appConfig, "package_name") || "Sin identificar",
+    };
+  });
+  return {
+    ok: true,
+    page,
+    per_page: INSTALLATION_DETAILS_PAGE_SIZE,
+    total_items: totalItems,
+    total_pages: totalPages,
+    active_estimate_window_days: ACTIVE_INSTALLATION_WINDOW_DAYS,
+    generated_at: bounds.end.toISOString(),
+    items,
+  };
+}
+
 function buildInstallationAnalytics(app, context, range, nowValue) {
   const period = periodForRange(range, nowValue);
   const rows = installationRows(app, context.storeId);
@@ -806,6 +905,17 @@ function parseAdminPayload(body) {
   return ANALYTICS_RANGES[range] ? { range } : null;
 }
 
+function parseInstallationDetailsPayload(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const keys = Object.keys(body).filter((key) => typeof body[key] !== "function").sort();
+  if (keys.length !== 2 || keys[0] !== "page" || keys[1] !== "per_page") return null;
+  const page = Number(recordValue(body, "page"));
+  const perPage = Number(recordValue(body, "per_page"));
+  if (!Number.isSafeInteger(page) || page < 1 || page > 100_000
+    || perPage !== INSTALLATION_DETAILS_PAGE_SIZE) return null;
+  return { page, perPage };
+}
+
 function auditMasterRead(app, context, range, now) {
   if (!context.master) return;
   activity.createActivity(app, {
@@ -850,12 +960,55 @@ function handleInstallationsAnalytics(e) {
   }
 }
 
+function handleInstallationDetails(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    const payload = parseInstallationDetailsPayload(info && info.body || {});
+    if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
+    const app = e.app || $app;
+    const context = storeAnalytics.loadStoreContext(
+      app,
+      info && info.auth || e.auth,
+      headerValue(info, "X-PZ-Support-Store"),
+    );
+    if (!context) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!context.master && !permissions.hasStorePermission(app, context.actor, context.store, "analytics.view")) {
+      return e.json(403, { ok: false, error: "permission_denied" });
+    }
+    const now = new Date();
+    const result = buildInstallationDetails(app, context, payload, now);
+    if (context.master) {
+      activity.createActivity(app, {
+        storeId: context.storeId,
+        actor: context.actor,
+        module: "marketing",
+        action: "push_installation_details_viewed",
+        severity: "normal",
+        resourceType: "push_analytics",
+        resourceId: context.storeId,
+        resourceLabel: "Detalle seguro de instalaciones",
+        changedFields: ["page", "per_page"],
+        previousValues: {},
+        newValues: { page: result.page, per_page: result.per_page },
+        summary: `Consultó detalle seguro de instalaciones (página ${result.page})`,
+        sourceEventKey: `push-installation-details:${recordId(context.actor)}:${context.storeId}:${result.page}:${now.toISOString()}`,
+      });
+    }
+    return e.json(200, result);
+  } catch (_) {
+    return e.json(500, { ok: false, error: "analytics_failed" });
+  }
+}
+
 module.exports = {
   ACTIVE_INSTALLATION_WINDOW_DAYS,
   ANALYTICS_RANGES,
   ATTRIBUTION_WINDOW_MS,
   EVENT_TYPES,
+  INSTALLATION_DETAILS_PAGE_SIZE,
   StorefrontAnalyticsError,
+  buildInstallationDetails,
   buildInstallationAnalytics,
   attributeOrder,
   campaignMetrics,
@@ -863,7 +1016,9 @@ module.exports = {
   canonicalDestinationPath,
   cleanupExpiredAnalytics,
   deterministicEventKey,
+  handleInstallationDetails,
   handleInstallationsAnalytics,
+  parseInstallationDetailsPayload,
   parseAdminPayload,
   periodForRange,
   recordNativeEvent,

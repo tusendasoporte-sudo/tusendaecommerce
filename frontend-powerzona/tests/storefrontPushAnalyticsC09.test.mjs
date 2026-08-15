@@ -34,25 +34,43 @@ test('el resumen se llama Analíticas, comparte cinco rangos y expone App instal
 
 test('Ver más presenta solo agregados, privacidad explícita y los mismos rangos', () => {
   const source = read('../src/pages/admin/app-installations.astro');
+  const details = read('../src/pages/admin/app-installation-details.astro');
   const tenantRoute = read('../src/pages/t/[storeSlug]/admin/app-installations.astro');
+  const tenantDetailsRoute = read('../src/pages/t/[storeSlug]/admin/app-installation-details.astro');
   const middleware = read('../src/middleware.ts');
+  const backendRoutes = read('../../backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js');
   assert.match(tenantRoute, /AdminAppInstallations/);
-  assert.match(middleware, /normalized === 'pageviews' \|\| normalized === 'app-installations'/);
+  assert.match(tenantDetailsRoute, /AdminAppInstallationDetails/);
+  assert.match(middleware, /normalized === 'app-installation-details'/);
   assert.match(source, /hasStorePermission[\s\S]*'analytics\.view'/);
   assert.match(source, /X-PZ-Support-Store/);
   assert.match(source, /Cache-Control', 'private, no-store/);
   assert.match(source, /new Set\(\['today', '7', '15', '30', '90'\]\)/);
   assert.match(source, /Instalaciones activas estimadas/);
   assert.doesNotMatch(source, /Estado actual/);
-  assert.match(source, /Permiso de notificaciones en activas/);
-  assert.match(source, /Versiones de la app/);
+  assert.match(source, /class="premium-list-panel"/);
+  assert.match(source, /Resumen de instalaciones/);
+  assert.match(source, /Permisos de notificaciones/);
+  assert.match(source, />Más detalles</);
+  assert.match(source, /app-installation-details/);
+  assert.doesNotMatch(source, /const groups =/);
   assert.doesNotMatch(source, /Países|Regiones/);
   assert.match(source, /Altas y bajas detectadas/);
   assert.match(source, /data-installation-period/);
   assert.match(source, /class="installations-chart"/);
   assert.doesNotMatch(source, /<table|<tbody|class="table-wrap"/);
+  assert.doesNotMatch(source, /<p class="notice">\{analytics\.measurement_note\}<\/p>/);
   assert.match(source, /const analytics = normalizeAnalytics\(payload\)/);
   assert.doesNotMatch(source, /fid_digest|credential_digest|ip_ciphertext|firebase_message_id/);
+  assert.match(backendRoutes, /analytics\/installations\/details/);
+  assert.match(details, /const PAGE_SIZE = 10/);
+  assert.match(details, /per_page: PAGE_SIZE/);
+  assert.match(details, /installation_code/);
+  assert.match(details, /Identificador de app/);
+  assert.match(details, /class="pagination-bar"/);
+  assert.match(details, /class="pagination-actions"/);
+  assert.match(details, /10 por página/);
+  assert.doesNotMatch(details, /fid_digest|app_set_digest|credential_digest|firebase_app_id/);
 });
 
 test('Campañas push queda como entrada independiente inmediatamente después de Promos y conserva la puerta Premium', () => {

@@ -931,6 +931,12 @@ test('endpoint, migracion y checkout cierran escritura publica y garantizan una 
   assert.match(routes, /POST[\s\S]*\/api\/pz\/checkout\/orders/);
   assert.match(hook, /\$app\.runInTransaction\(\(txApp\) => \{/);
   for (const call of ['createOrderRecord(txApp', 'createOrderItems(txApp', 'createCouponUsage(txApp', 'createOrderNotification(txApp']) assert.match(hook, new RegExp(call.replace('(', '\\(')));
+  assert.match(hook, /ensureOrderInstallationLink\(txApp, session, order, now\)/);
+  assert.ok(
+    hook.indexOf('ensureOrderInstallationLink(txApp, session, order, now)')
+      < hook.indexOf('storefrontAnalytics.attributeOrder(txApp, session, order'),
+    'el vínculo de origen se guarda antes de intentar la atribución opcional de campaña',
+  );
   assert.match(migration, /orders\.createRule = `\(\(\$\{MASTER_ADMIN_RULE\}\) \|\| \(\$\{STORE_ADMIN_ORDER_RULE\}\)\) && \$\{INTERNAL_IDENTITY_FIELDS_BLOCK_RULE\}`/);
   assert.match(migration, /security_identity_erased_at:isset = false/);
   assert.match(migration, /orderItems\.createRule = `\(\$\{MASTER_ADMIN_RULE\}\) \|\| \(\$\{STORE_ADMIN_ORDER_ITEM_RULE\}\)`/);

@@ -500,6 +500,25 @@ function appSetDigest(appConfigId, appSetId, credentialSecret, security) {
   return normalizedDigest(security.hs256(`pz_storefront_app_set:v1|${appConfigId}|${appSetId.toLowerCase()}`, credentialSecret));
 }
 
+function installationAdminReference(storeIdValue, installationIdValue, config) {
+  const storeId = safeText(storeIdValue);
+  const installationId = safeText(installationIdValue);
+  if (!RECORD_ID_PATTERN.test(storeId) || !RECORD_ID_PATTERN.test(installationId)) {
+    throw new StorefrontInstallationError("invalid_payload");
+  }
+  const options = config && typeof config === "object" ? config : {};
+  const security = options.security || defaultSecurity();
+  const credentialSecret = safeText(options.credentialSecret || getCredentialSecret(security));
+  if (!validSecret(credentialSecret, [], security)) {
+    throw new StorefrontInstallationError("storefront_secrets_unavailable");
+  }
+  const digest = normalizedDigest(security.hs256(
+    `pz_storefront_admin_reference:v1|${storeId}|${installationId}`,
+    credentialSecret,
+  ));
+  return `APP-${digest.slice(0, 4).toUpperCase()}-${digest.slice(4, 8).toUpperCase()}-${digest.slice(8, 12).toUpperCase()}`;
+}
+
 function credentialFor(appConfigId, fid, credentialSecret, security) {
   const material = `pz_storefront_credential:v1|${appConfigId}|${fid}`;
   return `pzs_v1_${normalizedDigest(security.hs256(material, credentialSecret))}`;
@@ -872,6 +891,48 @@ function resolveActiveWebSession(app, tokenValue, nowValue, options) {
   return Object.freeze({ session, installation, appConfig, storeId, expiresAt });
 }
 
+function ensureOrderInstallationLink(app, sessionContext, order, nowValue) {
+  const now = nowValue instanceof Date ? new Date(nowValue.getTime()) : new Date(nowValue || Date.now());
+  const storeId = safeText(sessionContext && sessionContext.storeId);
+  const installation = sessionContext && sessionContext.installation;
+  const installationId = safeText(installation && (installation.id || recordString(installation, "id")));
+  const orderId = safeText(order && (order.id || recordString(order, "id")));
+  if (!Number.isFinite(now.getTime())
+    || !RECORD_ID_PATTERN.test(storeId)
+    || !RECORD_ID_PATTERN.test(installationId)
+    || !RECORD_ID_PATTERN.test(orderId)
+    || relationId(installation, "store") !== storeId
+    || recordString(installation, "status") !== "active"
+    || relationId(order, "store") !== storeId) return null;
+
+  const existing = findFirst(app, ORDER_LINKS_COLLECTION, "order = {:order}", { order: orderId });
+  if (existing) {
+    if (relationId(existing, "store") !== storeId
+      || relationId(existing, "installation") !== installationId
+      || relationId(existing, "order") !== orderId) return null;
+    return existing;
+  }
+
+  const link = new Record(app.findCollectionByNameOrId(ORDER_LINKS_COLLECTION), {});
+  link.set("store", storeId);
+  link.set("installation", installationId);
+  link.set("order", orderId);
+  link.set("status", "active");
+  link.set("attribution_source", "none");
+  schema.assertTenantIsolation(app, ORDER_LINKS_COLLECTION, link);
+  try {
+    app.save(link);
+    return link;
+  } catch (error) {
+    const raced = findFirst(app, ORDER_LINKS_COLLECTION, "order = {:order}", { order: orderId });
+    if (raced
+      && relationId(raced, "store") === storeId
+      && relationId(raced, "installation") === installationId
+      && relationId(raced, "order") === orderId) return raced;
+    throw error;
+  }
+}
+
 function setPrivateHeaders(e) {
   try {
     const headers = e.response.header();
@@ -964,6 +1025,7 @@ module.exports = {
   INTERNAL_HEADERS,
   WEB_SESSIONS_COLLECTION,
   appSetDigest,
+  installationAdminReference,
   authorizeInternalRequest,
   canonicalJson,
   consumeBootstrapSession,
@@ -972,6 +1034,7 @@ module.exports = {
   credentialDigest,
   credentialFor,
   disableInstallation,
+  ensureOrderInstallationLink,
   fidDigest,
   handleAction,
   heartbeatInstallation,

@@ -1415,7 +1415,7 @@ function handleCheckout(e) {
       createOrderNotification(txApp, order, parsed, plan);
       result = responseOrder(order, items, plan.shipping.name, false);
     });
-    attributeCheckoutBestEffort(e, parsed);
+    linkStorefrontCheckoutBestEffort(e, parsed);
     return e.json(200, result);
   } catch (error) {
     const code = requestErrorCode(error);
@@ -1469,7 +1469,7 @@ function couponRecordByCode(app, storeId, codeValue) {
   } catch (_) { return null; }
 }
 
-function attributeCheckoutBestEffort(e, parsed) {
+function linkStorefrontCheckoutBestEffort(e, parsed) {
   const token = requestCookie(e, STOREFRONT_SESSION_COOKIE);
   if (!token) return;
   try {
@@ -1479,12 +1479,14 @@ function attributeCheckoutBestEffort(e, parsed) {
       if (!session || session.storeId !== parsed.storeId) return;
       const order = existingCheckout(txApp, parsed);
       if (!order) return;
+      const installationLink = storefrontInstallations.ensureOrderInstallationLink(txApp, session, order, now);
+      if (!installationLink) return;
       const coupon = couponRecordByCode(txApp, parsed.storeId, recordString(order, "coupon_code"));
       if (coupon) storefrontAnalytics.recordCouponApplied(txApp, session, parsed.storeId, recordString(order, "coupon_code"), now);
       storefrontAnalytics.attributeOrder(txApp, session, order, { couponRecord: coupon }, now);
     });
   } catch (_) {
-    try { $app.logger().warn("Checkout completed without push attribution.", "code", "PZ_C09_ATTRIBUTION_SKIPPED"); } catch (_) {}
+    try { $app.logger().warn("Checkout completed without storefront installation linkage.", "code", "PZ_STOREFRONT_ORDER_LINK_SKIPPED"); } catch (_) {}
   }
 }
 

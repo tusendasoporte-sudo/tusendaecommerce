@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | PZ-APP-C09 EN CURSO — implementación local autorizada; sin despliegues ni servicios externos |
-| Versión del documento | 1.28 |
+| Versión del documento | 1.29 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-15 |
 | Tienda piloto | PowerZona |
@@ -488,7 +488,9 @@ El bloqueo transaccional protege también si en el futuro hay más de una répli
 - `opened` solo se cuenta cuando la app nativa procesa el toque y envía un evento autenticado e idempotente.
 - `destination_viewed` se registra por la sesión web efímera después de cargar un destino válido.
 - Un cupón se atribuye únicamente si el servidor lo aplicó en checkout, coincide tienda/campaña/instalación y ocurrió dentro de siete días del toque.
-- Una orden se atribuye solo si se crea mediante una `storefront_web_sessions` vinculada, después del toque y dentro de siete días; correlación temporal sin vínculo de instalación no basta.
+- Todo pedido creado desde una `storefront_web_sessions` válida conserva una relación privada y única con `storefront_installations`, aunque no provenga de una campaña. El código administrativo HMAC `APP-…` se deriva al consultar y no se persiste dentro del pedido ni sustituye la relación interna.
+- Una orden se atribuye a una campaña solo si, además del vínculo privado anterior, se crea después del toque y dentro de siete días; correlación temporal sin vínculo de instalación no basta. La misma fila se completa desde `attribution_source = none` sin duplicar la relación de origen.
+- Al eliminar la identidad de Seguridad del cliente se elimina también el vínculo instalación-pedido; al borrar el pedido se eliminan el vínculo y sus eventos. El pedido comercial anonimizado no conserva una vía indirecta hacia la instalación.
 - Retención vigente desde C09 por decisión posterior del propietario: IP completa cifrada 30 días; sesiones web 30 días tras expirar; el contenido visible de borradores y campañas finalizadas se redacta a los siete días; entregas, eventos y agregados diarios se conservan como máximo 90 días. Las campañas programadas, en proceso o pausadas por plan no vencen mientras permanezcan activas. Un estado técnico privado sin contenido conserva únicamente zona horaria e inicios durante 40 días para sostener las cuotas permanentes 10/310. La evidencia mínima de una atribución ya fijada en una orden sigue la retención propia de esa orden y no depende de conservar el contenido de la campaña.
 - Store Admin ve agregados y datos operativos de su tienda, nunca IP completa/FID/credenciales. Master/seguridad puede revelar el IP solo por el flujo auditado existente o una extensión equivalente.
 
@@ -505,7 +507,7 @@ Contrato de privacidad aplicado en C03: la app nativa envía únicamente FID, ve
 7. No hay migración de dispositivos administrativos a instalaciones públicas. Cada cliente debe registrarse desde `mobile-storefront`.
 8. Cada nueva colección se incorpora al preview/borrado Master y a pruebas de aislamiento antes de habilitar el módulo.
 
-### 6.11 Inventario exacto previsto de archivos de C02-C12
+### 6.11 Inventario exacto previsto de archivos de C02-C013
 
 Este inventario es el contrato de implementación conocido en C01. Si una fase descubre que necesita otro archivo, debe registrarlo primero en la bitácora de esa fase y justificarlo; no autoriza editarlo durante C01.
 
@@ -523,8 +525,9 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 | C10 | `scripts/build-store-app.ps1`; `mobile-storefront/config/schema.json`; `mobile-storefront/config/demo.properties`; `mobile-storefront/brands/demo/brand.json`; `icon.png`; `splash.png`; `mobile-storefront/README.md`; `mobile-storefront/scripts/validate-store-config.ps1`; `mobile-storefront/scripts/test-store-config.ps1`. |
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
+| C013 | `docs/tusenda84/reportes/PZ-APP-C013-reconciliacion-instalaciones.md`; revisión focal de `pz_storefront_installations_lib.js`, `pz_storefront_analytics_lib.js`, contratos Android de registro y sus pruebas. Parte de la base App Set ID ya incorporada; no autoriza una migración destructiva ni la eliminación automática de registros legacy. |
 
-No se reservan en C01 números de versión, secretos, archivos `google-services.json`, keystores, artefactos APK/AAB ni archivos generados. C11 y C12 documentarán por separado despliegue y evidencias.
+No se reservan en C01 números de versión, secretos, archivos `google-services.json`, keystores, artefactos APK/AAB ni archivos generados. C11 y C12 documentarán por separado despliegue y evidencias; C013 documentará exclusivamente la reconciliación posterior y su rollback.
 
 ### 6.12 Referencias técnicas verificadas
 
@@ -568,6 +571,7 @@ Estado vigente:
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
+| PZ-APP-C013 | Reconciliación de instalaciones legacy y validación física de App Set ID | PENDIENTE | C12 | Sí: APK nueva y teléfono físico conocido | Sol — Extra High |
 
 ## 8. Prompts de ejecución
 
@@ -890,6 +894,38 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] La app administrativa sigue recibiendo sus alertas.
 - [ ] Se documentaron artefactos, versiones, commits y rollback.
 - [ ] Las métricas iniciales coinciden con las pruebas controladas.
+
+### [ ] PZ-APP-C013 — Reconciliación de instalaciones legacy y validación física de App Set ID
+
+**Orden aprobado:** ejecutar únicamente después de terminar y cerrar todos los pasos pendientes de PZ APP hasta C12. Esta reserva no autoriza iniciar C013 antes, modificar ahora datos de staging/producción ni borrar registros históricos.
+
+**Objetivo:** conseguir que un teléfono físico conocido con una sola instalación vigente aparezca como una sola `Instalación activa estimada`, sin usar identificadores de hardware ni fusionar por modelo, versión o permiso.
+
+**Contexto reservado:** el Samsung de prueba conserva dos registros legacy activos creados antes de que la app enviara App Set ID. El backend y el panel ya admiten un digest HMAC privado, pero el APK `0.2.4-staging` instalado no envía todavía ese dato y los registros anteriores no pueden fusionarse retrospectivamente con seguridad. Por eso el panel puede seguir mostrando `2` hasta instalar una APK nueva y ejecutar esta reconciliación controlada.
+
+**Prompt para ejecutar:**
+
+> Después de cerrar C12, genera e instala en el teléfono físico una nueva APK que envíe App Set ID mediante el contrato aprobado. Verifica primero que el servidor guarda únicamente su digest HMAC, que una rotación de FID con el mismo App Set ID reutiliza la instalación y que no existe cruce entre tiendas. Crea un backup y una herramienta idempotente de auditoría/reconciliación para registros anteriores a App Set ID. Nunca fusiones solo por modelo, versión de Android, versión de app, permiso o fechas aproximadas. Cuando la nueva instalación autenticada permita identificar con evidencia suficiente el registro vigente, deshabilita —no borres— únicamente el duplicado legacy confirmado, conserva trazabilidad sanitizada y recalcula la analítica. Documenta el resultado, rollback y cualquier caso que deba permanecer ambiguo.
+
+**Privacidad y Google Play:**
+
+- No usar ni recopilar IMEI, número de serie, dirección MAC, Android ID, identificador publicitario ni huellas de hardware.
+- No persistir ni registrar en logs el App Set ID original; almacenar únicamente el digest HMAC aislado por el secreto vigente.
+- Mantener la etiqueta `estimadas`: App Set ID puede cambiar en escenarios admitidos por Google y no identifica de forma infalible a una persona o dispositivo físico.
+- Revisar y confirmar antes de la distribución la declaración de Google Play Data Safety correspondiente a `Device or other IDs`, además de la política de privacidad aplicable.
+
+**Prueba manual requerida:** Sí. Instalar la nueva APK en el Samsung conocido, repetir registro/heartbeat, simular rotación controlada de FID sin cambiar App Set ID y comprobar el panel en `Hoy` y `90 días`. La desactivación del registro legacy requiere confirmación humana sobre la evidencia presentada por la herramienta; ante ambigüedad debe fallar cerrado y no modificar datos.
+
+**Criterios de aceptación:**
+
+- [ ] La APK nueva registra App Set ID sin exponer su valor original al backend, logs o panel.
+- [ ] El mismo App Set ID con FID rotado conserva una sola instalación y su `first_seen` original.
+- [ ] No se fusionan instalaciones de tiendas diferentes ni registros basándose solo en metadatos compartidos.
+- [ ] Existe backup, vista previa, auditoría, idempotencia y rollback para la reconciliación legacy.
+- [ ] El duplicado confirmado se marca como deshabilitado y no se elimina físicamente.
+- [ ] Con el único Samsung de prueba instalado, el panel muestra `1` en `Instalaciones activas estimadas` y no infla `Nuevas del período`.
+- [ ] Las pruebas automáticas de registro, rotación, aislamiento, analítica y regresión pasan.
+- [ ] Google Play Data Safety y la política de privacidad quedan revisadas y documentadas antes de distribuir la APK/AAB resultante.
 
 ## 9. Criterios maestros de aceptación
 
@@ -2094,8 +2130,8 @@ Implementar el contrato de analítica aprobado para instalaciones, campañas y a
 
 El inventario previsto en C01 se amplía porque el contrato aprobado exige unir C03, C05, C07 y C08 con checkout, Android, navegación, analítica general, eliminación Master y conservación de órdenes. Los archivos efectivos de C09 son:
 
-- Backend y migración: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`; `backend-powerzona/pb_hooks/pz_order_pricing.pb.js`; `backend-powerzona/pb_hooks/pz_order_pricing_lib.js`; `backend-powerzona/pb_hooks/pz_store_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_master_dashboard_lib.js`; `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement.pb.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`.
-- Pruebas backend: `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`; `backend-powerzona/tests/pz_storefront_installations.test.cjs`; `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`; `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`; `backend-powerzona/tests/pz_order_pricing.test.cjs`; `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`.
+- Backend y migración: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_migrations/1786752100_storefront_order_origin_unique.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`; `backend-powerzona/pb_hooks/pz_order_pricing.pb.js`; `backend-powerzona/pb_hooks/pz_order_pricing_lib.js`; `backend-powerzona/pb_hooks/pz_security_monitoring_lib.js`; `backend-powerzona/pb_hooks/pz_store_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_master_dashboard_lib.js`; `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement.pb.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`.
+- Pruebas backend: `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`; `backend-powerzona/tests/pz_storefront_installations.test.cjs`; `backend-powerzona/tests/pz_storefront_order_origin_migration.test.cjs`; `backend-powerzona/tests/pz_storefront_order_origin_privacy.test.cjs`; `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`; `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`; `backend-powerzona/tests/pz_order_pricing.test.cjs`; `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`.
 - Frontend y relay: `frontend-powerzona/src/lib/pushRelayV2Payload.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/src/lib/storefrontPushAppCheck.ts`; `frontend-powerzona/src/lib/storefrontPushContracts.ts`; `frontend-powerzona/src/lib/masterStoreAnalytics.ts`; `frontend-powerzona/src/lib/masterStoreDeletion.ts`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/pages/api/internal/push/v2/send.ts`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/pages/api/checkout/orders.ts`; `frontend-powerzona/src/pages/api/checkout/coupon-attribution.ts`; `frontend-powerzona/src/pages/checkout.astro`; `frontend-powerzona/src/pages/admin/index.astro`; `frontend-powerzona/src/pages/admin/pageviews.astro`; `frontend-powerzona/src/pages/admin/app-installations.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/app-installations.astro`; `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/master/MasterStoreDeleteDialog.astro`.
 - Pruebas frontend: `frontend-powerzona/tests/storefrontPushAnalyticsC09.test.mjs`; `frontend-powerzona/tests/storefrontPushGateway.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`; `frontend-powerzona/tests/pushRelayV2Payload.test.mjs`; `frontend-powerzona/tests/masterStoreDeletion.test.mjs`.
 - Android: `mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontActivity.java`; `StorefrontConfig.java`; `StorefrontDeepLink.java`; `StorefrontEventQueue.java`; `StorefrontNotifications.java`; `StorefrontPushPayload.java`; `StorefrontRegistrationClient.java`; `StorefrontRegistrationPayload.java`; y las regresiones `StorefrontDeepLinkTest.java`, `StorefrontEventQueueTest.java`, `StorefrontPushPayloadTest.java`, `StorefrontRegistrationPayloadTest.java` bajo el mismo paquete de pruebas.

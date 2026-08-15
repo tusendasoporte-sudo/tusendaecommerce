@@ -75,6 +75,12 @@ function createApp() {
     if (types.length && !types.includes(item.getString('event_type'))) return false;
     const statuses = [...String(filter).matchAll(/status\s*=\s*"([^"]+)"/g)].map((match) => match[1]);
     if (statuses.length && !statuses.includes(item.getString('status'))) return false;
+    if (params.cutoff || params.end) {
+      const lastSeen = new Date(item.getString('last_seen_at')).getTime();
+      if (!Number.isFinite(lastSeen)) return false;
+      if (params.cutoff && lastSeen < new Date(params.cutoff).getTime()) return false;
+      if (params.end && lastSeen > new Date(params.end).getTime()) return false;
+    }
     if (String(filter).includes('scope = "campaign_funnel"') && item.getString('scope') !== 'campaign_funnel') return false;
     if (String(filter).includes('scope = "store_installations"') && item.getString('scope') !== 'store_installations') return false;
     if (String(filter).includes('campaign.target_coupon') && params.coupon) {
@@ -103,6 +109,9 @@ function createApp() {
       const result = rows(collection).filter((item) => matches(item, filter, params));
       if (String(sort).startsWith('-received_at')) {
         result.sort((a, b) => b.getString('received_at').localeCompare(a.getString('received_at')));
+      } else if (String(sort).startsWith('-last_seen_at')) {
+        result.sort((a, b) => b.getString('last_seen_at').localeCompare(a.getString('last_seen_at'))
+          || b.id.localeCompare(a.id));
       }
       return result.slice(offset, offset + limit);
     },
@@ -118,7 +127,10 @@ function createApp() {
     db() { throw new Error('sql_unavailable'); },
   };
   add(record('stores', STORE, { status: 'active' }));
-  add(record('storefront_app_configs', 'appanalytic0001', { store: STORE, status: 'active', store_path_prefix: '/t/powerzona' }));
+  add(record('storefront_app_configs', 'appanalytic0001', {
+    store: STORE, status: 'active', store_path_prefix: '/t/powerzona',
+    app_key: 'powerzona-storefront-staging', package_name: 'com.tusenda84.powerzona',
+  }));
   add(record('storefront_installations', INSTALLATION, {
     store: STORE, app_config: 'appanalytic0001', status: 'active', first_seen_at: '2026-08-10T12:00:00.000Z',
     last_seen_at: '2026-08-14T12:00:00.000Z',
@@ -285,6 +297,53 @@ test('analÃ­tica de instalaciones usa hoy/7/15/30/90 y bajas como detecciÃ³n
   assert.equal(result.metrics.bajas_detectadas, 1);
   assert.match(result.measurement_note, /estimación.*30 días/i);
   assert.throws(() => analytics.buildInstallationAnalytics(app, { storeId: STORE }, '365', NOW), /invalid_payload/);
+});
+
+test('detalle pagina diez instalaciones activas y solo expone referencias administrativas seguras', () => {
+  const app = createApp();
+  for (let index = 2; index <= 13; index += 1) {
+    app.add(record('storefront_installations', `detail${String(index).padStart(9, '0')}`, {
+      store: STORE,
+      app_config: 'appanalytic0001',
+      status: index === 13 ? 'disabled' : 'active',
+      first_seen_at: '2026-08-10T12:00:00.000Z',
+      last_seen_at: `2026-08-${String(Math.min(index, 15)).padStart(2, '0')}T11:00:00.000Z`,
+      notification_permission: 'granted',
+      app_version: `1.${index}.0`,
+      android_version: '16',
+      device_model: `Modelo ${index}`,
+      fid_digest: `private-fid-${index}`,
+      app_set_digest: `private-app-set-${index}`,
+    }));
+  }
+  const first = analytics.buildInstallationDetails(
+    app,
+    { storeId: STORE },
+    { page: 1, perPage: 10 },
+    NOW,
+    { referenceFor: (_storeId, installationId) => `APP-TEST-${installationId.slice(-4).toUpperCase()}` },
+  );
+  assert.equal(first.page, 1);
+  assert.equal(first.per_page, 10);
+  assert.equal(first.total_items, 12);
+  assert.equal(first.total_pages, 2);
+  assert.equal(first.items.length, 10);
+  assert.deepEqual(Object.keys(first.items[0]).sort(), [
+    'android_version', 'app_identifier', 'app_version', 'device_model', 'installation_code', 'package_name',
+  ]);
+  assert.equal(first.items[0].app_identifier, 'powerzona-storefront-staging');
+  assert.equal(first.items[0].package_name, 'com.tusenda84.powerzona');
+  assert.doesNotMatch(JSON.stringify(first), /fid_digest|app_set_digest|credential|firebase_app_id/);
+  const second = analytics.buildInstallationDetails(
+    app,
+    { storeId: STORE },
+    { page: 2, perPage: 10 },
+    NOW,
+    { referenceFor: (_storeId, installationId) => `APP-TEST-${installationId.slice(-4).toUpperCase()}` },
+  );
+  assert.equal(second.items.length, 2);
+  assert.deepEqual(analytics.parseInstallationDetailsPayload({ page: 2, per_page: 10 }), { page: 2, perPage: 10 });
+  assert.equal(analytics.parseInstallationDetailsPayload({ page: 1, per_page: 20 }), null);
 });
 
 test('Hoy y la serie diaria comparten exactamente la zona America/Havana del panel general', () => {

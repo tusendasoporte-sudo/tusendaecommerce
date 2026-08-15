@@ -12,6 +12,16 @@ routerAdd(
   $apis.skipSuccessActivityLog(),
 );
 
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/analytics/installations/details",
+  (e) => require(`${__hooks}/pz_storefront_analytics_lib.js`).handleInstallationDetails(e),
+  analyticsAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(512),
+  $apis.skipSuccessActivityLog(),
+);
+
 cronAdd(
   "pz_storefront_push_analytics_daily",
   "17 * * * *",
