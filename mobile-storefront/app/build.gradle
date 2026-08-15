@@ -256,6 +256,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-appcheck-playintegrity'
     implementation 'com.google.firebase:firebase-installations'
     implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.android.gms:play-services-appset:16.1.0'
 
     testImplementation 'junit:junit:4.13.2'
 }

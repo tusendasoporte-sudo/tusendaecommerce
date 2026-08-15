@@ -121,6 +121,7 @@ function createApp() {
   add(record('storefront_app_configs', 'appanalytic0001', { store: STORE, status: 'active', store_path_prefix: '/t/powerzona' }));
   add(record('storefront_installations', INSTALLATION, {
     store: STORE, app_config: 'appanalytic0001', status: 'active', first_seen_at: '2026-08-10T12:00:00.000Z',
+    last_seen_at: '2026-08-14T12:00:00.000Z',
     notification_permission: 'granted', app_version: '1.0.0', android_version: '16', device_model: 'Pixel',
   }));
   add(record('manual_coupons', COUPON, {
@@ -278,10 +279,11 @@ test('analÃ­tica de instalaciones usa hoy/7/15/30/90 y bajas como detecciÃ³n
   }));
   const result = analytics.buildInstallationAnalytics(app, { storeId: STORE }, '90', NOW);
   assert.equal(result.period_days, 90);
+  assert.equal(result.active_estimate_window_days, 30);
   assert.equal(result.metrics.instalaciones_vigentes_ahora, 1);
-  assert.equal(result.metrics.instalaciones_nuevas, 2);
+  assert.equal(result.metrics.instalaciones_nuevas, 1);
   assert.equal(result.metrics.bajas_detectadas, 1);
-  assert.match(result.measurement_note, /no personas ni dispositivos/i);
+  assert.match(result.measurement_note, /estimación.*30 días/i);
   assert.throws(() => analytics.buildInstallationAnalytics(app, { storeId: STORE }, '365', NOW), /invalid_payload/);
 });
 
@@ -289,6 +291,7 @@ test('Hoy y la serie diaria comparten exactamente la zona America/Havana del pan
   const app = createApp();
   app.rows('storefront_installations').push(record('storefront_installations', 'installanalyt03', {
     store: STORE, status: 'active', first_seen_at: '2026-08-14T23:30:00.000Z',
+    last_seen_at: '2026-08-14T23:30:00.000Z',
     notification_permission: 'granted', app_version: '1.0.0', android_version: '16', device_model: 'Pixel',
   }));
   const beforeMidnightHavana = new Date('2026-08-15T02:00:00.000Z');
@@ -327,6 +330,7 @@ test('analítica agregada procesa 40 000 instalaciones sin truncar el denominado
       store: STORE,
       status: index % 10 === 0 ? 'disabled' : 'active',
       first_seen_at: '2026-08-10T12:00:00.000Z',
+      last_seen_at: '2026-08-15T11:00:00.000Z',
       disabled_at: index % 10 === 0 ? '2026-08-14T12:00:00.000Z' : '',
       notification_permission: index % 3 === 0 ? 'denied' : 'granted',
       app_version: `1.${index % 5}.0`, android_version: '16', device_model: `Modelo ${index % 4}`,
@@ -334,7 +338,7 @@ test('analítica agregada procesa 40 000 instalaciones sin truncar el denominado
   }
   const result = analytics.buildInstallationAnalytics(app, { storeId: STORE }, '90', NOW);
   assert.equal(result.metrics.instalaciones_vigentes_ahora, 36_001);
-  assert.equal(result.metrics.instalaciones_nuevas, 40_001);
+  assert.equal(result.metrics.instalaciones_nuevas, 36_001);
   assert.equal(result.metrics.bajas_detectadas, 4_000);
   assert.equal(Object.hasOwn(result, 'installations'), false);
   assert.equal(result.distributions.device_models.reduce((sum, item) => sum + item.count, 0), 36_001);

@@ -4,6 +4,7 @@ import java.util.regex.Pattern;
 
 final class StorefrontRegistrationPayload {
     private static final Pattern FID = Pattern.compile("^[A-Za-z0-9_-]{16,255}$");
+    private static final Pattern APP_SET_ID = Pattern.compile("^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern VERSION = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$");
     private static final Pattern ANDROID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$");
     private static final Pattern LOCALE = Pattern.compile("^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$");
@@ -15,6 +16,7 @@ final class StorefrontRegistrationPayload {
 
     static String register(
             String fid,
+            String appSetId,
             String appVersion,
             int appVersionCode,
             String androidVersion,
@@ -24,6 +26,7 @@ final class StorefrontRegistrationPayload {
             String permission
     ) {
         require(fid, 255, FID);
+        require(appSetId, 36, APP_SET_ID);
         require(appVersion, 40, VERSION);
         requireVersionCode(appVersionCode);
         require(androidVersion, 40, ANDROID);
@@ -33,6 +36,7 @@ final class StorefrontRegistrationPayload {
         requirePermission(permission);
         return "{"
                 + "\"fid\":" + quote(fid)
+                + ",\"app_set_id\":" + quote(appSetId.toLowerCase(java.util.Locale.ROOT))
                 + ",\"app_version\":" + quote(appVersion)
                 + ",\"app_version_code\":" + appVersionCode
                 + ",\"android_version\":" + quote(androidVersion)

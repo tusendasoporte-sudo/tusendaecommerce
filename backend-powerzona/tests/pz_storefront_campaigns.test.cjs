@@ -368,6 +368,11 @@ test('listado devuelve diez campañas por página e informa si existe la siguien
   const last = listPage(3);
   assert.equal(first.status, 200);
   assert.equal(first.body.per_page, 10);
+  assert.deepEqual(first.body.quota, {
+    timezone: 'America/Havana',
+    daily: { limit: 10, used: 0, remaining: 10 },
+    monthly: { limit: 310, used: 0, remaining: 310 },
+  });
   assert.equal(first.body.campaigns.length, 10);
   assert.equal(first.body.has_more, true);
   assert.equal(second.body.campaigns.length, 10);
@@ -463,6 +468,11 @@ test('cuotas diarias/mensuales usan el calendario IANA de la tienda', () => {
       status: 'sent', started_at: `2026-08-13T1${index}:00:00.000Z`,
     }));
   }
+  assert.deepEqual(campaigns.campaignQuotaUsage(app, STORE_A, new Date('2026-08-13T20:00:00.000Z')), {
+    timezone: 'America/Havana',
+    daily: { limit: 10, used: 10, remaining: 0 },
+    monthly: { limit: 310, used: 10, remaining: 300 },
+  });
   assert.throws(
     () => campaigns.assertCampaignQuota(app, item, new Date('2026-08-13T20:00:00.000Z')),
     (error) => error.code === 'daily_quota_exceeded',

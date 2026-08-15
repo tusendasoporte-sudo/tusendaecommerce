@@ -119,6 +119,7 @@ test('los secretos, datos sensibles y fechas de retención están explícitos', 
   });
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('fid'), true);
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('credential_digest'), true);
+  assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('app_set_digest'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_campaign_deliveries.includes('firebase_message_id'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('order'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('coupon'), true);

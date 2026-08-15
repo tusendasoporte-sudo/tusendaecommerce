@@ -32,6 +32,7 @@ const RATE_WINDOW_MS = 60000;
 const RATE_BUCKET_LIMIT = 20000;
 const APP_ID_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,255}$/;
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
+const APP_SET_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 const SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
@@ -262,12 +263,17 @@ function parseClient(value) {
 }
 
 function parseRegisterPayload(value) {
-  const fields = [
+  const baseFields = [
     "fid", "app_version", "app_version_code", "android_version", "device_model",
     "locale", "timezone", "notification_permission",
   ];
+  const hasAppSetId = value && Object.prototype.hasOwnProperty.call(value, "app_set_id");
+  const fields = hasAppSetId ? [...baseFields, "app_set_id"] : baseFields;
   if (!exactPayload(value, fields)) return null;
   const fid = boundedText(bodyValue(value, "fid"), 255, FID_PATTERN);
+  const appSetId = hasAppSetId
+    ? boundedText(bodyValue(value, "app_set_id"), 36, APP_SET_ID_PATTERN).toLowerCase()
+    : "";
   const appVersion = boundedText(bodyValue(value, "app_version"), 40, VERSION_PATTERN);
   const versionCode = bodyValue(value, "app_version_code");
   const androidVersion = boundedText(bodyValue(value, "android_version"), 40, ANDROID_PATTERN);
@@ -275,10 +281,10 @@ function parseRegisterPayload(value) {
   const locale = boundedText(bodyValue(value, "locale"), 35, LOCALE_PATTERN);
   const timezone = boundedText(bodyValue(value, "timezone"), 80, TIMEZONE_PATTERN);
   const notificationPermission = safeText(bodyValue(value, "notification_permission"));
-  if (!fid || !appVersion || !validVersionCode(versionCode) || !androidVersion || !deviceModel
+  if (!fid || (hasAppSetId && !appSetId) || !appVersion || !validVersionCode(versionCode) || !androidVersion || !deviceModel
     || !locale || !timezone || !PERMISSION_STATES.includes(notificationPermission)) return null;
   return Object.freeze({
-    fid, appVersion, versionCode, androidVersion, deviceModel, locale, timezone, notificationPermission,
+    fid, appSetId, appVersion, versionCode, androidVersion, deviceModel, locale, timezone, notificationPermission,
   });
 }
 
@@ -488,6 +494,12 @@ function fidDigest(appConfigId, fid, credentialSecret, security) {
   return normalizedDigest(security.hs256(`pz_storefront_fid:v1|${appConfigId}|${fid}`, credentialSecret));
 }
 
+function appSetDigest(appConfigId, appSetId, credentialSecret, security) {
+  if (!appSetId) return "";
+  if (!APP_SET_ID_PATTERN.test(appSetId)) throw new StorefrontInstallationError("invalid_payload");
+  return normalizedDigest(security.hs256(`pz_storefront_app_set:v1|${appConfigId}|${appSetId.toLowerCase()}`, credentialSecret));
+}
+
 function credentialFor(appConfigId, fid, credentialSecret, security) {
   const material = `pz_storefront_credential:v1|${appConfigId}|${fid}`;
   return `pzs_v1_${normalizedDigest(security.hs256(material, credentialSecret))}`;
@@ -547,6 +559,12 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   requireRegistrationPlan(resolved.store, context.now);
   const appConfigId = safeText(resolved.appConfig.id || recordString(resolved.appConfig, "id"));
   const digest = fidDigest(appConfigId, context.payload.fid, credentialSecret, context.security);
+  const nextAppSetDigest = appSetDigest(
+    appConfigId,
+    context.payload.appSetId,
+    credentialSecret,
+    context.security,
+  );
   const nextCredential = credentialFor(appConfigId, context.payload.fid, credentialSecret, context.security);
   const nextCredentialDigest = credentialDigest(nextCredential, credentialSecret, context.security);
   const providedDigest = context.credential
@@ -561,18 +579,29 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   const existingByCredential = providedDigest
     ? findFirst(app, INSTALLATIONS_COLLECTION, "credential_digest = {:credentialDigest}", { credentialDigest: providedDigest })
     : null;
+  const existingByAppSet = nextAppSetDigest
+    ? findFirst(
+      app,
+      INSTALLATIONS_COLLECTION,
+      "app_config = {:appConfig} && app_set_digest = {:appSetDigest}",
+      { appConfig: appConfigId, appSetDigest: nextAppSetDigest },
+    )
+    : null;
 
   if (existingByCredential && relationId(existingByCredential, "app_config") !== appConfigId) {
     throw new StorefrontInstallationError("invalid_credential");
   }
-  if (existingByFid && existingByCredential && safeText(existingByFid.id) !== safeText(existingByCredential.id)) {
+  const matchedIds = [existingByFid, existingByCredential, existingByAppSet]
+    .filter(Boolean)
+    .map((item) => safeText(item.id));
+  if (new Set(matchedIds).size > 1) {
     throw new StorefrontInstallationError("invalid_credential");
   }
   if (context.credential && !existingByCredential) throw new StorefrontInstallationError("invalid_credential");
 
-  let installation = existingByFid || existingByCredential;
+  let installation = existingByFid || existingByCredential || existingByAppSet;
   const created = !installation;
-  const rotated = Boolean(existingByCredential && recordString(existingByCredential, "fid_digest") !== digest);
+  const rotated = Boolean(installation && recordString(installation, "fid_digest") !== digest);
   if (installation && ["disabled", "revoked"].includes(recordString(installation, "status"))) {
     throw new StorefrontInstallationError("installation_disabled");
   }
@@ -583,6 +612,7 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   installation.set("app_config", appConfigId);
   installation.set("fid", context.payload.fid);
   installation.set("fid_digest", digest);
+  if (nextAppSetDigest) installation.set("app_set_digest", nextAppSetDigest);
   installation.set("credential_digest", nextCredentialDigest);
   installation.set("status", "active");
   installation.set("notification_permission", context.payload.notificationPermission);
@@ -933,6 +963,7 @@ module.exports = {
   INSTALLATIONS_COLLECTION,
   INTERNAL_HEADERS,
   WEB_SESSIONS_COLLECTION,
+  appSetDigest,
   authorizeInternalRequest,
   canonicalJson,
   consumeBootstrapSession,

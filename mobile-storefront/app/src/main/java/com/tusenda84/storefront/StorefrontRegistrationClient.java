@@ -9,6 +9,8 @@ import android.os.Looper;
 import android.webkit.CookieManager;
 
 import com.google.android.gms.tasks.Tasks;
+import com.google.android.gms.appset.AppSet;
+import com.google.android.gms.appset.AppSetIdInfo;
 import com.google.firebase.appcheck.AppCheckToken;
 import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.installations.FirebaseInstallations;
@@ -210,9 +212,16 @@ final class StorefrontRegistrationClient {
             Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
         }
         String fid = Tasks.await(FirebaseInstallations.getInstance().getId(), 30, TimeUnit.SECONDS);
+        AppSetIdInfo appSetInfo = Tasks.await(
+                AppSet.getClient(context).getAppSetIdInfo(),
+                30,
+                TimeUnit.SECONDS
+        );
+        String appSetId = appSetInfo.getId();
         String permission = permissionState();
         String body = StorefrontRegistrationPayload.register(
                 fid,
+                appSetId,
                 BuildConfig.VERSION_NAME,
                 BuildConfig.VERSION_CODE,
                 androidVersion(),

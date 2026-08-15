@@ -128,6 +128,7 @@ function createApp() {
         if (params.appId !== undefined && item.getString('firebase_app_id') !== params.appId) return false;
         if (params.appConfig !== undefined && item.getString('app_config') !== params.appConfig) return false;
         if (params.fidDigest !== undefined && item.getString('fid_digest') !== params.fidDigest) return false;
+        if (params.appSetDigest !== undefined && item.getString('app_set_digest') !== params.appSetDigest) return false;
         if (params.credentialDigest !== undefined && item.getString('credential_digest') !== params.credentialDigest) return false;
         if (params.digest !== undefined && item.getString('session_digest') !== params.digest) return false;
         if (filter.includes('status = "pending"') && item.getString('status') !== 'pending') return false;
@@ -162,6 +163,11 @@ function registerPayload(fid = FID_A) {
     timezone: 'America/Havana',
     notification_permission: 'unknown',
   };
+}
+
+const APP_SET_ID = '123e4567-e89b-42d3-a456-426614174000';
+function appSetRegisterPayload(fid = FID_A) {
+  return { ...registerPayload(fid), app_set_id: APP_SET_ID };
 }
 
 function heartbeatPayload() {
@@ -300,6 +306,7 @@ test('valida contratos exactos y no acepta tienda ni IP declaradas por el telefo
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), store_id: STORE_B }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), ip: '1.2.3.4' }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_version_code: 0 }), null);
+  assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_set_id: 'hardware-id' }), null);
   assert.equal(installations.parseHeartbeatPayload(heartbeatPayload()).appVersion, '1.0.1');
   assert.deepEqual(installations.parsePermissionPayload({ notification_permission: 'denied' }), {
     notificationPermission: 'denied',
@@ -358,6 +365,26 @@ test('rotacion autenticada de FID preserva id y first_seen pero rota la credenci
   assert.equal(rotated.installation.first_seen_at, first.installation.first_seen_at);
   assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
   assert.equal(app.list(installations.INSTALLATIONS_COLLECTION)[0].getString('fid'), FID_B);
+});
+
+test('App Set ID rota un FID sin duplicar la instalación y solo persiste su HMAC', () => {
+  const app = createApp();
+  const first = installations.registerInstallation(app, context({
+    payload: installations.parseRegisterPayload(appSetRegisterPayload(FID_A)),
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const rotated = installations.registerInstallation(app, context({
+    payload: installations.parseRegisterPayload(appSetRegisterPayload(FID_B)),
+    now: new Date(NOW.getTime() + 60_000),
+  }), CREDENTIAL_SECRET, AES_KEY);
+
+  assert.equal(first.created, true);
+  assert.equal(rotated.created, false);
+  assert.equal(rotated.fid_rotated, true);
+  assert.equal(rotated.installation.id, first.installation.id);
+  assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
+  const stored = app.list(installations.INSTALLATIONS_COLLECTION)[0];
+  assert.match(stored.getString('app_set_digest'), /^[a-f0-9]{64}$/);
+  assert.notEqual(stored.getString('app_set_digest'), APP_SET_ID);
 });
 
 test('reinstalacion sin credencial y con FID nuevo crea otra instalacion auditable', () => {

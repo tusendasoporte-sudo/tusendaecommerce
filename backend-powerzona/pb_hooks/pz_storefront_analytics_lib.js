@@ -29,7 +29,7 @@ const EVENT_TYPES = Object.freeze(["opened", "destination_viewed"]);
 const ANALYTICS_RANGES = Object.freeze({ today: 1, "7": 7, "15": 15, "30": 30, "90": 90 });
 const ATTRIBUTION_WINDOW_MS = schema.RETENTION_POLICY.attribution_days * 86_400_000;
 const RAW_RETENTION_DAYS = schema.RETENTION_POLICY.event_days;
-const MIN_PRIVATE_GROUP_SIZE = 3;
+const ACTIVE_INSTALLATION_WINDOW_DAYS = 30;
 
 class StorefrontAnalyticsError extends Error {
   constructor(code) {
@@ -464,22 +464,15 @@ function installationRows(app, storeId) {
   }
 }
 
-function groupedValues(rows, field, predicate, privateGroups) {
+function groupedValues(rows, field, predicate) {
   const counts = {};
   rows.filter(predicate || (() => true)).forEach((row) => {
     const value = recordString(row, field) || "Sin dato";
     counts[value] = (counts[value] || 0) + 1;
   });
-  let hidden = 0;
   const items = Object.keys(counts).map((label) => ({ label: safeText(label, 120), count: counts[label] }))
-    .filter((item) => {
-      if (!privateGroups || item.count >= MIN_PRIVATE_GROUP_SIZE) return true;
-      hidden += item.count;
-      return false;
-    })
     .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
     .slice(0, 20);
-  if (hidden) items.push({ label: "Otros (privacidad)", count: hidden });
   return items;
 }
 
@@ -490,8 +483,13 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
     const date = parsedDate(value);
     return Boolean(date && date.getTime() >= period.start.getTime() && date.getTime() <= period.end.getTime());
   };
-  const currentActive = rows.filter((row) => recordString(row, "status") === "active");
-  const fresh = rows.filter((row) => inPeriod(recordValue(row, "first_seen_at")));
+  const activeCutoff = period.end.getTime() - ACTIVE_INSTALLATION_WINDOW_DAYS * 86_400_000;
+  const currentActive = rows.filter((row) => {
+    if (recordString(row, "status") !== "active") return false;
+    const lastSeen = parsedDate(recordValue(row, "last_seen_at"));
+    return Boolean(lastSeen && lastSeen.getTime() >= activeCutoff && lastSeen.getTime() <= period.end.getTime());
+  });
+  const fresh = currentActive.filter((row) => inPeriod(recordValue(row, "first_seen_at")));
   const disabled = rows.filter((row) => inPeriod(recordValue(row, "disabled_at")));
   const statusCounts = { active: 0, disabled: 0, invalid: 0, revoked: 0 };
   const permissionCounts = { granted: 0, denied: 0, unknown: 0 };
@@ -499,6 +497,7 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
     const status = recordString(row, "status");
     if (Object.prototype.hasOwnProperty.call(statusCounts, status)) statusCounts[status] += 1;
   });
+  statusCounts.active = currentActive.length;
   currentActive.forEach((row) => {
     const permission = recordString(row, "notification_permission");
     if (Object.prototype.hasOwnProperty.call(permissionCounts, permission)) permissionCounts[permission] += 1;
@@ -521,6 +520,7 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
     ok: true,
     range: period.range,
     period_days: period.days,
+    active_estimate_window_days: ACTIVE_INSTALLATION_WINDOW_DAYS,
     generated_at: period.end.toISOString(),
     time_zone: masterDashboard.ANALYTICS_TIME_ZONE,
     metrics: {
@@ -535,10 +535,8 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
       app_versions: groupedValues(currentActive, "app_version"),
       android_versions: groupedValues(currentActive, "android_version"),
       device_models: groupedValues(currentActive, "device_model"),
-      countries: groupedValues(currentActive, "country_code", null, true),
-      regions: groupedValues(currentActive, "region_code", null, true),
     },
-    measurement_note: "Las cifras representan instalaciones de la app, no personas ni dispositivos físicos. Las bajas son detecciones técnicas, no desinstalaciones confirmadas.",
+    measurement_note: `Estimación basada en instalaciones vigentes con actividad durante los últimos ${ACTIVE_INSTALLATION_WINDOW_DAYS} días. Las bajas son detecciones técnicas, no desinstalaciones confirmadas.`,
   };
 }
 
@@ -853,6 +851,7 @@ function handleInstallationsAnalytics(e) {
 }
 
 module.exports = {
+  ACTIVE_INSTALLATION_WINDOW_DAYS,
   ANALYTICS_RANGES,
   ATTRIBUTION_WINDOW_MS,
   EVENT_TYPES,

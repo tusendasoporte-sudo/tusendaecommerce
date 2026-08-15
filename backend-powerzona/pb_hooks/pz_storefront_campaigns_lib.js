@@ -1009,6 +1009,34 @@ function startedCampaignUsage(app, storeId) {
   return { quotaTimezone: quotaState.timezone, usage: Array.from(usage.values()) };
 }
 
+function campaignQuotaUsage(app, storeId, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  const state = startedCampaignUsage(app, storeId);
+  const current = calendarKeys(now, CAMPAIGN_TIMEZONE);
+  let dailyUsed = 0;
+  let monthlyUsed = 0;
+  state.usage.forEach((item) => {
+    const startedAt = parsedDate(item.startedAt);
+    if (!startedAt || (item.timezone && item.timezone !== CAMPAIGN_TIMEZONE)) return;
+    const keys = calendarKeys(startedAt, CAMPAIGN_TIMEZONE);
+    if (keys.month === current.month) monthlyUsed += 1;
+    if (keys.day === current.day) dailyUsed += 1;
+  });
+  return Object.freeze({
+    timezone: CAMPAIGN_TIMEZONE,
+    daily: Object.freeze({
+      limit: DAILY_CAMPAIGN_LIMIT,
+      used: dailyUsed,
+      remaining: Math.max(0, DAILY_CAMPAIGN_LIMIT - dailyUsed),
+    }),
+    monthly: Object.freeze({
+      limit: MONTHLY_CAMPAIGN_LIMIT,
+      used: monthlyUsed,
+      remaining: Math.max(0, MONTHLY_CAMPAIGN_LIMIT - monthlyUsed),
+    }),
+  });
+}
+
 function parseCampaignIdsPayload(body) {
   if (!exactPayload(body, ["campaign_ids"], [])) return null;
   const rawIds = bodyValue(body, "campaign_ids");
@@ -1772,12 +1800,14 @@ function handleList(e) {
     );
     const hasMore = pageRecords.length > CAMPAIGN_PAGE_SIZE;
     const records = pageRecords.slice(0, CAMPAIGN_PAGE_SIZE);
+    const quota = campaignQuotaUsage(request.app, request.context.storeId, new Date());
     return e.json(200, {
       ok: true,
       page,
       per_page: CAMPAIGN_PAGE_SIZE,
       has_more: hasMore,
-      quota_timezone: campaignQuotaState(request.context.store).timezone,
+      quota_timezone: quota.timezone,
+      quota,
       campaigns: records.map(mapCampaign),
     });
   } catch (error) {
@@ -1843,6 +1873,7 @@ module.exports = {
   assertCampaignAccess,
   assertCampaignQuota,
   calendarKeys,
+  campaignQuotaUsage,
   campaignQuotaState,
   cancelCampaign,
   cleanupExpiredCampaigns,

@@ -398,8 +398,9 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.doesNotMatch(source, /data-only v2|push-preview-heading__badge/);
   assert.match(source, /Contenido visible: \{STOREFRONT_PUSH_RETENTION_DAYS\} días/);
   assert.match(source, /evidencia técnica mínima se conserva hasta 90 días/);
-  assert.match(source, /\{STOREFRONT_PUSH_DAILY_LIMIT\} campañas por día/);
-  assert.match(source, /\{STOREFRONT_PUSH_MONTHLY_LIMIT\} campañas por mes/);
+  assert.match(source, /data-quota-daily-remaining/);
+  assert.match(source, /data-quota-monthly-remaining/);
+  assert.match(source, /renderQuota\(result\.quota\)/);
   assert.match(source, /Aceptado no significa leído/);
   assert.match(source, /--policy-accent: #5b21b6; --policy-border: #ddd6fe; --policy-soft: #f5f3ff/);
   assert.doesNotMatch(source, /push-policy__item/);

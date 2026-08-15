@@ -13,6 +13,7 @@ export const STOREFRONT_BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 export const STOREFRONT_SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
+const APP_SET_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$/;
 const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
@@ -26,6 +27,7 @@ export type NotificationPermission = typeof PERMISSION_STATES[number];
 
 export type StorefrontRegisterPayload = Readonly<{
   fid: string;
+  app_set_id?: string;
   app_version: string;
   app_version_code: number;
   android_version: string;
@@ -82,7 +84,7 @@ function appVersionCode(value: unknown) {
 }
 
 export function normalizeStorefrontRegisterPayload(value: unknown): StorefrontRegisterPayload | null {
-  const keys = [
+  const baseKeys = [
     'fid',
     'app_version',
     'app_version_code',
@@ -92,10 +94,13 @@ export function normalizeStorefrontRegisterPayload(value: unknown): StorefrontRe
     'timezone',
     'notification_permission',
   ] as const;
+  const source = value as Record<string, unknown>;
+  const hasAppSetId = isPlainObject(value) && Object.prototype.hasOwnProperty.call(value, 'app_set_id');
+  const keys = hasAppSetId ? [...baseKeys, 'app_set_id'] : baseKeys;
   if (!exactKeys(value, keys)) return null;
 
-  const source = value as Record<string, unknown>;
   const fid = boundedText(source.fid, 255, FID_PATTERN);
+  const appSetId = hasAppSetId ? boundedText(source.app_set_id, 36, APP_SET_ID_PATTERN).toLowerCase() : '';
   const appVersion = boundedText(source.app_version, 40, VERSION_PATTERN);
   const versionCode = appVersionCode(source.app_version_code);
   const androidVersion = boundedText(source.android_version, 40, ANDROID_PATTERN);
@@ -103,11 +108,12 @@ export function normalizeStorefrontRegisterPayload(value: unknown): StorefrontRe
   const locale = boundedText(source.locale, 35, LOCALE_PATTERN);
   const timezone = boundedText(source.timezone, 80, TIMEZONE_PATTERN);
   const notificationPermission = permissionState(source.notification_permission);
-  if (!fid || !appVersion || !versionCode || !androidVersion || !deviceModel
+  if (!fid || (hasAppSetId && !appSetId) || !appVersion || !versionCode || !androidVersion || !deviceModel
     || !locale || !timezone || !notificationPermission) return null;
 
   return Object.freeze({
     fid,
+    ...(appSetId ? { app_set_id: appSetId } : {}),
     app_version: appVersion,
     app_version_code: versionCode,
     android_version: androidVersion,

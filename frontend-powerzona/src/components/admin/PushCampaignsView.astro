@@ -61,12 +61,12 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     </header>
     <ul class="push-policy__list">
       <li>
-        <span class="push-policy__icon" aria-hidden="true">{STOREFRONT_PUSH_DAILY_LIMIT}</span>
-        <span><strong>{STOREFRONT_PUSH_DAILY_LIMIT} campañas por día</strong><small>Máximo permanente por tienda</small></span>
+        <span class="push-policy__icon" aria-hidden="true" data-quota-daily-remaining>—</span>
+        <span><strong><span data-quota-daily-remaining-text>Calculando</span> disponibles hoy</strong><small data-quota-daily-summary>Calculando cuota diaria…</small></span>
       </li>
       <li>
-        <span class="push-policy__icon" aria-hidden="true">{STOREFRONT_PUSH_MONTHLY_LIMIT}</span>
-        <span><strong>{STOREFRONT_PUSH_MONTHLY_LIMIT} campañas por mes</strong><small>Los borradores no consumen cuota</small></span>
+        <span class="push-policy__icon" aria-hidden="true" data-quota-monthly-remaining>—</span>
+        <span><strong><span data-quota-monthly-remaining-text>Calculando</span> disponibles este mes</strong><small data-quota-monthly-summary>Calculando cuota mensual…</small></span>
       </li>
       <li>
         <span class="push-policy__icon push-policy__icon--info" aria-hidden="true">i</span>
@@ -435,6 +435,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     saveStorefrontPushCampaign,
     scheduleStorefrontPushCampaign,
     STOREFRONT_PUSH_BODY_MAX,
+    STOREFRONT_PUSH_DAILY_LIMIT,
+    STOREFRONT_PUSH_MONTHLY_LIMIT,
     STOREFRONT_PUSH_PAGE_SIZE,
     STOREFRONT_PUSH_TIME_ZONE,
     STOREFRONT_PUSH_TITLE_MAX,
@@ -669,6 +671,36 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       nextButton.disabled = state.loading || !state.hasMore;
       list.setAttribute('aria-busy', 'false');
     }
+    function renderQuota(quota) {
+      const validPart = (part, expectedLimit) => part
+        && Number.isInteger(part.limit) && part.limit === expectedLimit
+        && Number.isInteger(part.used) && part.used >= 0
+        && Number.isInteger(part.remaining) && part.remaining === Math.max(0, part.limit - part.used);
+      const valid = quota && quota.timezone === STOREFRONT_PUSH_TIME_ZONE
+        && validPart(quota.daily, STOREFRONT_PUSH_DAILY_LIMIT)
+        && validPart(quota.monthly, STOREFRONT_PUSH_MONTHLY_LIMIT);
+      if (!valid) {
+        ['daily', 'monthly'].forEach((period) => {
+          const icon = one(`[data-quota-${period}-remaining]`);
+          const remaining = one(`[data-quota-${period}-remaining-text]`);
+          const summary = one(`[data-quota-${period}-summary]`);
+          if (icon) icon.textContent = '—';
+          if (remaining) remaining.textContent = '—';
+          if (summary) summary.textContent = 'No se pudo consultar la cuota.';
+        });
+        return;
+      }
+      const renderPart = (period, part, suffix) => {
+        const icon = one(`[data-quota-${period}-remaining]`);
+        const remaining = one(`[data-quota-${period}-remaining-text]`);
+        const summary = one(`[data-quota-${period}-summary]`);
+        if (icon) icon.textContent = String(part.remaining);
+        if (remaining) remaining.textContent = String(part.remaining);
+        if (summary) summary.textContent = `${part.used} utilizada${part.used === 1 ? '' : 's'} de ${part.limit}${suffix}`;
+      };
+      renderPart('daily', quota.daily, '');
+      renderPart('monthly', quota.monthly, '; los borradores no consumen');
+    }
     async function loadCampaigns() {
       setBusy(true, 'Cargando campañas…');
       let loaded = false;
@@ -681,10 +713,12 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
           ? result.has_more
           : state.campaigns.length >= STOREFRONT_PUSH_PAGE_SIZE;
         state.quotaTimezone = resolveStorefrontPushQuotaTimezone(state.campaigns, result.quota_timezone);
+        renderQuota(result.quota);
         loaded = true;
       } catch (error) {
         state.campaigns = [];
         state.hasMore = false;
+        renderQuota(null);
         list.innerHTML = `<div class="push-empty push-empty--error"><strong>No pudimos cargar las campañas</strong><p>${escapeHtml(storefrontPushAdminErrorMessage(error?.code || error?.message))}</p></div>`;
         live.textContent = 'Error al cargar campañas.';
       } finally {

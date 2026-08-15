@@ -5326,8 +5326,8 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						<div class="visit-analytics-panel" data-analytics-panel="appinstallations">
 							<div class="visit-analytics-panel-head">
 								<div>
-									<h3 class="visit-analytics-panel-title">Instalaciones vigentes ahora</h3>
-									<p class="visit-analytics-panel-help">Instalaciones activas de la app; no representa personas ni dispositivos físicos únicos.</p>
+									<h3 class="visit-analytics-panel-title">Instalaciones activas estimadas</h3>
+									<p class="visit-analytics-panel-help">Estimación de instalaciones vigentes con actividad reciente.</p>
 								</div>
 								<a id="app-installations-more" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminAppInstallationsPath}?range=7`}><span class="pz-admin-btn__label">Ver más</span></a>
 							</div>
@@ -5909,6 +5909,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (!value || typeof value !== 'object' || value.ok !== true
 					|| !Object.prototype.hasOwnProperty.call(expectedDays, value.range)
 					|| value.period_days !== expectedDays[value.range]
+					|| value.active_estimate_window_days !== 30
 					|| value.time_zone !== 'America/Havana'
 					|| typeof value.measurement_note !== 'string' || !value.measurement_note.trim()
 					|| !value.metrics || !value.status || !value.permission
@@ -5916,7 +5917,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				const metricKeys = ['instalaciones_vigentes_ahora', 'instalaciones_nuevas', 'bajas_detectadas'];
 				const statusKeys = ['active', 'disabled', 'invalid', 'revoked'];
 				const permissionKeys = ['granted', 'denied', 'unknown'];
-				const distributionKeys = ['app_versions', 'android_versions', 'device_models', 'countries', 'regions'];
+				const distributionKeys = ['app_versions', 'android_versions', 'device_models'];
 				if (metricKeys.some((key) => !count(value.metrics[key]))
 					|| statusKeys.some((key) => !count(value.status[key]))
 					|| permissionKeys.some((key) => !count(value.permission[key]))

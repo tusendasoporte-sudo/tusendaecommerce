@@ -60,7 +60,7 @@ const RETENTION_POLICY = Object.freeze({
 const SENSITIVE_FIELDS = Object.freeze({
   storefront_app_configs: Object.freeze(["firebase_app_id"]),
   storefront_installations: Object.freeze([
-    "fid", "fid_digest", "credential_digest", "last_ip_encrypted", "ip_delete_after",
+    "fid", "fid_digest", "app_set_digest", "credential_digest", "last_ip_encrypted", "ip_delete_after",
   ]),
   storefront_web_sessions: Object.freeze(["session_digest"]),
   storefront_order_links: Object.freeze(["campaign_id_snapshot", "delivery_id_snapshot", "coupon_id_snapshot"]),

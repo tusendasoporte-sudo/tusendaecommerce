@@ -11,6 +11,7 @@ public final class StorefrontRegistrationPayloadTest {
     public void emitsExactRegisterContractWithoutSecretsBeyondFid() {
         String json = StorefrontRegistrationPayload.register(
                 "abcdefghijklmnop",
+                "123e4567-e89b-42d3-a456-426614174000",
                 "0.1.0-staging",
                 1,
                 "16",
@@ -20,7 +21,8 @@ public final class StorefrontRegistrationPayloadTest {
                 "granted"
         );
         assertEquals(
-                "{\"fid\":\"abcdefghijklmnop\",\"app_version\":\"0.1.0-staging\","
+                "{\"fid\":\"abcdefghijklmnop\",\"app_set_id\":\"123e4567-e89b-42d3-a456-426614174000\","
+                        + "\"app_version\":\"0.1.0-staging\","
                         + "\"app_version_code\":1,\"android_version\":\"16\","
                         + "\"device_model\":\"Google Pixel 9\",\"locale\":\"es-US\","
                         + "\"timezone\":\"America/New_York\",\"notification_permission\":\"granted\"}",
@@ -88,7 +90,8 @@ public final class StorefrontRegistrationPayloadTest {
     @Test
     public void rejectsManipulatedOrOutOfContractValues() {
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.register(
-                "short", "0.1.0", 1, "16", "Pixel", "en-US", "UTC", "granted"
+                "short", "123e4567-e89b-42d3-a456-426614174000", "0.1.0", 1,
+                "16", "Pixel", "en-US", "UTC", "granted"
         ));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.permission("allowed"));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.resolveCampaignTarget("short"));

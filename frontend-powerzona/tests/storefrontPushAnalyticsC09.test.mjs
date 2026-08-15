@@ -11,7 +11,7 @@ test('el resumen se llama Analíticas, comparte cinco rangos y expone App instal
   }
   assert.match(source, /<h2 id="dashboard-traffic-title">Analíticas<\/h2>/);
   assert.match(source, /data-analytics-tab="appinstallations"[^>]*>App instalaciones/);
-  assert.match(source, /Instalaciones vigentes ahora/);
+  assert.match(source, /Instalaciones activas estimadas/);
   assert.match(source, /Nuevas del período/);
   assert.match(source, /Bajas detectadas/);
   assert.match(source, /id="app-installations-more"[^>]+>.*Ver más/s);
@@ -42,12 +42,15 @@ test('Ver más presenta solo agregados, privacidad explícita y los mismos rango
   assert.match(source, /X-PZ-Support-Store/);
   assert.match(source, /Cache-Control', 'private, no-store/);
   assert.match(source, /new Set\(\['today', '7', '15', '30', '90'\]\)/);
-  assert.match(source, /Instalaciones vigentes ahora/);
-  assert.match(source, /Estado actual/);
+  assert.match(source, /Instalaciones activas estimadas/);
+  assert.doesNotMatch(source, /Estado actual/);
   assert.match(source, /Permiso de notificaciones en activas/);
   assert.match(source, /Versiones de la app/);
-  assert.match(source, /Países/);
-  assert.match(source, /Altas y bajas detectadas por día/);
+  assert.doesNotMatch(source, /Países|Regiones/);
+  assert.match(source, /Altas y bajas detectadas/);
+  assert.match(source, /data-installation-period/);
+  assert.match(source, /class="installations-chart"/);
+  assert.doesNotMatch(source, /<table|<tbody|class="table-wrap"/);
   assert.match(source, /const analytics = normalizeAnalytics\(payload\)/);
   assert.doesNotMatch(source, /fid_digest|credential_digest|ip_ciphertext|firebase_message_id/);
 });
