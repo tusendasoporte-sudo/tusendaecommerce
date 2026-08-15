@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C08 EN CURSO — panel Premium Campañas push |
+| Estado general | PZ-APP-C08 COMPLETADO — conversación de alcance C09 pendiente |
 | Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-14 |
+| Última actualización | 2026-08-15 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Completar exclusivamente PZ-APP-C08; no iniciar C09 ni fases posteriores |
+| Próximo prompt | Conversar y acordar PZ-APP-C09; no implementar ni marcar EN CURSO todavía |
 
 ### Convención de estados
 
@@ -563,7 +563,7 @@ Estado vigente:
 | PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
-| PZ-APP-C08 | Panel Premium Campañas push | EN CURSO | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
+| PZ-APP-C08 | Panel Premium Campañas push | COMPLETADO | C04, C05 | Completada parcialmente en staging; pendientes humanos transferidos a C11 | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
@@ -757,7 +757,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] La app de staging no se confunde con producción.
 - [x] La APK debug se probó en emulador.
 
-### [ ] PZ-APP-C08 — Panel Premium Campañas push
+### [x] PZ-APP-C08 — Panel Premium Campañas push
 
 **Objetivo:** permitir que administradores autorizados creen y envíen campañas desde el panel web.
 
@@ -771,12 +771,12 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] Solo Premium autorizado puede acceder y ejecutar envíos.
-- [ ] La imagen se carga y previsualiza como WebP.
-- [ ] El destino se valida antes de permitir el envío.
-- [ ] Se muestran audiencia estimada y confirmación final.
-- [ ] Borradores y campañas programadas pueden administrarse.
-- [ ] La interfaz funciona en móvil y escritorio.
+- [x] Solo Premium autorizado puede acceder y ejecutar envíos.
+- [x] La imagen se carga y previsualiza como WebP.
+- [x] El destino se valida antes de permitir el envío.
+- [x] Se muestran audiencia estimada y confirmación final.
+- [x] Borradores y campañas programadas pueden administrarse.
+- [x] La interfaz funciona en móvil y escritorio.
 
 ### [ ] PZ-APP-C09 — Analítica de instalaciones y campañas
 
@@ -1849,7 +1849,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 ### 2026-08-14 — PZ-APP-C08 — Panel Premium Campañas push
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex
 - Entorno: local + frontend staging autorizado; producción fuera de alcance
 - Branch: `codex/pz-app-c08`, worktree aislado creado desde `dev` en `e61e055fac5c3a00e87b974a38da4f2f1584104b`
@@ -1857,10 +1857,12 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Commit de implementación local: `07c5df9a82081639667df01b55d25b4b9dbb7179`
 - Commit de corrección focal post-smoke: `90579f8bce8ec64767616bda37080cf411354513`
 - Commit de corrección focal post-matriz mutable: `f485e84877dc83dbacbadd60b0bcaea885921cd8`
+- Commit funcional final desplegado: `8e667556408ad8ed94213dd0785020904eba4024`
+- Commit documental previo al cierre: `f692ef23aef2020665d896a7a48c548a2d6bcacb`
 - Fecha/hora de inicio: 2026-08-14 16:10:31 -04:00
-- Fecha/hora de cierre:
+- Fecha/hora de cierre: 2026-08-15 09:16:52 -04:00
 
-#### Objetivo en curso
+#### Objetivo completado
 
 Implementar exclusivamente el panel administrativo Premium de campañas push C08: acceso, listado y filtros, borradores, carga y previsualización WebP, previsualización Android, destinos, audiencia estimada, envío inmediato, programación, cancelación, duplicado, estados, confirmaciones, errores y accesibilidad móvil/escritorio. Se reutilizan C04 y C05 sin rehacerlos; C09-C12 no se inician.
 
@@ -1887,7 +1889,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - El panel debe conservar las cuotas permanentes de 10 campañas diarias y 310 mensuales, y describir `accepted` como aceptación de Firebase, no entrega o lectura.
 - El frontend no sustituye las validaciones backend de plan, permiso, tienda y contenido; todas las mutaciones consumen los endpoints C04/C05 que las revalidan.
 - El relay storefront v2 data-only y el relay administrativo v1 permanecerán separados y sin cambios de contrato.
-- La ejecución manual mutable encontró dos regresiones directas de C08 en el frontend desplegado: un ID inválido oculto seguía participando en `reportValidity()` al volver a Portada/Sección, y una campaña nueva usaba `America/Havana` aunque las campañas iniciadas que fijan la cuota de PowerZona usan `America/New_York`. Ambas correcciones quedaron publicadas y redesplegadas en frontend staging mediante `f485e84`; falta autorizar y ejecutar un único reintento FCM antes de cerrar el caso.
+- La ejecución manual mutable encontró dos regresiones directas de C08 en el frontend desplegado: un ID inválido oculto seguía participando en `reportValidity()` al volver a Portada/Sección, y una campaña nueva usaba `America/Havana` aunque las campañas iniciadas que fijaban la cuota de PowerZona usaban `America/New_York`. La primera corrección quedó publicada mediante `f485e84`; la decisión posterior del propietario sustituyó el ancla histórica y normalizó todo el módulo a `America/Havana` mediante `8e66755`.
 - Por decisión posterior del propietario, C08 deja de heredar `America/New_York`: frontend, backend, campañas existentes y calendario de cuota se normalizan a `America/Havana`. El instante UTC de cada inicio y los contadores permanentes 10/310 no se alteran.
 
 #### Implementación local
@@ -1957,7 +1959,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - Consolidación previa al commit `dba553a`: suite backend proporcional de 51 casos con 50 aprobados, 1 integración runtime PocketBase opcional omitida por falta de configuración en esa ejecución y 0 fallos; suite frontend proporcional 77/77 aprobada; build Astro aprobado con las mismas tres advertencias históricas; `git diff --check` limpio. El junction temporal de dependencias se retiró y `.tmp/`, `.secrets/`, `google-services.json`, firma staging, worktrees y stash ajenos permanecieron intactos.
 - Corrección de estimación/Havana/preview antes de publicar: backend proporcional 46 casos con 45 aprobados, 1 integración PocketBase opcional omitida y 0 fallos; frontend proporcional 71/71 aprobadas, incluyendo C08, C04, gateway, relay v2 data-only, relay administrativo v1 y capacidades. `node --check` aprobó hook y migración; build Astro aprobó con las mismas tres advertencias históricas. El primer build encontró el `EPERM` histórico de `.astro/content.d.ts`, la repetición autorizada fuera del sandbox terminó correctamente y el junction temporal fue retirado conservando el `node_modules` original.
 
-#### PRUEBA MANUAL NECESARIA — ejecución parcial autorizada en staging
+#### PRUEBA MANUAL C08 — ejecución parcial aceptada para cierre
 
 - Entorno usado: frontend y PocketBase staging; producción fuera de alcance. La corrección más reciente se comprobó sobre el commit funcional exacto `8e667556408ad8ed94213dd0785020904eba4024` después del push y de ambos despliegues autorizados.
 - Escritorio previsto: Chromium actual, viewport aproximado 1440 × 900. Móvil previsto: viewport 390 × 844 y, si está disponible, navegador del Samsung Fold5. No requiere instalar ni recompilar la app Android.
@@ -1981,6 +1983,8 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 | Borrado individual y múltiple | [ ] | [ ] | `Borrar` abre confirmación irreversible; selección individual y `Seleccionar todas` operan solo sobre las visibles/eliminables. Se borran campaña, entregas y eventos; `processing` queda protegido y 10/310 no se reinicia. |
 | Retención automática 7 días | [ ] | [ ] | Un borrador vence siete días tras su última edición; enviada/parcial/fallida/cancelada vence siete días tras cierre. Programada/procesando/pausada permanece. Tras el cron desaparecen campaña, entregas y eventos, pero 10/310 y la zona horaria siguen aplicándose. |
 | Errores y accesibilidad | [ ] | [ ] | Red/403/409/imagen muestran mensajes útiles; teclado, Escape, foco visible, lector y reducción de movimiento funcionan. |
+
+El 2026-08-15 el propietario decidió cerrar C08 con la evidencia funcional, automatizada y staging ya registrada. Las casillas granulares que permanecen vacías no se reinterpretan como ejecutadas: la repetición móvil completa, la retención automática con un registro realmente vencido, el envío inmediato posterior a la normalización horaria y las comprobaciones humanas de lector/Escape se transfieren a la matriz integral C11 y no bloquean este cierre aceptado.
 
 #### Ejecución manual parcial — staging
 
@@ -2020,4 +2024,4 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 
 #### Siguiente paso
 
-- Mantener exclusivamente C08 `EN CURSO`. La corrección de estimación automática al crear, zona `America/Havana` y retirada de la etiqueta técnica ya está publicada y validada de forma no destructiva en escritorio staging. Falta comprobar el conjunto pendiente en móvil, validar la eliminación automática con un registro vencido y completar los demás casos manuales C08 aún abiertos. No iniciar C09.
+- C08 queda `COMPLETADO` por decisión expresa del propietario. Abrir una tarea nueva únicamente para conversar sobre objetivos, métricas, atribución, privacidad, retención, seguridad y prueba manual de C09. C09 permanece `PENDIENTE`: no modificar código, migraciones ni estados del plan hasta que el propietario apruebe el alcance y autorice su inicio.
