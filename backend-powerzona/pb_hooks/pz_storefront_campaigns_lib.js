@@ -29,6 +29,7 @@ const COUNTRY_PATTERN = /^[A-Z]{2}$/;
 const REGION_PATTERN = /^[A-Za-z0-9._ -]{1,80}$/;
 const DAILY_CAMPAIGN_LIMIT = 10;
 const MONTHLY_CAMPAIGN_LIMIT = 310;
+const CAMPAIGN_TIMEZONE = "America/Havana";
 const DELIVERY_RETENTION_DAYS = 180;
 const CAMPAIGN_RETENTION_DAYS = 7;
 const QUOTA_ENTRY_RETENTION_DAYS = 40;
@@ -206,8 +207,7 @@ function campaignQuotaState(store) {
     const startedAt = parsedDate(rawStarts[campaignId]);
     if (RECORD_ID_PATTERN.test(campaignId) && startedAt) starts[campaignId] = startedAt.toISOString();
   });
-  const timezone = bounded(value.timezone, 80);
-  return { timezone: isValidTimezone(timezone) ? timezone : "", starts };
+  return { timezone: CAMPAIGN_TIMEZONE, starts };
 }
 
 function prunedCampaignQuotaStarts(starts, nowValue) {
@@ -235,12 +235,12 @@ function recordCampaignQuotaUsage(app, campaign, nowValue) {
   const store = findRecord(app, "stores", storeId);
   if (!store) throw codedError("campaign_processing_failed");
   const state = campaignQuotaState(store);
-  if (state.timezone && state.timezone !== timezone) throw codedError("timezone_mismatch");
+  if (timezone !== CAMPAIGN_TIMEZONE) throw codedError("timezone_mismatch");
   const starts = prunedCampaignQuotaStarts(state.starts, now);
   if (startedAt.getTime() >= now.getTime() - QUOTA_ENTRY_RETENTION_DAYS * 86_400_000) {
     starts[campaignId] = startedAt.toISOString();
   }
-  store.set(STORE_QUOTA_STATE_FIELD, { timezone: state.timezone || timezone, starts });
+  store.set(STORE_QUOTA_STATE_FIELD, { timezone: CAMPAIGN_TIMEZONE, starts });
   app.save(store);
   return true;
 }
@@ -519,6 +519,7 @@ function parseSavePayload(body) {
   }
   if (!schema.CAMPAIGN_TARGET_TYPES.includes(targetType)) throw codedError("invalid_target");
   if (!isValidTimezone(timezone)) throw codedError("invalid_timezone");
+  if (timezone !== CAMPAIGN_TIMEZONE) throw codedError("timezone_mismatch");
   const audienceConfig = normalizedAudienceConfig(
     audienceType,
     bodyValue(body, "audience_config"),
@@ -542,6 +543,24 @@ function parseCampaignIdPayload(body) {
   if (!exactPayload(body, ["campaign_id"], [])) return null;
   const campaignId = bounded(bodyValue(body, "campaign_id"), 15);
   return RECORD_ID_PATTERN.test(campaignId) ? { campaignId } : null;
+}
+
+function parseAudiencePreviewPayload(body) {
+  const campaign = parseCampaignIdPayload(body);
+  if (campaign) return campaign;
+  if (!exactPayload(body, ["audience_config", "audience_type", "target_type"], [])) return null;
+  const audienceType = bounded(bodyValue(body, "audience_type"), 40);
+  const targetType = bounded(bodyValue(body, "target_type"), 20);
+  if (!schema.CAMPAIGN_TARGET_TYPES.includes(targetType)) throw codedError("invalid_target");
+  return {
+    audienceType,
+    audienceConfig: normalizedAudienceConfig(
+      audienceType,
+      bodyValue(body, "audience_config"),
+      targetType,
+    ),
+    targetType,
+  };
 }
 
 function parseSchedulePayload(body) {
@@ -696,6 +715,7 @@ function applyTarget(record, target) {
 function createOrUpdateDraft(app, context, payload, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   assertCampaignAccess(app, context);
+  if (payload.timezone !== CAMPAIGN_TIMEZONE) throw codedError("timezone_mismatch");
   let campaign = null;
   if (payload.campaignId) {
     campaign = findRecord(app, CAMPAIGNS_COLLECTION, payload.campaignId);
@@ -727,7 +747,7 @@ function createOrUpdateDraft(app, context, payload, nowValue) {
   campaign.set("audience_type", payload.audienceType);
   campaign.set("audience_config", payload.audienceConfig);
   campaign.set("target_type", payload.targetType);
-  campaign.set("timezone", payload.timezone);
+  campaign.set("timezone", CAMPAIGN_TIMEZONE);
   campaign.set("scheduled_at", "");
   campaign.set("failure_code", "");
   campaign.set("delete_after", addDays(now, CAMPAIGN_RETENTION_DAYS));
@@ -879,7 +899,7 @@ function startedCampaignUsage(app, storeId) {
     page.forEach((item) => usage.set(recordId(item), {
       campaignId: recordId(item),
       startedAt: recordString(item, "started_at"),
-      timezone: recordString(item, "timezone"),
+      timezone: CAMPAIGN_TIMEZONE,
     }));
     if (page.length < 500) break;
   }
@@ -901,13 +921,12 @@ function parseCampaignIdsPayload(body) {
 
 function assertStoreTimezoneConsistency(campaign, quotaTimezone, started) {
   const timezone = recordString(campaign, "timezone");
-  if (quotaTimezone && quotaTimezone !== timezone) throw codedError("timezone_mismatch");
-  const different = started.find((item) => (
-    item.campaignId !== recordId(campaign)
-    && item.timezone
-    && item.timezone !== timezone
-  ));
-  if (different) throw codedError("timezone_mismatch");
+  if (timezone !== CAMPAIGN_TIMEZONE || (quotaTimezone && quotaTimezone !== CAMPAIGN_TIMEZONE)) {
+    throw codedError("timezone_mismatch");
+  }
+  if (started.some((item) => item.timezone && item.timezone !== CAMPAIGN_TIMEZONE)) {
+    throw codedError("timezone_mismatch");
+  }
 }
 
 function assertCampaignQuota(app, campaign, nowValue) {
@@ -944,6 +963,7 @@ function validateCampaignForExecution(app, campaign, nowValue, scheduledFor) {
   if (!title || title.length > 120) throw codedError("invalid_title");
   if (!messageBody || messageBody.length > 1000) throw codedError("invalid_body");
   if (!isValidTimezone(recordString(campaign, "timezone"))) throw codedError("invalid_timezone");
+  if (recordString(campaign, "timezone") !== CAMPAIGN_TIMEZONE) throw codedError("timezone_mismatch");
   const audience = normalizedAudienceConfig(
     recordString(campaign, "audience_type"),
     recordAudienceConfig(campaign),
@@ -1228,7 +1248,7 @@ function duplicateCampaign(app, context, campaignId, nowValue) {
     targetRef: campaignTargetReference(source, targetType),
     title: recordString(source, "title"),
     body: recordString(source, "body"),
-    timezone: recordString(source, "timezone"),
+    timezone: CAMPAIGN_TIMEZONE,
     audienceType: recordString(source, "audience_type"),
     audienceConfig: normalizedAudienceConfig(
       recordString(source, "audience_type"),
@@ -1250,6 +1270,18 @@ function previewAudience(app, context, campaignId, nowValue) {
     return { count: integerValue(recordValue(campaign, "selected_count")), snapshot: true };
   }
   validateCampaignForExecution(app, campaign, now, parsedDate(recordValue(campaign, "scheduled_at")) || now);
+  return { count: eligibleInstallations(app, campaign, now).length, snapshot: false };
+}
+
+function previewAudienceDefinition(app, context, payload, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  assertCampaignAccess(app, context);
+  const campaign = {
+    store: context.storeId,
+    audience_type: payload.audienceType,
+    audience_config: payload.audienceConfig,
+    target_type: payload.targetType,
+  };
   return { count: eligibleInstallations(app, campaign, now).length, snapshot: false };
 }
 
@@ -1449,9 +1481,11 @@ function handleAudiencePreview(e) {
   setPrivateHeaders(e);
   try {
     const request = requestContext(e);
-    const payload = parseCampaignIdPayload(request.info && request.info.body || {});
+    const payload = parseAudiencePreviewPayload(request.info && request.info.body || {});
     if (!payload) throw codedError("invalid_payload");
-    const audience = previewAudience(request.app, request.context, payload.campaignId, new Date());
+    const audience = payload.campaignId
+      ? previewAudience(request.app, request.context, payload.campaignId, new Date())
+      : previewAudienceDefinition(request.app, request.context, payload, new Date());
     return e.json(200, { ok: true, audience });
   } catch (error) {
     return sendError(e, error, "campaign_processing_failed");
@@ -1586,6 +1620,7 @@ module.exports = {
   CAMPAIGN_PAGE_SIZE,
   CAMPAIGN_PERMISSION,
   CAMPAIGN_RETENTION_DAYS,
+  CAMPAIGN_TIMEZONE,
   CLEANUP_CAMPAIGN_LIMIT,
   DELETE_CAMPAIGN_LIMIT,
   DAILY_CAMPAIGN_LIMIT,
@@ -1624,12 +1659,14 @@ module.exports = {
   mapCampaign,
   materializeAudience,
   normalizedAudienceConfig,
+  parseAudiencePreviewPayload,
   parseCampaignIdPayload,
   parseCampaignIdsPayload,
   parseSavePayload,
   parseSchedulePayload,
   pauseDowngradedScheduledCampaigns,
   previewAudience,
+  previewAudienceDefinition,
   processCampaignById,
   recordCampaignQuotaUsage,
   recordAudienceConfig,

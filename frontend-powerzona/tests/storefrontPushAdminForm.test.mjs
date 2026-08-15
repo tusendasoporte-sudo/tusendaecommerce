@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  buildStorefrontPushAudiencePreviewPayload,
   buildStorefrontPushCampaignPayload,
   buildStorefrontPushSchedulePayload,
   campaignStatusLabel,
@@ -16,6 +17,7 @@ import {
   scheduleStorefrontPushCampaign,
   STOREFRONT_PUSH_DELETE_LIMIT,
   STOREFRONT_PUSH_PAGE_SIZE,
+  STOREFRONT_PUSH_TIME_ZONE,
   storefrontPushAdminErrorMessage,
   storefrontPushAdminRequest,
   storefrontPushCampaignActions,
@@ -125,6 +127,33 @@ test('normaliza secciones, relaciones, pedidos y segmentos sin campos libres', (
     region_code: 'La Habana',
   });
   assert.deepEqual(region.audience_config, { country_code: 'CU', region_code: 'La Habana' });
+});
+
+test('estima una audiencia nueva sin guardar contenido ni crear un borrador', async () => {
+  assert.equal(STOREFRONT_PUSH_TIME_ZONE, 'America/Havana');
+  assert.deepEqual(buildStorefrontPushAudiencePreviewPayload(baseForm), {
+    audience_type: 'all_active',
+    audience_config: {},
+    target_type: 'home',
+  });
+  const calls = [];
+  const audience = await previewStorefrontPushAudience(client, baseForm, async (url, init) => {
+    calls.push({ url: String(url), body: JSON.parse(init.body) });
+    return new Response(JSON.stringify({ ok: true, audience: { count: 23, snapshot: false } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  assert.deepEqual(audience, { count: 23, snapshot: false });
+  assert.equal(new URL(calls[0].url).pathname, '/api/pz/storefront/v1/campaigns/audience-preview');
+  assert.deepEqual(calls[0].body, {
+    audience_type: 'all_active',
+    audience_config: {},
+    target_type: 'home',
+  });
+  assert.equal(calls[0].body.campaign_id, undefined);
+  assert.equal(calls[0].body.title, undefined);
+  assert.equal(calls[0].body.body, undefined);
 });
 
 test('rechaza contenido, IDs, audiencia y programación inválidos antes de la red', () => {
@@ -264,7 +293,7 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
   assert.match(storefrontPushAdminErrorMessage('media_expires_before_send'), /vencerá antes del envío/);
 });
 
-test('fija la zona horaria de cuota desde una campaña ya iniciada', () => {
+test('fija siempre la zona horaria de campañas y cuotas en America/Havana', () => {
   const draft = normalizeStorefrontPushCampaign(campaignFixture({ timezone: 'America/Havana' }));
   const started = normalizeStorefrontPushCampaign(campaignFixture({
     id: 'camp00000000004',
@@ -273,7 +302,11 @@ test('fija la zona horaria de cuota desde una campaña ya iniciada', () => {
     started_at: '2026-08-14T16:00:00.000Z',
   }));
   assert.equal(resolveStorefrontPushQuotaTimezone([draft], 'America/Havana'), 'America/Havana');
-  assert.equal(resolveStorefrontPushQuotaTimezone([draft, started], 'America/Havana'), 'UTC');
+  assert.equal(resolveStorefrontPushQuotaTimezone([draft, started], 'UTC'), 'America/Havana');
+  assert.throws(
+    () => buildStorefrontPushCampaignPayload({ ...baseForm, timezone: 'America/New_York' }),
+    (error) => error.code === 'timezone_mismatch',
+  );
 });
 
 test('el componente contiene todos los flujos C08, confirmaciones y accesibilidad responsive', () => {
@@ -295,23 +328,25 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /aria-labelledby="push-editor-title"/);
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
-  assert.match(source, /data-only v2/);
+  assert.doesNotMatch(source, /data-only v2|push-preview-heading__badge/);
   assert.match(source, /Retención de \{STOREFRONT_PUSH_RETENTION_DAYS\} días/);
   assert.match(source, /\{STOREFRONT_PUSH_DAILY_LIMIT\} campañas por día/);
   assert.match(source, /\{STOREFRONT_PUSH_MONTHLY_LIMIT\} campañas por mes/);
   assert.match(source, /Aceptado no significa leído/);
   assert.match(source, /--policy-accent: #5b21b6; --policy-border: #ddd6fe; --policy-soft: #f5f3ff/);
   assert.doesNotMatch(source, /push-policy__item/);
-  assert.match(source, /result\.quota_timezone \|\| state\.quotaTimezone/);
+  assert.match(source, /STOREFRONT_PUSH_TIME_ZONE/);
   assert.doesNotMatch(source, /push-campaign-card__metrics|Resultados operativos de la campaña|<dt>Seleccionadas|<dt>Aceptadas FCM|<dt>FID inválidos/);
   assert.doesNotMatch(source, /data-action="\$\{actions\.edit|data-action="cancel"/);
   assert.match(source, /Esta acción no se puede deshacer/);
   assert.match(source, /Las cuotas permanentes 10\/310 no se reinician/);
   assert.match(source, /calculateOpenedAudience\(campaign\)/);
+  assert.match(source, /calculateEditableAudience\(\{ silent: true \}\)/);
+  assert.match(source, /previewStorefrontPushAudience\(client, formValue\(\)\)/);
   assert.match(source, /one\('\[data-audience-estimate\]'\)\.textContent = 'Calculando…'/);
   assert.match(source, /requestId !== state\.audienceRequestId \|\| state\.editing\?\.id !== campaign\.id/);
   assert.match(source, /campaign\.status === 'draft' && !state\.editorReadonly/);
-  assert.match(source, /Los cambios de audiencia requieren un nuevo cálculo/);
+  assert.match(source, /Actualizando automáticamente la audiencia elegible/);
   assert.match(source, /Se muestran hasta 10 campañas por página/);
   assert.match(source, /state\.hasMore = typeof result\.has_more === 'boolean'/);
   assert.match(source, /nextButton\.disabled = state\.loading \|\| !state\.hasMore/);
@@ -319,7 +354,7 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /\.push-campaign-card__actions \{[^}]*align-self: center;[^}]*justify-content: flex-end/);
   assert.match(source, /referenceInput\.disabled = state\.editorReadonly \|\| !isReference/);
   assert.match(source, /versionInput\.disabled = state\.editorReadonly \|\| audienceType !== 'app_version'/);
-  assert.match(source, /resolveStorefrontPushQuotaTimezone\([\s\S]{0,120}state\.campaigns[\s\S]{0,120}result\.quota_timezone/);
+  assert.match(source, /resolveStorefrontPushQuotaTimezone\(state\.campaigns, result\.quota_timezone\)/);
   assert.match(source, /root\.dataset\.storeSlug/);
   assert.match(source, /\/api\/admin\/push-media\?store=\$\{encodeURIComponent\(storeSlug\)\}/);
   assert.equal((source.match(/fetch\(mediaEndpoint/g) || []).length, 2);

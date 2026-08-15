@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const STORE_A = 'storecamp000001';
 const STORE_B = 'storecamp000002';
@@ -172,7 +173,7 @@ function campaign(id = 'campaign0000001', overrides = {}) {
     audience_config: {},
     target_type: 'home',
     target_path: '/t/powerzona',
-    timezone: 'America/New_York',
+    timezone: 'America/Havana',
     selected_count: 0,
     accepted_count: 0,
     failed_count: 0,
@@ -190,18 +191,23 @@ test('contratos de entrada son exactos y validan límites, zona y audiencia', ()
   assert.equal(campaigns.DELETE_CAMPAIGN_LIMIT, 50);
   const valid = campaigns.parseSavePayload({
     audience_config: {}, audience_type: 'all_active', body: 'Mensaje', target_type: 'home',
-    timezone: 'America/New_York', title: 'Campaña',
+    timezone: 'America/Havana', title: 'Campaña',
   });
   assert.equal(valid.title, 'Campaña');
   assert.equal(valid.targetType, 'home');
   assert.equal(campaigns.parseSavePayload({
     audience_config: {}, audience_type: 'all_active', body: 'Mensaje', target_type: 'home',
-    timezone: 'America/New_York', title: 'Campaña', store_id: STORE_B,
+    timezone: 'America/Havana', title: 'Campaña', store_id: STORE_B,
   }), null);
   assert.throws(() => campaigns.parseSavePayload({
     audience_config: {}, audience_type: 'all_active', body: 'x', target_type: 'home',
-    timezone: 'America/New_York', title: 'x'.repeat(121),
+    timezone: 'America/Havana', title: 'x'.repeat(121),
   }), (error) => error.code === 'invalid_title');
+  assert.throws(() => campaigns.parseSavePayload({
+    audience_config: {}, audience_type: 'all_active', body: 'Mensaje', target_type: 'home',
+    timezone: 'America/New_York', title: 'Campaña',
+  }), (error) => error.code === 'timezone_mismatch');
+  assert.equal(campaigns.CAMPAIGN_TIMEZONE, 'America/Havana');
   assert.equal(campaigns.isValidTimezone('America/New_York'), true);
   assert.equal(campaigns.isValidTimezone('Not/A_Real_Zone'), false);
   assert.deepEqual(
@@ -339,6 +345,27 @@ test('audiencia y snapshot se aíslan por tienda y son idempotentes sin límite 
   assert.equal(app.rows('push_campaign_deliveries')[0].getString('store'), STORE_A);
 });
 
+test('previsualiza una audiencia nueva sin crear ni guardar una campaña', () => {
+  const app = createApp();
+  const configA = app.add(appConfig('appconfig000001', STORE_A));
+  app.add(installation('install00000001', STORE_A, configA.id));
+  const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
+  const payload = campaigns.parseAudiencePreviewPayload({
+    audience_type: 'all_active', audience_config: {}, target_type: 'home',
+  });
+  assert.deepEqual(payload, {
+    audienceType: 'all_active', audienceConfig: {}, targetType: 'home',
+  });
+  assert.deepEqual(
+    campaigns.previewAudienceDefinition(app, context, payload, new Date('2026-08-13T14:00:00.000Z')),
+    { count: 1, snapshot: false },
+  );
+  assert.equal(app.rows('push_campaigns').length, 0);
+  assert.equal(campaigns.parseAudiencePreviewPayload({
+    audience_type: 'all_active', audience_config: {}, target_type: 'home', store_id: STORE_B,
+  }), null);
+});
+
 test('las cinco secciones se validan y duplican sin tratar el enum como relación', () => {
   const app = createApp();
   app.add(appConfig('appconfig000001', STORE_A));
@@ -405,6 +432,40 @@ test('la cuota diaria sobrevive al borrado del contenido de las campañas', () =
     (error) => error.code === 'daily_quota_exceeded',
   );
   assert.equal(app.rows('push_campaigns').length, 1);
+  assert.equal(campaigns.campaignQuotaState(app.rows('stores')[0]).timezone, 'America/Havana');
+});
+
+test('la migración normaliza campañas y cuota a Havana sin perder marcadores', () => {
+  const migrationPath = path.resolve(
+    __dirname,
+    '../pb_migrations/1786665700_push_campaign_havana_timezone.js',
+  );
+  const source = fs.readFileSync(migrationPath, 'utf8');
+  let up = null;
+  let down = null;
+  vm.runInNewContext(source, {
+    migrate(upCallback, downCallback) { up = upCallback; down = downCallback; },
+  }, { filename: migrationPath });
+
+  const app = createApp();
+  const legacy = app.add(campaign('legacycamp00001', {
+    timezone: 'America/New_York',
+    status: 'sent',
+    started_at: '2026-08-13T14:00:00.000Z',
+  }));
+  const starts = { [legacy.id]: '2026-08-13T14:00:00.000Z' };
+  app.rows('stores')[0].set('push_campaign_quota_state', {
+    timezone: 'America/New_York', starts,
+  });
+
+  up(app);
+  up(app);
+  assert.equal(legacy.getString('timezone'), 'America/Havana');
+  assert.deepEqual(JSON.parse(JSON.stringify(app.rows('stores')[0].get('push_campaign_quota_state'))), {
+    timezone: 'America/Havana', starts,
+  });
+  assert.equal(down(app), app);
+  assert.equal(legacy.getString('timezone'), 'America/Havana');
 });
 
 test('retención borra a los siete días de hijos a padre y preserva campañas activas', () => {
@@ -441,7 +502,7 @@ test('retención borra a los siete días de hijos a padre y preserva campañas a
   assert.equal(app.rows('push_campaign_deliveries').length, 0);
   assert.equal(app.rows('push_events').length, 0);
   const quota = campaigns.campaignQuotaState(app.rows('stores')[0]);
-  assert.equal(quota.timezone, 'America/New_York');
+  assert.equal(quota.timezone, 'America/Havana');
   assert.equal(quota.starts[expired.id], '2026-08-03T14:00:00.000Z');
 });
 
@@ -500,7 +561,7 @@ test('borradores y estados terminales vencen en siete días; activos no tienen c
   const now = new Date('2026-08-14T16:30:00.000Z');
   const draft = campaigns.createOrUpdateDraft(app, context, {
     campaignId: '', mediaId: '', targetRef: '', title: 'Retención', body: 'Siete días',
-    timezone: 'America/New_York', audienceType: 'all_active', audienceConfig: {},
+    timezone: 'America/Havana', audienceType: 'all_active', audienceConfig: {},
     targetType: 'home', targetSection: '',
   }, now);
   assert.equal(draft.getString('delete_after'), '2026-08-21T16:30:00.000Z');

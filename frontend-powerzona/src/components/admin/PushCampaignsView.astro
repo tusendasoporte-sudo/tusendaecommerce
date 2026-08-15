@@ -4,6 +4,7 @@ import {
   STOREFRONT_PUSH_DAILY_LIMIT,
   STOREFRONT_PUSH_MONTHLY_LIMIT,
   STOREFRONT_PUSH_RETENTION_DAYS,
+  STOREFRONT_PUSH_TIME_ZONE,
   STOREFRONT_PUSH_TITLE_MAX,
 } from '../../lib/storefrontPushAdmin';
 
@@ -12,7 +13,6 @@ interface Props {
   storeName: string;
   storeSlug: string;
   supportStoreId?: string;
-  defaultTimezone?: string;
 }
 
 const {
@@ -20,8 +20,8 @@ const {
   storeName,
   storeSlug,
   supportStoreId = '',
-  defaultTimezone = 'America/Havana',
 } = Astro.props;
+const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
 ---
 
 <main
@@ -275,7 +275,7 @@ const {
               <div data-audience-result role="status" aria-live="polite" aria-atomic="true">
                 <span>Estimación elegible</span>
                 <strong data-audience-estimate>Sin calcular</strong>
-                <small data-audience-note>Se calculará automáticamente al abrir una campaña guardada.</small>
+                <small data-audience-note>Se calculará automáticamente al abrir el editor.</small>
               </div>
               <button class="push-btn push-btn--secondary" type="button" data-estimate-audience>Actualizar cálculo</button>
             </div>
@@ -309,7 +309,6 @@ const {
                 <span>Previsualización</span>
                 <strong>Android</strong>
               </div>
-              <span class="push-preview-heading__badge">data-only v2</span>
             </div>
             <div class="android-device">
               <div class="android-device__status"><span>10:24</span><span>● 5G ▰</span></div>
@@ -385,6 +384,7 @@ const {
     scheduleStorefrontPushCampaign,
     STOREFRONT_PUSH_BODY_MAX,
     STOREFRONT_PUSH_PAGE_SIZE,
+    STOREFRONT_PUSH_TIME_ZONE,
     STOREFRONT_PUSH_TITLE_MAX,
     storefrontPushAdminErrorMessage,
     storefrontPushAdminRequest,
@@ -416,7 +416,7 @@ const {
     const errorBox = one('[data-form-error]');
     const successBox = one('[data-form-success]');
     const toast = one('[data-push-toast]');
-    const defaultTimezone = String(root.dataset.defaultTimezone || 'America/Havana');
+    const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     const storeSlug = String(root.dataset.storeSlug || '').trim().toLowerCase();
     const mediaEndpoint = storeSlug
       ? `/api/admin/push-media?store=${encodeURIComponent(storeSlug)}`
@@ -436,6 +436,7 @@ const {
       editing: null,
       audience: null,
       audienceRequestId: 0,
+      audienceTimer: 0,
       confirmed: null,
       editorReadonly: false,
       selectedCampaignIds: new Set(),
@@ -624,10 +625,7 @@ const {
         state.hasMore = typeof result.has_more === 'boolean'
           ? result.has_more
           : state.campaigns.length >= STOREFRONT_PUSH_PAGE_SIZE;
-        state.quotaTimezone = resolveStorefrontPushQuotaTimezone(
-          state.campaigns,
-          result.quota_timezone || state.quotaTimezone,
-        );
+        state.quotaTimezone = resolveStorefrontPushQuotaTimezone(state.campaigns, result.quota_timezone);
         loaded = true;
       } catch (error) {
         state.campaigns = [];
@@ -808,6 +806,8 @@ const {
       if (!readonly && field('target_type')?.value === 'order') field('audience_type').disabled = true;
     }
     function resetEditor() {
+      window.clearTimeout(state.audienceTimer);
+      state.audienceTimer = 0;
       form.reset();
       state.editing = null;
       state.audience = null;
@@ -822,7 +822,7 @@ const {
       one('[data-editor-state]').textContent = 'Borrador nuevo';
       one('[data-preview-path]').textContent = 'Pendiente de validar';
       one('[data-audience-estimate]').textContent = 'Sin calcular';
-      one('[data-audience-note]').textContent = 'Se calculará automáticamente al abrir una campaña guardada.';
+      one('[data-audience-note]').textContent = 'Se calculará automáticamente al abrir el editor.';
       const minDate = new Date(Date.now() + 2 * 60_000);
       minDate.setSeconds(0, 0);
       field('scheduled_at').min = new Date(minDate.getTime() - minDate.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -881,11 +881,37 @@ const {
     }
     function markAudienceEstimateStale() {
       if (state.editorReadonly) return;
+      window.clearTimeout(state.audienceTimer);
       state.audienceRequestId += 1;
       state.audience = null;
       one('[data-audience-result]').removeAttribute('aria-busy');
-      one('[data-audience-estimate]').textContent = 'Pendiente de actualizar';
-      one('[data-audience-note]').textContent = 'Los cambios de audiencia requieren un nuevo cálculo.';
+      one('[data-audience-estimate]').textContent = 'Calculando…';
+      one('[data-audience-note]').textContent = 'Actualizando automáticamente la audiencia elegible.';
+      state.audienceTimer = window.setTimeout(() => calculateEditableAudience({ silent: true }), 250);
+    }
+    async function calculateEditableAudience(options = {}) {
+      const requestId = ++state.audienceRequestId;
+      const result = one('[data-audience-result]');
+      result.setAttribute('aria-busy', 'true');
+      one('[data-audience-estimate]').textContent = 'Calculando…';
+      one('[data-audience-note]').textContent = 'Validando instalaciones elegibles de esta tienda.';
+      try {
+        const audience = await previewStorefrontPushAudience(client, formValue());
+        if (requestId !== state.audienceRequestId || state.editorReadonly) return null;
+        state.audience = audience;
+        renderAudienceEstimate(audience);
+        if (!options.silent) showFormSuccess('Audiencia calculada y validada para esta tienda.');
+        return audience;
+      } catch (error) {
+        if (requestId !== state.audienceRequestId || state.editorReadonly) return null;
+        state.audience = null;
+        one('[data-audience-estimate]').textContent = 'Completa la audiencia';
+        one('[data-audience-note]').textContent = storefrontPushAdminErrorMessage(error?.code || error?.message);
+        if (!options.silent) showFormError(error);
+        return null;
+      } finally {
+        if (requestId === state.audienceRequestId) result.removeAttribute('aria-busy');
+      }
     }
     async function calculateOpenedAudience(campaign) {
       const requestId = ++state.audienceRequestId;
@@ -1070,11 +1096,13 @@ const {
     all('[data-new-campaign]').forEach((button) => button.addEventListener('click', () => {
       resetEditor();
       openDialog(editor);
+      calculateEditableAudience({ silent: true });
       window.setTimeout(() => field('title')?.focus(), 30);
     }));
     window.addEventListener('pz:push-campaign:new', () => {
       resetEditor();
       openDialog(editor);
+      calculateEditableAudience({ silent: true });
       window.setTimeout(() => field('title')?.focus(), 30);
     });
     all('[data-close-editor]').forEach((button) => button.addEventListener('click', () => closeDialog(editor)));
@@ -1107,7 +1135,11 @@ const {
       updateSelectionToolbar();
     });
     ['title', 'body', 'media_id'].forEach((name) => field(name)?.addEventListener('input', updatePreview));
-    field('target_type')?.addEventListener('change', () => { clearFormMessages(); updateConditionalFields(); });
+    field('target_type')?.addEventListener('change', () => {
+      clearFormMessages();
+      updateConditionalFields();
+      markAudienceEstimateStale();
+    });
     field('target_section')?.addEventListener('change', updatePreview);
     field('audience_type')?.addEventListener('change', () => {
       clearFormMessages();
@@ -1135,7 +1167,10 @@ const {
     });
     one('[data-estimate-audience]')?.addEventListener('click', async () => {
       setBusy(true, 'Calculando audiencia…');
-      try { await calculateAudience(); } catch (error) { showFormError(error); }
+      try {
+        if (state.editorReadonly && state.editing) await calculateOpenedAudience(state.editing);
+        else await calculateEditableAudience();
+      } catch (error) { showFormError(error); }
       finally { setBusy(false); }
     });
     one('[data-send-now]')?.addEventListener('click', () => dispatchCampaign('now'));
@@ -1275,7 +1310,6 @@ const {
   .push-preview-heading > div { display: grid; gap: 2px; }
   .push-preview-heading span { color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; }
   .push-preview-heading strong { font-size: 17px; font-weight: 1000; }
-  .push-preview-heading__badge { border-radius: 999px; background: #e0f2fe; color: #0369a1 !important; padding: 6px 9px; }
   .android-device { position: relative; min-height: 485px; overflow: hidden; border: 8px solid #111827; border-radius: 34px; background: linear-gradient(160deg, #0f4c81, #173a69 45%, #5f76a3); box-shadow: 0 22px 45px rgba(15,23,42,.26); }
   .android-device::before { content: ''; position: absolute; top: 8px; left: 50%; width: 74px; height: 18px; transform: translateX(-50%); border-radius: 999px; background: #111827; }
   .android-device__status { position: relative; z-index: 2; display: flex; justify-content: space-between; padding: 12px 16px 0; color: #fff; font-size: 9px; font-weight: 900; }

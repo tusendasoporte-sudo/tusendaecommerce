@@ -141,17 +141,24 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
     });
     assert.ok([200, 201].includes(master.status), master.raw);
     const masterToken = await authenticate(baseUrl, 'users', masterEmail, masterPassword);
+    const newAudiencePreview = await request(baseUrl, '/api/pz/storefront/v1/campaigns/audience-preview', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: { audience_type: 'all_active', audience_config: {}, target_type: 'home' },
+    });
+    assert.equal(newAudiencePreview.status, 200, newAudiencePreview.raw);
+    assert.deepEqual(newAudiencePreview.data.audience, { count: 0, snapshot: false });
     const saved = await request(baseUrl, '/api/pz/storefront/v1/campaigns/save', {
       token: masterToken,
       headers: { 'X-PZ-Support-Store': store.id },
       json: {
         title: 'Runtime C05', body: 'Validación IANA PocketBase 0.38.2',
-        timezone: 'America/New_York', audience_type: 'all_active', audience_config: {}, target_type: 'home',
+        timezone: 'America/Havana', audience_type: 'all_active', audience_config: {}, target_type: 'home',
       },
     });
     assert.equal(saved.status, 201, saved.raw);
     assert.equal(saved.data.campaign.status, 'draft');
-    assert.equal(saved.data.campaign.timezone, 'America/New_York');
+    assert.equal(saved.data.campaign.timezone, 'America/Havana');
     const preview = await request(baseUrl, '/api/pz/storefront/v1/campaigns/audience-preview', {
       token: masterToken,
       headers: { 'X-PZ-Support-Store': store.id },
@@ -164,7 +171,7 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
       headers: { 'X-PZ-Support-Store': store.id },
       json: {
         title: 'Runtime C05 app version', body: 'Validación JSON PocketBase 0.38.2',
-        timezone: 'America/New_York', audience_type: 'app_version',
+        timezone: 'America/Havana', audience_type: 'app_version',
         audience_config: { app_version_code: 1 }, target_type: 'home',
       },
     });
@@ -202,7 +209,7 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
       headers: { 'X-PZ-Support-Store': store.id },
     });
     assert.equal(listed.status, 200, listed.raw);
-    assert.equal(listed.data.quota_timezone, 'America/New_York');
+    assert.equal(listed.data.quota_timezone, 'America/Havana');
   } finally {
     await stop(runtime);
     fs.rmSync(dataDirectory, { recursive: true, force: true });

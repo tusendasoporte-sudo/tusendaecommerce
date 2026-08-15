@@ -33,6 +33,7 @@ export const STOREFRONT_PUSH_AUDIENCE_TYPES = Object.freeze([
 export const STOREFRONT_PUSH_DAILY_LIMIT = 10;
 export const STOREFRONT_PUSH_MONTHLY_LIMIT = 310;
 export const STOREFRONT_PUSH_RETENTION_DAYS = 7;
+export const STOREFRONT_PUSH_TIME_ZONE = 'America/Havana';
 export const STOREFRONT_PUSH_TITLE_MAX = 120;
 export const STOREFRONT_PUSH_BODY_MAX = 1000;
 export const STOREFRONT_PUSH_PAGE_SIZE = 10;
@@ -196,20 +197,10 @@ export function normalizeStorefrontPushCampaigns(value: unknown) {
 }
 
 export function resolveStorefrontPushQuotaTimezone(
-  campaigns: readonly StorefrontPushCampaign[],
-  fallback: unknown = 'America/Havana',
+  _campaigns: readonly StorefrontPushCampaign[],
+  _fallback: unknown = STOREFRONT_PUSH_TIME_ZONE,
 ) {
-  let fallbackTimezone = 'America/Havana';
-  try {
-    fallbackTimezone = validateTimezone(fallback);
-  } catch (_) {}
-  for (const campaign of campaigns) {
-    if (!campaign.started_at || !campaign.timezone) continue;
-    try {
-      return validateTimezone(campaign.timezone);
-    } catch (_) {}
-  }
-  return fallbackTimezone;
+  return STOREFRONT_PUSH_TIME_ZONE;
 }
 
 export async function resolveStorefrontPushAdminAccess(
@@ -276,6 +267,20 @@ export function buildStorefrontPushAudienceConfig(
   return { country_code: countryCode, ...(regionCode ? { region_code: regionCode } : {}) };
 }
 
+export function buildStorefrontPushAudiencePreviewPayload(formValue: StorefrontPushCampaignForm) {
+  const form = recordObject(formValue) as StorefrontPushCampaignForm;
+  const targetType = text(form.target_type, 20) as StorefrontPushTargetType;
+  if (!STOREFRONT_PUSH_TARGET_TYPES.includes(targetType)) {
+    throw new StorefrontPushAdminError('invalid_target');
+  }
+  const audienceType = text(form.audience_type, 40) as StorefrontPushAudienceType;
+  return {
+    audience_type: audienceType,
+    audience_config: buildStorefrontPushAudienceConfig(audienceType, form, targetType),
+    target_type: targetType,
+  };
+}
+
 export function buildStorefrontPushCampaignPayload(formValue: StorefrontPushCampaignForm) {
   const form = recordObject(formValue) as StorefrontPushCampaignForm;
   const title = text(form.title, STOREFRONT_PUSH_TITLE_MAX + 1);
@@ -311,7 +316,13 @@ export function buildStorefrontPushCampaignPayload(formValue: StorefrontPushCamp
     title,
     body,
     media_id: exactRecordId(form.media_id, true),
-    timezone: validateTimezone(form.timezone),
+    timezone: (() => {
+      const timezone = validateTimezone(form.timezone);
+      if (timezone !== STOREFRONT_PUSH_TIME_ZONE) {
+        throw new StorefrontPushAdminError('timezone_mismatch');
+      }
+      return STOREFRONT_PUSH_TIME_ZONE;
+    })(),
     audience_type: audienceType,
     audience_config: audienceConfig,
     target_type: targetType,
@@ -414,11 +425,14 @@ export async function saveStorefrontPushCampaign(
 
 export async function previewStorefrontPushAudience(
   client: StorefrontPushAdminClient,
-  campaignId: string,
+  campaignOrAudience: string | StorefrontPushCampaignForm,
   fetchImpl?: typeof fetch,
 ) {
+  const body = typeof campaignOrAudience === 'string'
+    ? { campaign_id: exactRecordId(campaignOrAudience) }
+    : buildStorefrontPushAudiencePreviewPayload(campaignOrAudience);
   const result = await storefrontPushAdminRequest(client, '/api/pz/storefront/v1/campaigns/audience-preview', {
-    method: 'POST', body: { campaign_id: exactRecordId(campaignId) }, fetchImpl,
+    method: 'POST', body, fetchImpl,
   });
   return Object.freeze({
     count: integer(result?.audience?.count),

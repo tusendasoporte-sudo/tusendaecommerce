@@ -63,12 +63,6 @@ if (!pushAccess.allowed && !showPremiumGate) {
   });
 }
 
-const rawTimezone = String(
-  (adminContext.store as any).timezone
-  || (adminContext.store as any).time_zone
-  || 'America/Havana',
-).trim();
-const defaultTimezone = rawTimezone || 'America/Havana';
 ---
 
 <!doctype html>
@@ -127,7 +121,6 @@ const defaultTimezone = rawTimezone || 'America/Havana';
         storeName={currentStoreName}
         storeSlug={currentStoreSlug}
         supportStoreId={adminContext.isMasterSupport ? adminContext.storeId : ''}
-        defaultTimezone={defaultTimezone}
       />
     ) : (
       <main class="push-campaigns-gate">
