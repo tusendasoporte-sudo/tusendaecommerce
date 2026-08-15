@@ -46,6 +46,43 @@ public final class StorefrontRegistrationPayloadTest {
                 "{\"campaign_id\":\"abc123def456ghi\"}",
                 StorefrontRegistrationPayload.resolveCampaignTarget("abc123def456ghi")
         );
+        StorefrontEventQueue.Event opened = new StorefrontEventQueue.Event(
+                "opened", "delivery0000001", "2026-08-15T12:00:00Z", "", 0
+        );
+        assertEquals(
+                "{\"delivery_id\":\"delivery0000001\",\"event_type\":\"opened\","
+                        + "\"idempotency_key\":\"opened:delivery0000001\","
+                        + "\"occurred_at\":\"2026-08-15T12:00:00Z\",\"target_path\":\"\"}",
+                StorefrontRegistrationPayload.event(opened)
+        );
+        StorefrontEventQueue.Event destination = new StorefrontEventQueue.Event(
+                "destination_viewed", "delivery0000001", "2026-08-15T12:00:01Z",
+                "/t/powerzona/producto/bateria-12v", 0
+        );
+        assertTrue(StorefrontRegistrationPayload.event(destination).contains("destination_viewed"));
+        assertTrue(StorefrontEventQueue.validEvent("opened", "delivery0000001", ""));
+        assertTrue(StorefrontEventQueue.validEvent(
+                "destination_viewed", "delivery0000001", "/t/powerzona/producto/bateria-12v"
+        ));
+        assertTrue(!StorefrontEventQueue.validEvent("destination_viewed", "delivery0000001", "/t/powerzona\nadmin"));
+        assertEquals(64, StorefrontEventQueue.MAX_EVENTS);
+        assertEquals(10, StorefrontEventQueue.MAX_ATTEMPTS);
+        assertEquals(7L * 24L * 60L * 60L * 1000L, StorefrontEventQueue.MAX_AGE_MS);
+    }
+
+    @Test
+    public void bootstrapCookieRequiresEverySecurityAttributeAndAtMostTwentyFourHours() {
+        String token = "pzws_v1_" + "A".repeat(64);
+        String valid = "pz_storefront_session=" + token
+                + "; Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Lax";
+        assertTrue(StorefrontRegistrationClient.validSessionCookie(valid));
+        assertTrue(!StorefrontRegistrationClient.validSessionCookie(
+                "pz_storefront_session=" + token + "; Path=/; Max-Age=86400; Secure; SameSite=Lax"
+        ));
+        assertTrue(!StorefrontRegistrationClient.validSessionCookie(
+                "pz_storefront_session=" + token
+                        + "; Path=/; Max-Age=86401; HttpOnly; Secure; SameSite=Lax"
+        ));
     }
 
     @Test
@@ -55,6 +92,9 @@ public final class StorefrontRegistrationPayloadTest {
         ));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.permission("allowed"));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.resolveCampaignTarget("short"));
+        assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.event(
+                new StorefrontEventQueue.Event("delivered", "delivery0000001", "2026-08-15T12:00:00Z", "", 0)
+        ));
         assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.heartbeat(
                 "0.1.0", 1, "16", "Pixel\nInjected", "en-US", "UTC"
         ));

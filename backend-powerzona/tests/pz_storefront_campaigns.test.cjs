@@ -468,7 +468,7 @@ test('la migración normaliza campañas y cuota a Havana sin perder marcadores',
   assert.equal(legacy.getString('timezone'), 'America/Havana');
 });
 
-test('retención borra a los siete días de hijos a padre y preserva campañas activas', () => {
+test('retención redacta contenido a siete días, conserva evidencia técnica y preserva campañas activas', () => {
   assert.equal(campaigns.CAMPAIGN_RETENTION_DAYS, 7);
   const app = createApp();
   const expired = app.add(campaign('expiredcamp0001', {
@@ -494,19 +494,21 @@ test('retención borra a los siete días de hijos a padre y preserva campañas a
   }));
 
   const summary = campaigns.cleanupExpiredCampaigns(app, new Date('2026-08-14T14:00:00.000Z'));
-  assert.deepEqual(summary, { deleted: 1, deliveries: 1, events: 1, failed: 0 });
-  assert.equal(app.rows('push_campaigns').some((item) => item.id === expired.id), false);
+  assert.deepEqual(summary, { redacted: 1, deleted: 0, deliveries: 0, events: 0, daily_stats: 0, failed: 0 });
+  assert.equal(expired.getString('title'), 'Contenido eliminado');
+  assert.equal(Boolean(expired.getString('redacted_at')), true);
+  assert.equal(expired.getString('delete_after'), '2026-11-02T14:00:00.000Z');
   assert.deepEqual(app.rows('push_campaigns').map((item) => item.id).sort(), [
-    'pausedplancamp1', 'processingcamp1', 'scheduledcamp01',
+    'expiredcamp0001', 'pausedplancamp1', 'processingcamp1', 'scheduledcamp01',
   ]);
-  assert.equal(app.rows('push_campaign_deliveries').length, 0);
-  assert.equal(app.rows('push_events').length, 0);
+  assert.equal(app.rows('push_campaign_deliveries').length, 1);
+  assert.equal(app.rows('push_events').length, 1);
   const quota = campaigns.campaignQuotaState(app.rows('stores')[0]);
   assert.equal(quota.timezone, 'America/Havana');
   assert.equal(quota.starts[expired.id], '2026-08-03T14:00:00.000Z');
 });
 
-test('borrado manual elimina campañas e hijos, conserva cuota y bloquea procesamiento u otra tienda', () => {
+test('borrado manual redacta contenido, conserva evidencia y bloquea procesamiento u otra tienda', () => {
   assert.equal(campaigns.DELETE_CAMPAIGN_LIMIT, 50);
   const app = createApp();
   const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
@@ -532,12 +534,14 @@ test('borrado manual elimina campañas e hijos, conserva cuota y bloquea procesa
   assert.deepEqual(summary, {
     deleted_ids: [sent.id, draft.id],
     deleted_count: 2,
-    deliveries_deleted: 1,
-    events_deleted: 1,
+    redacted_count: 2,
+    deliveries_deleted: 0,
+    events_deleted: 0,
   });
-  assert.equal(app.rows('push_campaigns').length, 0);
-  assert.equal(app.rows('push_campaign_deliveries').length, 0);
-  assert.equal(app.rows('push_events').length, 0);
+  assert.equal(app.rows('push_campaigns').length, 2);
+  assert.equal(app.rows('push_campaigns').every((item) => Boolean(item.getString('redacted_at'))), true);
+  assert.equal(app.rows('push_campaign_deliveries').length, 1);
+  assert.equal(app.rows('push_events').length, 1);
   assert.equal(campaigns.campaignQuotaState(app.rows('stores')[0]).starts[sent.id], sent.getString('started_at'));
 
   const processing = app.add(campaign('processcamp0001', { status: 'processing' }));
@@ -552,6 +556,25 @@ test('borrado manual elimina campañas e hijos, conserva cuota y bloquea procesa
     (error) => error.code === 'campaign_not_found',
   );
   assert.equal(app.rows('push_campaigns').some((item) => item.id === local.id), true);
+});
+
+test('la limpieza tecnica falla cerrada si no puede comprobar los hijos de una campana', () => {
+  const app = createApp();
+  const retained = app.add(campaign('retainedcamp001', {
+    status: 'sent',
+    redacted_at: '2026-05-01T00:00:00.000Z',
+    delete_after: '2026-08-01T00:00:00.000Z',
+  }));
+  const originalFind = app.findRecordsByFilter.bind(app);
+  app.findRecordsByFilter = (collection, ...args) => {
+    if (collection === 'push_events') throw new Error('database_unavailable');
+    return originalFind(collection, ...args);
+  };
+
+  const summary = campaigns.cleanupExpiredCampaigns(app, new Date('2026-08-15T00:00:00.000Z'));
+  assert.equal(summary.failed, 1);
+  assert.equal(summary.deleted, 0);
+  assert.equal(app.rows('push_campaigns').includes(retained), true);
 });
 
 test('borradores y estados terminales vencen en siete días; activos no tienen caducidad', () => {

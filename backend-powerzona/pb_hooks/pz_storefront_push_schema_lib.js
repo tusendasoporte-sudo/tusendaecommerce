@@ -13,6 +13,7 @@ const STOREFRONT_PUSH_COLLECTIONS = Object.freeze([
   "push_campaigns",
   "push_campaign_deliveries",
   "push_events",
+  "push_daily_stats",
 ]);
 
 const ADMIN_PUSH_COLLECTIONS = Object.freeze([
@@ -47,11 +48,13 @@ const CAMPAIGN_TARGET_SECTIONS = Object.freeze(["search", "links", "gifts", "raf
 const RETENTION_POLICY = Object.freeze({
   installation_full_ip_days: 30,
   web_session_days_after_expiration: 30,
-  delivery_days: 180,
-  event_days: 180,
+  delivery_days: 90,
+  event_days: 90,
   campaign_days: 7,
+  attribution_days: 7,
+  campaign_technical_days: 90,
   campaign_quota_entry_days: 40,
-  daily_aggregate_months: 36,
+  daily_aggregate_days: 90,
 });
 
 const SENSITIVE_FIELDS = Object.freeze({
@@ -60,11 +63,12 @@ const SENSITIVE_FIELDS = Object.freeze({
     "fid", "fid_digest", "credential_digest", "last_ip_encrypted", "ip_delete_after",
   ]),
   storefront_web_sessions: Object.freeze(["session_digest"]),
-  storefront_order_links: Object.freeze([]),
+  storefront_order_links: Object.freeze(["campaign_id_snapshot", "delivery_id_snapshot", "coupon_id_snapshot"]),
   push_media: Object.freeze([]),
   push_campaigns: Object.freeze(["lock_token", "audience_config"]),
   push_campaign_deliveries: Object.freeze(["claim_token", "firebase_message_id"]),
-  push_events: Object.freeze(["idempotency_key", "metadata_json"]),
+  push_events: Object.freeze(["idempotency_key", "metadata_json", "order", "coupon"]),
+  push_daily_stats: Object.freeze([]),
 });
 
 const TENANT_RELATIONS = Object.freeze({
@@ -90,7 +94,10 @@ const TENANT_RELATIONS = Object.freeze({
     campaign: "push_campaigns",
     delivery: "push_campaign_deliveries",
     installation: "storefront_installations",
+    order: "orders",
+    coupon: "manual_coupons",
   }),
+  push_daily_stats: Object.freeze({ campaign: "push_campaigns" }),
 });
 
 const UNOWNED_RELATIONS_ALLOWED = Object.freeze({

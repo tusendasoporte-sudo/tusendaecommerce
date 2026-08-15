@@ -1,0 +1,212 @@
+---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import '../../styles/global.css';
+
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authToken = authPb.authStore.token;
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({
+    baseUrl: pocketbaseUrl,
+    token: authToken,
+    supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+  }).catch(() => null);
+const canViewAnalytics = adminContext.isMasterSupport || hasStorePermission({
+  permissions: storeAccessContext?.access.permissions,
+  is_primary_admin: storeAccessContext?.access.is_primary_admin,
+  blocked_by_plan: storeAccessContext?.access.blocked_by_plan,
+}, 'analytics.view');
+if (!canViewAnalytics) return Astro.redirect(getStoreAdminPath(adminContext.store.slug, 'pageviews'));
+
+const allowedRanges = new Set(['today', '7', '15', '30', '90']);
+const requestedRange = String(Astro.url.searchParams.get('range') || '7').trim().toLowerCase();
+const range = allowedRanges.has(requestedRange) ? requestedRange : '7';
+const response = await fetch(`${pocketbaseUrl}/api/pz/storefront/v1/analytics/installations`, {
+  method: 'POST',
+  headers: {
+    Accept: 'application/json',
+    Authorization: `Bearer ${authToken}`,
+    'Content-Type': 'application/json',
+    ...(adminContext.isMasterSupport ? { 'X-PZ-Support-Store': adminContext.storeId } : {}),
+  },
+  body: JSON.stringify({ range }),
+  cache: 'no-store',
+}).catch(() => null);
+const payload = response?.ok ? await response.json().catch(() => null) : null;
+const isCount = (value: unknown) => Number.isInteger(value) && Number(value) >= 0;
+const normalizeAnalytics = (value: any) => {
+  const expectedDays: Record<string, number> = { today: 1, '7': 7, '15': 15, '30': 30, '90': 90 };
+  if (!value || typeof value !== 'object' || value.ok !== true
+    || !Object.prototype.hasOwnProperty.call(expectedDays, value.range)
+    || value.period_days !== expectedDays[value.range]
+    || value.time_zone !== 'America/Havana'
+    || typeof value.measurement_note !== 'string' || !value.measurement_note.trim()
+    || !value.metrics || !value.status || !value.permission
+    || !Array.isArray(value.daily) || !value.distributions) return null;
+  const metricKeys = ['instalaciones_vigentes_ahora', 'instalaciones_nuevas', 'bajas_detectadas'];
+  const statusKeys = ['active', 'disabled', 'invalid', 'revoked'];
+  const permissionKeys = ['granted', 'denied', 'unknown'];
+  const distributionKeys = ['app_versions', 'android_versions', 'device_models', 'countries', 'regions'];
+  if (metricKeys.some((key) => !isCount(value.metrics[key]))
+    || statusKeys.some((key) => !isCount(value.status[key]))
+    || permissionKeys.some((key) => !isCount(value.permission[key]))
+    || distributionKeys.some((key) => !Array.isArray(value.distributions[key])
+      || value.distributions[key].some((item: any) => !item || typeof item.label !== 'string' || !isCount(item.count)))
+    || value.daily.length !== value.period_days
+    || value.daily.some((item: any) => !item || !/^\d{4}-\d{2}-\d{2}$/.test(item.day)
+      || !isCount(item.new_installations) || !isCount(item.bajas_detectadas))
+    || value.metrics.instalaciones_vigentes_ahora !== value.status.active
+    || value.permission.granted + value.permission.denied + value.permission.unknown !== value.status.active) return null;
+  return value;
+};
+const analytics = normalizeAnalytics(payload);
+const metrics = analytics?.metrics || {};
+const status = analytics?.status || {};
+const permission = analytics?.permission || {};
+const rangeLabels = { today: 'Hoy', '7': '7 días', '15': '15 días', '30': '30 días', '90': '90 días' };
+const adminOverviewPath = getStoreAdminPath(adminContext.store.slug);
+
+const groups = [
+  ['Versiones de la app', analytics?.distributions?.app_versions || []],
+  ['Versiones de Android', analytics?.distributions?.android_versions || []],
+  ['Modelos', analytics?.distributions?.device_models || []],
+  ['Países', analytics?.distributions?.countries || []],
+  ['Regiones', analytics?.distributions?.regions || []],
+];
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App instalaciones | Admin</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #eef3f9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; }
+      .page { padding: 28px; display: grid; gap: 22px; }
+      .back { color: #1d4ed8; font-weight: 850; width: fit-content; }
+      .ranges { display: flex; gap: 8px; flex-wrap: wrap; }
+      .ranges a { padding: 9px 14px; border-radius: 999px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-weight: 850; text-decoration: none; }
+      .ranges a.is-active { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+      .card, .section { background: #fff; border: 1px solid #dbe4ef; border-radius: 22px; padding: 20px; box-shadow: 0 12px 32px rgba(15, 23, 42, .06); }
+      .card span, .muted { color: #64748b; }
+      .card strong { display: block; font-size: 34px; margin-top: 8px; }
+      .section h2 { margin: 0 0 14px; font-size: 20px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .breakdown div { background: #f8fafc; border-radius: 14px; padding: 13px; }
+      .breakdown strong { display: block; font-size: 22px; margin-top: 5px; }
+      .list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+      .list li { display: flex; justify-content: space-between; gap: 14px; padding: 10px 12px; border-radius: 12px; background: #f8fafc; }
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; min-width: 520px; }
+      th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; }
+      .notice { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px 16px; line-height: 1.55; }
+      .error { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+      @media (max-width: 800px) { .page { padding: 18px; } .cards, .grid { grid-template-columns: 1fr; } .breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    </style>
+  </head>
+  <body>
+    <main class="pz-admin-content">
+      <AdminSidebar
+        storeId={adminContext.storeId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={authToken}
+        storeAccessContext={storeAccessContext}
+        storeSlug={adminContext.store.slug}
+        storeName={adminContext.store.name || adminContext.store.slug}
+        storePlanValues={adminContext.store}
+        activeSection="overview"
+      />
+      <div class="pz-admin-content-inner page">
+        <a class="back" href={`${adminOverviewPath}#app-installations`}>← Volver a Analíticas</a>
+        <AdminSectionHeader
+          kicker="Analíticas"
+          title="App instalaciones"
+          description="Salud y evolución agregada de las instalaciones de esta tienda."
+        />
+        <nav class="ranges" aria-label="Período de instalaciones">
+          {Object.entries(rangeLabels).map(([value, label]) => (
+            <a class={range === value ? 'is-active' : ''} aria-current={range === value ? 'page' : undefined} href={`?range=${value}`}>{label}</a>
+          ))}
+        </nav>
+
+        {!analytics ? (
+          <p class="notice error">No se pudo cargar la analítica de instalaciones. No se mostraron datos parciales.</p>
+        ) : (
+          <>
+            <section class="cards" aria-label="Métricas principales">
+              <article class="card"><span>Instalaciones vigentes ahora</span><strong>{Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US')}</strong></article>
+              <article class="card"><span>Nuevas del período</span><strong>{Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US')}</strong></article>
+              <article class="card"><span>Bajas detectadas</span><strong>{Number(metrics.bajas_detectadas || 0).toLocaleString('es-US')}</strong></article>
+            </section>
+
+            <p class="notice">{analytics.measurement_note}</p>
+
+            <section class="grid">
+              <article class="section">
+                <h2>Estado actual</h2>
+                <div class="breakdown">
+                  <div><span>Activas</span><strong>{Number(status.active || 0)}</strong></div>
+                  <div><span>Deshabilitadas</span><strong>{Number(status.disabled || 0)}</strong></div>
+                  <div><span>FID inválido</span><strong>{Number(status.invalid || 0)}</strong></div>
+                  <div><span>Revocadas</span><strong>{Number(status.revoked || 0)}</strong></div>
+                </div>
+              </article>
+              <article class="section">
+                <h2>Permiso de notificaciones en activas</h2>
+                <div class="breakdown">
+                  <div><span>Concedido</span><strong>{Number(permission.granted || 0)}</strong></div>
+                  <div><span>Denegado</span><strong>{Number(permission.denied || 0)}</strong></div>
+                  <div><span>Sin decidir</span><strong>{Number(permission.unknown || 0)}</strong></div>
+                </div>
+              </article>
+            </section>
+
+            <section class="grid">
+              {groups.map(([title, items]) => (
+                <article class="section">
+                  <h2>{title}</h2>
+                  <ul class="list">
+                    {(items as any[]).length ? (items as any[]).map((item) => (
+                      <li><span>{item.label}</span><strong>{Number(item.count || 0).toLocaleString('es-US')}</strong></li>
+                    )) : <li><span>Sin datos</span><strong>0</strong></li>}
+                  </ul>
+                </article>
+              ))}
+            </section>
+
+            <section class="section">
+              <h2>Altas y bajas detectadas por día</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Fecha</th><th>Nuevas</th><th>Bajas detectadas</th></tr></thead>
+                  <tbody>
+                    {(analytics.daily || []).map((item: any) => (
+                      <tr><td>{item.day}</td><td>{Number(item.new_installations || 0)}</td><td>{Number(item.bajas_detectadas || 0)}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+    </main>
+  </body>
+</html>

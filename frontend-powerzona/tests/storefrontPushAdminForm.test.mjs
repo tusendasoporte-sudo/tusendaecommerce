@@ -12,6 +12,7 @@ import {
   mutateStorefrontPushCampaign,
   normalizeStorefrontPushCampaign,
   previewStorefrontPushAudience,
+  readStorefrontPushCampaignDetail,
   resolveStorefrontPushQuotaTimezone,
   saveStorefrontPushCampaign,
   scheduleStorefrontPushCampaign,
@@ -242,6 +243,7 @@ test('listado, cancelación, duplicado y borrado usan rutas acotadas y respuesta
       ok: true,
       deleted_ids: ['camp00000000001', 'camp00000000002'],
       deleted_count: 2,
+      redacted_count: 2,
       deliveries_deleted: 4,
       events_deleted: 3,
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -249,6 +251,7 @@ test('listado, cancelación, duplicado y borrado usan rutas acotadas y respuesta
   assert.deepEqual(deleted, {
     deleted_ids: ['camp00000000001', 'camp00000000002'],
     deleted_count: 2,
+    redacted_count: 2,
     deliveries_deleted: 4,
     events_deleted: 3,
   });
@@ -293,6 +296,35 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
   assert.match(storefrontPushAdminErrorMessage('media_expires_before_send'), /vencerá antes del envío/);
 });
 
+test('detalle C09 normaliza embudo, incertidumbre y denominadores sin inventar tasas', async () => {
+  const detail = await readStorefrontPushCampaignDetail(client, 'camp00000000001', async () => new Response(JSON.stringify({
+    ok: true,
+    campaign: campaignFixture({ status: 'sent' }),
+    deliveries: { accepted: 4 },
+    metrics: {
+      selected: 6, accepted: 4, failed_confirmed: 1, failed_permanent: 1, invalid_fid: 0,
+      unknown: 1, canceled: 0, retrying: 0, pending: 0, claimed: 0,
+      opened: 3, destination_viewed: 2, coupon_applied: 1, coupon_applicable: true,
+      orders_attributed: 1, buyer_installations: 1, orders_vigentes: 1, orders_canceled: 0,
+      denominators: { acceptance: 6, failures: 6, opened: 4, destination_viewed: 3, coupon_applied: 2, conversion: 2 },
+      measurement_note: 'Firebase aceptado no equivale a entregado.',
+    },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  assert.equal(detail.metrics.failed_confirmed, 1);
+  assert.equal(detail.metrics.unknown, 1);
+  assert.deepEqual(detail.metrics.denominators, {
+    acceptance: 6, failures: 6, opened: 4, destination_viewed: 3, coupon_applied: 2, conversion: 2,
+  });
+  await assert.rejects(
+    readStorefrontPushCampaignDetail(client, 'camp00000000001', async () => new Response(JSON.stringify({
+      ok: true,
+      campaign: campaignFixture({ status: 'sent' }),
+      metrics: { selected: 6, accepted: 4, denominators: { acceptance: 6 } },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })),
+    (error) => error.code === 'campaign_invalid_response',
+  );
+});
+
 test('fija siempre la zona horaria de campañas y cuotas en America/Havana', () => {
   const draft = normalizeStorefrontPushCampaign(campaignFixture({ timezone: 'America/Havana' }));
   const started = normalizeStorefrontPushCampaign(campaignFixture({
@@ -329,16 +361,19 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
   assert.doesNotMatch(source, /data-only v2|push-preview-heading__badge/);
-  assert.match(source, /Retención de \{STOREFRONT_PUSH_RETENTION_DAYS\} días/);
+  assert.match(source, /Contenido visible: \{STOREFRONT_PUSH_RETENTION_DAYS\} días/);
+  assert.match(source, /evidencia técnica mínima se conserva hasta 90 días/);
   assert.match(source, /\{STOREFRONT_PUSH_DAILY_LIMIT\} campañas por día/);
   assert.match(source, /\{STOREFRONT_PUSH_MONTHLY_LIMIT\} campañas por mes/);
   assert.match(source, /Aceptado no significa leído/);
   assert.match(source, /--policy-accent: #5b21b6; --policy-border: #ddd6fe; --policy-soft: #f5f3ff/);
   assert.doesNotMatch(source, /push-policy__item/);
   assert.match(source, /STOREFRONT_PUSH_TIME_ZONE/);
-  assert.doesNotMatch(source, /push-campaign-card__metrics|Resultados operativos de la campaña|<dt>Seleccionadas|<dt>Aceptadas FCM|<dt>FID inválidos/);
+  assert.match(source, /data-campaign-metrics/);
+  assert.match(source, /Embudo verificable/);
+  assert.match(source, /readStorefrontPushCampaignDetail/);
   assert.doesNotMatch(source, /data-action="\$\{actions\.edit|data-action="cancel"/);
-  assert.match(source, /Esta acción no se puede deshacer/);
+  assert.match(source, /El contenido eliminado no se puede recuperar/);
   assert.match(source, /Las cuotas permanentes 10\/310 no se reinician/);
   assert.match(source, /calculateOpenedAudience\(campaign\)/);
   assert.match(source, /calculateEditableAudience\(\{ silent: true \}\)/);

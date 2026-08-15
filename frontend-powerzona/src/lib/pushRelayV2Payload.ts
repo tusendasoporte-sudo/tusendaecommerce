@@ -120,20 +120,24 @@ export function normalizePushRelayV2Payload(value: any) {
     deliveries,
   };
 
-  // FCM limita data + notification a 4096 bytes. El FID y delivery_id no
-  // forman parte del mensaje enviado al dispositivo.
-  const messageBytes = Buffer.byteLength(JSON.stringify(normalized.message), 'utf8');
+  // FCM limita data + notification a 4096 bytes. Reservamos margen para el
+  // delivery_id individual que autentica la analítica C09 en el dispositivo.
+  const messageBytes = Buffer.byteLength(JSON.stringify({
+    ...normalized.message,
+    delivery_id: 'x'.repeat(15),
+  }), 'utf8');
   return messageBytes <= 3500 ? normalized : null;
 }
 
-export function buildStorefrontMulticastMessage(payload: any) {
-  return {
-    fids: payload.deliveries.map((delivery: any) => delivery.fid),
+export function buildStorefrontMessages(payload: any) {
+  return payload.deliveries.map((delivery: any) => ({
+    token: delivery.fid,
     data: {
       schema_version: payload.message.schema_version,
       channel: payload.message.channel,
       store_key: payload.message.store_key,
       campaign_id: payload.message.campaign_id,
+      delivery_id: delivery.delivery_id,
       title: payload.message.title,
       body: payload.message.body,
       target_type: payload.message.target_type,
@@ -146,7 +150,7 @@ export function buildStorefrontMulticastMessage(payload: any) {
       collapseKey: `pz_storefront_${payload.message.campaign_id}`,
       restrictedPackageName: payload.app.package_name,
     },
-  };
+  }));
 }
 
 function normalizedErrorCode(error: any) {

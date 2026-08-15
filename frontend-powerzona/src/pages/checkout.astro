@@ -404,6 +404,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const COUPON_STORE_KEY = CURRENT_STORE_ID || 'powerzona';
 		const SAVED_COUPONS_KEY = `powerzona_saved_coupons_${COUPON_STORE_KEY}`;
 		const SELECTED_COUPON_KEY = `powerzona_selected_coupon_${COUPON_STORE_KEY}`;
+		const reportedCouponAttributions = new Set();
 		if (COUPON_STORE_KEY === 'powerzona' && !localStorage.getItem(SAVED_COUPONS_KEY)) {
 			const legacySavedCoupons = localStorage.getItem('powerzona_saved_coupons');
 			if (legacySavedCoupons) localStorage.setItem(SAVED_COUPONS_KEY, legacySavedCoupons);
@@ -1602,6 +1603,39 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return { isValid, errors, data };
 		}
 
+		async function recordCouponAttribution(codeValue, cart) {
+			const code = String(codeValue || '').trim().toUpperCase();
+			const deliveryMethod = getSelectedDeliveryMethod() || 'coordinate';
+			const shippingZone = deliveryMethod === 'delivery' ? getSelectedShippingZone() : null;
+			const items = (Array.isArray(cart) ? cart : [])
+				.filter((item) => !isGiftCartItem(item))
+				.map((item) => ({
+					product_id: item.id,
+					variation_id: item.variation_id || '',
+					quantity: Number(item.quantity || 1),
+				}));
+			if (!CURRENT_STORE_ID || !code || !items.length
+				|| (deliveryMethod === 'delivery' && !shippingZone?.id)
+				|| reportedCouponAttributions.has(code)) return;
+			reportedCouponAttributions.add(code);
+			try {
+				const response = await fetch('/api/checkout/coupon-attribution', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						store_id: CURRENT_STORE_ID,
+						coupon_code: code,
+						delivery_method: deliveryMethod,
+						shipping_zone_id: shippingZone?.id || '',
+						items,
+					}),
+				});
+				if (!response.ok) reportedCouponAttributions.delete(code);
+			} catch (_) {
+				reportedCouponAttributions.delete(code);
+			}
+		}
+
 		function renderManualCouponSection(cart, totals) {
 			if (!savedCouponsList) return;
 			const activeCoupons = getActiveManualCoupons();
@@ -1652,6 +1686,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				setCouponAlert('El cupón no es válido.', 'error');
 			} else if (totals?.couponWinner === 'manual_coupon') {
 				setCouponAlert(selectedCoupon.scope === 'free_shipping' ? 'Cupón aplicado: tu envío queda en 0.' : `Cupón aplicado: ${formatUSD(Number(totals.couponDiscountUSD || 0))} de descuento.`, 'success');
+				void recordCouponAttribution(selectedManualCouponCode, cart);
 			} else if (totals?.manualCouponStatus?.message) {
 				setCouponAlert(totals.manualCouponStatus.message, totals.manualCouponStatus.ok ? 'info' : 'error');
 			}

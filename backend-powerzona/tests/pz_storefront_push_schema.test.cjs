@@ -10,6 +10,7 @@ const schema = require('../pb_hooks/pz_storefront_push_schema_lib.js');
 
 const migrationPath = path.resolve(__dirname, '../pb_migrations/1786579200_storefront_push_foundation.js');
 const migrationSource = fs.readFileSync(migrationPath, 'utf8');
+const FOUNDATION_COLLECTIONS = schema.STOREFRONT_PUSH_COLLECTIONS.filter((name) => name !== 'push_daily_stats');
 
 function loadMigration() {
   let forward;
@@ -57,7 +58,7 @@ test('la migración crea y revierte de forma reproducible las ocho colecciones p
   const app = cleanMigrationApp();
   forward(app);
 
-  const created = schema.STOREFRONT_PUSH_COLLECTIONS.map((name) => app.collections.get(name));
+  const created = FOUNDATION_COLLECTIONS.map((name) => app.collections.get(name));
   assert.equal(created.every(Boolean), true);
   for (const collection of created) schema.assertCollectionRulesClosed(collection);
   assert.equal(app.collections.has('push_daily_stats'), false);
@@ -66,9 +67,9 @@ test('la migración crea y revierte de forma reproducible las ocho colecciones p
   assert.equal(app.collections.has('store_notifications'), false);
 
   rollback(app);
-  assert.equal(schema.STOREFRONT_PUSH_COLLECTIONS.some((name) => app.collections.has(name)), false);
+  assert.equal(FOUNDATION_COLLECTIONS.some((name) => app.collections.has(name)), false);
   forward(app);
-  assert.equal(schema.STOREFRONT_PUSH_COLLECTIONS.every((name) => app.collections.has(name)), true);
+  assert.equal(FOUNDATION_COLLECTIONS.every((name) => app.collections.has(name)), true);
 });
 
 test('el rollback falla cerrado si alguna colección C02 ya contiene datos', () => {
@@ -77,19 +78,19 @@ test('el rollback falla cerrado si alguna colección C02 ya contiene datos', () 
   forward(app);
   app.findRecordsByFilter = (name) => (name === 'push_campaigns' ? [{ id: 'campaign0000001' }] : []);
   assert.throws(() => rollback(app), /unsafe_rollback_storefront_push_data/);
-  assert.equal(schema.STOREFRONT_PUSH_COLLECTIONS.every((name) => app.collections.has(name)), true);
+  assert.equal(FOUNDATION_COLLECTIONS.every((name) => app.collections.has(name)), true);
 });
 
 test('todas las relaciones son sin cascada y las restricciones cubren duplicados previsibles', () => {
   const { forward } = loadMigration();
   const app = cleanMigrationApp();
   forward(app);
-  for (const name of schema.STOREFRONT_PUSH_COLLECTIONS) {
+  for (const name of FOUNDATION_COLLECTIONS) {
     const relations = app.collections.get(name).fields.filter((field) => field.type === 'relation');
     assert.equal(relations.every((field) => field.cascadeDelete === false), true, name);
   }
 
-  const indexes = schema.STOREFRONT_PUSH_COLLECTIONS.flatMap((name) => app.collections.get(name).indexes);
+  const indexes = FOUNDATION_COLLECTIONS.flatMap((name) => app.collections.get(name).indexes);
   for (const fragment of [
     'storefront_app_configs_app_key',
     'storefront_app_configs_package',
@@ -108,15 +109,19 @@ test('los secretos, datos sensibles y fechas de retención están explícitos', 
   assert.deepEqual(schema.RETENTION_POLICY, {
     installation_full_ip_days: 30,
     web_session_days_after_expiration: 30,
-    delivery_days: 180,
-    event_days: 180,
+    delivery_days: 90,
+    event_days: 90,
     campaign_days: 7,
+    attribution_days: 7,
+    campaign_technical_days: 90,
     campaign_quota_entry_days: 40,
-    daily_aggregate_months: 36,
+    daily_aggregate_days: 90,
   });
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('fid'), true);
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('credential_digest'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_campaign_deliveries.includes('firebase_message_id'), true);
+  assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('order'), true);
+  assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('coupon'), true);
 });
 
 test('rechaza relaciones cruzadas entre dos tiendas y permite el grafo del mismo tenant', () => {

@@ -423,6 +423,60 @@ export async function saveStorefrontPushCampaign(
   return campaign;
 }
 
+export async function readStorefrontPushCampaignDetail(
+  client: StorefrontPushAdminClient,
+  campaignIdValue: unknown,
+  fetchImpl?: typeof fetch,
+) {
+  const campaignId = exactRecordId(campaignIdValue);
+  const result = await storefrontPushAdminRequest(
+    client,
+    `/api/pz/storefront/v1/campaigns/${campaignId}`,
+    { method: 'GET', fetchImpl },
+  );
+  const campaign = normalizeStorefrontPushCampaign(result.campaign);
+  if (!campaign) throw new StorefrontPushAdminError('campaign_invalid_response', 502);
+  const source = recordObject(result.metrics);
+  const denominatorSource = recordObject(source.denominators);
+  const numericMetrics = [
+    'selected', 'accepted', 'failed_confirmed', 'failed_permanent', 'invalid_fid',
+    'unknown', 'canceled', 'retrying', 'pending', 'claimed', 'opened',
+    'destination_viewed', 'coupon_applied', 'orders_attributed', 'buyer_installations',
+    'orders_vigentes', 'orders_canceled',
+  ];
+  const metricKeys = [...numericMetrics, 'coupon_applicable', 'denominators', 'measurement_note'].sort();
+  const denominatorKeys = ['acceptance', 'failures', 'opened', 'destination_viewed', 'coupon_applied', 'conversion'].sort();
+  const validInteger = (value: unknown) => Number.isInteger(value) && Number(value) >= 0;
+  if (Object.keys(source).sort().join(',') !== metricKeys.join(',')
+    || Object.keys(denominatorSource).sort().join(',') !== denominatorKeys.join(',')
+    || numericMetrics.some((key) => !validInteger(source[key]))
+    || source.coupon_applicable !== true && source.coupon_applicable !== false
+    || typeof source.measurement_note !== 'string' || !source.measurement_note.trim()
+    || denominatorKeys.filter((key) => key !== 'coupon_applied').some((key) => !validInteger(denominatorSource[key]))
+    || denominatorSource.coupon_applied !== null && !validInteger(denominatorSource.coupon_applied)) {
+    throw new StorefrontPushAdminError('campaign_invalid_response', 502);
+  }
+  const metrics = Object.freeze({
+    selected: integer(source.selected), accepted: integer(source.accepted),
+    failed_confirmed: integer(source.failed_confirmed), failed_permanent: integer(source.failed_permanent),
+    invalid_fid: integer(source.invalid_fid), unknown: integer(source.unknown),
+    canceled: integer(source.canceled), retrying: integer(source.retrying),
+    pending: integer(source.pending), claimed: integer(source.claimed),
+    opened: integer(source.opened), destination_viewed: integer(source.destination_viewed),
+    coupon_applied: integer(source.coupon_applied), coupon_applicable: source.coupon_applicable === true,
+    orders_attributed: integer(source.orders_attributed), buyer_installations: integer(source.buyer_installations),
+    orders_vigentes: integer(source.orders_vigentes), orders_canceled: integer(source.orders_canceled),
+    denominators: Object.freeze({
+      acceptance: integer(denominatorSource.acceptance), failures: integer(denominatorSource.failures),
+      opened: integer(denominatorSource.opened), destination_viewed: integer(denominatorSource.destination_viewed),
+      coupon_applied: denominatorSource.coupon_applied === null ? null : integer(denominatorSource.coupon_applied),
+      conversion: integer(denominatorSource.conversion),
+    }),
+    measurement_note: text(source.measurement_note, 500),
+  });
+  return Object.freeze({ campaign, metrics });
+}
+
 export async function previewStorefrontPushAudience(
   client: StorefrontPushAdminClient,
   campaignOrAudience: string | StorefrontPushCampaignForm,
@@ -490,15 +544,17 @@ export async function deleteStorefrontPushCampaigns(
     ? result.deleted_ids.filter((campaignId: unknown) => RECORD_ID_PATTERN.test(text(campaignId, 15)))
     : [];
   const deletedCount = integer(result.deleted_count);
+  const redactedCount = integer(result.redacted_count);
   if (deletedIds.length !== campaignIds.length
     || new Set(deletedIds).size !== deletedIds.length
-    || deletedCount !== campaignIds.length
+    || deletedCount !== campaignIds.length || redactedCount !== campaignIds.length
     || deletedIds.some((campaignId: string) => !campaignIds.includes(campaignId))) {
     throw new StorefrontPushAdminError('campaign_invalid_response', 502);
   }
   return Object.freeze({
     deleted_ids: Object.freeze([...deletedIds]),
     deleted_count: deletedCount,
+    redacted_count: redactedCount,
     deliveries_deleted: integer(result.deliveries_deleted),
     events_deleted: integer(result.events_deleted),
   });

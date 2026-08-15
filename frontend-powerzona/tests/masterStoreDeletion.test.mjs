@@ -14,7 +14,7 @@ const COUNT_KEYS = [
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',
   'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
   'storefront_order_links', 'push_media', 'push_campaigns',
-  'push_campaign_deliveries', 'push_events',
+  'push_campaign_deliveries', 'push_events', 'push_daily_stats',
 ];
 
 function completeCounts() {

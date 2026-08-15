@@ -1162,6 +1162,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
               <button type="button" class="pageviews-period-tab is-active" data-pageviews-period="7d" aria-selected="true">7 días</button>
               <button type="button" class="pageviews-period-tab" data-pageviews-period="15d" aria-selected="false">15 días</button>
               <button type="button" class="pageviews-period-tab" data-pageviews-period="1m" aria-selected="false">1 mes</button>
+              <button type="button" class="pageviews-period-tab" data-pageviews-period="90d" aria-selected="false">90 días</button>
             </div>
           </div>
 
@@ -1223,7 +1224,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         } catch (_) { return ''; }
       })();
       const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
-      const ANALYTICS_MAX_RETENTION_DAYS = 30;
+      const ANALYTICS_MAX_RETENTION_DAYS = 90;
       const PAGEVIEWS_PAGE_SIZE = 10;
       const kpiGrid = document.querySelector('[data-pageviews-metrics-panel]');
       let pageviewsCurrentPage = 1;
@@ -1408,6 +1409,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         if (raw === '7' || raw === '7d') return '7';
         if (raw === '15' || raw === '15d') return '15';
         if (raw === '30' || raw === '30d' || raw === '1m') return '30';
+        if (raw === '90' || raw === '90d' || raw === '3m') return '90';
         return '7';
       }
       function readInitialRange() {

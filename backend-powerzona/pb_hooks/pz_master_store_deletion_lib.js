@@ -20,7 +20,7 @@ const COUNT_KEYS = [
   "subcategories", "currencies", "shipping_zones", "visual_items",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
   "storefront_order_links", "push_media", "push_campaigns",
-  "push_campaign_deliveries", "push_events",
+  "push_campaign_deliveries", "push_events", "push_daily_stats",
 ];
 const DIRECT_STORE_COLLECTIONS = [
   "automatic_promotions", "categories", "currencies", "gifts", "manual_coupons",
@@ -34,7 +34,7 @@ const DIRECT_STORE_COLLECTIONS = [
   "store_visitor_pageviews", "store_visitor_sessions", "store_visual_items", "subcategories",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
   "storefront_order_links", "push_media", "push_campaigns",
-  "push_campaign_deliveries", "push_events",
+  "push_campaign_deliveries", "push_events", "push_daily_stats",
   "users",
 ];
 const LOG_MESSAGES = {
@@ -281,7 +281,8 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM push_media WHERE store = {:storeId}) AS pushMedia,
       (SELECT COUNT(*) FROM target_push_campaigns) AS pushCampaigns,
       (SELECT COUNT(*) FROM target_push_deliveries) AS pushCampaignDeliveries,
-      (SELECT COUNT(*) FROM push_events WHERE store = {:storeId}) AS pushEvents
+      (SELECT COUNT(*) FROM push_events WHERE store = {:storeId}) AS pushEvents,
+      (SELECT COUNT(*) FROM push_daily_stats WHERE store = {:storeId}) AS pushDailyStats
   `, { storeId }, {
     storeUsers: 0, products: 0, productVariations: 0, orders: 0, orderItems: 0,
     gifts: 0, promotions: 0, coupons: 0, couponUsages: 0, raffles: 0,
@@ -295,7 +296,7 @@ function buildCounts(app, storeId) {
     currencies: 0, shippingZones: 0, visualItems: 0,
     storefrontAppConfigs: 0, storefrontInstallations: 0, storefrontWebSessions: 0,
     storefrontOrderLinks: 0, pushMedia: 0, pushCampaigns: 0,
-    pushCampaignDeliveries: 0, pushEvents: 0,
+    pushCampaignDeliveries: 0, pushEvents: 0, pushDailyStats: 0,
   }) || {};
   const counts = {
     store_users: nonNegativeInteger(row.storeUsers),
@@ -343,6 +344,7 @@ function buildCounts(app, storeId) {
     push_campaigns: nonNegativeInteger(row.pushCampaigns),
     push_campaign_deliveries: nonNegativeInteger(row.pushCampaignDeliveries),
     push_events: nonNegativeInteger(row.pushEvents),
+    push_daily_stats: nonNegativeInteger(row.pushDailyStats),
   };
   counts.total_records = COUNT_KEYS.reduce((total, key) => total + counts[key], 1);
   return counts;
@@ -622,7 +624,14 @@ function findCrossStoreReferences(app, storeId) {
           event.campaign IN (SELECT id FROM target_push_campaigns)
           OR event.delivery IN (SELECT id FROM target_push_deliveries)
           OR event.installation IN (SELECT id FROM target_installations)
+          OR event."order" IN (SELECT id FROM target_orders)
+          OR event.coupon IN (SELECT id FROM target_coupons)
         )
+    UNION ALL
+    SELECT 'push_daily_stats', COUNT(DISTINCT daily.id)
+      FROM push_daily_stats daily
+      WHERE COALESCE(daily.store, '') != {:storeId}
+        AND daily.campaign IN (SELECT id FROM target_push_campaigns)
   `, { storeId }, { category: "", referenceCount: 0 });
   const references = {};
   rows.forEach((row) => {
@@ -694,6 +703,7 @@ function executeDeletionPlan(app, storeId, counts) {
 
   // La familia pública se elimina de hijos a padres. No depende de cascadas y
   // nunca toca store_push_devices/store_notifications fuera de su inventario.
+  deleted += deleteExpected(app, "push_daily_stats", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_daily_stats));
   deleted += deleteExpected(app, "push_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_events));
   deleted += deleteExpected(app, "push_campaign_deliveries", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaign_deliveries));
   deleted += deleteExpected(app, "storefront_order_links", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_order_links));

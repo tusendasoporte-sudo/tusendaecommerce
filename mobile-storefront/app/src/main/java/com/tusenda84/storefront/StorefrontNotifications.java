@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Build;
 
 import java.io.ByteArrayOutputStream;
@@ -20,6 +21,7 @@ import java.util.Locale;
 
 final class StorefrontNotifications {
     static final String MARKETING_CHANNEL_ID = "pz_storefront_marketing";
+    static final String NOTIFICATION_TAP = "pz_storefront_notification_tap";
     private static final int IMAGE_MAX_BYTES = 102_400;
 
     private StorefrontNotifications() {}
@@ -49,9 +51,11 @@ final class StorefrontNotifications {
         createChannels(context);
 
         Intent openIntent = new Intent(context, StorefrontActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .setData(Uri.parse("pz-storefront://notification/" + payload.deliveryId));
         payload.putInto(openIntent);
-        int requestCode = payload.campaignId.hashCode() & 0x7fffffff;
+        openIntent.putExtra(NOTIFICATION_TAP, true);
+        int requestCode = payload.deliveryId.hashCode() & 0x7fffffff;
         PendingIntent contentIntent = PendingIntent.getActivity(
                 context,
                 requestCode,
@@ -78,8 +82,12 @@ final class StorefrontNotifications {
         } else {
             builder.setStyle(new Notification.BigTextStyle().bigText(body));
         }
-        manager.notify("pz_storefront_" + payload.campaignId, requestCode, builder.build());
+        manager.notify("pz_storefront_" + payload.deliveryId, requestCode, builder.build());
         return true;
+    }
+
+    static boolean isNotificationTap(Intent intent) {
+        return intent != null && intent.getBooleanExtra(NOTIFICATION_TAP, false);
     }
 
     private static Bitmap downloadWebp(String rawUrl) {

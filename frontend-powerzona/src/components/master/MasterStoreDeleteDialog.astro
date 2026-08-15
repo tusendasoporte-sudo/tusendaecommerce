@@ -184,7 +184,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         analytics_and_notifications: sum(counts, ['analytics_events', 'store_notifications', 'master_notifications', 'price_watches', 'price_events', 'activity_reviews', 'activity_audit']),
         customers_and_security: sum(counts, ['customers', 'customer_phones', 'customer_devices', 'customer_links', 'visitor_sessions', 'visitor_pageviews', 'security_events', 'security_blocks', 'security_audit', 'security_settings']),
         configuration_and_files: sum(counts, ['settings', 'categories', 'subcategories', 'currencies', 'shipping_zones', 'visual_items']),
-        public_app_and_push: sum(counts, ['storefront_app_configs', 'storefront_installations', 'storefront_web_sessions', 'storefront_order_links', 'push_media', 'push_campaigns', 'push_campaign_deliveries', 'push_events']),
+        public_app_and_push: sum(counts, ['storefront_app_configs', 'storefront_installations', 'storefront_web_sessions', 'storefront_order_links', 'push_media', 'push_campaigns', 'push_campaign_deliveries', 'push_events', 'push_daily_stats']),
         total_records: counts.total_records,
       };
     }

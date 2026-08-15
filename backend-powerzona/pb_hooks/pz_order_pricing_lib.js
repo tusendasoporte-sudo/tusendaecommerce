@@ -15,8 +15,15 @@ const storeActivity = typeof __hooks === "undefined"
 const securityEnforcement = typeof __hooks === "undefined"
   ? require("./pz_security_enforcement_lib.js")
   : require(`${__hooks}/pz_security_enforcement_lib.js`);
+const storefrontInstallations = typeof __hooks === "undefined"
+  ? require("./pz_storefront_installations_lib.js")
+  : require(`${__hooks}/pz_storefront_installations_lib.js`);
+const storefrontAnalytics = typeof __hooks === "undefined"
+  ? require("./pz_storefront_analytics_lib.js")
+  : require(`${__hooks}/pz_storefront_analytics_lib.js`);
 
 const CHECKOUT_PATH = "/api/pz/checkout/orders";
+const STOREFRONT_SESSION_COOKIE = "pz_storefront_session";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9_-]{24,80}$/;
 const COUPON_PATTERN = /^[A-Za-z0-9_-]{2,40}$/;
@@ -195,6 +202,32 @@ function bodyValue(body, key) {
   if (!body) return undefined;
   if (typeof body.get === "function") return body.get(key);
   return body[key];
+}
+
+function requestHeader(e, name) {
+  try {
+    if (e && e.request && e.request.header && typeof e.request.header.get === "function") {
+      const direct = bounded(e.request.header.get(name), 8192);
+      if (direct) return direct;
+    }
+  } catch (_) {}
+  let info = null;
+  try { info = e.requestInfo(); } catch (_) { info = null; }
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return bounded(headers.get(name) || headers.get(name.toLowerCase()), 8192);
+  } catch (_) {}
+  const wanted = String(name || "").toLowerCase().replace(/-/g, "_");
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase().replace(/-/g, "_") === wanted);
+  return key ? bounded(headers[key], 8192) : "";
+}
+
+function requestCookie(e, name) {
+  const raw = requestHeader(e, "Cookie");
+  const prefix = `${name}=`;
+  const part = raw.split(";").map((item) => item.trim()).find((item) => item.startsWith(prefix));
+  if (!part) return "";
+  try { return decodeURIComponent(part.slice(prefix.length)); } catch (_) { return ""; }
 }
 
 function parseCheckoutItem(source) {
@@ -1382,6 +1415,7 @@ function handleCheckout(e) {
       createOrderNotification(txApp, order, parsed, plan);
       result = responseOrder(order, items, plan.shipping.name, false);
     });
+    attributeCheckoutBestEffort(e, parsed);
     return e.json(200, result);
   } catch (error) {
     const code = requestErrorCode(error);
@@ -1389,6 +1423,97 @@ function handleCheckout(e) {
     try { $app.logger().error("PowerZona checkout transaction failed safely.", "code", "PZ_ORDER_CHECKOUT_FAILED"); } catch (_) {}
     return e.json(500, { ok: false, error: "order_creation_failed" });
   }
+}
+
+function parseCouponAttributionPayload(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const keys = Object.keys(body).filter((key) => typeof body[key] !== "function").sort();
+  if (keys.join(",") !== "coupon_code,delivery_method,items,shipping_zone_id,store_id") return null;
+  const storeId = bounded(bodyValue(body, "store_id"), 15);
+  const couponCode = bounded(bodyValue(body, "coupon_code"), 40).toUpperCase();
+  const deliveryMethod = bounded(bodyValue(body, "delivery_method"), 20);
+  const shippingZoneId = bounded(bodyValue(body, "shipping_zone_id"), 15);
+  const rawItems = bodyValue(body, "items");
+  if (!RECORD_ID_PATTERN.test(storeId) || !COUPON_PATTERN.test(couponCode)
+    || !DELIVERY_METHODS.includes(deliveryMethod)
+    || (deliveryMethod === "delivery" && !RECORD_ID_PATTERN.test(shippingZoneId))
+    || (deliveryMethod !== "delivery" && shippingZoneId)
+    || !Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_ITEMS) return null;
+  const items = rawItems.map(parseCheckoutItem);
+  if (items.some((item) => !item || item.isGift)) return null;
+  const unique = new Set();
+  for (const item of items) {
+    const key = `product:${item.productId}:${item.variationId}`;
+    if (unique.has(key)) return null;
+    unique.add(key);
+  }
+  return {
+    storeId,
+    couponCode,
+    deliveryMethod,
+    shippingZoneId,
+    currencyId: "",
+    items,
+  };
+}
+
+function couponRecordByCode(app, storeId, codeValue) {
+  const code = bounded(codeValue, 40).toUpperCase();
+  if (!code) return null;
+  try {
+    return app.findFirstRecordByFilter(
+      "manual_coupons",
+      "store = {:store} && code = {:code}",
+      { store: storeId, code },
+    );
+  } catch (_) { return null; }
+}
+
+function attributeCheckoutBestEffort(e, parsed) {
+  const token = requestCookie(e, STOREFRONT_SESSION_COOKIE);
+  if (!token) return;
+  try {
+    $app.runInTransaction((txApp) => {
+      const now = new Date();
+      const session = storefrontInstallations.resolveActiveWebSession(txApp, token, now);
+      if (!session || session.storeId !== parsed.storeId) return;
+      const order = existingCheckout(txApp, parsed);
+      if (!order) return;
+      const coupon = couponRecordByCode(txApp, parsed.storeId, recordString(order, "coupon_code"));
+      if (coupon) storefrontAnalytics.recordCouponApplied(txApp, session, parsed.storeId, recordString(order, "coupon_code"), now);
+      storefrontAnalytics.attributeOrder(txApp, session, order, { couponRecord: coupon }, now);
+    });
+  } catch (_) {
+    try { $app.logger().warn("Checkout completed without push attribution.", "code", "PZ_C09_ATTRIBUTION_SKIPPED"); } catch (_) {}
+  }
+}
+
+function handleCouponAttribution(e) {
+  setNoStoreHeaders(e);
+  let body = null;
+  try { body = e.requestInfo().body || {}; } catch (_) { body = null; }
+  const parsed = parseCouponAttributionPayload(body);
+  if (!parsed) return e.json(400, { ok: false, error: "invalid_order" });
+  const token = requestCookie(e, STOREFRONT_SESSION_COOKIE);
+  if (!token) return e.json(200, { ok: true, attributed: false });
+  let attributed = false;
+  try {
+    $app.runInTransaction((txApp) => {
+      const now = new Date();
+      const session = storefrontInstallations.resolveActiveWebSession(txApp, token, now);
+      if (!session || session.storeId !== parsed.storeId) return;
+      const plan = buildCheckoutPlan(txApp, parsed, now);
+      if (plan.totals.couponWinner !== "manual_coupon" || !plan.couponRecord) return;
+      attributed = Boolean(storefrontAnalytics.recordCouponApplied(
+        txApp,
+        session,
+        parsed.storeId,
+        parsed.couponCode,
+        now,
+      ));
+    });
+  } catch (_) { attributed = false; }
+  return e.json(200, { ok: true, attributed });
 }
 
 function standaloneGiftItem(app, order, giftId) {
@@ -2003,6 +2128,27 @@ function deleteCouponUsagesForOrder(app, order) {
   });
 }
 
+function deleteStorefrontAttributionForOrder(app, order) {
+  const storeId = relationId(order, "store");
+  const allForOrder = (collection) => {
+    const records = [];
+    for (let offset = 0; ; offset += 500) {
+      const page = findRecordsStrict(app, collection, "order = {:order}", "id", 500, offset, { order: order.id });
+      records.push(...page);
+      if (page.length < 500) return records;
+    }
+  };
+  const events = allForOrder("push_events");
+  const links = allForOrder("storefront_order_links");
+  events.concat(links).forEach((record) => {
+    if (relationId(record, "store") !== storeId || relationId(record, "order") !== order.id) {
+      throw privateMutationError("order_inventory_invalid", 409);
+    }
+  });
+  events.forEach((event) => app.delete(event));
+  links.forEach((link) => app.delete(link));
+}
+
 function deletePrivateOrder(app, auth, orderId) {
   const order = requireLockedPrivateOrder(app, auth, orderId, "orders.cancel_delete");
   const previousStatus = recordString(order, "status");
@@ -2021,6 +2167,7 @@ function deletePrivateOrder(app, auth, orderId) {
     app.delete(item);
   });
   deleteCouponUsagesForOrder(app, order);
+  deleteStorefrontAttributionForOrder(app, order);
   createOrderActivity(app, order, auth, {
     action: "order_deleted",
     severity: "critical",
@@ -2441,6 +2588,7 @@ module.exports = {
   ensurePrivateOrderToken,
   freezeLegacyLineEconomics,
   handleCheckout,
+  handleCouponAttribution,
   handleOrderDelete,
   handleOrderItemAdd,
   handleOrderItemAdjustment,
@@ -2456,6 +2604,7 @@ module.exports = {
   orderInventoryGroups,
   ordersAllowedBySettings,
   parseCheckoutPayload,
+  parseCouponAttributionPayload,
   parseOrderTransitionPayload,
   raiseOrderRequestError,
   recalculateOrderEconomics,

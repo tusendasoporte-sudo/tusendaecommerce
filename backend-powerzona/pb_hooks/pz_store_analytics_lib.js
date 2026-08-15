@@ -7,7 +7,7 @@ const masterAnalytics = typeof __hooks === "undefined"
   ? require("./pz_master_dashboard_lib.js")
   : require(`${__hooks}/pz_master_dashboard_lib.js`);
 
-const ANALYTICS_RANGES = Object.freeze(["today", "7", "15", "30"]);
+const ANALYTICS_RANGES = Object.freeze(["today", "7", "15", "30", "90"]);
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 
 function recordValue(record, key) {
@@ -212,7 +212,7 @@ function sanitizeLandingQr(source) {
       link_label: safeText(item && item.link_label, 100) || "Botón",
       clicks: nonNegativeInteger(item && item.clicks),
     })),
-    daily: (Array.isArray(landing.daily) ? landing.daily : []).slice(0, 30).map((item) => ({
+    daily: (Array.isArray(landing.daily) ? landing.daily : []).slice(0, 90).map((item) => ({
       day: safeText(item && item.day, 10),
       label: safeText(item && item.label, 20),
       views: nonNegativeInteger(item && item.views),

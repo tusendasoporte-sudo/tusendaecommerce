@@ -15,6 +15,7 @@ public final class StorefrontPushPayloadTest {
         assertEquals("ok", StorefrontPushPayload.diagnosticCode(validPayload(), "powerzona-storefront-staging"));
         assertEquals("powerzona-storefront-staging", payload.storeKey);
         assertEquals("abc123def456ghi", payload.campaignId);
+        assertEquals("delivery0000001", payload.deliveryId);
         assertEquals("Oferta PowerZona", payload.title);
         assertEquals("Producto disponible por tiempo limitado.", payload.body);
         assertEquals("product", payload.targetType);
@@ -65,6 +66,7 @@ public final class StorefrontPushPayloadTest {
         value.put(StorefrontPushPayload.CHANNEL, "storefront");
         value.put(StorefrontPushPayload.STORE_KEY, "powerzona-storefront-staging");
         value.put(StorefrontPushPayload.CAMPAIGN_ID, "abc123def456ghi");
+        value.put(StorefrontPushPayload.DELIVERY_ID, "delivery0000001");
         value.put(StorefrontPushPayload.TITLE, "Oferta PowerZona");
         value.put(StorefrontPushPayload.BODY, "Producto disponible por tiempo limitado.");
         value.put(StorefrontPushPayload.TARGET_TYPE, "product");

@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import {
-  buildStorefrontMulticastMessage,
+  buildStorefrontMessages,
   classifyFirebaseDeliveryError,
   normalizePushRelayV2Payload,
 } from '../../../../../lib/pushRelayV2Payload.ts';
@@ -77,7 +77,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const result = await messaging.sendEachForMulticast(buildStorefrontMulticastMessage(payload));
+    const result = await messaging.sendEach(buildStorefrontMessages(payload));
     if (!result || !Array.isArray(result.responses) || result.responses.length !== payload.deliveries.length) {
       return json(502, { ok: false, error: 'firebase_send_ambiguous', dispatched: true, retryable: false });
     }
@@ -119,7 +119,7 @@ export const POST: APIRoute = async ({ request }) => {
       results,
     }, retryAfter ? { 'Retry-After': String(retryAfter) } : {});
   } catch {
-    // Después de iniciar sendEachForMulticast no se puede probar que Firebase
+    // Después de iniciar sendEach no se puede probar que Firebase
     // no aceptó el lote. El backend marcará estas entregas como unknown y no
     // las reintentará automáticamente.
     return json(502, { ok: false, error: 'firebase_send_ambiguous', dispatched: true, retryable: false });

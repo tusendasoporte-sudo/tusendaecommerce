@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.webkit.CookieManager;
 
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.appcheck.AppCheckToken;
@@ -26,6 +27,7 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class StorefrontRegistrationClient {
@@ -90,6 +92,13 @@ final class StorefrontRegistrationClient {
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
     private static final Pattern BOOTSTRAP_URL_PATTERN = Pattern.compile(
             "^https://[^/]+/api/storefront/v1/session/bootstrap/pzb_v1_[A-Za-z0-9]{48}$"
+    );
+    private static final Pattern SESSION_COOKIE_PATTERN = Pattern.compile(
+            "^pz_storefront_session=pzws_v1_[A-Za-z0-9]{64}$"
+    );
+    private static final Pattern SESSION_MAX_AGE_PATTERN = Pattern.compile(
+            "(?:^|;)\\s*Max-Age=([0-9]{1,6})(?:;|$)",
+            Pattern.CASE_INSENSITIVE
     );
     private static final Pattern SAFE_ERROR = Pattern.compile("^[a-z0-9_]{1,80}$");
     private static final Pattern CAMPAIGN_PATTERN = Pattern.compile("^[a-z0-9]{15}$");
@@ -162,6 +171,10 @@ final class StorefrontRegistrationClient {
 
     void bootstrap(Callback callback) {
         execute(callback, this::bootstrapInternal);
+    }
+
+    void flushEvents(Callback callback) {
+        execute(callback, this::flushEventsInternal);
     }
 
     void disable(Callback callback) {
@@ -307,14 +320,70 @@ final class StorefrontRegistrationClient {
             int status = connection.getResponseCode();
             String location = clean(connection.getHeaderField("Location"));
             String cookie = clean(connection.getHeaderField("Set-Cookie"));
+            String expectedLocation = new URL(StorefrontConfig.storeUrl()).getPath();
             if (status != 303 || !location.startsWith("/t/")
-                    || !cookie.startsWith("pz_storefront_session=pzws_v1_")) {
+                    || !location.equals(expectedLocation)
+                    || !validSessionCookie(cookie)) {
                 return Result.fail("El bootstrap no pudo consumirse de forma segura.");
             }
-            return Result.ok("Bootstrap consumido una sola vez y cookie segura recibida.");
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.setAcceptCookie(true);
+            cookieManager.setCookie(StorefrontConfig.storeUrl(), cookie);
+            cookieManager.flush();
+            return Result.ok("Bootstrap consumido una sola vez y sesión WebView instalada.");
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+    static boolean validSessionCookie(String rawCookie) {
+        String cookie = clean(rawCookie);
+        String cookiePair = clean(cookie.split(";", 2)[0]);
+        if (!SESSION_COOKIE_PATTERN.matcher(cookiePair).matches()) return false;
+        String normalized = cookie.toLowerCase(Locale.ROOT);
+        if (!normalized.matches(".*(?:^|;)\\s*path=/\\s*(?:;|$).*")
+                || !normalized.matches(".*(?:^|;)\\s*httponly\\s*(?:;|$).*")
+                || !normalized.matches(".*(?:^|;)\\s*secure\\s*(?:;|$).*")
+                || !normalized.matches(".*(?:^|;)\\s*samesite=lax\\s*(?:;|$).*")) return false;
+        Matcher maxAge = SESSION_MAX_AGE_PATTERN.matcher(cookie);
+        if (!maxAge.find()) return false;
+        try {
+            int seconds = Integer.parseInt(maxAge.group(1));
+            return seconds > 0 && seconds <= 86_400;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
+    }
+
+    private Result flushEventsInternal() throws Exception {
+        Result readiness = readiness();
+        if (!readiness.ok) return readiness;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
+        java.util.List<StorefrontEventQueue.Event> events = StorefrontEventQueue.pending(context);
+        if (events.isEmpty()) return Result.ok("No hay eventos pendientes.");
+        String token = appCheckToken(false);
+        int accepted = 0;
+        for (StorefrontEventQueue.Event event : events) {
+            HttpResult response = postWithToken(
+                    StorefrontConfig.EVENTS_PATH,
+                    StorefrontRegistrationPayload.event(event),
+                    credential,
+                    token
+            );
+            boolean recorded = false;
+            if (response.ok()) {
+                try { recorded = new JSONObject(response.body).optBoolean("ok", false); }
+                catch (Exception ignored) {}
+            }
+            if (recorded || response.status == 400 || response.status == 404 || response.status == 409) {
+                StorefrontEventQueue.remove(context, event.key());
+                if (recorded) accepted += 1;
+            } else {
+                StorefrontEventQueue.recordAttempt(context, event.key());
+            }
+        }
+        return Result.ok("Eventos aceptados: " + accepted + ".");
     }
 
     private HttpResult post(

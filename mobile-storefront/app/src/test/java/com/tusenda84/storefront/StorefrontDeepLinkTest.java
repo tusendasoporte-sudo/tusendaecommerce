@@ -109,4 +109,17 @@ public final class StorefrontDeepLinkTest {
                 "/t/powerzona/admin"
         ));
     }
+
+    @Test
+    public void exposesOnlyAnExactVisibleFirstPartyPathForAnalytics() {
+        assertEquals(
+                "/t/powerzona/producto/bateria-12v?variant=blue",
+                StorefrontDeepLink.analyticsPath(
+                        STORE + "/producto/bateria-12v?variant=blue",
+                        STORE
+                )
+        );
+        assertEquals("", StorefrontDeepLink.analyticsPath("https://payments.example/checkout", STORE));
+        assertEquals("", StorefrontDeepLink.analyticsPath(STORE + "/producto/a#details", STORE));
+    }
 }

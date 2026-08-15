@@ -15,6 +15,8 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.View;
 import android.view.Window;
@@ -49,7 +51,12 @@ public final class StorefrontActivity extends Activity {
     private boolean pageReady;
     private boolean registrationSyncInFlight;
     private boolean permissionSyncInFlight;
+    private boolean sessionRefreshInFlight;
+    private boolean initialNavigationDone;
     private int pushResolutionGeneration;
+    private String pendingDeliveryId = "";
+    private String pendingDestinationUrl = "";
+    private String pendingReportedPath = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,9 +84,12 @@ public final class StorefrontActivity extends Activity {
         }
 
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) {
-            if (!openPushTarget(getIntent())) openStoreHome();
+            beginInitialNavigation(getIntent());
+        } else {
+            initialNavigationDone = true;
+            syncInstallation();
+            flushEvents();
         }
-        syncInstallation();
     }
 
     private void configureWindow() {
@@ -179,7 +189,51 @@ public final class StorefrontActivity extends Activity {
         client.syncFromAppStart(result -> {
             registrationSyncInFlight = false;
             updateNotificationCard();
+            if (result.ok) refreshWebSession(null);
         });
+    }
+
+    private void beginInitialNavigation(Intent intent) {
+        new Handler(Looper.getMainLooper()).postDelayed(() -> completeInitialNavigation(intent), 4_000);
+        if (!BuildConfig.FIREBASE_CONFIGURED || StorefrontConfig.apiBaseUrl().isEmpty()) {
+            completeInitialNavigation(intent);
+            return;
+        }
+        registrationSyncInFlight = true;
+        client.syncFromAppStart(result -> {
+            registrationSyncInFlight = false;
+            updateNotificationCard();
+            if (!result.ok) {
+                completeInitialNavigation(intent);
+                return;
+            }
+            refreshWebSession(sessionResult -> completeInitialNavigation(intent));
+        });
+    }
+
+    private void completeInitialNavigation(Intent intent) {
+        if (initialNavigationDone || isFinishing() || isDestroyed()) return;
+        initialNavigationDone = true;
+        if (!openPushTarget(intent)) openStoreHome();
+        flushEvents();
+    }
+
+    private void refreshWebSession(StorefrontRegistrationClient.Callback callback) {
+        if (sessionRefreshInFlight || client == null
+                || !StorefrontInstallationStore.hasCredential(this)) {
+            if (callback != null) callback.complete(StorefrontRegistrationClient.Result.fail("session_unavailable"));
+            return;
+        }
+        sessionRefreshInFlight = true;
+        client.bootstrap(result -> {
+            sessionRefreshInFlight = false;
+            if (callback != null) callback.complete(result);
+        });
+    }
+
+    private void flushEvents() {
+        if (client == null || !StorefrontInstallationStore.hasCredential(this)) return;
+        client.flushEvents(result -> {});
     }
 
     private void syncPermissionIfChanged() {
@@ -255,6 +309,13 @@ public final class StorefrontActivity extends Activity {
     private boolean openPushTarget(Intent intent) {
         StorefrontPushPayload payload = pushPayload(intent);
         if (payload == null) return false;
+        boolean explicitTap = StorefrontNotifications.isNotificationTap(intent);
+        intent.removeExtra(StorefrontNotifications.NOTIFICATION_TAP);
+        clearPendingDestination();
+        if (explicitTap) {
+            StorefrontEventQueue.enqueue(this, "opened", payload.deliveryId, "");
+            flushEvents();
+        }
         int generation = ++pushResolutionGeneration;
         if ("order".equals(payload.targetType)) {
             progressBar.setVisibility(View.VISIBLE);
@@ -263,6 +324,8 @@ public final class StorefrontActivity extends Activity {
                 String target = result.ok ? result.targetUrl : StorefrontConfig.storeUrl();
                 if (!result.ok) {
                     Toast.makeText(this, R.string.push_target_unavailable, Toast.LENGTH_LONG).show();
+                } else if (explicitTap) {
+                    expectDestination(payload.deliveryId, target, "__order_verified__");
                 }
                 openInternalUrl(target);
             });
@@ -274,8 +337,33 @@ public final class StorefrontActivity extends Activity {
                 payload.targetType,
                 payload.targetPath
         );
+        if (explicitTap && !target.isEmpty()) {
+            expectDestination(payload.deliveryId, target, StorefrontDeepLink.analyticsPath(target, StorefrontConfig.storeUrl()));
+        }
         openInternalUrl(target.isEmpty() ? StorefrontConfig.storeUrl() : target);
         return true;
+    }
+
+    private void expectDestination(String deliveryId, String url, String reportedPath) {
+        pendingDeliveryId = deliveryId == null ? "" : deliveryId;
+        pendingDestinationUrl = url == null ? "" : url;
+        pendingReportedPath = reportedPath == null ? "" : reportedPath;
+    }
+
+    private void clearPendingDestination() {
+        pendingDeliveryId = "";
+        pendingDestinationUrl = "";
+        pendingReportedPath = "";
+    }
+
+    private void reportVisibleDestination(String visibleUrl) {
+        if (pendingDeliveryId.isEmpty() || pendingDestinationUrl.isEmpty() || pendingReportedPath.isEmpty()) return;
+        String expected = StorefrontDeepLink.analyticsPath(pendingDestinationUrl, StorefrontConfig.storeUrl());
+        String visible = StorefrontDeepLink.analyticsPath(visibleUrl, StorefrontConfig.storeUrl());
+        if (expected.isEmpty() || !expected.equals(visible)) return;
+        StorefrontEventQueue.enqueue(this, "destination_viewed", pendingDeliveryId, pendingReportedPath);
+        clearPendingDestination();
+        flushEvents();
     }
 
     @Override
@@ -415,6 +503,8 @@ public final class StorefrontActivity extends Activity {
         super.onResume();
         updateNotificationCard();
         syncPermissionIfChanged();
+        if (initialNavigationDone) refreshWebSession(null);
+        flushEvents();
     }
 
     @Override
@@ -455,6 +545,11 @@ public final class StorefrontActivity extends Activity {
         }
 
         @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            reportVisibleDestination(url);
+        }
+
+        @Override
         public void onPageFinished(WebView view, String url) {
             progressBar.setVisibility(View.GONE);
             CookieManager.getInstance().flush();
@@ -465,6 +560,7 @@ public final class StorefrontActivity extends Activity {
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             if (!request.isForMainFrame()) return;
+            clearPendingDestination();
             showError(
                     isOnline() ? getString(R.string.service_error_title) : getString(R.string.offline_title),
                     isOnline() ? getString(R.string.service_error_message) : getString(R.string.offline_message)
@@ -477,6 +573,9 @@ public final class StorefrontActivity extends Activity {
                 WebResourceRequest request,
                 WebResourceResponse errorResponse
         ) {
+            if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
+                clearPendingDestination();
+            }
             if (request.isForMainFrame() && errorResponse.getStatusCode() >= 500) {
                 showError(
                         getString(R.string.service_error_title),
@@ -488,6 +587,7 @@ public final class StorefrontActivity extends Activity {
         @Override
         public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
             handler.cancel();
+            clearPendingDestination();
             showError(
                     getString(R.string.ssl_error_title),
                     getString(R.string.ssl_error_message)

@@ -74,7 +74,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       </li>
       <li>
         <span class="push-policy__icon" aria-hidden="true">{STOREFRONT_PUSH_RETENTION_DAYS}d</span>
-        <span><strong>Retención de {STOREFRONT_PUSH_RETENTION_DAYS} días</strong><small>Borradores y campañas finalizadas se eliminan automáticamente</small></span>
+        <span><strong>Contenido visible: {STOREFRONT_PUSH_RETENTION_DAYS} días</strong><small>La evidencia técnica mínima se conserva hasta 90 días</small></span>
       </li>
     </ul>
   </section>
@@ -333,6 +333,26 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
               <div><dt>Ruta validada</dt><dd data-preview-path>Pendiente de validar</dd></div>
               <div><dt>Audiencia</dt><dd data-preview-audience>Todas las instalaciones activas</dd></div>
             </dl>
+            <section class="push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
+              <div class="push-preview-heading">
+                <div><span>Resultados</span><strong id="push-metrics-title">Embudo verificable</strong></div>
+              </div>
+              <div class="push-metrics__grid">
+                <div><span>Seleccionadas</span><strong data-metric="selected">0</strong><small>snapshot</small></div>
+                <div><span>Aceptadas</span><strong data-metric="accepted">0</strong><small data-rate="accepted">No aplica</small></div>
+                <div><span>Abrieron</span><strong data-metric="opened">0</strong><small data-rate="opened">No aplica</small></div>
+                <div><span>Vieron destino</span><strong data-metric="destination_viewed">0</strong><small data-rate="destination_viewed">No aplica</small></div>
+                <div><span>Cupón aplicado</span><strong data-metric="coupon_applied">0</strong><small data-rate="coupon_applied">No aplica</small></div>
+                <div><span>Órdenes atribuidas</span><strong data-metric="orders_attributed">0</strong><small data-rate="orders_attributed">Conversión de instalaciones: No aplica</small></div>
+              </div>
+              <dl class="push-preview-summary">
+                <div><dt>Fallo confirmado</dt><dd data-metric="failed_confirmed">0</dd></div>
+                <div><dt>Desconocido</dt><dd data-metric="unknown">0</dd></div>
+                <div><dt>Reintentando</dt><dd data-metric="retrying">0</dd></div>
+                <div><dt>Órdenes vigentes/canceladas</dt><dd><span data-metric="orders_vigentes">0</span> / <span data-metric="orders_canceled">0</span></dd></div>
+              </dl>
+              <p class="push-preview-disclaimer" data-metrics-note></p>
+            </section>
             <p class="push-preview-disclaimer">La apariencia final puede variar según fabricante, versión de Android y ajustes del usuario.</p>
           </div>
         </aside>
@@ -377,6 +397,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     normalizeStorefrontPushCampaign,
     normalizeStorefrontPushCampaigns,
     previewStorefrontPushAudience,
+    readStorefrontPushCampaignDetail,
     readStorefrontPushAdminAuthToken,
     readStorefrontPushAdminCookie,
     resolveStorefrontPushQuotaTimezone,
@@ -821,6 +842,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-editor-title]').textContent = 'Nueva campaña';
       one('[data-editor-state]').textContent = 'Borrador nuevo';
       one('[data-preview-path]').textContent = 'Pendiente de validar';
+      one('[data-campaign-metrics]').hidden = true;
       one('[data-audience-estimate]').textContent = 'Sin calcular';
       one('[data-audience-note]').textContent = 'Se calculará automáticamente al abrir el editor.';
       const minDate = new Date(Date.now() + 2 * 60_000);
@@ -831,7 +853,31 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       renderMediaOptions('');
       updateConditionalFields();
     }
-    function fillEditor(campaign, edit) {
+    function metricRate(numerator, denominator) {
+      const total = Number(denominator);
+      if (!Number.isFinite(total) || total <= 0) return 'No aplica';
+      return `${((Math.max(0, Number(numerator || 0)) / total) * 100).toFixed(1)}%`;
+    }
+    function renderCampaignMetrics(metrics) {
+      const panel = one('[data-campaign-metrics]');
+      if (!panel || !metrics) { if (panel) panel.hidden = true; return; }
+      all('[data-metric]').forEach((element) => {
+        const key = element.dataset.metric;
+        if (Object.prototype.hasOwnProperty.call(metrics, key)) {
+          element.textContent = Number(metrics[key] || 0).toLocaleString('es-US');
+        }
+      });
+      one('[data-rate="accepted"]').textContent = metricRate(metrics.accepted, metrics.denominators?.acceptance);
+      one('[data-rate="opened"]').textContent = metricRate(metrics.opened, metrics.denominators?.opened);
+      one('[data-rate="destination_viewed"]').textContent = metricRate(metrics.destination_viewed, metrics.denominators?.destination_viewed);
+      one('[data-rate="coupon_applied"]').textContent = metrics.coupon_applicable
+        ? metricRate(metrics.coupon_applied, metrics.denominators?.coupon_applied)
+        : 'No aplica';
+      one('[data-rate="orders_attributed"]').textContent = `Conversión de instalaciones: ${metricRate(metrics.buyer_installations, metrics.denominators?.conversion)}`;
+      one('[data-metrics-note]').textContent = metrics.measurement_note || '';
+      panel.hidden = false;
+    }
+    function fillEditor(campaign, edit, metrics = null) {
       resetEditor();
       state.editing = campaign;
       field('campaign_id').value = campaign.id;
@@ -860,6 +906,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       updateConditionalFields();
       if (!editor.open) openDialog(editor);
       calculateOpenedAudience(campaign);
+      if (!edit) renderCampaignMetrics(metrics);
     }
     async function saveDraft(options = {}) {
       clearFormMessages();
@@ -1025,14 +1072,14 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       const scheduledCount = campaigns.filter((campaign) => campaign.status === 'scheduled').length;
       const approved = await confirmation({
         title: campaigns.length === 1 ? '¿Borrar esta campaña?' : `¿Borrar ${campaigns.length} campañas?`,
-        message: 'Se eliminarán definitivamente la campaña y todos sus resultados operativos.',
+        message: 'Se retirarán del panel y se eliminará su contenido visible. La evidencia técnica mínima se conserva hasta 90 días.',
         confirmLabel: campaigns.length === 1 ? 'Borrar campaña' : 'Borrar campañas',
         tone: 'danger',
         rows: [
           ['Cantidad', String(campaigns.length)],
           ['Campañas', titles.join(', ')],
         ],
-        warning: `Esta acción no se puede deshacer.${scheduledCount ? ' Las campañas programadas seleccionadas dejarán de enviarse.' : ''} Las cuotas permanentes 10/310 no se reinician.`,
+        warning: `El contenido eliminado no se puede recuperar.${scheduledCount ? ' Las campañas programadas seleccionadas dejarán de enviarse.' : ''} Las cuotas permanentes 10/310 no se reinician.`,
       });
       if (!approved) return;
       setBusy(true, campaigns.length === 1 ? 'Borrando campaña…' : 'Borrando campañas…');
@@ -1045,8 +1092,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         }
         await loadCampaigns();
         showToast(result.deleted_count === 1
-          ? 'Campaña borrada definitivamente.'
-          : `${result.deleted_count} campañas borradas definitivamente.`);
+          ? 'Campaña retirada y contenido redactado.'
+          : `${result.deleted_count} campañas retiradas y redactadas.`);
       } catch (error) {
         showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
       } finally {
@@ -1057,7 +1104,18 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       const campaign = state.campaigns.find((item) => item.id === campaignId);
       if (!campaign) return;
       if (action === 'edit') return fillEditor(campaign, true);
-      if (action === 'detail') return fillEditor(campaign, false);
+      if (action === 'detail') {
+        setBusy(true, 'Cargando detalle y métricas…');
+        try {
+          const detail = await readStorefrontPushCampaignDetail(client, campaign.id);
+          return fillEditor(detail.campaign, false, detail.metrics);
+        } catch (error) {
+          showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
+          return;
+        } finally {
+          setBusy(false);
+        }
+      }
       if (action === 'delete') return deleteCampaignSelection([campaign.id]);
       if (action === 'cancel') {
         const approved = await confirmation({
@@ -1332,6 +1390,12 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-preview-summary div + div { border-top: 1px solid #e2e8f0; }
   .push-preview-summary dt { color: #64748b; font-size: 10px; font-weight: 900; }
   .push-preview-summary dd { min-width: 0; margin: 0; color: #0f172a; font-size: 10px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
+  .push-metrics { display: grid; gap: 11px; border-top: 1px solid #e2e8f0; padding-top: 13px; }
+  .push-metrics[hidden] { display: none; }
+  .push-metrics__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .push-metrics__grid > div { min-width: 0; display: grid; gap: 3px; border-radius: 12px; background: #f8fafc; padding: 9px; }
+  .push-metrics__grid span, .push-metrics__grid small { color: #64748b; font-size: 9px; font-weight: 850; }
+  .push-metrics__grid strong { color: #0f172a; font-size: 18px; font-weight: 1000; }
   .push-preview-disclaimer { margin: 0; color: #64748b; font-size: 10px; line-height: 1.45; text-align: center; }
   .push-editor__footer { position: sticky; bottom: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid #e2e8f0; background: rgba(255,255,255,.98); padding: 14px 20px; box-shadow: 0 -10px 25px rgba(15,23,42,.06); }
   .push-editor__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }

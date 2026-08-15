@@ -19,7 +19,7 @@ onRecordsListRequest(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 onRecordViewRequest(
@@ -31,7 +31,7 @@ onRecordViewRequest(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 // Per-field privacy must run at PocketBase's serialization boundary. Request
@@ -45,7 +45,7 @@ onRecordEnrich(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 onRecordCreateRequest(
@@ -57,7 +57,7 @@ onRecordCreateRequest(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 onRecordUpdateRequest(
@@ -69,7 +69,7 @@ onRecordUpdateRequest(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 onRecordDeleteRequest(
@@ -81,7 +81,7 @@ onRecordDeleteRequest(
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events", "push_daily_stats",
 );
 
 onFileDownloadRequest(

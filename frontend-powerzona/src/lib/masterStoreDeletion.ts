@@ -44,6 +44,7 @@ export type MasterStoreDeleteCounts = {
   push_campaigns: number;
   push_campaign_deliveries: number;
   push_events: number;
+  push_daily_stats: number;
   total_records: number;
 };
 
@@ -91,7 +92,7 @@ const COUNT_KEYS: Array<Exclude<keyof MasterStoreDeleteCounts, 'total_records'>>
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',
   'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
   'storefront_order_links', 'push_media', 'push_campaigns',
-  'push_campaign_deliveries', 'push_events',
+  'push_campaign_deliveries', 'push_events', 'push_daily_stats',
 ];
 
 function boundedString(value: unknown, maxLength: number) {

@@ -162,6 +162,8 @@ function fixtureTables(overrides = {}) {
     automatic_promotions: [],
     manual_coupons: [],
     manual_coupon_usages: [],
+    push_events: [],
+    storefront_order_links: [],
     gifts: [],
     orders: [],
     order_items: [],
@@ -277,6 +279,40 @@ test('rechaza cantidades cero, negativas, decimales, excesivas y lineas duplicad
       { product_id: IDS.product, quantity: 1 },
     ],
   })), null);
+});
+
+test('atribucion de cupon exige carrito canonico y reutiliza la validacion oficial', () => {
+  const payload = {
+    store_id: IDS.store,
+    coupon_code: 'qa20',
+    delivery_method: 'pickup',
+    shipping_zone_id: '',
+    items: [{ product_id: IDS.product, variation_id: '', quantity: 1 }],
+  };
+  const parsedAttribution = pricing.parseCouponAttributionPayload(payload);
+  assert.ok(parsedAttribution);
+  assert.equal(parsedAttribution.couponCode, 'QA20');
+  assert.deepEqual(parsedAttribution.items, [
+    { giftId: '', productId: IDS.product, variationId: '', quantity: 1, isGift: false },
+  ]);
+  assert.equal(pricing.parseCouponAttributionPayload({ store_id: IDS.store, coupon_code: 'QA20' }), null);
+  assert.equal(pricing.parseCouponAttributionPayload({ ...payload, total: 0.01 }), null);
+  assert.equal(pricing.parseCouponAttributionPayload({
+    ...payload,
+    items: [{ gift_id: IDS.gift, quantity: 1 }],
+  }), null);
+
+  const app = fixtureApp();
+  const coupon = mutableRecord(IDS.coupon, {
+    store: IDS.store, code: 'QA20', active: true, scope: 'cart',
+    discount_type: 'percentage', discount_value: 20, unlimited_uses: true,
+  });
+  app.tables.manual_coupons.push(coupon);
+  const validPlan = pricing.buildCheckoutPlan(app, parsedAttribution, new Date('2026-07-18T12:00:00Z'));
+  assert.equal(validPlan.totals.couponWinner, 'manual_coupon');
+  coupon.min_subtotal_usd = 20;
+  const ineligiblePlan = pricing.buildCheckoutPlan(app, parsedAttribution, new Date('2026-07-18T12:00:00Z'));
+  assert.notEqual(ineligiblePlan.totals.couponWinner, 'manual_coupon');
 });
 
 test('reutiliza el precio comercial oficial para producto, variacion y oferta', () => {
@@ -860,6 +896,17 @@ test('borrado oficial restaura inventario y elimina items, uso de cupon y orden 
   );
   app.tables.manual_coupons.push(coupon);
   app.tables.manual_coupon_usages.push(mutableRecord(IDS.usage, { order: order.id, coupon: coupon.id }));
+  app.tables.push_events.push(mutableRecord('eventprice00001', {
+    store: IDS.store, order: order.id, event_type: 'order_attributed',
+  }));
+  app.tables.storefront_order_links.push(mutableRecord('orderlinkprice1', {
+    store: IDS.store, order: order.id, installation: 'installprice001',
+  }));
+  for (let index = 0; index < 1_001; index += 1) {
+    app.tables.storefront_order_links.push(mutableRecord(`bulklink${String(index).padStart(7, '0')}`, {
+      store: IDS.store, order: order.id, installation: `bulkinst${String(index).padStart(7, '0')}`,
+    }));
+  }
 
   assert.deepEqual(pricing.deletePrivateOrder(app, masterAuth(), order.id), { ok: true, deleted: true });
   assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 10);
@@ -867,6 +914,8 @@ test('borrado oficial restaura inventario y elimina items, uso de cupon y orden 
   assert.equal(app.tables.orders.length, 0);
   assert.equal(app.tables.order_items.length, 0);
   assert.equal(app.tables.manual_coupon_usages.length, 0);
+  assert.equal(app.tables.push_events.length, 0);
+  assert.equal(app.tables.storefront_order_links.length, 0);
   assert.equal(coupon.used_count, 0);
   assert.deepEqual(app.tables.store_activity_audit.map((event) => event.action), ['order_deleted']);
   assert.equal(app.tables.store_activity_audit[0].resource_id_snapshot, IDS.order);

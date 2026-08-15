@@ -54,3 +54,11 @@ routerAdd(
   $apis.bodyLimit(4096),
   $apis.skipSuccessActivityLog()
 );
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/events",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "events_record"),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);

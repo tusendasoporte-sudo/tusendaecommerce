@@ -16,6 +16,7 @@ const PUBLIC_COLLECTIONS = [
   'push_campaigns',
   'push_campaign_deliveries',
   'push_events',
+  'push_daily_stats',
 ];
 
 test('el inventario Master cuenta y verifica las ocho colecciones nuevas', () => {
@@ -53,6 +54,7 @@ test('la eliminación explícita borra solo la tienda objetivo y respeta el orde
   }
   assert.equal(records.store_push_devices.length, 1);
   assert.deepEqual(deleteOrder.slice(0, PUBLIC_COLLECTIONS.length), [
+    'push_daily_stats',
     'push_events',
     'push_campaign_deliveries',
     'storefront_order_links',

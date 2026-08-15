@@ -9,6 +9,7 @@ final class StorefrontRegistrationPayload {
     private static final Pattern LOCALE = Pattern.compile("^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$");
     private static final Pattern TIMEZONE = Pattern.compile("^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:/[A-Za-z0-9_+-]+){1,3})$");
     private static final Pattern CAMPAIGN = Pattern.compile("^[a-z0-9]{15}$");
+    private static final Pattern STOREFRONT_PATH = Pattern.compile("^/t/[a-z0-9]+(?:-[a-z0-9]+)*(?:/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?(?:\\?[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$");
 
     private StorefrontRegistrationPayload() {}
 
@@ -78,6 +79,29 @@ final class StorefrontRegistrationPayload {
     static String resolveCampaignTarget(String campaignId) {
         require(campaignId, 15, CAMPAIGN);
         return "{\"campaign_id\":" + quote(campaignId) + "}";
+    }
+
+    static String event(StorefrontEventQueue.Event event) {
+        if (event == null) throw new IllegalArgumentException("invalid_payload");
+        require(event.deliveryId, 15, CAMPAIGN);
+        if (!("opened".equals(event.eventType) || "destination_viewed".equals(event.eventType))) {
+            throw new IllegalArgumentException("invalid_payload");
+        }
+        require(event.occurredAt, 40, null);
+        String targetPath = event.targetPath == null ? "" : event.targetPath;
+        if (("opened".equals(event.eventType) && !targetPath.isEmpty())
+                || ("destination_viewed".equals(event.eventType)
+                    && !(STOREFRONT_PATH.matcher(targetPath).matches()
+                        || "__order_verified__".equals(targetPath)))) {
+            throw new IllegalArgumentException("invalid_payload");
+        }
+        return "{"
+                + "\"delivery_id\":" + quote(event.deliveryId)
+                + ",\"event_type\":" + quote(event.eventType)
+                + ",\"idempotency_key\":" + quote(event.key())
+                + ",\"occurred_at\":" + quote(event.occurredAt)
+                + ",\"target_path\":" + quote(targetPath)
+                + "}";
     }
 
     private static void require(String value, int max, Pattern pattern) {

@@ -14,6 +14,7 @@ final class StorefrontPushPayload {
     static final String CHANNEL = "channel";
     static final String STORE_KEY = "store_key";
     static final String CAMPAIGN_ID = "campaign_id";
+    static final String DELIVERY_ID = "delivery_id";
     static final String TITLE = "title";
     static final String BODY = "body";
     static final String TARGET_TYPE = "target_type";
@@ -24,10 +25,12 @@ final class StorefrontPushPayload {
             "home", "product", "category", "section", "order", "raffle", "coupon"
     );
     private static final Pattern CAMPAIGN = Pattern.compile("^[a-z0-9]{15}$");
+    private static final Pattern DELIVERY = Pattern.compile("^[a-z0-9]{15}$");
     private static final Pattern HTTPS_IMAGE = Pattern.compile("^https://[^\\s]{1,2039}$");
 
     final String storeKey;
     final String campaignId;
+    final String deliveryId;
     final String title;
     final String body;
     final String targetType;
@@ -37,6 +40,7 @@ final class StorefrontPushPayload {
     private StorefrontPushPayload(
             String storeKey,
             String campaignId,
+            String deliveryId,
             String title,
             String body,
             String targetType,
@@ -45,6 +49,7 @@ final class StorefrontPushPayload {
     ) {
         this.storeKey = storeKey;
         this.campaignId = campaignId;
+        this.deliveryId = deliveryId;
         this.title = title;
         this.body = body;
         this.targetType = targetType;
@@ -56,6 +61,7 @@ final class StorefrontPushPayload {
         if (!"ok".equals(diagnosticCode(source, expectedStoreKey))) return null;
         String storeKey = StorefrontConfig.normalizeAppKey(source.get(STORE_KEY));
         String campaignId = clean(source.get(CAMPAIGN_ID));
+        String deliveryId = clean(source.get(DELIVERY_ID));
         String title = clean(source.get(TITLE));
         String body = clean(source.get(BODY));
         String targetType = clean(source.get(TARGET_TYPE));
@@ -64,6 +70,7 @@ final class StorefrontPushPayload {
         return new StorefrontPushPayload(
                 storeKey,
                 campaignId,
+                deliveryId,
                 title,
                 body,
                 targetType,
@@ -79,6 +86,7 @@ final class StorefrontPushPayload {
         String storeKey = StorefrontConfig.normalizeAppKey(source.get(STORE_KEY));
         String expected = StorefrontConfig.normalizeAppKey(expectedStoreKey);
         String campaignId = clean(source.get(CAMPAIGN_ID));
+        String deliveryId = clean(source.get(DELIVERY_ID));
         String title = clean(source.get(TITLE));
         String body = clean(source.get(BODY));
         String targetType = clean(source.get(TARGET_TYPE));
@@ -89,6 +97,7 @@ final class StorefrontPushPayload {
         if (!"storefront".equals(channel)) return "invalid_channel";
         if (expected.isEmpty() || !expected.equals(storeKey)) return "invalid_store";
         if (!CAMPAIGN.matcher(campaignId).matches()) return "invalid_campaign";
+        if (!DELIVERY.matcher(deliveryId).matches()) return "invalid_delivery";
         if (!TARGET_TYPES.contains(targetType)) return "invalid_target_type";
         if (title.length() > 120) return "invalid_title";
         if (body.length() > 1000) return "invalid_body";
@@ -117,6 +126,7 @@ final class StorefrontPushPayload {
         intent.putExtra(CHANNEL, "storefront");
         intent.putExtra(STORE_KEY, storeKey);
         intent.putExtra(CAMPAIGN_ID, campaignId);
+        intent.putExtra(DELIVERY_ID, deliveryId);
         intent.putExtra(TITLE, title);
         intent.putExtra(BODY, body);
         intent.putExtra(TARGET_TYPE, targetType);
@@ -130,6 +140,7 @@ final class StorefrontPushPayload {
                 CHANNEL,
                 STORE_KEY,
                 CAMPAIGN_ID,
+                DELIVERY_ID,
                 TITLE,
                 BODY,
                 TARGET_TYPE,

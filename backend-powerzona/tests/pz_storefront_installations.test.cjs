@@ -305,6 +305,21 @@ test('valida contratos exactos y no acepta tienda ni IP declaradas por el telefo
     notificationPermission: 'denied',
   });
   assert.equal(installations.parsePermissionPayload({ notification_permission: 'yes' }), null);
+  const event = {
+    delivery_id: 'delivery0000001', event_type: 'opened',
+    idempotency_key: 'opened:delivery0000001', occurred_at: NOW.toISOString(), target_path: '',
+  };
+  assert.equal(installations.parseEventPayload(event).deliveryId, 'delivery0000001');
+  assert.equal(installations.parseEventPayload({ ...event, extra: true }), null);
+  assert.equal(installations.parseEventPayload({ ...event, idempotency_key: 'client-choice' }), null);
+  assert.equal(installations.parseEventPayload({
+    ...event, event_type: 'destination_viewed',
+    idempotency_key: 'destination_viewed:delivery0000001', target_path: '__order_verified__',
+  }).targetPath, '__order_verified__');
+  assert.equal(installations.parseEventPayload({
+    ...event, event_type: 'destination_viewed',
+    idempotency_key: 'destination_viewed:delivery0000001', target_path: '/t/powerzona\nadmin',
+  }), null);
   assert.equal(installations.normalizeIp('8.8.8.8'), '8.8.8.8');
   assert.equal(installations.normalizeIp('999.8.8.8'), '');
 });
@@ -426,6 +441,18 @@ test('bootstrap es de un solo uso, cambia el digest y redirige solo al prefijo f
   assert.equal(consumed.redirect_path, '/t/powerzona');
   assert.equal(consumed.session_token, `pzws_v1_${'C'.repeat(64)}`);
   assert.equal(consumed.max_age_seconds, 86_400);
+  const active = installations.resolveActiveWebSession(app, consumed.session_token, NOW, {
+    security, credentialSecret: CREDENTIAL_SECRET,
+  });
+  assert.equal(active.storeId, STORE_A);
+  assert.equal(active.installation.id, first.installation.id);
+  assert.equal(installations.resolveActiveWebSession(app, `${consumed.session_token}x`, NOW, {
+    security, credentialSecret: CREDENTIAL_SECRET,
+  }), null);
+  active.session.set('expires_at', new Date(NOW.getTime() - 1000).toISOString());
+  assert.equal(installations.resolveActiveWebSession(app, consumed.session_token, NOW, {
+    security, credentialSecret: CREDENTIAL_SECRET,
+  }), null);
   assert.throws(() => installations.consumeBootstrapSession(app, context({
     appId: '',
     credential: '',
@@ -496,9 +523,10 @@ test('rutas privadas tienen body limit y omiten activity logs con datos sensible
     '/session/bootstrap',
     '/session/bootstrap/consume',
     '/campaigns/resolve-target',
+    '/events',
   ]) assert.match(routes, new RegExp(route.replaceAll('/', '\\/')));
-  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 7);
-  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 7);
+  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 8);
+  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 8);
   assert.match(routes, /campaigns_resolve_target/);
   assert.match(source, /PZ_STOREFRONT_INSTALLATION_REQUEST_FAILED/);
   assert.doesNotMatch(source, /logger\(\)\.error\([\s\S]{0,300}error\.message/);

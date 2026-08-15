@@ -34,9 +34,11 @@ const APP_ID_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,255}$/;
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
+const SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const RECEIPT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{6,80}$/;
+const STOREFRONT_EVENT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)?(?:\?[A-Za-z0-9._~!$&'()*+,;=:@%\/?-]*)?$/;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$/;
 const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
@@ -54,6 +56,7 @@ const ACTION_LIMITS = Object.freeze({
   session_bootstrap: 12,
   session_consume: 24,
   campaigns_resolve_target: 30,
+  events_record: 120,
 });
 const SAFE_ERRORS = new Set([
   "unauthorized",
@@ -69,6 +72,9 @@ const SAFE_ERRORS = new Set([
   "rate_limited",
   "bootstrap_not_found",
   "target_not_available",
+  "delivery_not_eligible",
+  "event_window_expired",
+  "destination_not_verified",
   "storefront_secrets_unavailable",
   "registration_unavailable",
   "request_unavailable",
@@ -324,6 +330,34 @@ function parseCampaignResolvePayload(value) {
   return RECORD_ID_PATTERN.test(campaignId) ? Object.freeze({ campaignId }) : null;
 }
 
+function parseEventPayload(value) {
+  const fields = ["delivery_id", "event_type", "idempotency_key", "occurred_at", "target_path"];
+  if (!exactPayload(value, fields)) return null;
+  const deliveryId = safeText(bodyValue(value, "delivery_id"));
+  const eventType = safeText(bodyValue(value, "event_type"));
+  const idempotencyKey = safeText(bodyValue(value, "idempotency_key"));
+  const occurredAtRaw = safeText(bodyValue(value, "occurred_at"));
+  const occurredAt = new Date(occurredAtRaw);
+  const rawTargetPath = bodyValue(value, "target_path");
+  const targetPath = typeof rawTargetPath === "string" ? rawTargetPath : null;
+  if (!RECORD_ID_PATTERN.test(deliveryId)
+    || !["opened", "destination_viewed"].includes(eventType)
+    || idempotencyKey !== `${eventType}:${deliveryId}`
+    || !Number.isFinite(occurredAt.getTime())
+    || targetPath === null || targetPath !== targetPath.trim() || targetPath.length > 500
+    || (eventType === "opened" && targetPath !== "")
+    || (eventType === "destination_viewed"
+      && !(STOREFRONT_EVENT_PATH_PATTERN.test(targetPath)
+        || targetPath === "__order_verified__"))) return null;
+  return Object.freeze({
+    deliveryId,
+    eventType,
+    idempotencyKey,
+    clientOccurredAt: occurredAt.toISOString(),
+    targetPath,
+  });
+}
+
 function parseEnvelope(body, action) {
   if (!exactPayload(body, ["app_id", "credential", "client", "payload"])) return null;
   const appId = bodyValue(body, "app_id");
@@ -344,6 +378,7 @@ function parseEnvelope(body, action) {
   else if (action === "installations_disable" || action === "session_bootstrap") payload = parseEmptyPayload(bodyValue(body, "payload"));
   else if (action === "session_consume") payload = parseBootstrapConsumePayload(bodyValue(body, "payload"));
   else if (action === "campaigns_resolve_target") payload = parseCampaignResolvePayload(bodyValue(body, "payload"));
+  else if (action === "events_record") payload = parseEventPayload(bodyValue(body, "payload"));
   if (!payload) return null;
   return Object.freeze({ appId, credential, client, payload });
 }
@@ -776,6 +811,37 @@ function consumeBootstrapSession(app, context, credentialSecret) {
   });
 }
 
+function resolveActiveWebSession(app, tokenValue, nowValue, options) {
+  const token = safeText(tokenValue);
+  if (!SESSION_TOKEN_PATTERN.test(token)) return null;
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  if (!Number.isFinite(now.getTime())) return null;
+  const config = options && typeof options === "object" ? options : {};
+  let security = config.security;
+  try { if (!security) security = defaultSecurity(); } catch (_) { return null; }
+  const credentialSecret = safeText(config.credentialSecret || getCredentialSecret(security));
+  if (!credentialSecret) return null;
+  let digest = "";
+  try { digest = sessionDigest(token, credentialSecret, security); } catch (_) { return null; }
+  const session = findFirst(
+    app,
+    WEB_SESSIONS_COLLECTION,
+    'session_digest = {:digest} && status = "active"',
+    { digest },
+  );
+  if (!session) return null;
+  const expiresAt = new Date(recordString(session, "expires_at"));
+  if (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= now.getTime()) return null;
+  const installation = findById(app, INSTALLATIONS_COLLECTION, relationId(session, "installation"));
+  if (!installation || recordString(installation, "status") !== "active") return null;
+  const appConfig = findById(app, APP_CONFIGS_COLLECTION, relationId(installation, "app_config"));
+  const storeId = relationId(session, "store");
+  if (!appConfig || recordString(appConfig, "status") !== "active"
+    || relationId(installation, "store") !== storeId
+    || relationId(appConfig, "store") !== storeId) return null;
+  return Object.freeze({ session, installation, appConfig, storeId, expiresAt });
+}
+
 function setPrivateHeaders(e) {
   try {
     const headers = e.response.header();
@@ -789,9 +855,9 @@ function setPrivateHeaders(e) {
 
 function statusForError(code) {
   if (["unauthorized", "invalid_credential", "credential_required"].includes(code)) return 401;
-  if (["app_not_available", "bootstrap_not_found", "target_not_available"].includes(code)) return 404;
+  if (["app_not_available", "bootstrap_not_found", "target_not_available", "delivery_not_eligible"].includes(code)) return 404;
   if (["store_not_available", "plan_not_available"].includes(code)) return 403;
-  if (["installation_disabled", "installation_not_available"].includes(code)) return 409;
+  if (["installation_disabled", "installation_not_available", "event_window_expired", "destination_not_verified"].includes(code)) return 409;
   if (code === "invalid_payload") return 400;
   if (code === "rate_limited") return 429;
   return 503;
@@ -822,6 +888,13 @@ function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "session_bootstrap") return createBootstrapSession(app, context, credentialSecret);
   if (action === "session_consume") return consumeBootstrapSession(app, context, credentialSecret);
   if (action === "campaigns_resolve_target") return resolveCampaignTarget(app, context, credentialSecret);
+  if (action === "events_record") {
+    const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+    const analytics = typeof __hooks === "undefined"
+      ? require("./pz_storefront_analytics_lib.js")
+      : require(`${__hooks}/pz_storefront_analytics_lib.js`);
+    return analytics.recordNativeEvent(app, resolved, context.payload, context.now);
+  }
   throw new StorefrontInstallationError("invalid_payload");
 }
 
@@ -875,6 +948,7 @@ module.exports = {
   normalizeIp,
   parseBootstrapConsumePayload,
   parseCampaignResolvePayload,
+  parseEventPayload,
   parseClient,
   parseEmptyPayload,
   parseEnvelope,
@@ -882,6 +956,8 @@ module.exports = {
   parsePermissionPayload,
   parseRegisterPayload,
   registerInstallation,
+  resolveCredentialContext,
+  resolveActiveWebSession,
   resolveCampaignTarget,
   resetMemoryForTests,
   sessionDigest,

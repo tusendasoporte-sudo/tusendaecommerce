@@ -30,8 +30,9 @@ const REGION_PATTERN = /^[A-Za-z0-9._ -]{1,80}$/;
 const DAILY_CAMPAIGN_LIMIT = 10;
 const MONTHLY_CAMPAIGN_LIMIT = 310;
 const CAMPAIGN_TIMEZONE = "America/Havana";
-const DELIVERY_RETENTION_DAYS = 180;
+const DELIVERY_RETENTION_DAYS = schema.RETENTION_POLICY.delivery_days;
 const CAMPAIGN_RETENTION_DAYS = 7;
+const TECHNICAL_RETENTION_DAYS = schema.RETENTION_POLICY.event_days;
 const QUOTA_ENTRY_RETENTION_DAYS = 40;
 const STORE_QUOTA_STATE_FIELD = "push_campaign_quota_state";
 const CAMPAIGN_LOCK_SECONDS = 300;
@@ -104,6 +105,10 @@ function recordString(record, key) {
 
 function recordId(record) {
   return String(record && record.id || recordString(record, "id")).trim();
+}
+
+function isRedactedCampaign(record) {
+  return Boolean(recordString(record, "redacted_at"));
 }
 
 function relationId(record, key) {
@@ -719,7 +724,8 @@ function createOrUpdateDraft(app, context, payload, nowValue) {
   let campaign = null;
   if (payload.campaignId) {
     campaign = findRecord(app, CAMPAIGNS_COLLECTION, payload.campaignId);
-    if (!campaign || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
+    if (!campaign || isRedactedCampaign(campaign)
+      || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
     if (recordString(campaign, "status") !== "draft") throw codedError("campaign_not_editable");
   } else {
     campaign = new Record(app.findCollectionByNameOrId(CAMPAIGNS_COLLECTION), {});
@@ -1078,8 +1084,7 @@ function acquireCampaignLock(app, campaignId, nowValue, options) {
       } else {
         terminalizeOutstandingDeliveries(txApp, campaignId, now);
         const counts = dispatch.deliveryStatusCounts(txApp, campaignId);
-        const failed = counts.failed_transient + counts.failed_permanent + counts.invalid_fid
-          + counts.unknown + counts.canceled;
+        const failed = counts.failed_permanent + counts.invalid_fid;
         campaign.set("selected_count", statusTotal(counts));
         campaign.set("accepted_count", counts.accepted);
         campaign.set("failed_count", failed);
@@ -1131,7 +1136,7 @@ function finalizeCampaign(app, campaignId, lockToken, nowValue) {
       || recordString(campaign, "lock_token") !== lockToken) return null;
     const counts = dispatch.deliveryStatusCounts(txApp, campaignId);
     const selected = statusTotal(counts);
-    const failed = counts.failed_transient + counts.failed_permanent + counts.invalid_fid + counts.unknown;
+    const failed = counts.failed_permanent + counts.invalid_fid;
     campaign.set("selected_count", selected);
     campaign.set("accepted_count", counts.accepted);
     campaign.set("failed_count", failed);
@@ -1188,7 +1193,8 @@ function scheduleCampaign(app, context, payload, nowValue, options) {
   if (!scheduledAt || scheduledAt.getTime() < now.getTime() - 1000) throw codedError("invalid_payload");
   const campaign = runTransaction(app, (txApp) => {
     const current = findRecord(txApp, CAMPAIGNS_COLLECTION, payload.campaignId);
-    if (!current || relationId(current, "store") !== context.storeId) throw codedError("campaign_not_found");
+    if (!current || isRedactedCampaign(current)
+      || relationId(current, "store") !== context.storeId) throw codedError("campaign_not_found");
     const status = recordString(current, "status");
     if (!["draft", "paused_plan"].includes(status)) {
       if (status === "scheduled") return current;
@@ -1217,7 +1223,8 @@ function cancelCampaign(app, context, campaignId, nowValue) {
   assertCampaignAccess(app, context);
   return runTransaction(app, (txApp) => {
     const campaign = findRecord(txApp, CAMPAIGNS_COLLECTION, campaignId);
-    if (!campaign || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
+    if (!campaign || isRedactedCampaign(campaign)
+      || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
     const status = recordString(campaign, "status");
     if (status === "canceled") return campaign;
     if (!["draft", "scheduled", "paused_plan"].includes(status) || recordString(campaign, "started_at")) {
@@ -1238,7 +1245,8 @@ function duplicateCampaign(app, context, campaignId, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   assertCampaignAccess(app, context);
   const source = findRecord(app, CAMPAIGNS_COLLECTION, campaignId);
-  if (!source || relationId(source, "store") !== context.storeId) throw codedError("campaign_not_found");
+  if (!source || isRedactedCampaign(source)
+    || relationId(source, "store") !== context.storeId) throw codedError("campaign_not_found");
   const targetType = recordString(source, "target_type");
   const mediaId = relationId(source, "media");
   if (mediaId) validateMedia(app, mediaId, context.storeId, now);
@@ -1265,7 +1273,8 @@ function previewAudience(app, context, campaignId, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   assertCampaignAccess(app, context);
   const campaign = findRecord(app, CAMPAIGNS_COLLECTION, campaignId);
-  if (!campaign || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
+  if (!campaign || isRedactedCampaign(campaign)
+    || relationId(campaign, "store") !== context.storeId) throw codedError("campaign_not_found");
   if (!["draft", "scheduled", "paused_plan"].includes(recordString(campaign, "status"))) {
     return { count: integerValue(recordValue(campaign, "selected_count")), snapshot: true };
   }
@@ -1370,6 +1379,77 @@ function deleteCampaignRecords(app, collection, campaignId) {
   }
 }
 
+function redactCampaignContent(app, campaign, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  if (isRedactedCampaign(campaign)) return false;
+  if (recordString(campaign, "started_at")) recordCampaignQuotaUsage(app, campaign, now);
+  campaign.set("title", "Contenido eliminado");
+  campaign.set("body", "Contenido eliminado por la política de retención.");
+  campaign.set("created_by", "");
+  campaign.set("media", "");
+  campaign.set("audience_type", "all_active");
+  campaign.set("audience_config", {});
+  campaign.set("target_type", "home");
+  campaign.set("target_section", "");
+  campaign.set("target_product", "");
+  campaign.set("target_category", "");
+  campaign.set("target_order", "");
+  campaign.set("target_raffle", "");
+  campaign.set("target_coupon", "");
+  campaign.set("target_path", "");
+  campaign.set("lock_token", "");
+  campaign.set("lock_expires_at", "");
+  campaign.set("redacted_at", now.toISOString());
+  const technicalAnchor = parsedDate(recordValue(campaign, "completed_at"))
+    || parsedDate(recordValue(campaign, "canceled_at"))
+    || parsedDate(recordValue(campaign, "started_at"))
+    || parsedDate(recordValue(campaign, "created"))
+    || now;
+  campaign.set("delete_after", addDays(technicalAnchor, TECHNICAL_RETENTION_DAYS));
+  app.save(campaign);
+  return true;
+}
+
+function deleteExpiredCampaignRecords(app, collection, campaignId, now) {
+  let deleted = 0;
+  for (;;) {
+    const page = findRecordsStrict(
+      app,
+      collection,
+      'campaign = {:campaign} && delete_after != "" && delete_after <= {:now}',
+      "delete_after,id",
+      500,
+      0,
+      { campaign: campaignId, now: now.toISOString() },
+    );
+    if (!page.length) return deleted;
+    page.forEach((record) => {
+      app.delete(record);
+      deleted += 1;
+    });
+  }
+}
+
+function latestCampaignChildExpiry(app, campaignId, now) {
+  let latest = null;
+  for (const collection of ["push_events", DELIVERIES_COLLECTION, "push_daily_stats"]) {
+    const rows = findRecordsStrict(
+      app,
+      collection,
+      'campaign = {:campaign}',
+      "-delete_after,id",
+      1,
+      0,
+      { campaign: campaignId },
+    );
+    if (!rows.length) continue;
+    const expiry = parsedDate(recordValue(rows[0], "delete_after")) || addDays(now, 1);
+    const parsedExpiry = expiry instanceof Date ? expiry : parsedDate(expiry);
+    if (parsedExpiry && (!latest || parsedExpiry.getTime() > latest.getTime())) latest = parsedExpiry;
+  }
+  return latest;
+}
+
 function deleteCampaignsPermanently(app, context, campaignIds, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   assertCampaignAccess(app, context);
@@ -1386,13 +1466,13 @@ function deleteCampaignsPermanently(app, context, campaignIds, nowValue) {
       if (recordString(campaign, "status") === "processing") throw codedError("campaign_not_deletable");
       return campaign;
     });
-    const summary = { deleted_ids: [], deleted_count: 0, deliveries_deleted: 0, events_deleted: 0 };
+    const summary = {
+      deleted_ids: [], deleted_count: 0, redacted_count: 0,
+      deliveries_deleted: 0, events_deleted: 0,
+    };
     records.forEach((campaign) => {
       const campaignId = recordId(campaign);
-      if (recordString(campaign, "started_at")) recordCampaignQuotaUsage(txApp, campaign, now);
-      summary.events_deleted += deleteCampaignRecords(txApp, "push_events", campaignId);
-      summary.deliveries_deleted += deleteCampaignRecords(txApp, DELIVERIES_COLLECTION, campaignId);
-      txApp.delete(campaign);
+      if (redactCampaignContent(txApp, campaign, now)) summary.redacted_count += 1;
       summary.deleted_ids.push(campaignId);
       summary.deleted_count += 1;
     });
@@ -1402,7 +1482,7 @@ function deleteCampaignsPermanently(app, context, campaignIds, nowValue) {
 
 function cleanupExpiredCampaigns(app, nowValue) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
-  const summary = { deleted: 0, deliveries: 0, events: 0, failed: 0 };
+  const summary = { redacted: 0, deleted: 0, deliveries: 0, events: 0, daily_stats: 0, failed: 0 };
   for (let batch = 0; batch < MAX_BATCHES_PER_RUN; batch += 1) {
     const due = findRecordsStrict(
       app,
@@ -1421,22 +1501,35 @@ function cleanupExpiredCampaigns(app, nowValue) {
       try {
         const result = runTransaction(app, (txApp) => {
           const campaign = findRecord(txApp, CAMPAIGNS_COLLECTION, recordId(candidate));
+          if (!campaign) return null;
           const status = recordString(campaign, "status");
           const deleteAfter = parsedDate(recordValue(campaign, "delete_after"));
-          if (!campaign
-            || !["draft", "sent", "partially_sent", "failed", "canceled"].includes(status)
+          if (!["draft", "sent", "partially_sent", "failed", "canceled"].includes(status)
             || !deleteAfter
             || deleteAfter.getTime() > now.getTime()) return null;
-          if (recordString(campaign, "started_at")) recordCampaignQuotaUsage(txApp, campaign, now);
-          const events = deleteCampaignRecords(txApp, "push_events", recordId(campaign));
-          const deliveries = deleteCampaignRecords(txApp, DELIVERIES_COLLECTION, recordId(campaign));
+          if (!isRedactedCampaign(campaign)) {
+            redactCampaignContent(txApp, campaign, now);
+            return { redacted: true, deleted: false, deliveries: 0, events: 0, dailyStats: 0 };
+          }
+          const campaignId = recordId(campaign);
+          const events = deleteExpiredCampaignRecords(txApp, "push_events", campaignId, now);
+          const deliveries = deleteExpiredCampaignRecords(txApp, DELIVERIES_COLLECTION, campaignId, now);
+          const dailyStats = deleteExpiredCampaignRecords(txApp, "push_daily_stats", campaignId, now);
+          const latestExpiry = latestCampaignChildExpiry(txApp, campaignId, now);
+          if (latestExpiry && latestExpiry.getTime() > now.getTime()) {
+            campaign.set("delete_after", latestExpiry.toISOString());
+            txApp.save(campaign);
+            return { redacted: false, deleted: false, deliveries, events, dailyStats };
+          }
           txApp.delete(campaign);
-          return { deliveries, events };
+          return { redacted: false, deleted: true, deliveries, events, dailyStats };
         });
         if (!result) return;
-        summary.deleted += 1;
+        if (result.redacted) summary.redacted += 1;
+        if (result.deleted) summary.deleted += 1;
         summary.deliveries += result.deliveries;
         summary.events += result.events;
+        summary.daily_stats += result.dailyStats;
         deletedThisBatch += 1;
       } catch (_) {
         summary.failed += 1;
@@ -1568,8 +1661,8 @@ function handleList(e) {
     const status = bounded(queryValue(request.info, "status"), 30);
     if (status && !schema.COLLECTION_STATES.push_campaigns.includes(status)) throw codedError("invalid_payload");
     const filter = status
-      ? "store = {:store} && status = {:status}"
-      : "store = {:store}";
+      ? 'store = {:store} && status = {:status} && redacted_at = ""'
+      : 'store = {:store} && redacted_at = ""';
     const params = { store: request.context.storeId, ...(status ? { status } : {}) };
     const pageRecords = findRecordsStrict(
       request.app,
@@ -1602,11 +1695,16 @@ function handleDetail(e) {
     const campaignId = bounded(e.request.pathValue("id"), 15);
     if (!RECORD_ID_PATTERN.test(campaignId)) throw codedError("campaign_not_found");
     const campaign = findRecord(request.app, CAMPAIGNS_COLLECTION, campaignId);
-    if (!campaign || relationId(campaign, "store") !== request.context.storeId) throw codedError("campaign_not_found");
+    if (!campaign || isRedactedCampaign(campaign)
+      || relationId(campaign, "store") !== request.context.storeId) throw codedError("campaign_not_found");
+    const analytics = typeof __hooks === "undefined"
+      ? require("./pz_storefront_analytics_lib.js")
+      : require(`${__hooks}/pz_storefront_analytics_lib.js`);
     return e.json(200, {
       ok: true,
       campaign: mapCampaign(campaign),
       deliveries: deliverySummary(request.app, campaignId),
+      metrics: analytics.campaignMetrics(request.app, campaignId, request.context.storeId),
     });
   } catch (error) {
     return sendError(e, error, "campaign_processing_failed");

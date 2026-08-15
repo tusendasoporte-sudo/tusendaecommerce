@@ -62,6 +62,7 @@ const STOREFRONT_PUSH_PRIVATE_COLLECTIONS = Object.freeze([
   "push_campaigns",
   "push_campaign_deliveries",
   "push_events",
+  "push_daily_stats",
 ]);
 
 const READ_ANY_PERMISSIONS = Object.freeze({

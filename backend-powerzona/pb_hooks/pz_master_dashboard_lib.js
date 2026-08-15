@@ -2,7 +2,7 @@
 
 const PERIOD_DAYS = 30;
 const ANALYTICS_TIME_ZONE = "America/Havana";
-const ANALYTICS_RANGES = { today: 1, "7": 7, "15": 15, "30": 30 };
+const ANALYTICS_RANGES = { today: 1, "7": 7, "15": 15, "30": 30, "90": 90 };
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PAGE_SIZE = 10;
 const SALES_STATUSES = ["confirmed", "preparing", "delivered"];

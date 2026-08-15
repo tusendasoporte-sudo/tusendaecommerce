@@ -5,6 +5,7 @@ export const STOREFRONT_MAX_BODY_BYTES = Object.freeze({
   disable: 256,
   session_bootstrap: 256,
   resolve_target: 512,
+  event: 1024,
 });
 
 export const STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
@@ -19,6 +20,7 @@ const TIMEZONE_PATTERN = /^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]
 const PERMISSION_STATES = Object.freeze(['unknown', 'granted', 'denied'] as const);
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const ORDER_TARGET_PATH_PATTERN = /^\/orden\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{6,80}$/;
+const STOREFRONT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?(?:\?[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$/;
 
 export type NotificationPermission = typeof PERMISSION_STATES[number];
 
@@ -162,6 +164,50 @@ export function normalizeStorefrontCampaignTargetPayload(value: unknown) {
   if (!exactKeys(value, ['campaign_id'])) return null;
   const campaignId = boundedText((value as Record<string, unknown>).campaign_id, 15, RECORD_ID_PATTERN);
   return campaignId ? Object.freeze({ campaign_id: campaignId }) : null;
+}
+
+export function normalizeStorefrontEventPayload(value: unknown) {
+  const keys = ['delivery_id', 'event_type', 'idempotency_key', 'occurred_at', 'target_path'] as const;
+  if (!exactKeys(value, keys)) return null;
+  const source = value as Record<string, unknown>;
+  const deliveryId = boundedText(source.delivery_id, 15, RECORD_ID_PATTERN);
+  const eventType = source.event_type === 'opened' || source.event_type === 'destination_viewed'
+    ? source.event_type
+    : '';
+  const idempotencyKey = boundedText(source.idempotency_key, 128);
+  const occurredAt = typeof source.occurred_at === 'string' && source.occurred_at === source.occurred_at.trim()
+    ? new Date(source.occurred_at)
+    : null;
+  const targetPath = typeof source.target_path === 'string' ? source.target_path : '';
+  if (!deliveryId || !eventType || idempotencyKey !== `${eventType}:${deliveryId}`
+    || !occurredAt || !Number.isFinite(occurredAt.getTime())
+    || targetPath !== targetPath.trim() || targetPath.length > 500
+    || (eventType === 'opened' && targetPath !== '')
+    || (eventType === 'destination_viewed'
+      && !(STOREFRONT_PATH_PATTERN.test(targetPath) || targetPath === '__order_verified__'))) return null;
+  return Object.freeze({
+    delivery_id: deliveryId,
+    event_type: eventType,
+    idempotency_key: idempotencyKey,
+    occurred_at: occurredAt.toISOString(),
+    target_path: targetPath,
+  });
+}
+
+export function mapStorefrontEventResponse(value: unknown) {
+  if (!exactKeys(value, ['duplicate', 'event_type', 'ok', 'recorded_at'])) return null;
+  const source = value as Record<string, unknown>;
+  const recordedAt = typeof source.recorded_at === 'string' ? new Date(source.recorded_at) : null;
+  if (source.ok !== true
+    || (source.event_type !== 'opened' && source.event_type !== 'destination_viewed')
+    || typeof source.duplicate !== 'boolean'
+    || !recordedAt || !Number.isFinite(recordedAt.getTime())) return null;
+  return Object.freeze({
+    ok: true,
+    event_type: source.event_type,
+    duplicate: source.duplicate,
+    recorded_at: recordedAt.toISOString(),
+  });
 }
 
 export function mapStorefrontResolvedTarget(value: unknown) {

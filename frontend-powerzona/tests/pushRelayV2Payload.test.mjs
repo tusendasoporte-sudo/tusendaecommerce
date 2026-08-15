@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  buildStorefrontMulticastMessage,
+  buildStorefrontMessages,
   classifyFirebaseDeliveryError,
   firebaseRetryAfterSeconds,
   normalizePushRelayV2Payload,
@@ -56,11 +56,13 @@ test('rechaza campos extra, destinos administrativos, URL no HTTPS y más de 500
   assert.equal(normalizePushRelayV2Payload(oversized), null);
 });
 
-test('el mensaje FCM data-only delega contenido, imagen y PendingIntent a la app', () => {
+test('cada mensaje FCM data-only lleva solo su FID y delivery_id autenticable', () => {
   const normalized = normalizePushRelayV2Payload(payload());
-  const message = buildStorefrontMulticastMessage(normalized);
+  const [message] = buildStorefrontMessages(normalized);
   assert.equal(message.android.restrictedPackageName, 'com.tusenda84.powerzona');
   assert.equal(message.android.collapseKey, 'pz_storefront_campaign0000001');
+  assert.equal(message.token, payload().deliveries[0].fid);
+  assert.equal(message.data.delivery_id, payload().deliveries[0].delivery_id);
   assert.equal(Object.hasOwn(message, 'notification'), false);
   assert.equal(Object.hasOwn(message.android, 'notification'), false);
   assert.equal(message.data.channel, 'storefront');
@@ -68,6 +70,16 @@ test('el mensaje FCM data-only delega contenido, imagen y PendingIntent a la app
   assert.equal(message.data.body, payload().message.body);
   assert.equal(message.data.image_url, payload().message.image_url);
   assert.equal(message.data.target_path, payload().message.target_path);
+});
+
+test('un lote conserva orden y no cruza delivery_id entre instalaciones', () => {
+  const source = payload();
+  source.deliveries.push({ delivery_id: 'delivery0000002', fid: 'zyxwvutsrqponmlkjihgfe' });
+  const messages = buildStorefrontMessages(normalizePushRelayV2Payload(source));
+  assert.deepEqual(messages.map((item) => [item.token, item.data.delivery_id]), [
+    ['abcdefghijklmnopqrstuv', 'delivery0000001'],
+    ['zyxwvutsrqponmlkjihgfe', 'delivery0000002'],
+  ]);
 });
 
 test('clasifica FID inválido, fallos transitorios con Retry-After y permanentes', () => {

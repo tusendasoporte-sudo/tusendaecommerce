@@ -79,6 +79,15 @@ final class StorefrontDeepLink {
         return "https://" + configured.getHost().toLowerCase(Locale.ROOT) + targetPath;
     }
 
+    static String analyticsPath(String rawUrl, String configuredStoreUrl) {
+        URI candidate = parseAbsoluteHttps(rawUrl);
+        if (candidate == null || !isAllowedInternalNavigation(candidate, configuredStoreUrl)
+                || candidate.getRawFragment() != null) return "";
+        String path = clean(candidate.getRawPath());
+        String query = clean(candidate.getRawQuery());
+        return query.isEmpty() ? path : path + "?" + query;
+    }
+
     private static boolean isAllowedInternalNavigation(URI candidate, String configuredStoreUrl) {
         URI configured = parseAbsoluteHttps(configuredStoreUrl);
         if (configured == null || !isAllowedHost(candidate.getHost(), configured.getHost())) return false;

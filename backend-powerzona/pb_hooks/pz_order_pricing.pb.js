@@ -10,6 +10,14 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/checkout/coupon-attribution",
+  (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleCouponAttribution(e),
+  $apis.bodyLimit(65536),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/admin/orders/{orderId}/transition",
   (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderTransition(e),
   $apis.requireAuth(),

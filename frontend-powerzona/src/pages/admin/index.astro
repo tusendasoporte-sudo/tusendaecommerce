@@ -31,6 +31,7 @@ const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminProfitsPath = getStoreAdminPath(currentStoreSlug, 'profits');
 const adminPageviewsPath = getStoreAdminPath(currentStoreSlug, 'pageviews');
+const adminAppInstallationsPath = getStoreAdminPath(currentStoreSlug, 'app-installations');
 const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
@@ -5266,22 +5267,24 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 							<button class="period-btn active" type="button" data-range="7" aria-selected="true">7 días</button>
 							<button class="period-btn" type="button" data-range="15" aria-selected="false">15 días</button>
 							<button class="period-btn" type="button" data-range="30" aria-selected="false">1 mes</button>
+							<button class="period-btn" type="button" data-range="90" aria-selected="false">90 días</button>
 						</div>
 					</section>
 
 					<section class="visit-analytics-card dashboard-traffic-block" aria-labelledby="dashboard-traffic-title">
 						<div class="visit-analytics-header">
 							<p class="visit-analytics-kicker">Analíticas</p>
-							<h2 id="dashboard-traffic-title">Analíticas de visitas</h2>
-							<p>Revisa navegación pública reciente con el historial disponible de la tienda.</p>
+							<h2 id="dashboard-traffic-title">Analíticas</h2>
+							<p>Revisa navegación pública e instalaciones de la app con el historial disponible de la tienda.</p>
 						</div>
 
 						<div class="visit-analytics-toolbar">
-							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas de visitas" data-pz-scroll-hint>
+							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas" data-pz-scroll-hint>
 								<button class="visit-analytics-tab is-active" type="button" data-analytics-tab="visitors" aria-selected="true">Visitantes del periodo</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="products" aria-selected="false">Productos más vistos</button>
+								<button class="visit-analytics-tab" type="button" data-analytics-tab="appinstallations" aria-selected="false">App instalaciones</button>
 								{landingQrAnalyticsVisible && <button class="visit-analytics-tab" type="button" data-analytics-tab="landingqr" aria-selected="false">Landing QR</button>}
 							</div>
 						</div>
@@ -5318,6 +5321,22 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 							<p class="visit-analytics-panel-help">Top de productos públicos visitados en el periodo.</p>
 							<div id="most-viewed-products-list" class="visit-analytics-top-list"></div>
 							<p id="most-viewed-products-meta" class="mini-panel-meta">Cargando...</p>
+						</div>
+
+						<div class="visit-analytics-panel" data-analytics-panel="appinstallations">
+							<div class="visit-analytics-panel-head">
+								<div>
+									<h3 class="visit-analytics-panel-title">Instalaciones vigentes ahora</h3>
+									<p class="visit-analytics-panel-help">Instalaciones activas de la app; no representa personas ni dispositivos físicos únicos.</p>
+								</div>
+								<a id="app-installations-more" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminAppInstallationsPath}?range=7`}><span class="pz-admin-btn__label">Ver más</span></a>
+							</div>
+							<strong id="app-installations-current" class="visit-analytics-big-number">0</strong>
+							<div class="analytics-landing-kpis analytics-landing-kpis--two">
+								<article class="landing-kpi-card"><span>Nuevas del período</span><strong id="app-installations-new">0</strong></article>
+								<article class="landing-kpi-card"><span>Bajas detectadas</span><strong id="app-installations-disabled">0</strong></article>
+							</div>
+							<p id="app-installations-note" class="mini-panel-meta">Las bajas son detecciones técnicas; no equivalen necesariamente a desinstalaciones.</p>
 						</div>
 
 						{landingQrAnalyticsVisible && <div class="visit-analytics-panel" data-analytics-panel="landingqr">
@@ -5534,7 +5553,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled, productExpirationBottleIconSvg, landingQrAnalyticsVisible }}>
+		<script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, adminAppInstallationsPath, expirationToolsEnabled, productExpirationBottleIconSvg, landingQrAnalyticsVisible }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const STORE_FILTER = String(currentStoreFilter || '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -5545,7 +5564,8 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			const ADMIN_EXPIRATIONS_PATH = String(adminExpirationsPath || '/admin/expirations');
 			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
 			const ADMIN_PAGEVIEWS_PATH = String(adminPageviewsPath || '/admin/pageviews');
-			const ANALYTICS_MAX_RETENTION_DAYS = 30;
+			const ADMIN_APP_INSTALLATIONS_PATH = String(adminAppInstallationsPath || '/admin/app-installations');
+			const ANALYTICS_MAX_RETENTION_DAYS = 90;
 			const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
@@ -5592,6 +5612,11 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			const trafficVisitorsChart = document.getElementById('traffic-visitors-chart');
 			const trafficPageviewsChart = document.getElementById('traffic-pageviews-chart');
 			const trafficPageviewsSummaryLink = document.getElementById('traffic-pageviews-summary-link');
+			const appInstallationsCurrent = document.getElementById('app-installations-current');
+			const appInstallationsNew = document.getElementById('app-installations-new');
+			const appInstallationsDisabled = document.getElementById('app-installations-disabled');
+			const appInstallationsNote = document.getElementById('app-installations-note');
+			const appInstallationsMore = document.getElementById('app-installations-more');
 			const trafficLandingViewsTotal = document.getElementById('traffic-landing-views-total');
 			const trafficLandingClicksTotal = document.getElementById('traffic-landing-clicks-total');
 			const trafficLandingTopButton = document.getElementById('traffic-landing-top-button');
@@ -5615,6 +5640,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			let orderItems = [];
 			let products = [];
 			let analyticsSummary = null;
+			let appInstallationsSummary = null;
 			let reviews = [];
 			let settingsRecord = null;
 			let reviewsCollectionAvailable = true;
@@ -5697,6 +5723,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (raw === '7') return '7';
 				if (raw === '15') return '15';
 				if (raw === '30') return '30';
+				if (raw === '90') return '90';
 
 				return '7';
 			}
@@ -5729,7 +5756,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				const days = Number(range || 7);
 				if (!Number.isFinite(days)) return 7;
 
-				return Math.max(1, Math.min(30, Math.floor(days)));
+				return Math.max(1, Math.min(90, Math.floor(days)));
 			}
 
 			function getSummaryRangeLabel() {
@@ -5739,6 +5766,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (range === '7') return 'Últimos 7 días';
 				if (range === '15') return 'Últimos 15 días';
 				if (range === '30') return 'Últimos 30 días';
+				if (range === '90') return 'Últimos 90 días';
 
 				return 'Últimos 7 días';
 			}
@@ -5862,6 +5890,44 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				});
 				if (result?.ok !== true) throw new Error('No se pudo cargar el resumen de analíticas.');
 				return result;
+			}
+
+			async function fetchAppInstallationsSummary() {
+				const result = await apiRequest('/api/pz/storefront/v1/analytics/installations', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ range: normalizeSummaryRange(selectedRange) }),
+				});
+				const normalized = normalizeAppInstallationAnalytics(result);
+				if (!normalized) throw new Error('No se pudo cargar la analítica de instalaciones.');
+				return normalized;
+			}
+
+			function normalizeAppInstallationAnalytics(value) {
+				const count = (candidate) => Number.isInteger(candidate) && candidate >= 0;
+				const expectedDays = { today: 1, '7': 7, '15': 15, '30': 30, '90': 90 };
+				if (!value || typeof value !== 'object' || value.ok !== true
+					|| !Object.prototype.hasOwnProperty.call(expectedDays, value.range)
+					|| value.period_days !== expectedDays[value.range]
+					|| value.time_zone !== 'America/Havana'
+					|| typeof value.measurement_note !== 'string' || !value.measurement_note.trim()
+					|| !value.metrics || !value.status || !value.permission
+					|| !Array.isArray(value.daily) || !value.distributions) return null;
+				const metricKeys = ['instalaciones_vigentes_ahora', 'instalaciones_nuevas', 'bajas_detectadas'];
+				const statusKeys = ['active', 'disabled', 'invalid', 'revoked'];
+				const permissionKeys = ['granted', 'denied', 'unknown'];
+				const distributionKeys = ['app_versions', 'android_versions', 'device_models', 'countries', 'regions'];
+				if (metricKeys.some((key) => !count(value.metrics[key]))
+					|| statusKeys.some((key) => !count(value.status[key]))
+					|| permissionKeys.some((key) => !count(value.permission[key]))
+					|| distributionKeys.some((key) => !Array.isArray(value.distributions[key])
+						|| value.distributions[key].some((item) => !item || typeof item.label !== 'string' || !count(item.count)))
+					|| value.daily.length !== value.period_days
+					|| value.daily.some((item) => !item || !/^\d{4}-\d{2}-\d{2}$/.test(item.day)
+						|| !count(item.new_installations) || !count(item.bajas_detectadas))
+					|| value.metrics.instalaciones_vigentes_ahora !== value.status.active
+					|| value.permission.granted + value.permission.denied + value.permission.unknown !== value.status.active) return null;
+				return value;
 			}
 
 			function hasValue(value) {
@@ -7386,6 +7452,28 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				}
 			}
 
+			function renderAppInstallationsAnalytics() {
+				if (!appInstallationsSummary) {
+					if (appInstallationsCurrent) appInstallationsCurrent.textContent = '—';
+					if (appInstallationsNew) appInstallationsNew.textContent = '—';
+					if (appInstallationsDisabled) appInstallationsDisabled.textContent = '—';
+					if (appInstallationsNote) appInstallationsNote.textContent = 'No se pudo cargar esta métrica; no se muestran ceros parciales.';
+					return;
+				}
+				const metrics = appInstallationsSummary?.metrics || {};
+				if (appInstallationsCurrent) appInstallationsCurrent.textContent = Number(metrics.instalaciones_vigentes_ahora || 0).toLocaleString('es-US');
+				if (appInstallationsNew) appInstallationsNew.textContent = Number(metrics.instalaciones_nuevas || 0).toLocaleString('es-US');
+				if (appInstallationsDisabled) appInstallationsDisabled.textContent = Number(metrics.bajas_detectadas || 0).toLocaleString('es-US');
+				if (appInstallationsNote) {
+					appInstallationsNote.textContent = appInstallationsSummary?.measurement_note
+						|| 'Las bajas son detecciones técnicas; no equivalen necesariamente a desinstalaciones.';
+				}
+				if (appInstallationsMore) {
+					const params = new URLSearchParams({ range: normalizeSummaryRange(selectedRange) });
+					appInstallationsMore.setAttribute('href', `${ADMIN_APP_INSTALLATIONS_PATH}?${params.toString()}`);
+				}
+			}
+
 			function renderDashboard() {
 				selectedRange = normalizeSummaryRange(selectedRange);
 				persistSummaryRange(selectedRange);
@@ -7395,6 +7483,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				rangeLabel.textContent = `Mostrando: ${getSummaryRangeLabel()}.`;
 				syncPageviewsSummaryLink();
 				renderTrafficAnalytics();
+				renderAppInstallationsAnalytics();
 				renderLandingQrAnalytics();
 				renderKpis(metrics);
 				renderCharts(metrics);
@@ -7428,11 +7517,12 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (expirationProductsList) expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">El detalle se cargará al llegar a esta sección.</div>';
 				if (expirationProductsMeta && EXPIRATION_TOOLS_ENABLED) expirationProductsMeta.textContent = 'Cargando resumen privado...';
 
-				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
+				const [ordersResult, itemsResult, productsResult, analyticsResult, appInstallationsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=name&expand=category,subcategory'),
 					fetchAnalyticsSummary(),
+					fetchAppInstallationsSummary().catch(() => null),
 					loadExpirationSummary(),
 				]);
 
@@ -7442,6 +7532,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				orderItems = itemsResult || [];
 				products = productsResult || [];
 				analyticsSummary = analyticsResult || null;
+				appInstallationsSummary = appInstallationsResult || null;
 				renderDashboard();
 				setupExpirationLazyLoading();
 			}
@@ -7514,6 +7605,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			function getVisitAnalyticsTargetFromHash() {
 				const hash = String(window.location.hash || '').trim().toLowerCase();
 				if (hash === '#landing-qr' || hash === '#landingqr' || hash === '#qr-landing') return 'landingqr';
+				if (hash === '#app-installations' || hash === '#appinstallations') return 'appinstallations';
 				return '';
 			}
 
@@ -7529,11 +7621,13 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				});
 
 				if (options.syncHash === false) return;
-				const shouldUseLandingHash = normalizedTarget === 'landingqr';
-				const hasLandingHash = Boolean(getVisitAnalyticsTargetFromHash());
-				if (shouldUseLandingHash && window.location.hash !== '#landing-qr') {
-					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#landing-qr`);
-				} else if (!shouldUseLandingHash && hasLandingHash) {
+				const targetHash = normalizedTarget === 'landingqr'
+					? '#landing-qr'
+					: (normalizedTarget === 'appinstallations' ? '#app-installations' : '');
+				const hasAnalyticsHash = Boolean(getVisitAnalyticsTargetFromHash());
+				if (targetHash && window.location.hash !== targetHash) {
+					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${targetHash}`);
+				} else if (!targetHash && hasAnalyticsHash) {
 					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
 				}
 			}
@@ -7573,6 +7667,11 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						analyticsSummary = await fetchAnalyticsSummary();
 					} catch (_) {
 						analyticsSummary = null;
+					}
+					try {
+						appInstallationsSummary = await fetchAppInstallationsSummary();
+					} catch (_) {
+						appInstallationsSummary = null;
 					}
 					renderDashboard();
 				});
@@ -7624,6 +7723,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				orderItems = [];
 				products = [];
 				analyticsSummary = null;
+				appInstallationsSummary = null;
 				closeSidebar();
 				document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
 				window.location.assign('/login');

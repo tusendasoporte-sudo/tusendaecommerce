@@ -82,7 +82,9 @@ test('middleware, rutas y sidebar aplican la puerta de C08 sin abrir C09', () =>
   assert.match(page, /StoreCapabilityGate/);
   assert.match(page, /showPremiumGate/);
   assert.match(tenantPage, /AdminPushCampaigns/);
-  assert.doesNotMatch(page, /push_daily_stats|push_events|storefrontPushMetrics/);
+  const view = readFileSync(new URL('../src/components/admin/PushCampaignsView.astro', import.meta.url), 'utf8');
+  assert.match(view, /data-campaign-metrics/);
+  assert.match(view, /readStorefrontPushCampaignDetail/);
 });
 
 test('la interfaz conserva las cuotas permanentes y no serializa el token en su componente', () => {

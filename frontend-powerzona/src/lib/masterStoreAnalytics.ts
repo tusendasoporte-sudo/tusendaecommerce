@@ -1,6 +1,6 @@
 import type PocketBase from 'pocketbase';
 
-export const MASTER_ANALYTICS_RANGES = ['today', '7', '15', '30'] as const;
+export const MASTER_ANALYTICS_RANGES = ['today', '7', '15', '30', '90'] as const;
 export type MasterAnalyticsRange = (typeof MASTER_ANALYTICS_RANGES)[number];
 
 export type MasterAnalyticsStore = {
@@ -152,6 +152,7 @@ export function normalizeMasterAnalyticsRange(value: unknown): MasterAnalyticsRa
   if (range === 'today' || range === '1') return 'today';
   if (range === '15' || range === '15d') return '15';
   if (range === '30' || range === '30d' || range === '1m') return '30';
+  if (range === '90' || range === '90d' || range === '3m') return '90';
   return '7';
 }
 

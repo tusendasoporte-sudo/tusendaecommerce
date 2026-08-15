@@ -3,6 +3,7 @@ import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 
 const MAX_BODY_BYTES = 65536;
+const STOREFRONT_SESSION_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 const PRIVATE_HEADERS = {
   'Cache-Control': 'private, no-store, max-age=0',
   Pragma: 'no-cache',
@@ -14,6 +15,18 @@ function json(payload: unknown, status: number) {
     status,
     headers: { ...PRIVATE_HEADERS, 'Content-Type': 'application/json' },
   });
+}
+
+function checkoutProxyHeaders(request: Request, clientAddress?: string) {
+  const headers = publicSecurityProxyHeaders(request, clientAddress);
+  const raw = request.headers.get('cookie') || '';
+  if (!raw || raw.length > 8192) return headers;
+  const part = raw.split(';').map((item) => item.trim())
+    .find((item) => item.startsWith('pz_storefront_session='));
+  const token = part?.slice('pz_storefront_session='.length) || '';
+  if (!STOREFRONT_SESSION_PATTERN.test(token)) return headers;
+  headers.Cookie = [headers.Cookie, `pz_storefront_session=${token}`].filter(Boolean).join('; ');
+  return headers;
 }
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
@@ -28,7 +41,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   try {
     const response = await fetch(`${baseUrl}/api/pz/checkout/orders`, {
       method: 'POST',
-      headers: publicSecurityProxyHeaders(request, clientAddress),
+      headers: checkoutProxyHeaders(request, clientAddress),
       cache: 'no-store',
       body,
     });

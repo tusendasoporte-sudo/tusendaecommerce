@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C08 COMPLETADO — conversación de alcance C09 pendiente |
-| Versión del documento | 1.27 |
+| Estado general | PZ-APP-C09 EN CURSO — implementación local autorizada; sin despliegues ni servicios externos |
+| Versión del documento | 1.28 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-15 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Conversar y acordar PZ-APP-C09; no implementar ni marcar EN CURSO todavía |
+| Próximo prompt | Implementar y verificar exclusivamente PZ-APP-C09 sobre el respaldo `f1fd3c9`; no iniciar C10 |
 
 ### Convención de estados
 
@@ -489,7 +489,7 @@ El bloqueo transaccional protege también si en el futuro hay más de una répli
 - `destination_viewed` se registra por la sesión web efímera después de cargar un destino válido.
 - Un cupón se atribuye únicamente si el servidor lo aplicó en checkout, coincide tienda/campaña/instalación y ocurrió dentro de siete días del toque.
 - Una orden se atribuye solo si se crea mediante una `storefront_web_sessions` vinculada, después del toque y dentro de siete días; correlación temporal sin vínculo de instalación no basta.
-- Retención vigente desde C08 por decisión posterior del propietario: IP completa cifrada 30 días; sesiones web 30 días tras expirar; campañas en borrador siete días desde su última edición y campañas finalizadas siete días desde su cierre; las programadas, en proceso o pausadas por plan no vencen mientras permanezcan activas. Al borrar físicamente una campaña se eliminan primero sus eventos y entregas por las relaciones sin cascada. Un estado técnico privado sin contenido conserva únicamente zona horaria e inicios durante 40 días para sostener las cuotas permanentes 10/310. Los agregados diarios sin identificadores de C09 mantienen la previsión de 36 meses.
+- Retención vigente desde C09 por decisión posterior del propietario: IP completa cifrada 30 días; sesiones web 30 días tras expirar; el contenido visible de borradores y campañas finalizadas se redacta a los siete días; entregas, eventos y agregados diarios se conservan como máximo 90 días. Las campañas programadas, en proceso o pausadas por plan no vencen mientras permanezcan activas. Un estado técnico privado sin contenido conserva únicamente zona horaria e inicios durante 40 días para sostener las cuotas permanentes 10/310. La evidencia mínima de una atribución ya fijada en una orden sigue la retención propia de esa orden y no depende de conservar el contenido de la campaña.
 - Store Admin ve agregados y datos operativos de su tienda, nunca IP completa/FID/credenciales. Master/seguridad puede revelar el IP solo por el flujo auditado existente o una extensión equivalente.
 
 Contrato de privacidad aplicado en C03: la app nativa envía únicamente FID, versión de app, versión Android, modelo, idioma, zona horaria y permiso de notificaciones. No puede declarar `store_id`, IP, país o región. El gateway obtiene el IP desde la topología confiable del runtime, PocketBase lo cifra con AES-256-GCM y fija `ip_delete_after` a 30 días; nunca lo usa como identidad. País/región aproximados solo se aceptan desde metadatos del proxy y quedan separados del IP completo. FID y credencial se buscan mediante HMAC con dominios distintos; la credencial solo se devuelve a la capa nativa y no se registra en activity logs. Las respuestas públicas omiten FID, digests, IP y secretos. El administrador de tienda no recibe acceso CRUD a estos campos; el IP completo sigue restringido a Superuser/Master-seguridad y requerirá un flujo auditado específico si se incorpora a una interfaz futura.
@@ -519,7 +519,7 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 | C06 | `mobile-storefront/settings.gradle`; `build.gradle`; `gradle.properties`; `gradlew`; `gradlew.bat`; `gradle/wrapper/gradle-wrapper.jar`; `gradle/wrapper/gradle-wrapper.properties`; `.gitignore`; `README.md`; `app/build.gradle`; `app/proguard-rules.pro`; `app/src/main/AndroidManifest.xml`; Java bajo `app/src/main/java/com/tusenda84/storefront/`: `StorefrontActivity.java`, `StorefrontMessagingService.java`, `StorefrontRegistrationClient.java`, `StorefrontInstallationStore.java`, `StorefrontDeepLink.java`, `StorefrontConfig.java`; recursos `res/layout/activity_storefront.xml`, `res/layout/view_storefront_offline.xml`, `res/values/strings.xml`, `colors.xml`, `themes.xml`, `res/xml/network_security_config.xml`; pruebas unitarias `StorefrontConfigTest.java`, `StorefrontDeepLinkTest.java`, `StorefrontPushPayloadTest.java`. |
 | C07 | `mobile-storefront/config/powerzona.properties`; `mobile-storefront/brands/powerzona/brand.json`; `icon.png`; `splash.png`; pruebas `app/src/test/java/com/tusenda84/storefront/PowerZonaDestinationsTest.java`; `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/tests/pz_storefront_order_targets.test.cjs`. La configuración Firebase real seguirá en un archivo local ignorado, no en Git. |
 | C08 | `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`; ajuste de retención solicitado durante C08: `backend-powerzona/pb_migrations/1786665600_push_campaign_retention_7d.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns.pb.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`, `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`, `backend-powerzona/pb_hooks/pz_store_activity_audit_lib.js`, `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`, `backend-powerzona/tests/pz_storefront_campaigns_runtime.test.cjs` y `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`. |
-| C09 | `backend-powerzona/pb_migrations/1786579500_storefront_push_daily_stats.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events_lib.js`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `backend-powerzona/tests/pz_storefront_push_events.test.cjs`; `backend-powerzona/tests/pz_storefront_push_retention.test.cjs`; `frontend-powerzona/tests/storefrontPushMetrics.test.mjs`. |
+| C09 | Inventario efectivo detallado en la bitácora C09. Archivos principales nuevos: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/pages/api/checkout/coupon-attribution.ts`; `frontend-powerzona/src/pages/admin/app-installations.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/app-installations.astro`; `frontend-powerzona/tests/storefrontPushAnalyticsC09.test.mjs`; `mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontEventQueue.java`; `docs/tusenda84/PZ_APP_C09_ANALYTICS_OPERATIONS.md`. |
 | C10 | `scripts/build-store-app.ps1`; `mobile-storefront/config/schema.json`; `mobile-storefront/config/demo.properties`; `mobile-storefront/brands/demo/brand.json`; `icon.png`; `splash.png`; `mobile-storefront/README.md`; `mobile-storefront/scripts/validate-store-config.ps1`; `mobile-storefront/scripts/test-store-config.ps1`. |
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
@@ -546,7 +546,7 @@ Estado vigente:
 2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP de hasta 1200 × 630 y 100 KiB, cuota 250 MiB/100 por tienda, vencimiento absoluto a 24 horas, alerta global a 35 GiB y límite global de carga a 40 GiB.
 3. Campañas: aprobadas 10 por día, 310 por mes, que cada instalación elegible pueda recibir las 10 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
 4. Downgrade aprobado: historial/borradores/medios en solo lectura; programadas pasan a `paused_plan` y requieren reprogramación manual tras recuperar Premium.
-5. Retención vigente: IP completa cifrada 30 días; campañas siete días tras última edición/cierre, con borrado explícito de entregas/eventos dependientes; marcadores técnicos de cuota sin contenido 40 días; agregados 36 meses cuando existan en C09. Esta decisión posterior del propietario sustituye en C08 el plazo original de 24 meses.
+5. Retención vigente: IP completa cifrada 30 días; el contenido visible de campañas se redacta a los siete días; entregas, eventos y agregados diarios técnicos vencen a los 90 días; los marcadores de cuota sin contenido viven 40 días. La evidencia mínima fijada en una orden sigue la retención de esa orden. Esta decisión C09 sustituye los plazos históricos anteriores.
 6. Atribución aprobada: ventana de siete días desde el toque; orden solo con sesión/instalación verificada y cupón solo aplicado por validación server-side.
 7. Distribución directa aprobada: App Check/Play Integrity se configura y prueba por separado para APK directo y Google Play, sin reducir silenciosamente la protección.
 8. Elegibilidad aprobada: la app white-label es exclusiva de Premium; un downgrade suspende push/provisión pero no rompe el escaparate de una app ya instalada.
@@ -564,7 +564,7 @@ Estado vigente:
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | COMPLETADO | C04, C05 | Completada parcialmente en staging; pendientes humanos transferidos a C11 | Sol — High |
-| PZ-APP-C09 | Analítica de instalaciones y campañas | PENDIENTE | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
+| PZ-APP-C09 | Analítica de instalaciones y campañas | EN CURSO | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
@@ -623,7 +623,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 El acceso administrativo exige simultáneamente `marketing.push.manage` y `push_campaigns_enabled`; la capability es `false` en Free/Básico y `true` solo en Premium vigente o permanente. El permiso fue incorporado a las plantillas `secondary_admin` y `marketing_promotions`, con migración reversible de los registros persistidos. Las instalaciones y campañas públicas no reutilizan `store_push_devices` ni `store_notifications`.
 
-Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. C02 se cerró originalmente con campañas a 24 meses; la decisión posterior del propietario registrada en C08 lo sustituye por siete días tras última edición/cierre, borrado explícito de hijos y marcadores de cuota sin contenido durante 40 días. Los agregados diarios conservan 36 meses cuando se creen en C09. La inspección controlada con dos tiendas desechables terminó correctamente en staging, todos sus datos temporales fueron eliminados y el propietario confirmó la validación. C02 queda `COMPLETADO`; producción no fue modificada.
+Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. C02 se cerró originalmente con campañas a 24 meses y C08 introdujo siete días con eliminación de hijos; el contrato posterior C09 conserva la redacción del contenido a siete días, pero retiene entregas, eventos y agregados técnicos hasta 90 días y mantiene la evidencia mínima de una atribución con su orden. Los marcadores de cuota sin contenido viven 40 días. La inspección controlada con dos tiendas desechables terminó correctamente en staging, todos sus datos temporales fueron eliminados y el propietario confirmó la validación. C02 queda `COMPLETADO`; producción no fue modificada.
 
 ### [x] PZ-APP-C03 — Registro público seguro de instalaciones
 
@@ -790,6 +790,24 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Prueba manual requerida:** Sí. Ejecutar una campaña controlada con un número conocido de instalaciones, abrirla solo en algunas, aplicar un cupón en una y comparar manualmente cada etapa del embudo con los eventos registrados. Verificar también que otra tienda muestre cero actividad ajena.
 
+**Contrato aprobado antes de implementar:**
+
+1. La unidad estadística es una **instalación de la app**, no un dispositivo físico ni una persona. Reinstalar, borrar datos o rotar identidad puede producir otra instalación; ninguna pantalla debe presentar esos conteos como usuarios únicos.
+2. `selected_count` es el snapshot de instalaciones únicas elegidas al cerrar la audiencia. `accepted_count` es el número de mensajes aceptados por Firebase y no demuestra entrega, visualización ni lectura. La tasa de aceptación es `accepted / selected`; si el denominador es cero se muestra `No aplica`.
+3. Los fallos confirmados son `failed_permanent + invalid_fid`; `invalid_fid` se muestra además como subconjunto diagnóstico. `unknown`, `canceled`, `retrying`, `pending` y `claimed` permanecen separados. Sus tasas usan `selected` como denominador.
+4. `opened` solo nace de un toque explícito sobre la notificación y usa una clave determinista por entrega. `destination_viewed` exige que el destino correcto quede visible en el marco principal, sin error ni navegación externa, y también se deduplica por entrega. La tasa de apertura usa `accepted`; destino visto usa `opened`.
+5. La app obtiene un bootstrap de un solo uso, instala la cookie segura en `CookieManager` y la sesión WebView llega al checkout. El backend valida instalación, sesión y tienda; el cliente nunca decide la tienda ni la atribución.
+6. La sesión autenticada dura 24 horas absolutas y se renueva si falta, vence o es rechazada. Los eventos son elegibles desde `accepted_at` hasta antes de siete días; el toque atribuible empieza en `destination_viewed` recibido por el servidor y una orden debe crearse antes de siete días desde ese toque.
+7. `coupon_applied` exige validación server-side de un cupón de la misma tienda y vinculado a la campaña, después de un destino visto elegible. Se deduplica por campaña, instalación y cupón; una aplicación válida cuenta aunque luego se abandone el checkout. Su tasa usa instalaciones con destino visto y muestra `No aplica` si la campaña no tiene cupón.
+8. La orden se atribuye primero al cupón explícito elegible y, si no existe, al último `destination_viewed` elegible. Una apertura sola no atribuye. Solo existe una atribución por orden, creada idempotentemente por el backend. Se muestran órdenes creadas, vigentes y canceladas; cancelar no borra la evidencia histórica.
+9. El contenido de una campaña se redacta siete días después del cierre. Toques activos pueden vivir siete días, con un máximo de catorce días después del cierre. Entregas y eventos técnicos mínimos, sin contenido, se retienen 90 días; los agregados diarios también 90 días. La evidencia mínima ya fijada en una orden sigue la retención propia de la orden y no depende de conservar la campaña.
+10. Toda relación y consulta se aísla por tienda. El acceso Master de soporte puede consultar agregados entre tiendas únicamente con auditoría, sin FID, token, URL, payload, credencial ni identidad personal.
+11. La analítica general admite `Hoy`, `7`, `15`, `30` y `90 días`, con retención alineada a 90 días. `Analíticas de visitas` se renombra a `Analíticas` y suma la pestaña `App instalaciones`, cuya métrica principal es `Instalaciones vigentes ahora`, acompañada por altas y bajas detectadas del período.
+12. `Bajas detectadas` se etiqueta como estimación técnica: un FID inválido también puede indicar borrado de datos, reinstalación o rotación y no demuestra por sí solo una desinstalación. `Ver más` abre el detalle agregado de vigentes, nuevas, bajas detectadas, permiso, estado y versiones, sin exponer identificadores.
+13. `Campañas push` pasa a ser una entrada independiente inmediatamente debajo de `Promos`. Premium y soporte Master conservan acceso; el administrador principal de una tienda Básica ve la puerta Premium; un colaborador sin permiso no ve la entrada. La puerta explica honestamente qué datos se conservan y qué vuelve al recuperar Premium.
+14. La implementación abarca backend, migración append-only, relay, Android, sesión WebView, checkout y panel. Debe preservar los contratos compatibles de C03, C05, C07 y C08 y registrar antes cualquier modificación necesaria sobre un comportamiento ya operativo.
+15. Las pruebas incluyen autenticación, idempotencia, ventanas, retención, aislamiento, reconciliación de conteos, cola offline Android, cookie WebView, checkout, rangos del panel, navegación Premium y carga acotada hasta 40 000 instalaciones. La prueba manual será aislada; cualquier FCM real, staging, producción o servicio externo requiere otra autorización expresa.
+
 **Criterios de aceptación:**
 
 - [ ] Los conteos distinguen instalaciones de personas.
@@ -798,6 +816,14 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] El Master puede auditar seguridad sin exponer datos innecesarios.
 - [ ] Las etiquetas explican límites de medición.
 - [ ] El volumen de eventos tiene estrategia de retención/agregación.
+- [ ] El embudo usa exactamente los denominadores acordados y muestra `No aplica` cuando corresponde.
+- [ ] Apertura, destino, cupón y orden se autentican y atribuyen con las ventanas aprobadas.
+- [ ] La sesión de instalación llega de Android a WebView y de WebView al checkout sin aceptar identidad del cliente.
+- [ ] El contenido vence a siete días sin destruir evidencia todavía necesaria para los plazos de 90 días u órdenes.
+- [ ] `Analíticas` ofrece el rango de 90 días, la pestaña `App instalaciones` y un detalle agregado accesible desde `Ver más`.
+- [ ] Las bajas se presentan como `Bajas detectadas`, nunca como desinstalaciones exactas.
+- [ ] `Campañas push` es una entrada independiente debajo de `Promos` con acceso y puerta Premium coherentes.
+- [ ] Las pruebas locales proporcionales pasan sin usar FCM real ni modificar staging o producción.
 
 ### [ ] PZ-APP-C10 — Generador reproducible APK/AAB por tienda
 
@@ -2025,3 +2051,71 @@ El 2026-08-15 el propietario decidió cerrar C08 con la evidencia funcional, aut
 #### Siguiente paso
 
 - C08 queda `COMPLETADO` por decisión expresa del propietario. Abrir una tarea nueva únicamente para conversar sobre objetivos, métricas, atribución, privacidad, retención, seguridad y prueba manual de C09. C09 permanece `PENDIENTE`: no modificar código, migraciones ni estados del plan hasta que el propietario apruebe el alcance y autorice su inicio.
+
+### 2026-08-15 — PZ-APP-C09 — Analítica de instalaciones y campañas
+
+- Estado: EN CURSO
+- Responsable: Codex / propietario de Tu Senda 84
+- Entorno: local
+- Branch: `HEAD` separado en el worktree de la tarea
+- Commit de respaldo previo: `f1fd3c9`
+- Fecha de inicio: 2026-08-15
+- Fecha de cierre: pendiente
+
+#### Objetivo en ejecución
+
+Implementar el contrato de analítica aprobado para instalaciones, campañas y atribución, preservando los comportamientos operativos de C03, C05, C07 y C08. Toda modificación necesaria sobre una pieza ya funcional se anunciará y quedará cubierta por pruebas de regresión.
+
+#### Alcance autorizado
+
+- Backend, migración append-only, relay interno, app Android, sesión WebView, checkout y panel administrativo.
+- Retención técnica y agregada de 90 días, redacción de contenido a siete días y evidencia mínima de atribución ligada a la orden.
+- Rango general de 90 días, pestaña `App instalaciones`, detalle agregado y navegación independiente de `Campañas push` bajo `Promos`.
+- Pruebas locales automáticas y preparación de prueba manual aislada.
+
+#### Límites vigentes
+
+- No desplegar ni modificar staging o producción.
+- No enviar FCM ni generar eventos externos reales.
+- No tocar Firebase, App Check, firmas, secretos, `google-services.json`, servicios, worktrees ni stash.
+- No iniciar C10.
+
+#### Decisiones tomadas
+
+- El contrato completo aprobado queda incorporado en la sección PZ-APP-C09 de la versión 1.28.
+- El commit vacío `f1fd3c9` conserva exactamente el cierre C08 y será el punto de regreso inequívoco anterior a C09.
+
+#### Riesgos iniciales resueltos localmente
+
+- El relay multicast C05 compartía un único payload entre instalaciones. C09 lo convirtió en mensajes individuales con `delivery_id` por destino, conservando el límite de 500, el orden de resultados y los estados existentes; la regresión focal quedó aprobada.
+- La limpieza C08 destruía campaña, entregas y eventos a siete días. C09 la convirtió en redacción del contenido a siete días y limpieza técnica escalonada a 90 días, preservando la atribución vigente y la evidencia mínima de órdenes.
+
+#### Inventario efectivo y justificación
+
+El inventario previsto en C01 se amplía porque el contrato aprobado exige unir C03, C05, C07 y C08 con checkout, Android, navegación, analítica general, eliminación Master y conservación de órdenes. Los archivos efectivos de C09 son:
+
+- Backend y migración: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`; `backend-powerzona/pb_hooks/pz_order_pricing.pb.js`; `backend-powerzona/pb_hooks/pz_order_pricing_lib.js`; `backend-powerzona/pb_hooks/pz_store_analytics_lib.js`; `backend-powerzona/pb_hooks/pz_master_dashboard_lib.js`; `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement.pb.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`.
+- Pruebas backend: `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`; `backend-powerzona/tests/pz_storefront_installations.test.cjs`; `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`; `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`; `backend-powerzona/tests/pz_order_pricing.test.cjs`; `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`.
+- Frontend y relay: `frontend-powerzona/src/lib/pushRelayV2Payload.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/src/lib/storefrontPushAppCheck.ts`; `frontend-powerzona/src/lib/storefrontPushContracts.ts`; `frontend-powerzona/src/lib/masterStoreAnalytics.ts`; `frontend-powerzona/src/lib/masterStoreDeletion.ts`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/pages/api/internal/push/v2/send.ts`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/pages/api/checkout/orders.ts`; `frontend-powerzona/src/pages/api/checkout/coupon-attribution.ts`; `frontend-powerzona/src/pages/checkout.astro`; `frontend-powerzona/src/pages/admin/index.astro`; `frontend-powerzona/src/pages/admin/pageviews.astro`; `frontend-powerzona/src/pages/admin/app-installations.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/app-installations.astro`; `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/master/MasterStoreDeleteDialog.astro`.
+- Pruebas frontend: `frontend-powerzona/tests/storefrontPushAnalyticsC09.test.mjs`; `frontend-powerzona/tests/storefrontPushGateway.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`; `frontend-powerzona/tests/pushRelayV2Payload.test.mjs`; `frontend-powerzona/tests/masterStoreDeletion.test.mjs`.
+- Android: `mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontActivity.java`; `StorefrontConfig.java`; `StorefrontDeepLink.java`; `StorefrontEventQueue.java`; `StorefrontNotifications.java`; `StorefrontPushPayload.java`; `StorefrontRegistrationClient.java`; `StorefrontRegistrationPayload.java`; y las regresiones `StorefrontDeepLinkTest.java`, `StorefrontEventQueueTest.java`, `StorefrontPushPayloadTest.java`, `StorefrontRegistrationPayloadTest.java` bajo el mismo paquete de pruebas.
+- Documentación: este plan y `docs/tusenda84/PZ_APP_C09_ANALYTICS_OPERATIONS.md`.
+
+Los cambios sobre piezas ya operativas se limitaron a: payload individual del relay conservando lotes de 500; redacción en vez de destrucción temprana; cookie segura C03 instalada en WebView; atribución best-effort que nunca revierte una compra; limpieza paginada de evidencia al borrar una orden; rango general de 90 días; inventario Master; y navegación solicitada. Cada integración tiene regresión focal.
+
+#### Resultado local al corte
+
+- Backend focal C03/C05/C07/C08/C09: 97 pruebas, 95 aprobadas y dos omitidas porque requieren el runtime real de PocketBase. La carga agregada de 40 000 instalaciones completó sin truncar denominadores ni devolver filas individuales.
+- Frontend focal: 38/38 pruebas aprobadas en la última corrida consolidada. Las nueve páginas Astro modificadas compilaron individualmente sin errores.
+- Android: `testDebugUnitTest` y `lintDebug` aprobados, incluida la cola offline con deduplicación, máximo de 64 eventos, antigüedad máxima de siete días y máximo de diez intentos.
+- Validaciones estructurales: hooks y migración pasan `node --check`; `git diff --check` no detecta errores.
+- Limitación local: no se ejecutaron el test que importa directamente el gateway Firebase ni el build Astro completo porque este worktree no contiene `node_modules/firebase-admin`. No se instalaron ni enlazaron dependencias para evitar alterar el entorno; la validación estática del gateway, sus pruebas desacopladas y la compilación de los Astro modificados sí aprobaron.
+- No se usaron FCM real, staging, producción ni servicios externos. C09 permanece `EN CURSO` hasta completar y aprobar la prueba manual aislada.
+
+#### Despliegue
+
+- No autorizado ni realizado.
+
+#### Siguiente paso
+
+- Revisar el commit local de implementación y, solo con autorización expresa separada, ejecutar la prueba manual aislada de C09 en staging. Mantener C09 `EN CURSO` y C10 `PENDIENTE` hasta entonces.

@@ -107,8 +107,7 @@ if (!pushAccess.allowed && !showPremiumGate) {
       storeName={currentStoreName}
       storePlanValues={adminContext.store}
       storeAccessContext={pushAccess.storeAccess}
-      activeSection="marketing"
-      activeSubsection="push-campaigns"
+      activeSection="push-campaigns"
       mobileTitle="Campañas push"
       mobileActionLabel={pushAccess.allowed ? 'Nueva' : ''}
       mobileActionEvent={pushAccess.allowed ? 'pz:push-campaign:new' : ''}
@@ -127,8 +126,8 @@ if (!pushAccess.allowed && !showPremiumGate) {
         <StoreCapabilityGate
           access={pushAccess.capability}
           featureName="Campañas push"
-          featureDescription="Crea, programa y envía notificaciones a la app pública de tu tienda. Los datos y borradores del módulo solo están disponibles con Premium activo."
-          preservationMessage="Si cambias de plan, el historial y los borradores se conservan en solo lectura; las campañas programadas no se reanudan solas."
+          featureDescription="Crea, programa y envía notificaciones a la app pública de tu tienda con un plan Premium activo."
+          preservationMessage="Si cambias de plan, el contenido y la evidencia se conservan durante sus plazos normales, pero el módulo deja de estar accesible. Al recuperar Premium vuelves a ver lo que aún siga vigente; las campañas programadas no se reanudan solas."
           requiredPlanLabel="Plan Premium requerido"
           infoTitle="Mensajes controlados desde tu tienda"
           infoDescription="Cada envío vuelve a validar plan, permiso, tienda, contenido y las cuotas permanentes de 10 campañas diarias y 310 mensuales."

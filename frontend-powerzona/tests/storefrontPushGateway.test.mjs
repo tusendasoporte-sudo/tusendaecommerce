@@ -20,8 +20,10 @@ import {
   STOREFRONT_MAX_BODY_BYTES,
   canonicalStorefrontJson,
   mapStorefrontResolvedTarget,
+  mapStorefrontEventResponse,
   normalizeStorefrontCampaignTargetPayload,
   normalizeStorefrontEmptyPayload,
+  normalizeStorefrontEventPayload,
   normalizeStorefrontHeartbeatPayload,
   normalizeStorefrontPermissionPayload,
   normalizeStorefrontRegisterPayload,
@@ -100,6 +102,23 @@ test('contratos publicos son exactos y nunca aceptan store_id o IP del telefono'
     target_type: 'order',
     target_path: '/t/otra/admin',
   }), null);
+  const opened = {
+    delivery_id: 'delivery0000001', event_type: 'opened',
+    idempotency_key: 'opened:delivery0000001',
+    occurred_at: '2026-08-15T12:00:00.000Z', target_path: '',
+  };
+  assert.deepEqual(normalizeStorefrontEventPayload(opened), opened);
+  assert.equal(normalizeStorefrontEventPayload({ ...opened, idempotency_key: 'chosen-by-client' }), null);
+  assert.equal(normalizeStorefrontEventPayload({ ...opened, extra: true }), null);
+  assert.equal(normalizeStorefrontEventPayload({
+    ...opened, event_type: 'destination_viewed',
+    idempotency_key: 'destination_viewed:delivery0000001', target_path: '__order_verified__',
+  }).target_path, '__order_verified__');
+  assert.deepEqual(mapStorefrontEventResponse({
+    ok: true, event_type: 'opened', duplicate: false, recorded_at: '2026-08-15T12:00:00.000Z',
+  }), {
+    ok: true, event_type: 'opened', duplicate: false, recorded_at: '2026-08-15T12:00:00.000Z',
+  });
 });
 
 test('limita cuerpo real y declarado, y solo acepta Bearer con credencial opaca', async () => {

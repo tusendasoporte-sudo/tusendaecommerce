@@ -84,6 +84,7 @@ test('las ocho colecciones públicas permanecen cerradas al CRUD incluso para us
     'push_campaigns',
     'push_campaign_deliveries',
     'push_events',
+    'push_daily_stats',
   ]);
   for (const collection of enforcement.STOREFRONT_PUSH_PRIVATE_COLLECTIONS) {
     const event = {
