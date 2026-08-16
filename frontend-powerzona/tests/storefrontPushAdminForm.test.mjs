@@ -440,3 +440,29 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /\/api\/admin\/push-media\?store=\$\{encodeURIComponent\(storeSlug\)\}/);
   assert.equal((source.match(/fetch\(mediaEndpoint/g) || []).length, 2);
 });
+
+test('el detalle enviado usa un panel de resultados y no reutiliza campos de creación', () => {
+  const source = pushCampaignViewSource;
+  const detailStart = source.indexOf('<section class="push-detail-view"');
+  const detailEnd = source.indexOf('\n        </section>\n      </div>', detailStart);
+  assert.notEqual(detailStart, -1);
+  assert.notEqual(detailEnd, -1);
+  const detailMarkup = source.slice(detailStart, detailEnd);
+
+  for (const required of [
+    'data-detail-target', 'data-detail-path', 'data-detail-audience', 'data-detail-selected',
+    'data-campaign-metrics', 'Embudo verificable', 'Conversión y atribución', 'Estado técnico',
+    'data-metric="accepted"', 'data-metric="opened"', 'data-metric="destination_viewed"',
+    'data-metric="failed_permanent"', 'data-metric="invalid_fid"', 'data-metric="canceled"',
+  ]) assert.equal(detailMarkup.includes(required), true, required);
+  for (const forbidden of [
+    'name="title"', 'data-field="body"', 'data-media-upload', 'android-device',
+    'data-preview-title', 'data-preview-body', 'data-preview-image',
+  ]) assert.equal(detailMarkup.includes(forbidden), false, forbidden);
+
+  assert.match(source, /one\('\[data-campaign-form-column\]'\)\.hidden = detailMode/);
+  assert.match(source, /one\('\[data-campaign-preview-column\]'\)\.hidden = detailMode/);
+  assert.match(source, /one\('\[data-campaign-detail-view\]'\)\.hidden = !detailMode/);
+  assert.match(source, /if \(edit\) \{[\s\S]*?field\('title'\)\.value = campaign\.title/);
+  assert.match(source, /Resumen operativo del destino, la audiencia y los resultados verificados/);
+});

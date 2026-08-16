@@ -231,16 +231,28 @@ test('contratos de entrada son exactos y validan límites, zona y audiencia', ()
 
 test('calendario IANA usa el formato estable del runtime PocketBase', () => {
   const previousDateTime = global.DateTime;
+  const previousTimezone = global.Timezone;
   const previousIntl = global.Intl;
+  global.Timezone = class MockTimezone {
+    constructor(name) { this.name = name; }
+    string() { return this.name === 'Not/A_Real_Zone' ? 'UTC' : this.name; }
+  };
   global.DateTime = class MockDateTime {
-    constructor(value, timezone) {
-      if (!['UTC', 'America/New_York'].includes(timezone)) throw new Error('invalid_timezone');
-      const utcWallClock = Date.parse(`${value.replace(' ', 'T')}Z`);
-      const month = new Date(utcWallClock).getUTCMonth() + 1;
-      const offsetHours = timezone === 'America/New_York' && month >= 3 && month <= 10 ? 4 : timezone === 'America/New_York' ? 5 : 0;
-      this.value = utcWallClock + offsetHours * 60 * 60 * 1000;
+    constructor(value) { this.value = new Date(value); }
+    time() {
+      return {
+        in: (zone) => ({
+          date: () => {
+            const month = this.value.getUTCMonth() + 1;
+            const offsetHours = zone.name === 'America/New_York' && month >= 3 && month <= 10
+              ? -4
+              : (zone.name === 'America/New_York' ? -5 : 0);
+            const local = new Date(this.value.getTime() + (offsetHours * 60 * 60 * 1000));
+            return [local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate()];
+          },
+        }),
+      };
     }
-    unix() { return this.value / 1000; }
   };
   global.Intl = undefined;
   try {
@@ -253,6 +265,45 @@ test('calendario IANA usa el formato estable del runtime PocketBase', () => {
   } finally {
     if (previousDateTime === undefined) delete global.DateTime;
     else global.DateTime = previousDateTime;
+    if (previousTimezone === undefined) delete global.Timezone;
+    else global.Timezone = previousTimezone;
+    global.Intl = previousIntl;
+  }
+});
+
+test('calendario Havana no cambia en medianoche UTC y tolera runtime sin tzdata', () => {
+  const previousDateTime = global.DateTime;
+  const previousTimezone = global.Timezone;
+  const previousIntl = global.Intl;
+  global.Timezone = class MissingTimezone {
+    string() { return 'UTC'; }
+  };
+  global.DateTime = class UnexpectedDateTime {
+    constructor() { throw new Error('timezone_data_unavailable'); }
+  };
+  global.Intl = undefined;
+  try {
+    assert.deepEqual(
+      campaigns.calendarKeys(new Date('2026-08-16T03:59:59.999Z'), 'America/Havana'),
+      { day: '2026-08-15', month: '2026-08' },
+    );
+    assert.deepEqual(
+      campaigns.calendarKeys(new Date('2026-08-16T04:00:00.000Z'), 'America/Havana'),
+      { day: '2026-08-16', month: '2026-08' },
+    );
+    assert.deepEqual(
+      campaigns.calendarKeys(new Date('2026-01-16T04:59:59.999Z'), 'America/Havana'),
+      { day: '2026-01-15', month: '2026-01' },
+    );
+    assert.deepEqual(
+      campaigns.calendarKeys(new Date('2026-01-16T05:00:00.000Z'), 'America/Havana'),
+      { day: '2026-01-16', month: '2026-01' },
+    );
+  } finally {
+    if (previousDateTime === undefined) delete global.DateTime;
+    else global.DateTime = previousDateTime;
+    if (previousTimezone === undefined) delete global.Timezone;
+    else global.Timezone = previousTimezone;
     global.Intl = previousIntl;
   }
 });
@@ -477,6 +528,27 @@ test('cuotas diarias/mensuales usan el calendario IANA de la tienda', () => {
     () => campaigns.assertCampaignQuota(app, item, new Date('2026-08-13T20:00:00.000Z')),
     (error) => error.code === 'daily_quota_exceeded',
   );
+});
+
+test('cuota diaria de Havana solo reinicia a medianoche local', () => {
+  const app = createApp();
+  app.add(campaign('boundarycamp001', {
+    status: 'sent', started_at: '2026-08-15T23:30:00.000Z',
+  }));
+  app.add(campaign('boundarycamp002', {
+    status: 'sent', started_at: '2026-08-16T02:15:00.000Z',
+  }));
+
+  assert.deepEqual(campaigns.campaignQuotaUsage(app, STORE_A, new Date('2026-08-16T02:30:00.000Z')), {
+    timezone: 'America/Havana',
+    daily: { limit: 10, used: 2, remaining: 8 },
+    monthly: { limit: 310, used: 2, remaining: 308 },
+  });
+  assert.deepEqual(campaigns.campaignQuotaUsage(app, STORE_A, new Date('2026-08-16T04:00:00.000Z')), {
+    timezone: 'America/Havana',
+    daily: { limit: 10, used: 0, remaining: 10 },
+    monthly: { limit: 310, used: 2, remaining: 308 },
+  });
 });
 
 test('la cuota diaria sobrevive al borrado del contenido de las campañas', () => {

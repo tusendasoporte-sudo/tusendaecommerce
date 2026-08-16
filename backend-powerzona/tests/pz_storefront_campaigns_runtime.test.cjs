@@ -13,6 +13,11 @@ const DEFAULT_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocke
 const POCKETBASE_EXE = String(process.env.PZ_C05_POCKETBASE_EXE || DEFAULT_EXE);
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+test('imagen del backend incluye la base IANA usada por America/Havana', () => {
+  const dockerfile = fs.readFileSync(path.join(BACKEND_DIR, 'Dockerfile'), 'utf8');
+  assert.match(dockerfile, /apk add --no-cache[^\n]*\btzdata\b/);
+});
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();

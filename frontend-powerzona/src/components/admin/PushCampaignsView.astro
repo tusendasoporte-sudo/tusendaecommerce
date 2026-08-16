@@ -136,13 +136,13 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         <div>
           <span class="push-editor__eyebrow" data-editor-state>Borrador nuevo</span>
           <h2 id="push-editor-title" data-editor-title>Nueva campaña</h2>
-          <p>El backend validará de nuevo plan, permiso, tienda, medio, audiencia y destino.</p>
+          <p data-editor-description>El backend validará de nuevo plan, permiso, tienda, medio, audiencia y destino.</p>
         </div>
         <button class="push-icon-btn" type="button" data-close-editor aria-label="Cerrar editor">×</button>
       </header>
 
-      <div class="push-editor__body">
-        <section class="push-form-column" aria-label="Contenido y configuración de la campaña">
+      <div class="push-editor__body" data-editor-body>
+        <section class="push-form-column" data-campaign-form-column aria-label="Contenido y configuración de la campaña">
           <input type="hidden" name="campaign_id" data-field="campaign_id" />
 
           <fieldset class="push-fieldset">
@@ -329,7 +329,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
           <div class="push-form-success" role="status" aria-live="polite" data-form-success hidden></div>
         </section>
 
-        <aside class="push-preview-column" aria-label="Previsualización Android">
+        <aside class="push-preview-column" data-campaign-preview-column aria-label="Previsualización Android">
           <div class="push-preview-sticky">
             <div class="push-preview-heading">
               <div>
@@ -360,32 +360,86 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
               <div><dt>Ruta validada</dt><dd data-preview-path>Pendiente de validar</dd></div>
               <div><dt>Audiencia</dt><dd data-preview-audience>Todas las instalaciones activas</dd></div>
             </dl>
-            <section class="push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
-              <div class="push-preview-heading">
-                <div><span>Resultados</span><strong id="push-metrics-title">Embudo verificable</strong></div>
-                <button class="push-icon-btn" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
-                </button>
-              </div>
-              <div class="push-metrics__grid">
-                <div><span>Seleccionadas</span><strong data-metric="selected">0</strong><small>snapshot</small></div>
-                <div><span>Aceptadas</span><strong data-metric="accepted">0</strong><small data-rate="accepted">No aplica</small></div>
-                <div><span>Abrieron</span><strong data-metric="opened">0</strong><small data-rate="opened">No aplica</small></div>
-                <div><span>Vieron destino</span><strong data-metric="destination_viewed">0</strong><small data-rate="destination_viewed">No aplica</small></div>
-                <div><span>Cupón aplicado</span><strong data-metric="coupon_applied">0</strong><small data-rate="coupon_applied">No aplica</small></div>
-                <div><span>Órdenes atribuidas</span><strong data-metric="orders_attributed">0</strong><small data-rate="orders_attributed">Conversión de instalaciones: No aplica</small></div>
-              </div>
-              <dl class="push-preview-summary">
-                <div><dt>Fallo confirmado</dt><dd data-metric="failed_confirmed">0</dd></div>
-                <div><dt>Desconocido</dt><dd data-metric="unknown">0</dd></div>
-                <div><dt>Reintentando</dt><dd data-metric="retrying">0</dd></div>
-                <div><dt>Órdenes vigentes/canceladas</dt><dd><span data-metric="orders_vigentes">0</span> / <span data-metric="orders_canceled">0</span></dd></div>
-              </dl>
-              <p class="push-preview-disclaimer" data-metrics-note></p>
-            </section>
             <p class="push-preview-disclaimer">La apariencia final puede variar según fabricante, versión de Android y ajustes del usuario.</p>
           </div>
         </aside>
+
+        <section class="push-detail-view" data-campaign-detail-view hidden aria-label="Resultado detallado de la campaña">
+          <section class="push-detail-card push-detail-card--route" aria-labelledby="push-detail-route-title">
+            <header class="push-detail-card__head">
+              <span class="push-detail-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2 4 5.5v5.8c0 5 3.4 9.6 8 10.7 4.6-1.1 8-5.7 8-10.7V5.5L12 2Zm-1 13-3-3 1.4-1.4 1.6 1.6 3.6-3.6L16 10l-5 5Z" /></svg>
+              </span>
+              <div>
+                <span>Resumen validado</span>
+                <h3 id="push-detail-route-title">Destino y audiencia</h3>
+                <p>Configuración efectiva utilizada por el motor durante este envío.</p>
+              </div>
+              <span class="push-status" data-detail-status>Estado</span>
+            </header>
+            <dl class="push-detail-route-grid">
+              <div><dt>Destino</dt><dd data-detail-target>Destino seguro</dd></div>
+              <div><dt>Ruta validada</dt><dd data-detail-path>Ruta no disponible</dd></div>
+              <div><dt>Audiencia</dt><dd data-detail-audience>Todas las instalaciones activas</dd></div>
+              <div><dt>Alcance seleccionado</dt><dd><span data-detail-selected>0</span> instalaciones</dd></div>
+            </dl>
+            <div class="push-detail-alert" data-detail-failure hidden></div>
+          </section>
+
+          <section class="push-detail-card push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
+            <header class="push-detail-card__head push-detail-card__head--metrics">
+              <span class="push-detail-card__icon push-detail-card__icon--results" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 19h16v2H2V3h2v16Zm3-2H5v-6h2v6Zm4 0H9V7h2v10Zm4 0h-2V9h2v8Zm4 0h-2V4h2v13Z" /></svg>
+              </span>
+              <div>
+                <span>Resultados</span>
+                <h3 id="push-metrics-title">Embudo verificable</h3>
+                <p>Lectura operativa del alcance, la interacción y la atribución registrada.</p>
+              </div>
+              <button class="push-icon-btn" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
+              </button>
+            </header>
+
+            <div class="push-metrics__grid" aria-label="Etapas principales del envío">
+              <div data-tone="neutral"><span>Seleccionadas</span><strong data-metric="selected">0</strong><small>Alcance congelado</small></div>
+              <div data-tone="info"><span>Aceptadas</span><strong data-metric="accepted">0</strong><small data-rate="accepted">No aplica</small></div>
+              <div data-tone="success"><span>Abrieron</span><strong data-metric="opened">0</strong><small data-rate="opened">No aplica</small></div>
+              <div data-tone="purple"><span>Vieron destino</span><strong data-metric="destination_viewed">0</strong><small data-rate="destination_viewed">No aplica</small></div>
+            </div>
+
+            <div class="push-detail-results-grid">
+              <section class="push-detail-result-group" aria-labelledby="push-conversion-title">
+                <div class="push-detail-result-group__head">
+                  <span aria-hidden="true">↗</span>
+                  <div><strong id="push-conversion-title">Conversión y atribución</strong><small>Acciones posteriores a la apertura</small></div>
+                </div>
+                <dl class="push-detail-result-list">
+                  <div><dt>Cupón aplicado</dt><dd><strong data-metric="coupon_applied">0</strong><small data-rate="coupon_applied">No aplica</small></dd></div>
+                  <div><dt>Órdenes atribuidas</dt><dd><strong data-metric="orders_attributed">0</strong><small data-rate="orders_attributed">Conversión: No aplica</small></dd></div>
+                  <div><dt>Instalaciones compradoras</dt><dd><strong data-metric="buyer_installations">0</strong><small>Compradores únicos</small></dd></div>
+                  <div><dt>Órdenes vigentes / canceladas</dt><dd><strong><span data-metric="orders_vigentes">0</span> / <span data-metric="orders_canceled">0</span></strong><small>Estado comercial actual</small></dd></div>
+                </dl>
+              </section>
+
+              <section class="push-detail-result-group" aria-labelledby="push-technical-title">
+                <div class="push-detail-result-group__head push-detail-result-group__head--technical">
+                  <span aria-hidden="true">i</span>
+                  <div><strong id="push-technical-title">Estado técnico</strong><small>Confirmaciones y trabajo pendiente</small></div>
+                </div>
+                <dl class="push-detail-result-list">
+                  <div><dt>Fallos confirmados</dt><dd><strong data-metric="failed_confirmed">0</strong><small>Fallo permanente o FID inválido</small></dd></div>
+                  <div><dt>Permanentes / FID inválidos</dt><dd><strong><span data-metric="failed_permanent">0</span> / <span data-metric="invalid_fid">0</span></strong><small>Desglose del fallo confirmado</small></dd></div>
+                  <div><dt>Estado desconocido</dt><dd><strong data-metric="unknown">0</strong><small>No se reintenta automáticamente</small></dd></div>
+                  <div><dt>Reintentando</dt><dd><strong data-metric="retrying">0</strong><small>Fallo transitorio</small></dd></div>
+                  <div><dt>Pendientes / reclamadas</dt><dd><strong><span data-metric="pending">0</span> / <span data-metric="claimed">0</span></strong><small>Trabajo todavía no terminal</small></dd></div>
+                  <div><dt>Entregas canceladas</dt><dd><strong data-metric="canceled">0</strong><small>Trabajo detenido antes del envío</small></dd></div>
+                </dl>
+              </section>
+            </div>
+            <p class="push-detail-measurement-note" data-metrics-note></p>
+          </section>
+        </section>
       </div>
 
       <footer class="push-editor__footer">
@@ -595,6 +649,42 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         notification_permission: 'Permiso confirmado',
         country_region: 'País o región',
       })[type] || 'Audiencia';
+    }
+    function campaignTargetDetail(campaign) {
+      const targetType = campaign?.target_type || 'home';
+      if (targetType === 'home') return 'Portada de la tienda';
+      if (targetType === 'section') {
+        const sections = {
+          search: 'Buscar', links: 'Links', gifts: 'Regalos', raffles: 'Rifas', checkout: 'Checkout',
+        };
+        return `Sección: ${sections[campaign.target_section] || 'Sección pública'}`;
+      }
+      if (targetType === 'order') return 'Seguimiento privado de pedido';
+      if (targetType === 'coupon') {
+        const coupon = state.targets.coupons.find((item) => item.id === campaign.target_ref);
+        return coupon?.code ? `Cupón: ${coupon.code}` : 'Cupón validado';
+      }
+      const key = ({ category: 'categories', product: 'products', raffle: 'raffles' })[targetType];
+      const option = key ? state.targets[key].find((item) => item.id === campaign.target_ref) : null;
+      return option?.label
+        ? `${campaignTargetLabel(campaign)}: ${option.label}`
+        : `${campaignTargetLabel(campaign)} validado`;
+    }
+    function renderCampaignDetailSummary(campaign) {
+      if (!campaign) return;
+      const status = one('[data-detail-status]');
+      status.textContent = campaignStatusLabel(campaign.status);
+      status.dataset.tone = statusTone(campaign.status);
+      one('[data-detail-target]').textContent = campaignTargetDetail(campaign);
+      one('[data-detail-path]').textContent = campaign.target_path
+        || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Ruta no disponible');
+      one('[data-detail-audience]').textContent = campaignAudienceLabel(campaign.audience_type);
+      one('[data-detail-selected]').textContent = Number(campaign.selected_count || 0).toLocaleString('es-US');
+      const failure = one('[data-detail-failure]');
+      failure.hidden = !campaign.failure_code;
+      failure.textContent = campaign.failure_code
+        ? `Resultado del envío: ${storefrontPushAdminErrorMessage(campaign.failure_code)}`
+        : '';
     }
     function campaignIsDeletable(campaign) {
       return storefrontPushCampaignActions(campaign?.status).delete;
@@ -857,6 +947,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       } finally {
         renderTargetOptions();
         updateConditionalFields();
+        if (state.editorReadonly && state.editing) renderCampaignDetailSummary(state.editing);
       }
     }
     async function loadMedia() {
@@ -1039,6 +1130,11 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     }
     function setEditorReadonly(readonly) {
       state.editorReadonly = readonly;
+      const detailMode = readonly && Boolean(state.editing);
+      one('[data-campaign-form-column]').hidden = detailMode;
+      one('[data-campaign-preview-column]').hidden = detailMode;
+      one('[data-campaign-detail-view]').hidden = !detailMode;
+      one('[data-editor-body]').classList.toggle('push-editor__body--detail', detailMode);
       all('[data-field]').forEach((control) => { control.disabled = readonly; });
       one('[data-media-upload]').disabled = readonly;
       one('[data-save-draft]').hidden = readonly;
@@ -1069,6 +1165,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       resetTargetSelection();
       one('[data-editor-title]').textContent = 'Nueva campaña';
       one('[data-editor-state]').textContent = 'Borrador nuevo';
+      one('[data-editor-description]').textContent = 'El backend validará de nuevo plan, permiso, tienda, medio, audiencia y destino.';
       one('[data-preview-path]').textContent = 'Pendiente de validar';
       one('[data-campaign-metrics]').hidden = true;
       one('[data-refresh-campaign-metrics]').hidden = true;
@@ -1126,6 +1223,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         const detail = await readStorefrontPushCampaignDetail(client, campaignId);
         if (requestId !== state.metricsRequestId || state.editing?.id !== campaignId) return;
         state.editing = detail.campaign;
+        renderCampaignDetailSummary(detail.campaign);
         renderCampaignMetrics(detail.metrics);
       } catch (error) {
         if (!options.silent) showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
@@ -1144,36 +1242,42 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     function fillEditor(campaign, edit, metrics = null) {
       resetEditor();
       state.editing = campaign;
-      field('campaign_id').value = campaign.id;
-      field('title').value = campaign.title;
-      field('body').value = campaign.body;
-      field('media_id').value = campaign.media_id;
-      field('timezone').value = state.quotaTimezone || campaign.timezone || defaultTimezone;
-      one('[data-timezone-help]').textContent = `La hora se convierte a UTC al guardar; la cuota diaria usa ${field('timezone').value}.`;
-      field('audience_type').value = campaign.audience_type || 'all_active';
-      field('target_type').value = campaign.target_type || 'home';
-      field('target_ref').value = campaign.target_ref || '';
-      field('target_section').value = campaign.target_section || 'search';
-      field('app_version_code').value = campaign.audience_config?.app_version_code || '';
-      field('country_code').value = campaign.audience_config?.country_code || '';
-      field('region_code').value = campaign.audience_config?.region_code || '';
-      field('installation_id').value = campaign.audience_config?.installation_id || '';
-      field('schedule_enabled').checked = Boolean(campaign.scheduled_at);
-      field('scheduled_at').value = localDateTimeInputValue(campaign.scheduled_at);
-      syncTargetInputsFromReference();
+      if (edit) {
+        field('campaign_id').value = campaign.id;
+        field('title').value = campaign.title;
+        field('body').value = campaign.body;
+        field('media_id').value = campaign.media_id;
+        field('timezone').value = state.quotaTimezone || campaign.timezone || defaultTimezone;
+        one('[data-timezone-help]').textContent = `La hora se convierte a UTC al guardar; la cuota diaria usa ${field('timezone').value}.`;
+        field('audience_type').value = campaign.audience_type || 'all_active';
+        field('target_type').value = campaign.target_type || 'home';
+        field('target_ref').value = campaign.target_ref || '';
+        field('target_section').value = campaign.target_section || 'search';
+        field('app_version_code').value = campaign.audience_config?.app_version_code || '';
+        field('country_code').value = campaign.audience_config?.country_code || '';
+        field('region_code').value = campaign.audience_config?.region_code || '';
+        field('installation_id').value = campaign.audience_config?.installation_id || '';
+        field('schedule_enabled').checked = Boolean(campaign.scheduled_at);
+        field('scheduled_at').value = localDateTimeInputValue(campaign.scheduled_at);
+        syncTargetInputsFromReference();
+        renderMediaOptions(campaign.media_id);
+      }
       one('[data-editor-title]').textContent = edit ? 'Editar borrador' : 'Detalle de campaña';
       one('[data-editor-state]').textContent = campaignStatusLabel(campaign.status);
+      one('[data-editor-description]').textContent = edit
+        ? 'El backend validará de nuevo plan, permiso, tienda, medio, audiencia y destino.'
+        : 'Resumen operativo del destino, la audiencia y los resultados verificados.';
       one('[data-preview-path]').textContent = campaign.target_path || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Pendiente de validar');
       if (campaign.selected_count || campaign.status !== 'draft') {
         one('[data-audience-estimate]').textContent = `${campaign.selected_count} ${campaign.selected_count === 1 ? 'instalación' : 'instalaciones'}`;
         one('[data-audience-note]').textContent = 'Conteo guardado por el motor de campañas.';
       }
-      renderMediaOptions(campaign.media_id);
+      renderCampaignDetailSummary(campaign);
       setEditorReadonly(!edit);
       updateConditionalFields();
       if (!editor.open) openDialog(editor);
-      calculateOpenedAudience(campaign);
-      if (!edit) {
+      if (edit) calculateOpenedAudience(campaign);
+      else {
         renderCampaignMetrics(metrics);
         one('[data-refresh-campaign-metrics]').hidden = false;
         scheduleCampaignMetricsRefresh();
@@ -1636,6 +1740,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-editor__head h2 { margin: 5px 0 0; font-size: 24px; line-height: 1.1; letter-spacing: -.03em; font-weight: 1000; }
   .push-editor__head p { margin: 7px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 700; }
   .push-editor__body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr); gap: 18px; padding: 18px; }
+  .push-editor__body--detail { display: block; }
   .push-form-column { min-width: 0; display: grid; gap: 14px; }
   .push-fieldset { min-width: 0; display: grid; gap: 13px; margin: 0; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 17px; box-shadow: 0 8px 24px rgba(15,23,42,.035); }
   .push-fieldset legend { padding: 0 7px; color: #0f172a; font-size: 14px; font-weight: 1000; }
@@ -1703,12 +1808,52 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-preview-summary div + div { border-top: 1px solid #e2e8f0; }
   .push-preview-summary dt { color: #64748b; font-size: 10px; font-weight: 900; }
   .push-preview-summary dd { min-width: 0; margin: 0; color: #0f172a; font-size: 10px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
-  .push-metrics { display: grid; gap: 11px; border-top: 1px solid #e2e8f0; padding-top: 13px; }
-  .push-metrics[hidden] { display: none; }
-  .push-metrics__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .push-metrics__grid > div { min-width: 0; display: grid; gap: 3px; border-radius: 12px; background: #f8fafc; padding: 9px; }
-  .push-metrics__grid span, .push-metrics__grid small { color: #64748b; font-size: 9px; font-weight: 850; }
-  .push-metrics__grid strong { color: #0f172a; font-size: 18px; font-weight: 1000; }
+  .push-detail-view { width: min(100%, 1020px); display: grid; gap: 18px; margin: 0 auto; }
+  .push-detail-view[hidden], .push-metrics[hidden] { display: none; }
+  .push-detail-card { min-width: 0; overflow: hidden; border: 1px solid #dbe5f1; border-radius: 21px; background: #fff; box-shadow: 0 14px 38px rgba(15,23,42,.065); }
+  .push-detail-card--route { background: linear-gradient(145deg, #fff 0%, #f8fbff 100%); }
+  .push-detail-card__head { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; align-items: center; gap: 13px; border-bottom: 1px solid #e8eef6; padding: 19px 20px; }
+  .push-detail-card__head > div { min-width: 0; }
+  .push-detail-card__head > div > span { display: block; color: #2563eb; font-size: 10px; line-height: 1.2; font-weight: 1000; letter-spacing: .07em; text-transform: uppercase; }
+  .push-detail-card__head h3 { margin: 4px 0 0; color: #0f172a; font-size: 20px; line-height: 1.2; font-weight: 1000; letter-spacing: -.025em; }
+  .push-detail-card__head p { margin: 5px 0 0; color: #64748b; font-size: 11px; line-height: 1.48; font-weight: 700; }
+  .push-detail-card__icon { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #bfdbfe; border-radius: 15px; background: #eff6ff; color: #2563eb; }
+  .push-detail-card__icon svg { width: 24px; height: 24px; fill: currentColor; }
+  .push-detail-card__icon--results { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+  .push-detail-route-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; margin: 0; padding: 0 20px 20px; }
+  .push-detail-route-grid > div { min-width: 0; display: grid; gap: 7px; border-bottom: 1px solid #e8eef6; padding: 17px 15px; }
+  .push-detail-route-grid > div:nth-child(odd) { border-right: 1px solid #e8eef6; padding-left: 0; }
+  .push-detail-route-grid > div:nth-child(even) { padding-right: 0; }
+  .push-detail-route-grid dt { color: #64748b; font-size: 10px; font-weight: 950; letter-spacing: .035em; text-transform: uppercase; }
+  .push-detail-route-grid dd { min-width: 0; margin: 0; color: #0f172a; font-size: 14px; line-height: 1.45; font-weight: 950; overflow-wrap: anywhere; }
+  .push-detail-alert { margin: 0 20px 20px; border: 1px solid #fed7aa; border-radius: 13px; background: #fff7ed; color: #9a3412; padding: 11px 13px; font-size: 11px; line-height: 1.5; font-weight: 850; }
+  .push-metrics { display: grid; gap: 18px; padding-bottom: 20px; }
+  .push-detail-card__head--metrics { border-bottom: 0; padding-bottom: 2px; }
+  .push-metrics__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 20px; }
+  .push-metrics__grid > div { position: relative; min-width: 0; display: grid; gap: 4px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 15px; background: #f8fafc; padding: 15px; }
+  .push-metrics__grid > div::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: #94a3b8; }
+  .push-metrics__grid > div[data-tone="info"]::before { background: #3b82f6; }
+  .push-metrics__grid > div[data-tone="success"]::before { background: #22c55e; }
+  .push-metrics__grid > div[data-tone="purple"]::before { background: #8b5cf6; }
+  .push-metrics__grid span, .push-metrics__grid small { color: #64748b; font-size: 10px; line-height: 1.35; font-weight: 850; }
+  .push-metrics__grid > div > span { text-transform: uppercase; letter-spacing: .035em; }
+  .push-metrics__grid strong { color: #0f172a; font-size: 28px; line-height: 1.05; font-weight: 1000; }
+  .push-detail-results-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 0 20px; }
+  .push-detail-result-group { min-width: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; }
+  .push-detail-result-group__head { display: grid; grid-template-columns: 38px minmax(0,1fr); align-items: center; gap: 10px; background: #f0fdf4; padding: 13px 14px; }
+  .push-detail-result-group__head > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #dcfce7; color: #15803d; font-size: 18px; font-weight: 1000; }
+  .push-detail-result-group__head > div { display: grid; gap: 2px; }
+  .push-detail-result-group__head strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
+  .push-detail-result-group__head small { color: #64748b; font-size: 9px; line-height: 1.35; font-weight: 750; }
+  .push-detail-result-group__head--technical { background: #f8fafc; }
+  .push-detail-result-group__head--technical > span { background: #e2e8f0; color: #475569; font-size: 14px; }
+  .push-detail-result-list { display: grid; margin: 0; padding: 0 14px; }
+  .push-detail-result-list > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,.65fr); align-items: center; gap: 14px; border-top: 1px solid #edf2f7; padding: 12px 0; }
+  .push-detail-result-list dt { color: #334155; font-size: 11px; line-height: 1.4; font-weight: 850; }
+  .push-detail-result-list dd { min-width: 0; display: grid; justify-items: end; gap: 2px; margin: 0; text-align: right; }
+  .push-detail-result-list dd strong { color: #0f172a; font-size: 17px; line-height: 1.15; font-weight: 1000; }
+  .push-detail-result-list dd small { color: #64748b; font-size: 9px; line-height: 1.3; font-weight: 750; }
+  .push-detail-measurement-note { margin: 0 20px; border: 1px solid #dbeafe; border-radius: 13px; background: #eff6ff; color: #1e40af; padding: 11px 13px; font-size: 10px; line-height: 1.5; font-weight: 750; text-align: center; }
   .push-preview-disclaimer { margin: 0; color: #64748b; font-size: 10px; line-height: 1.45; text-align: center; }
   .push-editor__footer { position: sticky; bottom: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid #e2e8f0; background: rgba(255,255,255,.98); padding: 14px 20px; box-shadow: 0 -10px 25px rgba(15,23,42,.06); }
   .push-editor__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
@@ -1737,6 +1882,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .push-editor__body { grid-template-columns: 1fr; }
     .push-preview-sticky { position: static; }
     .android-device { width: min(390px, 100%); margin: 0 auto; }
+    .push-metrics__grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .push-detail-results-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 720px) {
     .push-admin { width: min(100% - 20px, 1220px); padding: 14px 0 92px; }
@@ -1763,6 +1910,19 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .push-editor__head { padding: 16px; }
     .push-editor__head h2 { font-size: 21px; }
     .push-editor__body { padding: 12px; }
+    .push-detail-card { border-radius: 17px; }
+    .push-detail-card__head { grid-template-columns: 42px minmax(0,1fr); padding: 15px; }
+    .push-detail-card__head > .push-status, .push-detail-card__head > .push-icon-btn { grid-column: 1 / -1; justify-self: stretch; justify-content: center; }
+    .push-detail-card__icon { width: 42px; height: 42px; border-radius: 13px; }
+    .push-detail-route-grid { grid-template-columns: 1fr; padding: 0 15px 15px; }
+    .push-detail-route-grid > div { padding: 14px 0; }
+    .push-detail-route-grid > div:nth-child(odd) { border-right: 0; }
+    .push-metrics { gap: 14px; padding-bottom: 15px; }
+    .push-metrics__grid, .push-detail-results-grid { padding-right: 15px; padding-left: 15px; }
+    .push-metrics__grid > div { padding: 13px; }
+    .push-detail-result-list > div { grid-template-columns: minmax(0,1fr) minmax(105px,.7fr); }
+    .push-detail-measurement-note { margin: 0 15px; }
+    .push-detail-alert { margin: 0 15px 15px; }
     .push-fieldset { border-radius: 15px; padding: 14px; }
     .push-media-row { display: grid; }
     .push-upload-btn { width: 100%; }

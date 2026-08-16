@@ -419,23 +419,46 @@ function creatorAuthorized(app, campaign, store) {
 }
 
 function timezonePartsWithPocketBase(date, timezone) {
-  if (typeof DateTime === "undefined") return null;
+  if (typeof DateTime === "undefined" || typeof Timezone === "undefined") return null;
   try {
-    const wallClock = date.toISOString().slice(0, 19).replace("T", " ");
-    const interpreted = new DateTime(wallClock, timezone);
-    const interpretedMs = Number(interpreted.unix()) * 1000;
-    if (!Number.isFinite(interpretedMs)) return null;
-    const offsetMs = date.getTime() - interpretedMs;
-    if (Math.abs(offsetMs) > 24 * 60 * 60 * 1000) return null;
-    const local = new Date(date.getTime() + offsetMs);
+    const zone = new Timezone(timezone);
+    const zoneName = String(zone.string ? zone.string() : zone).trim();
+    // PocketBase/Go falls back silently to UTC when the host has no IANA tzdata.
+    if (zoneName !== timezone) return null;
+    const local = new DateTime(date.toISOString()).time().in(zone);
+    const parts = local.date();
     return {
-      year: local.getUTCFullYear(),
-      month: local.getUTCMonth() + 1,
-      day: local.getUTCDate(),
+      year: Number(parts[0]),
+      month: Number(parts[1]),
+      day: Number(parts[2]),
     };
   } catch (_) {
     return null;
   }
+}
+
+function nthSundayOfMonth(year, monthIndex, ordinal) {
+  const firstWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+  return 1 + ((7 - firstWeekday) % 7) + ((ordinal - 1) * 7);
+}
+
+function timezonePartsWithHavanaRules(date, timezone) {
+  if (timezone !== CAMPAIGN_TIMEZONE) return null;
+  const year = date.getUTCFullYear();
+  // Current IANA Cuba rules: UTC-5 in standard time and UTC-4 from the
+  // second Sunday in March at 05:00 UTC to the first Sunday in November
+  // at 05:00 UTC. This is a fail-safe for runtimes without a zone database;
+  // the bundled Alpine tzdata remains the authoritative production path.
+  // Source: https://data.iana.org/time-zones/tzdb/northamerica
+  const daylightStart = Date.UTC(year, 2, nthSundayOfMonth(year, 2, 2), 5);
+  const daylightEnd = Date.UTC(year, 10, nthSundayOfMonth(year, 10, 1), 5);
+  const offsetHours = date.getTime() >= daylightStart && date.getTime() < daylightEnd ? -4 : -5;
+  const local = new Date(date.getTime() + (offsetHours * 60 * 60 * 1000));
+  return {
+    year: local.getUTCFullYear(),
+    month: local.getUTCMonth() + 1,
+    day: local.getUTCDate(),
+  };
 }
 
 function timezonePartsWithIntl(date, timezone) {
@@ -459,7 +482,9 @@ function timezoneParts(dateValue, timezone) {
   const date = dateValue instanceof Date ? dateValue : parsedDate(dateValue);
   const zone = String(timezone || "").trim();
   if (!date || !TIMEZONE_PATTERN.test(zone)) return null;
-  const parts = timezonePartsWithPocketBase(date, zone) || timezonePartsWithIntl(date, zone);
+  const parts = timezonePartsWithPocketBase(date, zone)
+    || timezonePartsWithIntl(date, zone)
+    || timezonePartsWithHavanaRules(date, zone);
   if (!parts
     || !Number.isInteger(parts.year)
     || !Number.isInteger(parts.month)

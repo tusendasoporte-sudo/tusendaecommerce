@@ -4,7 +4,7 @@ ARG POCKETBASE_VERSION=0.38.2
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates unzip wget \
+RUN apk add --no-cache ca-certificates tzdata unzip wget \
   && wget -O /tmp/pocketbase.zip "https://github.com/pocketbase/pocketbase/releases/download/v${POCKETBASE_VERSION}/pocketbase_${POCKETBASE_VERSION}_linux_amd64.zip" \
   && unzip /tmp/pocketbase.zip -d /app \
   && rm /tmp/pocketbase.zip \
