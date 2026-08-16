@@ -134,6 +134,12 @@ test('checkout reenvía solo cookies públicas permitidas y la atribución nunca
   assert.match(backend, /plan\.totals\.couponWinner !== "manual_coupon"/);
 });
 
+test('el enlace compartible del cupón conserva la ruta canónica de su tienda', () => {
+  const promos = read('../src/pages/admin/promos.astro');
+  assert.match(promos, /return `\$\{window\.location\.origin\}\$\{publicStorePath\}\?coupon=\$\{encodeURIComponent/);
+  assert.doesNotMatch(promos, /window\.location\.origin\}\/\?coupon=/);
+});
+
 test('el evento nativo exige App Check, credencial, contrato exacto e idempotencia determinista', () => {
   const route = read('../src/pages/api/storefront/v1/events.ts');
   assert.match(route, /storefrontNativeGateway/);

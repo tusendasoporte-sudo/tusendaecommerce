@@ -4992,7 +4992,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         return 'Sin fecha';
       }
       function couponLink(item) {
-        return `${window.location.origin}/?coupon=${encodeURIComponent(String(item.code || '').toUpperCase())}`;
+        return `${window.location.origin}${publicStorePath}?coupon=${encodeURIComponent(String(item.code || '').toUpperCase())}`;
       }
       function renderCouponSubcategoryOptions() {
         if (!couponSubcategory) return;
