@@ -398,6 +398,7 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /aria-live="polite"/);
   assert.match(source, /aria-live="assertive"/);
   assert.match(source, /aria-labelledby="push-editor-title"/);
+  assert.match(source, /\.android-notification__image img\s*\{[^}]*object-fit:\s*contain;/);
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
   assert.doesNotMatch(source, /data-only v2|push-preview-heading__badge/);
