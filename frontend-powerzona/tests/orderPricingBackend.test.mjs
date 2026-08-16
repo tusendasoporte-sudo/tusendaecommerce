@@ -18,7 +18,8 @@ function checkoutRequestBlock() {
 test('checkout publico escribe mediante el endpoint backend canonico', () => {
   assert.match(checkout, /fetch\('\/api\/checkout\/orders'/);
   assert.match(checkoutProxy, /fetch\(`\$\{baseUrl\}\/api\/pz\/checkout\/orders`/);
-  assert.match(checkoutProxy, /headers: publicSecurityProxyHeaders\(request, clientAddress\)/);
+  assert.match(checkoutProxy, /const headers = publicSecurityProxyHeaders\(request, clientAddress\)/);
+  assert.match(checkoutProxy, /headers: checkoutProxyHeaders\(request, clientAddress\)/);
   assert.equal(checkout.includes("pocketbaseRequest('orders'"), false);
   assert.equal(checkout.includes("pocketbaseRequest('order_items'"), false);
   assert.equal(checkout.includes("pocketbaseRequest('manual_coupon_usages'"), false);
@@ -96,6 +97,18 @@ test('linea, WhatsApp y recibo muestran solo el ajuste especial generico y preci
   for (const internal of ['manual_adjustment_reason_code', 'manual_adjustment_reason_text', 'manual_adjusted_by']) {
     assert.equal(receipt.includes(internal), false, internal);
   }
+});
+
+test('el recibo resuelve miniaturas de regalos contra PocketBase y usa fallback visual', () => {
+  assert.match(receipt, /const pocketBaseOrigin = new URL\(`\$\{POCKETBASE_URL\}\/`\)/);
+  assert.match(receipt, /parsed\.pathname\.startsWith\('\/api\/files\/'\)/);
+  assert.match(receipt, /new URL\(`\$\{parsed\.pathname\}\$\{parsed\.search\}`, pocketBaseOrigin\)/);
+  assert.match(receipt, /data-receipt-item-image/);
+  assert.match(receipt, /data-receipt-item-fallback/);
+  assert.match(receipt, /image\.complete && !image\.naturalWidth/);
+  assert.match(receipt, /\.receipt-item-thumb-fallback\[hidden\]/);
+  assert.match(receipt, /receipt-item-thumb--gift/);
+  assert.match(receipt, /\.receipt-item-thumb--gift img \{[\s\S]*?object-fit: contain !important;/);
 });
 
 test('C2 restablece solo tras motivo nuevo y confirmacion explicita', () => {

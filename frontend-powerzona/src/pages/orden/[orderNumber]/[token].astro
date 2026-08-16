@@ -470,15 +470,19 @@ const receiptSeo = {
     function ensureReceiptThumbnailUrl(url) {
       const raw = String(url || '').trim();
       if (!raw) return '';
-      if (!raw.includes('/api/files/')) return raw;
 
       try {
-        const parsed = new URL(raw, window.location.origin);
-        parsed.searchParams.set('thumb', '160x160');
+        const pocketBaseOrigin = new URL(`${POCKETBASE_URL}/`);
+        let parsed = new URL(raw, pocketBaseOrigin);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+
+        if (parsed.pathname.startsWith('/api/files/')) {
+          parsed = new URL(`${parsed.pathname}${parsed.search}`, pocketBaseOrigin);
+          parsed.searchParams.set('thumb', '160x160');
+        }
         return parsed.toString();
       } catch (_) {
-        const separator = raw.includes('?') ? '&' : '?';
-        return `${raw}${separator}thumb=160x160`;
+        return '';
       }
     }
 
@@ -580,11 +584,9 @@ const receiptSeo = {
         return `
           <div class="receipt-item-card">
             <div class="receipt-item-row">
-              <div class="receipt-item-thumb" aria-hidden="${imageUrl ? 'false' : 'true'}">
-                ${imageUrl
-                  ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`
-                  : `<span>${escapeHtml(itemInitial || 'P')}</span>`
-                }
+              <div class="receipt-item-thumb${item.is_gift ? ' receipt-item-thumb--gift' : ''}" aria-hidden="${imageUrl ? 'false' : 'true'}">
+                <span class="receipt-item-thumb-fallback" data-receipt-item-fallback ${imageUrl ? 'hidden' : ''}>${escapeHtml(itemInitial || 'P')}</span>
+                ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" data-receipt-item-image />` : ''}
               </div>
 
               <div class="receipt-item-info">
@@ -599,6 +601,16 @@ const receiptSeo = {
           </div>
         `;
       }).join('') : '<div class="receipt-empty">Sin productos cargados.</div>';
+
+      receiptItemsElement.querySelectorAll('[data-receipt-item-image]').forEach((image) => {
+        const showFallback = () => {
+          image.hidden = true;
+          const fallback = image.parentElement?.querySelector('[data-receipt-item-fallback]');
+          if (fallback) fallback.hidden = false;
+        };
+        image.addEventListener('error', showFallback, { once: true });
+        if (image.complete && !image.naturalWidth) showFallback();
+      });
 
       renderTotals(order, items, currencyCode);
 
@@ -660,6 +672,29 @@ const receiptSeo = {
       max-height: 68px !important;
       display: block !important;
       object-fit: cover !important;
+    }
+
+    .receipt-item-thumb--gift img {
+      background: #ffffff !important;
+      object-fit: contain !important;
+      padding: 3px !important;
+    }
+
+    .receipt-item-thumb img[hidden],
+    .receipt-item-thumb-fallback[hidden] {
+      display: none !important;
+    }
+
+    .receipt-item-thumb-fallback {
+      display: grid !important;
+      width: 100% !important;
+      height: 100% !important;
+      place-items: center !important;
+      background: radial-gradient(circle at 50% 34%, #f8fafc 0%, #e2e8f0 58%, #cbd5e1 100%) !important;
+      color: #475569 !important;
+      font-size: 22px !important;
+      font-weight: 1000 !important;
+      text-transform: uppercase !important;
     }
 
     .receipt-item-info {
