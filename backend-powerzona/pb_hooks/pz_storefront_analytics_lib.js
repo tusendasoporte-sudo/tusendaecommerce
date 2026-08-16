@@ -29,6 +29,7 @@ const APP_CONFIGS_COLLECTION = "storefront_app_configs";
 const DAILY_COLLECTION = "push_daily_stats";
 const ORDER_LINKS_COLLECTION = "storefront_order_links";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+const STOREFRONT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%\/-]*)?(?:\?[A-Za-z0-9._~!$&'()*+,;=:@%\/?-]*)?$/;
 const EVENT_TYPES = Object.freeze(["opened", "destination_viewed"]);
 const ANALYTICS_RANGES = Object.freeze({ today: 1, "7": 7, "15": 15, "30": 30, "90": 90 });
 const ATTRIBUTION_WINDOW_MS = schema.RETENTION_POLICY.attribution_days * 86_400_000;
@@ -129,15 +130,29 @@ function nonNegativeInteger(value) {
   return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0;
 }
 
+function hasAmbiguousStorefrontPath(value) {
+  const queryIndex = value.indexOf("?");
+  const path = queryIndex < 0 ? value : value.slice(0, queryIndex);
+  const lower = path.toLowerCase();
+  return path.includes("\\")
+    || lower.includes("%2f")
+    || lower.includes("%5c")
+    || path.includes("/../")
+    || path.endsWith("/..")
+    || path.includes("/./")
+    || path.endsWith("/.");
+}
+
 function canonicalPath(value) {
   const raw = safeText(value, 500);
-  if (!raw || raw.includes("://") || raw.startsWith("//") || !raw.startsWith("/t/")) return "";
-  try {
-    const parsed = new URL(raw, "https://storefront.invalid");
-    if (parsed.origin !== "https://storefront.invalid" || parsed.hash) return "";
-    const pathname = parsed.pathname.length > 1 ? parsed.pathname.replace(/\/+$/, "") : parsed.pathname;
-    return `${pathname}${parsed.search}`;
-  } catch (_) { return ""; }
+  if (!raw || raw.includes("://") || raw.startsWith("//") || !raw.startsWith("/t/")
+    || raw.includes("#") || !STOREFRONT_PATH_PATTERN.test(raw)
+    || hasAmbiguousStorefrontPath(raw)) return "";
+  const queryIndex = raw.indexOf("?");
+  const pathname = queryIndex < 0 ? raw : raw.slice(0, queryIndex);
+  const query = queryIndex < 0 ? "" : raw.slice(queryIndex + 1);
+  const canonical = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return query ? `${canonical}?${query}` : canonical;
 }
 
 function canonicalDestinationPath(value) {

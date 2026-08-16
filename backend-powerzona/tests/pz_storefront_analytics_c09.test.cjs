@@ -1,6 +1,11 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 
 const STORE = 'storeanalytic01';
@@ -10,6 +15,10 @@ const DELIVERY = 'deliveryanal001';
 const COUPON = 'couponanalyt001';
 const ORDER = 'orderanalyt0001';
 const NOW = new Date('2026-08-15T12:00:00.000Z');
+const BACKEND_DIR = path.resolve(__dirname, '..');
+const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
+const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
+const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 
 class FakeRecord {
   constructor(collection, values = {}) {
@@ -161,6 +170,139 @@ function nativePayload(eventType, targetPath = '') {
     clientOccurredAt: NOW.toISOString(), targetPath,
   };
 }
+
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      server.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+function startPocketBase(dataDirectory, hooksDirectory, port) {
+  let output = '';
+  const child = spawn(
+    POCKETBASE_EXE,
+    [
+      'serve',
+      `--http=127.0.0.1:${port}`,
+      `--dir=${dataDirectory}`,
+      `--hooksDir=${hooksDirectory}`,
+      `--migrationsDir=${MIGRATIONS_DIR}`,
+      '--hooksWatch=false',
+      '--hooksPool=2',
+      '--automigrate=true',
+      '--indexFallback=false',
+    ],
+    {
+      cwd: BACKEND_DIR,
+      env: {
+        ...process.env,
+        PZ_STOREFRONT_INTERNAL_SECRET: 'runtime-internal-c09-abcdefghijklmnopqrstuvwxyz',
+        PZ_STOREFRONT_CREDENTIAL_SECRET: 'runtime-credential-c09-abcdefghijklmnopqrstuvwxyz',
+        PZ_SECURITY_HMAC_SECRET: 'runtime-security-hmac-c09-abcdefghijklmnopqrstuvwxyz',
+        PZ_SECURITY_AES_KEY: '12345678901234567890123456789012',
+        PZ_PUSH_RELAY_SECRET: 'runtime-relay-c09-abcdefghijklmnopqrstuvwxyz',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    },
+  );
+  const capture = (chunk) => { output = `${output}${String(chunk)}`.slice(-50_000); };
+  child.stdout.on('data', capture);
+  child.stderr.on('data', capture);
+  return { child, output: () => output };
+}
+
+async function waitForPocketBase(runtime, baseUrl) {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (runtime.child.exitCode !== null) throw new Error(`PocketBase termino antes de iniciar.\n${runtime.output()}`);
+    try {
+      const response = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(1500) });
+      if (response.ok) return;
+    } catch (_) {}
+    await sleep(150);
+  }
+  throw new Error(`PocketBase no quedo listo.\n${runtime.output()}`);
+}
+
+async function stopPocketBase(runtime) {
+  if (!runtime || runtime.child.exitCode !== null || runtime.child.signalCode !== null) return;
+  const exited = new Promise((resolve) => runtime.child.once('exit', resolve));
+  runtime.child.kill('SIGTERM');
+  const graceful = await Promise.race([exited.then(() => true), sleep(5000).then(() => false)]);
+  if (!graceful && runtime.child.exitCode === null && runtime.child.signalCode === null) {
+    runtime.child.kill('SIGKILL');
+    await Promise.race([exited, sleep(5000)]);
+  }
+}
+
+test('normaliza rutas sin depender del constructor URL de Node o navegador', () => {
+  const originalUrl = globalThis.URL;
+  globalThis.URL = undefined;
+  try {
+    assert.equal(
+      analytics.canonicalPath('/t/powerzona/producto/audifnos'),
+      '/t/powerzona/producto/audifnos',
+    );
+    assert.equal(analytics.canonicalPath('/t/powerzona/?coupon=APP10'), '/t/powerzona?coupon=APP10');
+    assert.equal(analytics.canonicalPath('/t/powerzona/producto/audifnos#detalle'), '');
+    assert.equal(analytics.canonicalPath('/t/powerzona/../admin'), '');
+    assert.equal(analytics.canonicalPath('/t/powerzona%2Fadmin'), '');
+  } finally {
+    globalThis.URL = originalUrl;
+  }
+});
+
+test('runtime PocketBase real normaliza la ruta usada por destination_viewed', {
+  skip: !fs.existsSync(POCKETBASE_EXE),
+  timeout: 90_000,
+}, async () => {
+  const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'pz-c09-runtime-'));
+  const hooksDirectory = path.join(dataDirectory, 'pb_hooks');
+  let runtime = null;
+  try {
+    fs.cpSync(HOOKS_DIR, hooksDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(hooksDirectory, 'zz_pz_c09_runtime_probe.pb.js'),
+      `routerAdd("GET", "/api/pz/tests/c09-canonical-path", (e) => {\n`
+        + `  const analytics = require(\`${'${__hooks}'}/pz_storefront_analytics_lib.js\`);\n`
+        + '  return e.json(200, {\n'
+        + '    product: analytics.canonicalPath("/t/powerzona/producto/audifnos"),\n'
+        + '    coupon: analytics.canonicalPath("/t/powerzona/?coupon=APP10"),\n'
+        + '    unsafe: analytics.canonicalPath("/t/powerzona/../admin"),\n'
+        + '  });\n'
+        + '});\n',
+      'utf8',
+    );
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    runtime = startPocketBase(dataDirectory, hooksDirectory, port);
+    await waitForPocketBase(runtime, baseUrl);
+    const response = await fetch(`${baseUrl}/api/pz/tests/c09-canonical-path`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.deepEqual(body, {
+      product: '/t/powerzona/producto/audifnos',
+      coupon: '/t/powerzona?coupon=APP10',
+      unsafe: '',
+    });
+  } finally {
+    await stopPocketBase(runtime);
+    const resolved = path.resolve(dataDirectory);
+    assert.equal(resolved.startsWith(path.resolve(os.tmpdir())), true);
+    fs.rmSync(resolved, { recursive: true, force: true });
+  }
+});
 
 test('opened y destination_viewed son autenticados, ordenados e idempotentes', () => {
   const app = createApp();
