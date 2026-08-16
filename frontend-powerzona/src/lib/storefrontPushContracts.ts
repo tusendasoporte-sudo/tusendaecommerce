@@ -13,7 +13,7 @@ export const STOREFRONT_BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 export const STOREFRONT_SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
-const APP_SET_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const APP_SET_ID_PATTERN = /^[0-9A-Za-z+.=/_$,{}-]{22,150}$/;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$/;
 const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
@@ -100,7 +100,7 @@ export function normalizeStorefrontRegisterPayload(value: unknown): StorefrontRe
   if (!exactKeys(value, keys)) return null;
 
   const fid = boundedText(source.fid, 255, FID_PATTERN);
-  const appSetId = hasAppSetId ? boundedText(source.app_set_id, 36, APP_SET_ID_PATTERN).toLowerCase() : '';
+  const appSetId = hasAppSetId ? boundedText(source.app_set_id, 150, APP_SET_ID_PATTERN) : '';
   const appVersion = boundedText(source.app_version, 40, VERSION_PATTERN);
   const versionCode = appVersionCode(source.app_version_code);
   const androidVersion = boundedText(source.android_version, 40, ANDROID_PATTERN);

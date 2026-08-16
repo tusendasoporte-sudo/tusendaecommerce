@@ -33,7 +33,7 @@ import {
 
 const APP_ID = '1:1234567890:android:aaaaaaaaaaaaaaaa';
 const FID = 'abcdefghijklmnopqrstuv';
-const APP_SET_ID = '123e4567-e89b-42d3-a456-426614174000';
+const APP_SET_ID = '12Jd92JD8078S8J29sDoakc0EF230337';
 const CREDENTIAL = `pzs_v1_${'a'.repeat(64)}`;
 const INTERNAL_SECRET = 'internal-secret-c03-abcdefghijklmnopqrstuvwxyz';
 
@@ -68,6 +68,13 @@ test('contratos publicos son exactos y nunca aceptan store_id o IP del telefono'
   assert.equal(normalizeStorefrontRegisterPayload(registerPayload({ ip: '1.2.3.4' })), null);
   assert.equal(normalizeStorefrontRegisterPayload(registerPayload({ timezone: 'javascript:alert(1)' })), null);
   assert.equal(normalizeStorefrontRegisterPayload(registerPayload({ app_set_id: 'hardware-id' })), null);
+  assert.equal(normalizeStorefrontRegisterPayload(registerPayload({ app_set_id: 'unsafe:app-set-id-value' })), null);
+  assert.equal(
+    normalizeStorefrontRegisterPayload(registerPayload({
+      app_set_id: '123e4567-e89b-42d3-a456-426614174000',
+    }))?.app_set_id,
+    '123e4567-e89b-42d3-a456-426614174000',
+  );
   assert.deepEqual(normalizeStorefrontHeartbeatPayload({
     app_version: '1.0.1',
     app_version_code: 2,

@@ -29,6 +29,44 @@ public final class StorefrontRegistrationPayloadTest {
                 json
         );
         assertTrue(!json.contains("store_id") && !json.contains("credential") && !json.contains("ip"));
+        assertEquals("", StorefrontRegistrationPayload.invalidRegisterField(
+                "abcdefghijklmnop",
+                "123e4567-e89b-42d3-a456-426614174000",
+                "0.1.0-staging",
+                1,
+                "16",
+                "Google Pixel 9",
+                "es-US",
+                "America/New_York",
+                "granted"
+        ));
+        assertEquals("", StorefrontRegistrationPayload.invalidRegisterField(
+                "abcdefghijklmnop",
+                "12Jd92JD8078S8J29sDoakc0EF230337",
+                "0.1.0-staging",
+                1,
+                "16",
+                "Google Pixel 9",
+                "es-US",
+                "America/New_York",
+                "granted"
+        ));
+        assertEquals("app_set_id", StorefrontRegistrationPayload.invalidRegisterField(
+                "abcdefghijklmnop",
+                "unsafe:app-set-id-value",
+                "0.1.0-staging",
+                1,
+                "16",
+                "Google Pixel 9",
+                "es-US",
+                "America/New_York",
+                "granted"
+        ));
+        String opaque = "12Jd92JD8078S8J29sDoakc0EF230337";
+        assertTrue(StorefrontRegistrationPayload.register(
+                "abcdefghijklmnop", opaque, "0.1.0-staging", 1,
+                "16", "Google Pixel 9", "es-US", "America/New_York", "granted"
+        ).contains("\"app_set_id\":\"" + opaque + "\""));
     }
 
     @Test

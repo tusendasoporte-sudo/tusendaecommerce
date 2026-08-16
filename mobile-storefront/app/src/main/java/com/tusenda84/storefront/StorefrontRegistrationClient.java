@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.webkit.CookieManager;
 
 import com.google.android.gms.tasks.Tasks;
@@ -33,6 +34,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 final class StorefrontRegistrationClient {
+    private static final String ANALYTICS_LOG_TAG = "PZStorefrontAnalytics";
+    private static final String REGISTRATION_LOG_TAG = "PZStorefrontRegister";
+
     enum RegistrationOrigin {
         APP_START,
         USER_ACTION,
@@ -199,12 +203,20 @@ final class StorefrontRegistrationClient {
             boolean forceAppCheckRefresh,
             RegistrationOrigin origin
     ) throws Exception {
+        logRegistration(
+                "register_start origin=" + origin.name().toLowerCase(Locale.ROOT)
+                        + " credential_present=" + StorefrontInstallationStore.hasCredential(context)
+        );
         Result readiness = readiness();
-        if (!readiness.ok) return readiness;
+        if (!readiness.ok) {
+            logRegistration("register_readiness_failed");
+            return readiness;
+        }
 
         // Validate the real Play Integrity path before creating or refreshing Firebase identifiers.
         // The token remains in memory and is never rendered or logged.
         String attestationToken = appCheckToken(forceAppCheckRefresh);
+        logRegistration("register_app_check_ok");
 
         FirebaseMessaging messaging = FirebaseMessaging.getInstance();
         messaging.setAutoInitEnabled(true);
@@ -217,8 +229,21 @@ final class StorefrontRegistrationClient {
                 30,
                 TimeUnit.SECONDS
         );
+        logRegistration("register_identifiers_ready app_set_scope=" + appSetInfo.getScope());
         String appSetId = appSetInfo.getId();
         String permission = permissionState();
+        String invalidField = StorefrontRegistrationPayload.invalidRegisterField(
+                fid,
+                appSetId,
+                BuildConfig.VERSION_NAME,
+                BuildConfig.VERSION_CODE,
+                androidVersion(),
+                deviceModel(),
+                locale(),
+                timezone(),
+                permission
+        );
+        logRegistration("register_payload_contract=" + (invalidField.isEmpty() ? "ok" : invalidField));
         String body = StorefrontRegistrationPayload.register(
                 fid,
                 appSetId,
@@ -237,17 +262,24 @@ final class StorefrontRegistrationClient {
                 existingCredential,
                 attestationToken
         );
-        if (!response.ok()) return failure(response);
+        logRegistration("register_http_status=" + response.status);
+        if (!response.ok()) {
+            Result rejected = failure(response);
+            logRegistration("register_rejected reason=" + rejected.message);
+            return rejected;
+        }
 
         JSONObject payload = new JSONObject(response.body);
         String credential = payload.optString("credential", "");
         if (!payload.optBoolean("ok", false) || !CREDENTIAL_PATTERN.matcher(credential).matches()) {
+            logRegistration("register_invalid_response");
             return Result.fail("El gateway devolvió una respuesta no válida.");
         }
         StorefrontInstallationStore.saveCredential(context, credential);
         StorefrontInstallationStore.recordReportedPermission(context, permission);
         boolean created = payload.optBoolean("created", false);
         boolean rotated = payload.optBoolean("fid_rotated", false);
+        logRegistration("register_accepted created=" + created + " fid_rotated=" + rotated);
         if (rotated) return Result.ok("FID rotado y registro actualizado sin exponer identificadores.");
         if (created) return Result.ok("Instalación creada correctamente.");
         return Result.ok("Registro repetido sin duplicar la instalación.");
@@ -385,6 +417,14 @@ final class StorefrontRegistrationClient {
                 try { recorded = new JSONObject(response.body).optBoolean("ok", false); }
                 catch (Exception ignored) {}
             }
+            if ("staging".equals(BuildConfig.BUILD_TYPE)) {
+                Log.i(
+                        ANALYTICS_LOG_TAG,
+                        "event=" + event.eventType
+                                + " status=" + response.status
+                                + " recorded=" + recorded
+                );
+            }
             if (recorded || response.status == 400 || response.status == 404 || response.status == 409) {
                 StorefrontEventQueue.remove(context, event.key());
                 if (recorded) accepted += 1;
@@ -495,7 +535,9 @@ final class StorefrontRegistrationClient {
             try {
                 result = operation.run();
             } catch (Exception error) {
-                result = Result.fail(safeFailure(error));
+                String safeReason = safeFailure(error);
+                logRegistration("operation_failed reason=" + safeReason);
+                result = Result.fail(safeReason);
             }
             Result delivered = result;
             MAIN.post(() -> callback.complete(delivered));
@@ -565,6 +607,10 @@ final class StorefrontRegistrationClient {
 
     private String permissionState() {
         return permissionState(context);
+    }
+
+    private static void logRegistration(String message) {
+        if ("staging".equals(BuildConfig.BUILD_TYPE)) Log.i(REGISTRATION_LOG_TAG, message);
     }
 
     static String normalizedTimezone(String raw) {

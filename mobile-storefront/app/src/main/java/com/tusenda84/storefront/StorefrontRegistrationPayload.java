@@ -4,7 +4,7 @@ import java.util.regex.Pattern;
 
 final class StorefrontRegistrationPayload {
     private static final Pattern FID = Pattern.compile("^[A-Za-z0-9_-]{16,255}$");
-    private static final Pattern APP_SET_ID = Pattern.compile("^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern APP_SET_ID = Pattern.compile("^[0-9A-Za-z+.=/_$,{}-]{22,150}$");
     private static final Pattern VERSION = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$");
     private static final Pattern ANDROID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$");
     private static final Pattern LOCALE = Pattern.compile("^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$");
@@ -25,18 +25,20 @@ final class StorefrontRegistrationPayload {
             String timezone,
             String permission
     ) {
-        require(fid, 255, FID);
-        require(appSetId, 36, APP_SET_ID);
-        require(appVersion, 40, VERSION);
-        requireVersionCode(appVersionCode);
-        require(androidVersion, 40, ANDROID);
-        require(deviceModel, 120, null);
-        require(locale, 35, LOCALE);
-        require(timezone, 80, TIMEZONE);
-        requirePermission(permission);
+        if (!invalidRegisterField(
+                fid,
+                appSetId,
+                appVersion,
+                appVersionCode,
+                androidVersion,
+                deviceModel,
+                locale,
+                timezone,
+                permission
+        ).isEmpty()) throw new IllegalArgumentException("invalid_payload");
         return "{"
                 + "\"fid\":" + quote(fid)
-                + ",\"app_set_id\":" + quote(appSetId.toLowerCase(java.util.Locale.ROOT))
+                + ",\"app_set_id\":" + quote(appSetId)
                 + ",\"app_version\":" + quote(appVersion)
                 + ",\"app_version_code\":" + appVersionCode
                 + ",\"android_version\":" + quote(androidVersion)
@@ -45,6 +47,31 @@ final class StorefrontRegistrationPayload {
                 + ",\"timezone\":" + quote(timezone)
                 + ",\"notification_permission\":" + quote(permission)
                 + "}";
+    }
+
+    static String invalidRegisterField(
+            String fid,
+            String appSetId,
+            String appVersion,
+            int appVersionCode,
+            String androidVersion,
+            String deviceModel,
+            String locale,
+            String timezone,
+            String permission
+    ) {
+        if (!validValue(fid, 255, FID)) return "fid";
+        if (!validValue(appSetId, 150, APP_SET_ID)) return "app_set_id";
+        if (!validValue(appVersion, 40, VERSION)) return "app_version";
+        if (appVersionCode < 1) return "app_version_code";
+        if (!validValue(androidVersion, 40, ANDROID)) return "android_version";
+        if (!validValue(deviceModel, 120, null)) return "device_model";
+        if (!validValue(locale, 35, LOCALE)) return "locale";
+        if (!validValue(timezone, 80, TIMEZONE)) return "timezone";
+        if (!"unknown".equals(permission) && !"granted".equals(permission) && !"denied".equals(permission)) {
+            return "notification_permission";
+        }
+        return "";
     }
 
     static String heartbeat(
@@ -126,6 +153,15 @@ final class StorefrontRegistrationPayload {
         }
         if (pattern != null && !pattern.matcher(value).matches()) {
             throw new IllegalArgumentException("invalid_payload");
+        }
+    }
+
+    private static boolean validValue(String value, int max, Pattern pattern) {
+        try {
+            require(value, max, pattern);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
         }
     }
 

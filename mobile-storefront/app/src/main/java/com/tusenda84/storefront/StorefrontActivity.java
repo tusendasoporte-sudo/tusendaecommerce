@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -38,6 +39,7 @@ import android.widget.Toast;
 
 public final class StorefrontActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 601;
+    private static final String ANALYTICS_LOG_TAG = "PZStorefrontAnalytics";
 
     private StorefrontRegistrationClient client;
     private WebView webView;
@@ -233,7 +235,9 @@ public final class StorefrontActivity extends Activity {
 
     private void flushEvents() {
         if (client == null || !StorefrontInstallationStore.hasCredential(this)) return;
-        client.flushEvents(result -> {});
+        client.flushEvents(result -> logAnalytics(
+                result.ok ? "analytics_flush_ok: " + result.message : "analytics_flush_failed"
+        ));
     }
 
     private void syncPermissionIfChanged() {
@@ -361,9 +365,36 @@ public final class StorefrontActivity extends Activity {
         String expected = StorefrontDeepLink.analyticsPath(pendingDestinationUrl, StorefrontConfig.storeUrl());
         String visible = StorefrontDeepLink.analyticsPath(visibleUrl, StorefrontConfig.storeUrl());
         if (expected.isEmpty() || !expected.equals(visible)) return;
-        StorefrontEventQueue.enqueue(this, "destination_viewed", pendingDeliveryId, pendingReportedPath);
+        boolean enqueued = StorefrontEventQueue.enqueue(
+                this,
+                "destination_viewed",
+                pendingDeliveryId,
+                pendingReportedPath
+        );
+        logAnalytics(enqueued ? "destination_viewed_queued" : "destination_viewed_not_queued");
         clearPendingDestination();
         flushEvents();
+    }
+
+    private void reportVisibleDestinationAfterDraw(WebView view, String finishedUrl) {
+        if (pendingDeliveryId.isEmpty() || pendingDestinationUrl.isEmpty() || pendingReportedPath.isEmpty()) return;
+        String expected = StorefrontDeepLink.analyticsPath(pendingDestinationUrl, StorefrontConfig.storeUrl());
+        String finished = StorefrontDeepLink.analyticsPath(finishedUrl, StorefrontConfig.storeUrl());
+        if (expected.isEmpty() || !expected.equals(finished)) return;
+        view.postVisualStateCallback(System.nanoTime(), new WebView.VisualStateCallback() {
+            @Override
+            public void onComplete(long requestId) {
+                if (isFinishing() || isDestroyed()
+                        || view != webView
+                        || view.getVisibility() != View.VISIBLE
+                        || offlineView.getVisibility() == View.VISIBLE) return;
+                reportVisibleDestination(view.getUrl());
+            }
+        });
+    }
+
+    private void logAnalytics(String message) {
+        if ("staging".equals(BuildConfig.BUILD_TYPE)) Log.i(ANALYTICS_LOG_TAG, message);
     }
 
     @Override
@@ -555,6 +586,7 @@ public final class StorefrontActivity extends Activity {
             CookieManager.getInstance().flush();
             pageReady = true;
             updateNotificationCard();
+            reportVisibleDestinationAfterDraw(view, url);
         }
 
         @Override

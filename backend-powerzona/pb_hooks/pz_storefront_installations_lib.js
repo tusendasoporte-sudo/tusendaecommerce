@@ -32,7 +32,7 @@ const RATE_WINDOW_MS = 60000;
 const RATE_BUCKET_LIMIT = 20000;
 const APP_ID_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,255}$/;
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
-const APP_SET_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const APP_SET_ID_PATTERN = /^[0-9A-Za-z+.=/_$,{}-]{22,150}$/;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 const SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
@@ -272,7 +272,7 @@ function parseRegisterPayload(value) {
   if (!exactPayload(value, fields)) return null;
   const fid = boundedText(bodyValue(value, "fid"), 255, FID_PATTERN);
   const appSetId = hasAppSetId
-    ? boundedText(bodyValue(value, "app_set_id"), 36, APP_SET_ID_PATTERN).toLowerCase()
+    ? boundedText(bodyValue(value, "app_set_id"), 150, APP_SET_ID_PATTERN)
     : "";
   const appVersion = boundedText(bodyValue(value, "app_version"), 40, VERSION_PATTERN);
   const versionCode = bodyValue(value, "app_version_code");
@@ -497,7 +497,7 @@ function fidDigest(appConfigId, fid, credentialSecret, security) {
 function appSetDigest(appConfigId, appSetId, credentialSecret, security) {
   if (!appSetId) return "";
   if (!APP_SET_ID_PATTERN.test(appSetId)) throw new StorefrontInstallationError("invalid_payload");
-  return normalizedDigest(security.hs256(`pz_storefront_app_set:v1|${appConfigId}|${appSetId.toLowerCase()}`, credentialSecret));
+  return normalizedDigest(security.hs256(`pz_storefront_app_set:v1|${appConfigId}|${appSetId}`, credentialSecret));
 }
 
 function installationAdminReference(storeIdValue, installationIdValue, config) {

@@ -168,7 +168,7 @@ function registerPayload(fid = FID_A) {
   };
 }
 
-const APP_SET_ID = '123e4567-e89b-42d3-a456-426614174000';
+const APP_SET_ID = '12Jd92JD8078S8J29sDoakc0EF230337';
 function appSetRegisterPayload(fid = FID_A) {
   return { ...registerPayload(fid), app_set_id: APP_SET_ID };
 }
@@ -310,6 +310,10 @@ test('valida contratos exactos y no acepta tienda ni IP declaradas por el telefo
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), ip: '1.2.3.4' }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_version_code: 0 }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_set_id: 'hardware-id' }), null);
+  assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_set_id: 'unsafe:app-set-id-value' }), null);
+  assert.equal(installations.parseRegisterPayload({
+    ...registerPayload(), app_set_id: '123e4567-e89b-42d3-a456-426614174000',
+  }).appSetId, '123e4567-e89b-42d3-a456-426614174000');
   assert.equal(installations.parseHeartbeatPayload(heartbeatPayload()).appVersion, '1.0.1');
   assert.deepEqual(installations.parsePermissionPayload({ notification_permission: 'denied' }), {
     notificationPermission: 'denied',
@@ -388,6 +392,10 @@ test('App Set ID rota un FID sin duplicar la instalación y solo persiste su HMA
   const stored = app.list(installations.INSTALLATIONS_COLLECTION)[0];
   assert.match(stored.getString('app_set_digest'), /^[a-f0-9]{64}$/);
   assert.notEqual(stored.getString('app_set_digest'), APP_SET_ID);
+  assert.notEqual(
+    installations.appSetDigest(APP_A, APP_SET_ID, CREDENTIAL_SECRET, securityFixture()),
+    installations.appSetDigest(APP_A, APP_SET_ID.toLowerCase(), CREDENTIAL_SECRET, securityFixture()),
+  );
 });
 
 test('reinstalacion sin credencial y con FID nuevo crea otra instalacion auditable', () => {
