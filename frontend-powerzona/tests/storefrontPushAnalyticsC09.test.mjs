@@ -127,6 +127,12 @@ test('checkout reenvía solo cookies públicas permitidas y la atribución nunca
   assert.match(checkout, /\/api\/checkout\/coupon-attribution/);
   assert.match(checkout, /product_id: item\.id/);
   assert.match(checkout, /shipping_zone_id: shippingZone\?\.id \|\| ''/);
+  assert.match(checkout, /COUPON_ATTRIBUTION_MAX_ATTEMPTS = 3/);
+  assert.match(checkout, /COUPON_ATTRIBUTION_RETRY_DELAY_MS = 1500/);
+  assert.match(checkout, /credentials: 'same-origin'/);
+  assert.match(checkout, /result\?\.attributed === true/);
+  assert.match(checkout, /scheduleCouponAttributionRetry\(code, cart\)/);
+  assert.match(checkout, /resetCouponAttributionRetry\(selectedManualCouponCode\)/);
 
   const backend = read('../../backend-powerzona/pb_hooks/pz_order_pricing_lib.js');
   assert.match(backend, /parseCouponAttributionPayload/);

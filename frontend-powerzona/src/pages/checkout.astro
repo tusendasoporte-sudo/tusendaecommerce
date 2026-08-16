@@ -405,6 +405,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const SAVED_COUPONS_KEY = `powerzona_saved_coupons_${COUPON_STORE_KEY}`;
 		const SELECTED_COUPON_KEY = `powerzona_selected_coupon_${COUPON_STORE_KEY}`;
 		const reportedCouponAttributions = new Set();
+		const couponAttributionAttempts = new Map();
+		const couponAttributionRetryTimers = new Map();
+		const COUPON_ATTRIBUTION_MAX_ATTEMPTS = 3;
+		const COUPON_ATTRIBUTION_RETRY_DELAY_MS = 1500;
 		if (COUPON_STORE_KEY === 'powerzona' && !localStorage.getItem(SAVED_COUPONS_KEY)) {
 			const legacySavedCoupons = localStorage.getItem('powerzona_saved_coupons');
 			if (legacySavedCoupons) localStorage.setItem(SAVED_COUPONS_KEY, legacySavedCoupons);
@@ -851,6 +855,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		function saveCouponCode(code) {
 			const normalized = String(code || '').trim().toUpperCase();
 			if (!normalized) return;
+			resetCouponAttributionRetry(normalized);
 			const codes = readSavedCouponCodes();
 			if (!codes.includes(normalized)) codes.push(normalized);
 			localStorage.setItem(SAVED_COUPONS_KEY, JSON.stringify(codes.slice(-12)));
@@ -871,6 +876,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function clearSelectedCoupon() {
+			resetCouponAttributionRetry(selectedManualCouponCode);
 			selectedManualCouponCode = '';
 			localStorage.removeItem(SELECTED_COUPON_KEY);
 		}
@@ -1603,6 +1609,28 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return { isValid, errors, data };
 		}
 
+		function resetCouponAttributionRetry(codeValue) {
+			const code = String(codeValue || '').trim().toUpperCase();
+			if (!code) return;
+			const timer = couponAttributionRetryTimers.get(code);
+			if (timer !== undefined) window.clearTimeout(timer);
+			couponAttributionRetryTimers.delete(code);
+			couponAttributionAttempts.delete(code);
+			reportedCouponAttributions.delete(code);
+		}
+
+		function scheduleCouponAttributionRetry(code, cart) {
+			const attempt = Number(couponAttributionAttempts.get(code) || 0);
+			if (attempt >= COUPON_ATTRIBUTION_MAX_ATTEMPTS
+				|| couponAttributionRetryTimers.has(code)) return;
+			const timer = window.setTimeout(() => {
+				couponAttributionRetryTimers.delete(code);
+				reportedCouponAttributions.delete(code);
+				void recordCouponAttribution(code, cart);
+			}, COUPON_ATTRIBUTION_RETRY_DELAY_MS * attempt);
+			couponAttributionRetryTimers.set(code, timer);
+		}
+
 		async function recordCouponAttribution(codeValue, cart) {
 			const code = String(codeValue || '').trim().toUpperCase();
 			const deliveryMethod = getSelectedDeliveryMethod() || 'coordinate';
@@ -1618,10 +1646,12 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				|| (deliveryMethod === 'delivery' && !shippingZone?.id)
 				|| reportedCouponAttributions.has(code)) return;
 			reportedCouponAttributions.add(code);
+			couponAttributionAttempts.set(code, Number(couponAttributionAttempts.get(code) || 0) + 1);
 			try {
 				const response = await fetch('/api/checkout/coupon-attribution', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
+					credentials: 'same-origin',
 					body: JSON.stringify({
 						store_id: CURRENT_STORE_ID,
 						coupon_code: code,
@@ -1630,9 +1660,14 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 						items,
 					}),
 				});
-				if (!response.ok) reportedCouponAttributions.delete(code);
+				const result = await response.json().catch(() => null);
+				if (response.ok && result?.ok === true && result?.attributed === true) {
+					couponAttributionAttempts.delete(code);
+					return;
+				}
+				scheduleCouponAttributionRetry(code, cart);
 			} catch (_) {
-				reportedCouponAttributions.delete(code);
+				scheduleCouponAttributionRetry(code, cart);
 			}
 		}
 
