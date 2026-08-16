@@ -406,7 +406,10 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.doesNotMatch(source, /push-policy__item/);
   assert.match(source, /STOREFRONT_PUSH_TIME_ZONE/);
   assert.match(source, /data-campaign-metrics/);
-  assert.match(source, /Embudo verificable/);
+  assert.match(source, /id="push-metrics-title" class="admin-compact-summary__title">Resultados</);
+  assert.match(source, /data-detail-conversion/);
+  assert.match(source, /data-open-push-image/);
+  assert.match(source, /data-push-image-preview/);
   assert.match(source, /readStorefrontPushCampaignDetail/);
   assert.match(source, /refreshCampaignMetrics\(\{ silent: true \}\)/);
   assert.match(source, /15_000/);
@@ -450,16 +453,25 @@ test('el detalle enviado usa un panel de resultados y no reutiliza campos de cre
   const detailMarkup = source.slice(detailStart, detailEnd);
 
   for (const required of [
+    'admin-compact-summary push-detail-summary', 'admin-compact-summary__list',
     'data-detail-target', 'data-detail-path', 'data-detail-audience', 'data-detail-selected',
-    'data-campaign-metrics', 'Embudo verificable', 'Conversión y atribución', 'Estado técnico',
+    'data-campaign-metrics', '>Resultados</', 'data-detail-conversion', 'Conversión y atribución',
+    'data-open-push-image',
     'data-metric="accepted"', 'data-metric="opened"', 'data-metric="destination_viewed"',
-    'data-metric="failed_permanent"', 'data-metric="invalid_fid"', 'data-metric="canceled"',
+    'data-metric="coupon_applied"', 'data-metric="orders_attributed"',
+    'data-metric="buyer_installations"', 'data-metric="orders_canceled"',
   ]) assert.equal(detailMarkup.includes(required), true, required);
   for (const forbidden of [
     'name="title"', 'data-field="body"', 'data-media-upload', 'android-device',
     'data-preview-title', 'data-preview-body', 'data-preview-image',
+    'Embudo verificable', 'Estado técnico', 'push-metrics__grid', 'push-detail-results-grid',
+    'data-metric="failed_permanent"', 'data-metric="invalid_fid"', 'data-metric="canceled"',
   ]) assert.equal(detailMarkup.includes(forbidden), false, forbidden);
 
+  assert.match(source, /data-detail-image alt="Imagen asociada a la campaña push"/);
+  assert.match(source, /const imageUrl = safeHttpsUrl\(media\?\.url\)/);
+  assert.match(source, /imageButton\.textContent = imageUrl \? 'Ver imagen del push' : 'Sin imagen disponible'/);
+  assert.match(source, /one\('\[data-detail-conversion\]'\)\?\.removeAttribute\('open'\)/);
   assert.match(source, /one\('\[data-campaign-form-column\]'\)\.hidden = detailMode/);
   assert.match(source, /one\('\[data-campaign-preview-column\]'\)\.hidden = detailMode/);
   assert.match(source, /one\('\[data-campaign-detail-view\]'\)\.hidden = !detailMode/);

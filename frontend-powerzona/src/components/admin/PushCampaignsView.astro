@@ -365,78 +365,109 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         </aside>
 
         <section class="push-detail-view" data-campaign-detail-view hidden aria-label="Resultado detallado de la campaña">
-          <section class="push-detail-card push-detail-card--route" aria-labelledby="push-detail-route-title">
-            <header class="push-detail-card__head">
-              <span class="push-detail-card__icon" aria-hidden="true">
+          <section class="admin-compact-summary push-detail-summary" aria-labelledby="push-detail-route-title">
+            <div class="admin-compact-summary__head">
+              <span class="admin-compact-summary__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M12 2 4 5.5v5.8c0 5 3.4 9.6 8 10.7 4.6-1.1 8-5.7 8-10.7V5.5L12 2Zm-1 13-3-3 1.4-1.4 1.6 1.6 3.6-3.6L16 10l-5 5Z" /></svg>
               </span>
               <div>
-                <span>Resumen validado</span>
-                <h3 id="push-detail-route-title">Destino y audiencia</h3>
-                <p>Configuración efectiva utilizada por el motor durante este envío.</p>
+                <p class="admin-compact-summary__eyebrow">Resumen validado</p>
+                <h3 id="push-detail-route-title" class="admin-compact-summary__title">Destino y audiencia</h3>
+                <p class="admin-compact-summary__subtitle">Configuración efectiva utilizada durante este envío.</p>
               </div>
-              <span class="push-status" data-detail-status>Estado</span>
-            </header>
-            <dl class="push-detail-route-grid">
-              <div><dt>Destino</dt><dd data-detail-target>Destino seguro</dd></div>
-              <div><dt>Ruta validada</dt><dd data-detail-path>Ruta no disponible</dd></div>
-              <div><dt>Audiencia</dt><dd data-detail-audience>Todas las instalaciones activas</dd></div>
-              <div><dt>Alcance seleccionado</dt><dd><span data-detail-selected>0</span> instalaciones</dd></div>
-            </dl>
+              <div class="push-detail-summary__actions">
+                <span class="push-status" data-detail-status>Estado</span>
+                <button class="push-detail-image-btn" type="button" data-open-push-image disabled>Sin imagen disponible</button>
+              </div>
+            </div>
+            <div class="admin-compact-summary__list">
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Destino</p>
+                <p class="admin-compact-summary__value is-text" data-detail-target>Destino seguro</p>
+              </article>
+              <article class="admin-compact-summary__item is-purple">
+                <p class="admin-compact-summary__label">Ruta validada</p>
+                <p class="admin-compact-summary__value is-text" data-detail-path>Ruta no disponible</p>
+              </article>
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Audiencia</p>
+                <p class="admin-compact-summary__value is-text" data-detail-audience>Todas las instalaciones activas</p>
+              </article>
+              <article class="admin-compact-summary__item is-ok">
+                <p class="admin-compact-summary__label">Alcance seleccionado</p>
+                <p class="admin-compact-summary__value is-text" data-detail-selected>0 instalaciones</p>
+              </article>
+            </div>
             <div class="push-detail-alert" data-detail-failure hidden></div>
           </section>
 
-          <section class="push-detail-card push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
-            <header class="push-detail-card__head push-detail-card__head--metrics">
-              <span class="push-detail-card__icon push-detail-card__icon--results" aria-hidden="true">
+          <section class="admin-compact-summary push-detail-summary push-metrics" data-campaign-metrics hidden aria-labelledby="push-metrics-title">
+            <div class="admin-compact-summary__head">
+              <span class="admin-compact-summary__icon push-detail-summary__icon--results" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M4 19h16v2H2V3h2v16Zm3-2H5v-6h2v6Zm4 0H9V7h2v10Zm4 0h-2V9h2v8Zm4 0h-2V4h2v13Z" /></svg>
               </span>
               <div>
-                <span>Resultados</span>
-                <h3 id="push-metrics-title">Embudo verificable</h3>
-                <p>Lectura operativa del alcance, la interacción y la atribución registrada.</p>
+                <p class="admin-compact-summary__eyebrow">Campaña enviada</p>
+                <h3 id="push-metrics-title" class="admin-compact-summary__title">Resultados</h3>
+                <p class="admin-compact-summary__subtitle">Alcance e interacción registrados.</p>
               </div>
-              <button class="push-icon-btn" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
+              <button class="push-icon-btn push-detail-summary__refresh" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
               </button>
-            </header>
-
-            <div class="push-metrics__grid" aria-label="Etapas principales del envío">
-              <div data-tone="neutral"><span>Seleccionadas</span><strong data-metric="selected">0</strong><small>Alcance congelado</small></div>
-              <div data-tone="info"><span>Aceptadas</span><strong data-metric="accepted">0</strong><small data-rate="accepted">No aplica</small></div>
-              <div data-tone="success"><span>Abrieron</span><strong data-metric="opened">0</strong><small data-rate="opened">No aplica</small></div>
-              <div data-tone="purple"><span>Vieron destino</span><strong data-metric="destination_viewed">0</strong><small data-rate="destination_viewed">No aplica</small></div>
             </div>
 
-            <div class="push-detail-results-grid">
-              <section class="push-detail-result-group" aria-labelledby="push-conversion-title">
-                <div class="push-detail-result-group__head">
-                  <span aria-hidden="true">↗</span>
-                  <div><strong id="push-conversion-title">Conversión y atribución</strong><small>Acciones posteriores a la apertura</small></div>
-                </div>
-                <dl class="push-detail-result-list">
-                  <div><dt>Cupón aplicado</dt><dd><strong data-metric="coupon_applied">0</strong><small data-rate="coupon_applied">No aplica</small></dd></div>
-                  <div><dt>Órdenes atribuidas</dt><dd><strong data-metric="orders_attributed">0</strong><small data-rate="orders_attributed">Conversión: No aplica</small></dd></div>
-                  <div><dt>Instalaciones compradoras</dt><dd><strong data-metric="buyer_installations">0</strong><small>Compradores únicos</small></dd></div>
-                  <div><dt>Órdenes vigentes / canceladas</dt><dd><strong><span data-metric="orders_vigentes">0</span> / <span data-metric="orders_canceled">0</span></strong><small>Estado comercial actual</small></dd></div>
-                </dl>
-              </section>
-
-              <section class="push-detail-result-group" aria-labelledby="push-technical-title">
-                <div class="push-detail-result-group__head push-detail-result-group__head--technical">
-                  <span aria-hidden="true">i</span>
-                  <div><strong id="push-technical-title">Estado técnico</strong><small>Confirmaciones y trabajo pendiente</small></div>
-                </div>
-                <dl class="push-detail-result-list">
-                  <div><dt>Fallos confirmados</dt><dd><strong data-metric="failed_confirmed">0</strong><small>Fallo permanente o FID inválido</small></dd></div>
-                  <div><dt>Permanentes / FID inválidos</dt><dd><strong><span data-metric="failed_permanent">0</span> / <span data-metric="invalid_fid">0</span></strong><small>Desglose del fallo confirmado</small></dd></div>
-                  <div><dt>Estado desconocido</dt><dd><strong data-metric="unknown">0</strong><small>No se reintenta automáticamente</small></dd></div>
-                  <div><dt>Reintentando</dt><dd><strong data-metric="retrying">0</strong><small>Fallo transitorio</small></dd></div>
-                  <div><dt>Pendientes / reclamadas</dt><dd><strong><span data-metric="pending">0</span> / <span data-metric="claimed">0</span></strong><small>Trabajo todavía no terminal</small></dd></div>
-                  <div><dt>Entregas canceladas</dt><dd><strong data-metric="canceled">0</strong><small>Trabajo detenido antes del envío</small></dd></div>
-                </dl>
-              </section>
+            <div class="admin-compact-summary__list" aria-label="Resultados principales del envío">
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Seleccionadas</p>
+                <p class="admin-compact-summary__value" data-metric="selected">0</p>
+                <p class="admin-compact-summary__hint">Alcance congelado al iniciar</p>
+              </article>
+              <article class="admin-compact-summary__item is-purple">
+                <p class="admin-compact-summary__label">Aceptadas</p>
+                <p class="admin-compact-summary__value" data-metric="accepted">0</p>
+                <p class="admin-compact-summary__hint" data-rate="accepted">No aplica</p>
+              </article>
+              <article class="admin-compact-summary__item is-ok">
+                <p class="admin-compact-summary__label">Abrieron</p>
+                <p class="admin-compact-summary__value" data-metric="opened">0</p>
+                <p class="admin-compact-summary__hint" data-rate="opened">No aplica</p>
+              </article>
+              <article class="admin-compact-summary__item is-purple">
+                <p class="admin-compact-summary__label">Vieron destino</p>
+                <p class="admin-compact-summary__value" data-metric="destination_viewed">0</p>
+                <p class="admin-compact-summary__hint" data-rate="destination_viewed">No aplica</p>
+              </article>
             </div>
+
+            <details class="push-detail-conversion" data-detail-conversion>
+              <summary>
+                <span class="push-detail-conversion__icon" aria-hidden="true">↗</span>
+                <span><strong>Conversión y atribución</strong><small>Acciones posteriores a la apertura</small></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"></path></svg>
+              </summary>
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Cupón aplicado</p>
+                  <p class="admin-compact-summary__value" data-metric="coupon_applied">0</p>
+                  <p class="admin-compact-summary__hint" data-rate="coupon_applied">No aplica</p>
+                </article>
+                <article class="admin-compact-summary__item is-purple">
+                  <p class="admin-compact-summary__label">Órdenes atribuidas</p>
+                  <p class="admin-compact-summary__value" data-metric="orders_attributed">0</p>
+                  <p class="admin-compact-summary__hint" data-rate="orders_attributed">Conversión: No aplica</p>
+                </article>
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Instalaciones compradoras</p>
+                  <p class="admin-compact-summary__value" data-metric="buyer_installations">0</p>
+                  <p class="admin-compact-summary__hint">Compradores únicos</p>
+                </article>
+                <article class="admin-compact-summary__item is-muted">
+                  <p class="admin-compact-summary__label">Órdenes vigentes / canceladas</p>
+                  <p class="admin-compact-summary__value"><span data-metric="orders_vigentes">0</span> / <span data-metric="orders_canceled">0</span></p>
+                  <p class="admin-compact-summary__hint">Estado comercial actual</p>
+                </article>
+              </div>
+            </details>
             <p class="push-detail-measurement-note" data-metrics-note></p>
           </section>
         </section>
@@ -452,6 +483,22 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         </div>
       </footer>
     </form>
+  </dialog>
+
+  <dialog class="push-image-preview" data-push-image-preview aria-labelledby="push-image-preview-title">
+    <section class="push-image-preview__card">
+      <header>
+        <div>
+          <span>Vista previa</span>
+          <h2 id="push-image-preview-title">Imagen del push</h2>
+        </div>
+        <button class="push-icon-btn" type="button" data-close-push-image aria-label="Cerrar vista previa">×</button>
+      </header>
+      <figure>
+        <img data-detail-image alt="Imagen asociada a la campaña push" />
+        <figcaption>Imagen enviada con esta campaña.</figcaption>
+      </figure>
+    </section>
   </dialog>
 
   <dialog class="push-confirm" data-confirm-dialog aria-labelledby="push-confirm-title" aria-describedby="push-confirm-message">
@@ -507,6 +554,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     const all = (selector) => Array.from(root.querySelectorAll(selector));
     const editor = one('[data-campaign-editor]');
     const form = one('[data-campaign-form]');
+    const imagePreviewDialog = one('[data-push-image-preview]');
     const confirmDialog = one('[data-confirm-dialog]');
     const confirmForm = one('[data-confirm-form]');
     const list = one('[data-campaign-list]');
@@ -631,7 +679,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       if (dialog === editor) stopCampaignMetricsPolling();
       if (typeof dialog.close === 'function') dialog.close();
       else dialog.removeAttribute('open');
-      if (!editor?.open && !confirmDialog?.open) document.body.classList.remove('push-dialog-open');
+      if (!editor?.open && !imagePreviewDialog?.open && !confirmDialog?.open) document.body.classList.remove('push-dialog-open');
     }
     function campaignTargetLabel(campaign) {
       const labels = {
@@ -679,7 +727,17 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-detail-path]').textContent = campaign.target_path
         || (campaign.target_type === 'order' ? 'Ruta privada resuelta al tocar' : 'Ruta no disponible');
       one('[data-detail-audience]').textContent = campaignAudienceLabel(campaign.audience_type);
-      one('[data-detail-selected]').textContent = Number(campaign.selected_count || 0).toLocaleString('es-US');
+      const selectedCount = Number(campaign.selected_count || 0);
+      one('[data-detail-selected]').textContent = `${selectedCount.toLocaleString('es-US')} ${selectedCount === 1 ? 'instalación' : 'instalaciones'}`;
+      const imageButton = one('[data-open-push-image]');
+      const detailImage = one('[data-detail-image]');
+      const media = mediaById(campaign.media_id);
+      const imageUrl = safeHttpsUrl(media?.url);
+      imageButton.disabled = !imageUrl;
+      imageButton.textContent = imageUrl ? 'Ver imagen del push' : 'Sin imagen disponible';
+      if (imageUrl) detailImage.src = imageUrl;
+      else detailImage.removeAttribute('src');
+      if (!imageUrl && imagePreviewDialog?.open) closeDialog(imagePreviewDialog);
       const failure = one('[data-detail-failure]');
       failure.hidden = !campaign.failure_code;
       failure.textContent = campaign.failure_code
@@ -830,6 +888,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       select.innerHTML = options.join('');
       select.value = state.media.some((item) => item.id === selectedId) ? selectedId : '';
       updatePreview();
+      if (state.editorReadonly && state.editing) renderCampaignDetailSummary(state.editing);
     }
     function normalizedSearch(value) {
       return String(value || '').trim().toLocaleLowerCase('es')
@@ -1169,6 +1228,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       one('[data-preview-path]').textContent = 'Pendiente de validar';
       one('[data-campaign-metrics]').hidden = true;
       one('[data-refresh-campaign-metrics]').hidden = true;
+      one('[data-detail-conversion]')?.removeAttribute('open');
       one('[data-audience-estimate]').textContent = 'Sin calcular';
       one('[data-audience-note]').textContent = 'Se calculará automáticamente al abrir el editor.';
       const minDate = new Date(Date.now() + 2 * 60_000);
@@ -1549,6 +1609,10 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     all('[data-close-editor]').forEach((button) => button.addEventListener('click', () => closeDialog(editor)));
     one('[data-refresh-campaigns]')?.addEventListener('click', loadCampaigns);
     one('[data-refresh-campaign-metrics]')?.addEventListener('click', () => refreshCampaignMetrics());
+    one('[data-open-push-image]')?.addEventListener('click', () => {
+      if (one('[data-detail-image]')?.getAttribute('src')) openDialog(imagePreviewDialog);
+    });
+    one('[data-close-push-image]')?.addEventListener('click', () => closeDialog(imagePreviewDialog));
     searchInput?.addEventListener('input', renderCampaigns);
     statusFilter?.addEventListener('change', () => { state.page = 1; loadCampaigns(); });
     selectAllButton?.addEventListener('click', () => {
@@ -1641,6 +1705,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     one('[data-confirm-cancel]')?.addEventListener('click', () => resolveConfirmation(false));
     confirmForm?.addEventListener('submit', (event) => { event.preventDefault(); resolveConfirmation(true); });
     confirmDialog?.addEventListener('cancel', (event) => { event.preventDefault(); resolveConfirmation(false); });
+    imagePreviewDialog?.addEventListener('cancel', (event) => { event.preventDefault(); closeDialog(imagePreviewDialog); });
+    imagePreviewDialog?.addEventListener('click', (event) => { if (event.target === imagePreviewDialog) closeDialog(imagePreviewDialog); });
     editor?.addEventListener('cancel', (event) => { event.preventDefault(); closeDialog(editor); });
     editor?.addEventListener('click', (event) => { if (event.target === editor) closeDialog(editor); });
 
@@ -1810,50 +1876,41 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-preview-summary dd { min-width: 0; margin: 0; color: #0f172a; font-size: 10px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
   .push-detail-view { width: min(100%, 1020px); display: grid; gap: 18px; margin: 0 auto; }
   .push-detail-view[hidden], .push-metrics[hidden] { display: none; }
-  .push-detail-card { min-width: 0; overflow: hidden; border: 1px solid #dbe5f1; border-radius: 21px; background: #fff; box-shadow: 0 14px 38px rgba(15,23,42,.065); }
-  .push-detail-card--route { background: linear-gradient(145deg, #fff 0%, #f8fbff 100%); }
-  .push-detail-card__head { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; align-items: center; gap: 13px; border-bottom: 1px solid #e8eef6; padding: 19px 20px; }
-  .push-detail-card__head > div { min-width: 0; }
-  .push-detail-card__head > div > span { display: block; color: #2563eb; font-size: 10px; line-height: 1.2; font-weight: 1000; letter-spacing: .07em; text-transform: uppercase; }
-  .push-detail-card__head h3 { margin: 4px 0 0; color: #0f172a; font-size: 20px; line-height: 1.2; font-weight: 1000; letter-spacing: -.025em; }
-  .push-detail-card__head p { margin: 5px 0 0; color: #64748b; font-size: 11px; line-height: 1.48; font-weight: 700; }
-  .push-detail-card__icon { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #bfdbfe; border-radius: 15px; background: #eff6ff; color: #2563eb; }
-  .push-detail-card__icon svg { width: 24px; height: 24px; fill: currentColor; }
-  .push-detail-card__icon--results { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
-  .push-detail-route-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0; margin: 0; padding: 0 20px 20px; }
-  .push-detail-route-grid > div { min-width: 0; display: grid; gap: 7px; border-bottom: 1px solid #e8eef6; padding: 17px 15px; }
-  .push-detail-route-grid > div:nth-child(odd) { border-right: 1px solid #e8eef6; padding-left: 0; }
-  .push-detail-route-grid > div:nth-child(even) { padding-right: 0; }
-  .push-detail-route-grid dt { color: #64748b; font-size: 10px; font-weight: 950; letter-spacing: .035em; text-transform: uppercase; }
-  .push-detail-route-grid dd { min-width: 0; margin: 0; color: #0f172a; font-size: 14px; line-height: 1.45; font-weight: 950; overflow-wrap: anywhere; }
-  .push-detail-alert { margin: 0 20px 20px; border: 1px solid #fed7aa; border-radius: 13px; background: #fff7ed; color: #9a3412; padding: 11px 13px; font-size: 11px; line-height: 1.5; font-weight: 850; }
-  .push-metrics { display: grid; gap: 18px; padding-bottom: 20px; }
-  .push-detail-card__head--metrics { border-bottom: 0; padding-bottom: 2px; }
-  .push-metrics__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 20px; }
-  .push-metrics__grid > div { position: relative; min-width: 0; display: grid; gap: 4px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 15px; background: #f8fafc; padding: 15px; }
-  .push-metrics__grid > div::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: #94a3b8; }
-  .push-metrics__grid > div[data-tone="info"]::before { background: #3b82f6; }
-  .push-metrics__grid > div[data-tone="success"]::before { background: #22c55e; }
-  .push-metrics__grid > div[data-tone="purple"]::before { background: #8b5cf6; }
-  .push-metrics__grid span, .push-metrics__grid small { color: #64748b; font-size: 10px; line-height: 1.35; font-weight: 850; }
-  .push-metrics__grid > div > span { text-transform: uppercase; letter-spacing: .035em; }
-  .push-metrics__grid strong { color: #0f172a; font-size: 28px; line-height: 1.05; font-weight: 1000; }
-  .push-detail-results-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 0 20px; }
-  .push-detail-result-group { min-width: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; }
-  .push-detail-result-group__head { display: grid; grid-template-columns: 38px minmax(0,1fr); align-items: center; gap: 10px; background: #f0fdf4; padding: 13px 14px; }
-  .push-detail-result-group__head > span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #dcfce7; color: #15803d; font-size: 18px; font-weight: 1000; }
-  .push-detail-result-group__head > div { display: grid; gap: 2px; }
-  .push-detail-result-group__head strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
-  .push-detail-result-group__head small { color: #64748b; font-size: 9px; line-height: 1.35; font-weight: 750; }
-  .push-detail-result-group__head--technical { background: #f8fafc; }
-  .push-detail-result-group__head--technical > span { background: #e2e8f0; color: #475569; font-size: 14px; }
-  .push-detail-result-list { display: grid; margin: 0; padding: 0 14px; }
-  .push-detail-result-list > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(130px,.65fr); align-items: center; gap: 14px; border-top: 1px solid #edf2f7; padding: 12px 0; }
-  .push-detail-result-list dt { color: #334155; font-size: 11px; line-height: 1.4; font-weight: 850; }
-  .push-detail-result-list dd { min-width: 0; display: grid; justify-items: end; gap: 2px; margin: 0; text-align: right; }
-  .push-detail-result-list dd strong { color: #0f172a; font-size: 17px; line-height: 1.15; font-weight: 1000; }
-  .push-detail-result-list dd small { color: #64748b; font-size: 9px; line-height: 1.3; font-weight: 750; }
-  .push-detail-measurement-note { margin: 0 20px; border: 1px solid #dbeafe; border-radius: 13px; background: #eff6ff; color: #1e40af; padding: 11px 13px; font-size: 10px; line-height: 1.5; font-weight: 750; text-align: center; }
+  .push-detail-view .admin-compact-summary { max-width: none; margin: 0; }
+  .push-detail-summary { min-width: 0; }
+  .push-detail-summary .admin-compact-summary__head > div:nth-child(2) { min-width: 0; }
+  .push-detail-summary .admin-compact-summary__value.is-text { max-width: min(560px, 60vw); color: #0f172a; font-size: 14px; line-height: 1.35; letter-spacing: -.01em; white-space: normal; overflow-wrap: anywhere; }
+  .push-detail-summary__actions { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin-left: auto; }
+  .push-detail-image-btn { min-height: 38px; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; color: #1d4ed8; padding: 8px 12px; font-size: 11px; font-weight: 950; cursor: pointer; }
+  .push-detail-image-btn:hover:not(:disabled) { border-color: #93c5fd; background: #dbeafe; }
+  .push-detail-image-btn:disabled { border-color: #e2e8f0; background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+  .push-detail-summary__icon--results { background: #ede9fe !important; color: #6d28d9 !important; }
+  .push-detail-summary__refresh { margin-left: auto; }
+  .push-detail-alert { margin-top: 12px; border: 1px solid #fed7aa; border-radius: 13px; background: #fff7ed; color: #9a3412; padding: 11px 13px; font-size: 11px; line-height: 1.5; font-weight: 850; }
+  .push-metrics { display: block; }
+  .push-detail-conversion { margin-top: 16px; overflow: hidden; border: 1px solid #dbe5f1; border-radius: 16px; background: rgba(255,255,255,.72); }
+  .push-detail-conversion summary { min-height: 58px; display: grid; grid-template-columns: 36px minmax(0,1fr) 20px; align-items: center; gap: 11px; padding: 11px 13px; list-style: none; cursor: pointer; }
+  .push-detail-conversion summary::-webkit-details-marker { display: none; }
+  .push-detail-conversion summary:focus-visible { outline: 3px solid rgba(37,99,235,.25); outline-offset: -3px; }
+  .push-detail-conversion__icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; background: #dcfce7; color: #15803d; font-size: 18px; font-weight: 1000; }
+  .push-detail-conversion summary > span:nth-child(2) { min-width: 0; display: grid; gap: 3px; }
+  .push-detail-conversion summary strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
+  .push-detail-conversion summary small { color: #64748b; font-size: 10px; line-height: 1.35; font-weight: 750; }
+  .push-detail-conversion summary > svg { width: 20px; height: 20px; fill: none; stroke: #64748b; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
+  .push-detail-conversion[open] summary > svg { transform: rotate(180deg); }
+  .push-detail-conversion[open] summary { border-bottom: 1px solid #e2e8f0; background: #f0fdf4; }
+  .push-detail-conversion .admin-compact-summary__list { margin: 0; padding: 0 13px 13px; }
+  .push-detail-measurement-note { margin: 15px 0 0; border: 1px solid #dbeafe; border-radius: 13px; background: #eff6ff; color: #1e40af; padding: 11px 13px; font-size: 10px; line-height: 1.5; font-weight: 750; text-align: center; }
+  .push-image-preview { width: min(760px, calc(100% - 28px)); max-width: none; border: 0; border-radius: 22px; background: transparent; padding: 0; box-shadow: 0 32px 90px rgba(15,23,42,.35); }
+  .push-image-preview:not([open]) { display: none; }
+  .push-image-preview::backdrop { background: rgba(15,23,42,.68); backdrop-filter: blur(6px); }
+  .push-image-preview__card { overflow: hidden; border: 1px solid #dbe5f1; border-radius: 22px; background: #fff; }
+  .push-image-preview__card > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e2e8f0; padding: 16px 18px; }
+  .push-image-preview__card > header span { color: #2563eb; font-size: 10px; font-weight: 1000; letter-spacing: .07em; text-transform: uppercase; }
+  .push-image-preview__card > header h2 { margin: 3px 0 0; color: #0f172a; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
+  .push-image-preview figure { display: grid; gap: 10px; margin: 0; padding: 18px; }
+  .push-image-preview img { display: block; width: 100%; max-height: min(68vh, 620px); border-radius: 16px; background: #f1f5f9; object-fit: contain; }
+  .push-image-preview figcaption { color: #64748b; font-size: 11px; line-height: 1.4; font-weight: 750; text-align: center; }
   .push-preview-disclaimer { margin: 0; color: #64748b; font-size: 10px; line-height: 1.45; text-align: center; }
   .push-editor__footer { position: sticky; bottom: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid #e2e8f0; background: rgba(255,255,255,.98); padding: 14px 20px; box-shadow: 0 -10px 25px rgba(15,23,42,.06); }
   .push-editor__footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
@@ -1882,8 +1939,6 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .push-editor__body { grid-template-columns: 1fr; }
     .push-preview-sticky { position: static; }
     .android-device { width: min(390px, 100%); margin: 0 auto; }
-    .push-metrics__grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-    .push-detail-results-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 720px) {
     .push-admin { width: min(100% - 20px, 1220px); padding: 14px 0 92px; }
@@ -1905,24 +1960,22 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .push-campaign-card__main { display: grid; }
     .push-campaign-card__actions { justify-content: stretch; flex-wrap: wrap; }
     .push-link-btn { flex: 1 1 auto; }
-    .push-editor, .push-confirm { padding: 0; }
+    .push-editor, .push-confirm, .push-image-preview { padding: 0; }
     .push-editor__card { max-height: 100vh; min-height: 100vh; border: 0; border-radius: 0; }
     .push-editor__head { padding: 16px; }
     .push-editor__head h2 { font-size: 21px; }
     .push-editor__body { padding: 12px; }
-    .push-detail-card { border-radius: 17px; }
-    .push-detail-card__head { grid-template-columns: 42px minmax(0,1fr); padding: 15px; }
-    .push-detail-card__head > .push-status, .push-detail-card__head > .push-icon-btn { grid-column: 1 / -1; justify-self: stretch; justify-content: center; }
-    .push-detail-card__icon { width: 42px; height: 42px; border-radius: 13px; }
-    .push-detail-route-grid { grid-template-columns: 1fr; padding: 0 15px 15px; }
-    .push-detail-route-grid > div { padding: 14px 0; }
-    .push-detail-route-grid > div:nth-child(odd) { border-right: 0; }
-    .push-metrics { gap: 14px; padding-bottom: 15px; }
-    .push-metrics__grid, .push-detail-results-grid { padding-right: 15px; padding-left: 15px; }
-    .push-metrics__grid > div { padding: 13px; }
-    .push-detail-result-list > div { grid-template-columns: minmax(0,1fr) minmax(105px,.7fr); }
-    .push-detail-measurement-note { margin: 0 15px; }
-    .push-detail-alert { margin: 0 15px 15px; }
+    .push-detail-summary .admin-compact-summary__head { flex-wrap: wrap; }
+    .push-detail-summary__actions { width: 100%; justify-content: stretch; margin-left: 0; }
+    .push-detail-summary__actions > * { flex: 1 1 auto; justify-content: center; }
+    .push-detail-summary .admin-compact-summary__value.is-text { max-width: 56vw; font-size: 12px; }
+    .push-detail-summary__refresh { margin-left: auto; }
+    .push-detail-conversion summary { grid-template-columns: 34px minmax(0,1fr) 18px; padding: 10px; }
+    .push-detail-measurement-note { margin-top: 13px; }
+    .push-detail-alert { margin-top: 10px; }
+    .push-image-preview { width: 100%; max-height: 100vh; border-radius: 0; }
+    .push-image-preview__card { min-height: 100vh; border: 0; border-radius: 0; }
+    .push-image-preview figure { padding: 14px; }
     .push-fieldset { border-radius: 15px; padding: 14px; }
     .push-media-row { display: grid; }
     .push-upload-btn { width: 100%; }
