@@ -134,14 +134,29 @@ test('rechaza corruptos, SVG disfrazado y extensión/MIME falsificados', async (
   );
 });
 
-test('bloquea traversal, dobles extensiones, ejecutables y consumo por tamaño', async () => {
+test('acepta nombres descriptivos reales sin conservarlos en la salida', async () => {
+  const jpeg = await sharp({
+    create: { width: 20, height: 20, channels: 3, background: '#000000' },
+  }).jpeg().toBuffer();
+  for (const name of [
+    'Screenshot_11-8-2026_1466_tusenda84.com.jpeg',
+    'Foto promoción (final).JPG',
+    'producto.v2.revisado.jpg',
+  ]) {
+    const result = await optimizeStorefrontPushMediaUpload(fileLike(jpeg, name, 'image/jpeg'));
+    assert.equal(result.sourceFormat, 'jpeg');
+    assert.match(result.filename, /^[a-f0-9]{32}\.webp$/);
+    assert.equal(result.filename.includes(name), false);
+  }
+});
+
+test('bloquea traversal, extensiones finales ejecutables y consumo por tamaño', async () => {
   const jpeg = await sharp({
     create: { width: 20, height: 20, channels: 3, background: '#000000' },
   }).jpeg().toBuffer();
   for (const name of [
     '../oferta.jpg',
     '..\\oferta.jpg',
-    'factura.pdf.exe.jpg',
     'oferta.jpg.exe',
     '.hidden.jpg',
   ]) {

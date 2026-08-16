@@ -658,6 +658,17 @@ export function campaignStatusLabel(statusValue: unknown) {
 export function storefrontPushAdminErrorMessage(codeValue: unknown) {
   const code = text(codeValue, 100);
   const messages: Record<string, string> = {
+    media_required: 'Selecciona una imagen JPG, PNG o WebP.',
+    media_name_invalid: 'El nombre del archivo no es válido. Usa una imagen JPG, PNG o WebP con un nombre de hasta 120 caracteres.',
+    media_type_invalid: 'Usa una imagen JPG, PNG o WebP real.',
+    media_type_mismatch: 'La extensión y el contenido de la imagen no coinciden.',
+    media_empty: 'La imagen seleccionada está vacía.',
+    media_dimensions_invalid: 'No se pudieron comprobar las dimensiones de la imagen.',
+    media_dimensions_too_large: 'La imagen supera 6000 px por lado o 36 megapíxeles.',
+    media_animated_unsupported: 'Las imágenes animadas no son compatibles. Usa una imagen fija.',
+    media_corrupt: 'No se pudo decodificar la imagen seleccionada.',
+    media_output_invalid: 'No se pudo preparar una versión WebP segura de la imagen.',
+    media_busy: 'El procesador de imágenes está ocupado. Intenta nuevamente.',
     unauthorized: 'Tu sesión venció. Inicia sesión nuevamente.',
     permission_denied: 'No tienes el permiso marketing.push.manage.',
     plan_not_available: 'Campañas push requiere un plan Premium activo.',

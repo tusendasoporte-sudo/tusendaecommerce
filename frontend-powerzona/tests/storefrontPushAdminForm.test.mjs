@@ -328,6 +328,11 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
   assert.match(storefrontPushAdminErrorMessage('daily_quota_exceeded'), /10 campañas diarias/);
   assert.match(storefrontPushAdminErrorMessage('monthly_quota_exceeded'), /310 campañas mensuales/);
   assert.match(storefrontPushAdminErrorMessage('media_expires_before_send'), /vencerá antes del envío/);
+  assert.match(storefrontPushAdminErrorMessage('media_name_invalid'), /nombre del archivo no es válido/);
+  assert.match(storefrontPushAdminErrorMessage('media_type_mismatch'), /extensión y el contenido/);
+  assert.match(storefrontPushAdminErrorMessage('media_dimensions_too_large'), /6000 px/);
+  assert.match(storefrontPushAdminErrorMessage('media_corrupt'), /decodificar/);
+  assert.match(storefrontPushAdminErrorMessage('media_busy'), /procesador de imágenes está ocupado/);
 });
 
 test('detalle C09 normaliza embudo, incertidumbre y denominadores sin inventar tasas', async () => {

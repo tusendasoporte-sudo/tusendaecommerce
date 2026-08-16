@@ -92,8 +92,13 @@ function normalizedInputName(value: unknown) {
   if (!name || name.length > 120 || /[\u0000-\u001f\u007f/\\]/.test(name)) {
     throw new StorefrontPushMediaError('media_name_invalid');
   }
-  const match = name.match(/^([A-Za-z0-9][A-Za-z0-9 _-]{0,99})\.(jpe?g|png|webp)$/i);
-  if (!match) throw new StorefrontPushMediaError('media_name_invalid');
+  // The original name is never persisted; safety comes from path rejection,
+  // the final extension allowlist, byte decoding and the randomized WebP output.
+  const match = name.match(/^(.+)\.(jpe?g|png|webp)$/i);
+  const baseName = String(match?.[1] || '');
+  if (!match || !baseName.trim() || baseName.startsWith('.')) {
+    throw new StorefrontPushMediaError('media_name_invalid');
+  }
   return { name, extension: match[2].toLowerCase() };
 }
 
