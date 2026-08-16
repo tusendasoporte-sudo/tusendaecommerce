@@ -472,6 +472,9 @@ test('el detalle enviado usa un panel de resultados y no reutiliza campos de cre
   assert.match(source, /const imageUrl = safeHttpsUrl\(media\?\.url\)/);
   assert.match(source, /imageButton\.textContent = imageUrl \? 'Ver imagen del push' : 'Sin imagen disponible'/);
   assert.match(source, /one\('\[data-detail-conversion\]'\)\?\.removeAttribute\('open'\)/);
+  assert.match(source, /\.push-detail-view \.admin-compact-summary \{[^}]*display: block;[^}]*padding: 18px 20px;/);
+  assert.match(source, /\.push-detail-view \.admin-compact-summary__item \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0,1fr\) auto;/);
+  assert.match(source, /\.push-detail-view \.admin-compact-summary__icon svg \{[^}]*width: 20px;[^}]*height: 20px;/);
   assert.match(source, /one\('\[data-campaign-form-column\]'\)\.hidden = detailMode/);
   assert.match(source, /one\('\[data-campaign-preview-column\]'\)\.hidden = detailMode/);
   assert.match(source, /one\('\[data-campaign-detail-view\]'\)\.hidden = !detailMode/);
