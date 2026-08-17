@@ -507,7 +507,7 @@ Contrato de privacidad aplicado en C03: la app nativa envía únicamente FID, ve
 7. No hay migración de dispositivos administrativos a instalaciones públicas. Cada cliente debe registrarse desde `mobile-storefront`.
 8. Cada nueva colección se incorpora al preview/borrado Master y a pruebas de aislamiento antes de habilitar el módulo.
 
-### 6.11 Inventario exacto previsto de archivos de C02-C013
+### 6.11 Inventario exacto previsto de archivos de C02-C014
 
 Este inventario es el contrato de implementación conocido en C01. Si una fase descubre que necesita otro archivo, debe registrarlo primero en la bitácora de esa fase y justificarlo; no autoriza editarlo durante C01.
 
@@ -526,8 +526,9 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
 | C013 | `docs/tusenda84/reportes/PZ-APP-C013-reconciliacion-instalaciones.md`; revisión focal de `pz_storefront_installations_lib.js`, `pz_storefront_analytics_lib.js`, contratos Android de registro y sus pruebas. Parte de la base App Set ID ya incorporada; no autoriza una migración destructiva ni la eliminación automática de registros legacy. |
+| C014 | `docs/tusenda84/reportes/PZ-APP-C014-cache-cloudflare-segura.md`; revisión focal de `frontend-powerzona/src/middleware.ts`, `frontend-powerzona/src/lib/publicCatalogResponse.ts`, `frontend-powerzona/src/lib/publicDataCache.ts`, `frontend-powerzona/src/lib/publicSecurity.ts`, configuración Cloudflare de producción y pruebas de rendimiento/aislamiento. No autoriza activar `Cache Everything` ni cambiar reglas de producción antes de cerrar C013 y aprobar el diseño de seguridad. |
 
-No se reservan en C01 números de versión, secretos, archivos `google-services.json`, keystores, artefactos APK/AAB ni archivos generados. C11 y C12 documentarán por separado despliegue y evidencias; C013 documentará exclusivamente la reconciliación posterior y su rollback.
+No se reservan en C01 números de versión, secretos, archivos `google-services.json`, keystores, artefactos APK/AAB ni archivos generados. C11 y C12 documentarán por separado despliegue y evidencias; C013 documentará exclusivamente la reconciliación posterior y su rollback; C014 quedará reservada para la optimización final de caché/CDN con seguridad y rollback independientes.
 
 ### 6.12 Referencias técnicas verificadas
 
@@ -572,6 +573,7 @@ Estado vigente:
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
 | PZ-APP-C013 | Reconciliación de instalaciones legacy y validación física de App Set ID | PENDIENTE | C12 | Sí: APK nueva y teléfono físico conocido | Sol — Extra High |
+| PZ-APP-C014 | Caché Cloudflare segura y optimización final del catálogo público | PENDIENTE | C013 | Sí: matriz HIT/MISS/BYPASS, seguridad y benchmark producción | Sol — Max |
 
 ## 8. Prompts de ejecución
 
@@ -927,6 +929,44 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] Las pruebas automáticas de registro, rotación, aislamiento, analítica y regresión pasan.
 - [ ] Google Play Data Safety y la política de privacidad quedan revisadas y documentadas antes de distribuir la APK/AAB resultante.
 
+### [ ] PZ-APP-C014 — Caché Cloudflare segura y optimización final del catálogo público
+
+**Orden aprobado:** ejecutar únicamente al final del proyecto, después de cerrar C013. Esta reserva documenta la mejora para realizarla más adelante; no autoriza activar ahora `Cache Everything`, modificar reglas Cloudflare de producción, omitir el control VPN/IP/dispositivo ni cachear rutas privadas.
+
+**Objetivo:** reducir de forma medible el tiempo del primer HTML y la carga completa del catálogo público combinando la compilación/configuración más eficiente de staging con Cloudflare, sin permitir que una respuesta cacheada evite `publicAccessDecision`, mezcle tiendas, exponga sesiones o conserve contenido privado.
+
+**Línea base reservada — 2026-08-16:** comparación desde el mismo navegador y ubicación, con cinco recargas alternadas por entorno. Producción (`tusenda84.com`) registró mediana de recarga completa de 4,057 s, TTFB promedio de 1,162 s, respuesta HTTP total promedio de 1,278 s y HTML de 143.757 bytes. Staging registró 3,632 s, 0,680 s, 1,080 s y 126.229 bytes respectivamente. Producción respondió mediante Cloudflare con `CF-Cache-Status: DYNAMIC`; staging entregó `Cache-Control: private, max-age=15, stale-while-revalidate=30`. Son mediciones comparativas, no Web Vitals globales ni una promesa de latencia futura.
+
+**Restricción de seguridad vigente:** todas las rutas públicas protegidas pasan actualmente por `frontend-powerzona/src/middleware.ts` y `frontend-powerzona/src/lib/publicSecurity.ts`, que consultan `/api/pz/security/public-access` con IP resuelta y cookie de dispositivo antes de responder. Una regla CDN que sirva HTML antes de esa decisión podría permitir que otro visitante reciba contenido sin pasar su propia validación. Por tanto, el HTML público solo podrá llegar a `HIT` si el control equivalente se ejecuta antes de la caché —por ejemplo mediante una arquitectura Cloudflare Worker/WAF aprobada— o si una auditoría demuestra otra secuencia con garantías equivalentes. Si esa garantía no existe, el HTML seguirá `DYNAMIC` y C014 optimizará únicamente assets, datos públicos y SSR de origen.
+
+**Prompt para ejecutar:**
+
+> Después de cerrar C013, confirma que producción y staging ejecutan el mismo commit, variables no secretas, versión Node/Astro y estrategia de compresión. Repite el benchmark base con muestras alternadas y conserva TTFB, total HTTP, tamaño transferido, mediana de carga y variación. Implementa primero una fase segura para assets inmutables versionados (`/_astro/*`, CSS, JS y fuentes) con TTL largo y purga por despliegue. Audita después la caché interna de datos públicos, actualmente de 15 segundos, y aumenta a 30–60 segundos solo si existe invalidación explícita al modificar tienda, catálogo, promociones, regalos o ajustes. Diseña por separado el posible caché HTML de borde: únicamente `GET`/`HEAD` de portada y catálogo públicos, TTL corto inicial de 15–30 segundos, clave aislada por host/ruta/tienda y query string funcional, purga reproducible y seguridad ejecutada antes de servir un `HIT`. Prueba con dos tiendas, dos IP, dispositivo con y sin cookie, VPN/proxy bloqueado, cambios de catálogo y rollback. Nunca caches administración, master, login, checkout, recibos de pedidos, reseñas con token, endpoints API, respuestas con `Set-Cookie`, errores, redirecciones de autenticación ni contenido dependiente del usuario. Despliega por etapas, observa `CF-Cache-Status`, compara contra la línea base y revierte/purga inmediatamente ante fuga, contenido cruzado, bloqueo omitido o regresión.
+
+**Estrategia mínima por fases:**
+
+1. Alinear producción con la compilación y configuración verificadas en staging antes de atribuir diferencias a Cloudflare.
+2. Fijar caché larga solo para assets con nombre versionado; no reutilizar una URL inmutable para contenido mutable.
+3. Optimizar la caché de datos/SSR en origen manteniendo la decisión de seguridad por cada solicitud.
+4. Habilitar un piloto HTML de borde solo si la validación VPN/IP/dispositivo ocurre antes del lookup de caché y queda demostrada con pruebas negativas.
+5. Empezar con TTL 15–30 segundos, conservar query strings funcionales, definir purga/invalidez por cambios y medir `MISS`, `HIT`, `STALE/UPDATING` y `BYPASS`.
+6. Mantener una regla explícita de bypass para `/admin`, `/master`, `/login`, `/checkout`, `/orden`, rutas `/t/*/admin`, reseñas/pedidos con token y todo `/api`.
+
+**Prueba manual requerida:** Sí. Ejecutar la matriz desde producción con caché fría/caliente, una segunda ubicación o red, ventana privada, teléfono físico, VPN/proxy bloqueado y dos tiendas. Confirmar visualmente que actualizaciones de catálogo aparecen dentro del TTL aprobado o tras purga, que el carrito permanece local al navegador y que ninguna ruta privada devuelve `HIT`.
+
+**Criterios de aceptación:**
+
+- [ ] Producción y staging usan el mismo commit/configuración comparable antes del benchmark final.
+- [ ] Assets versionados devuelven `HIT` sin impedir que un despliegue publique archivos nuevos.
+- [ ] Administración, master, login, checkout, recibos, endpoints API y rutas con token nunca devuelven HTML compartido desde caché.
+- [ ] Un visitante bloqueado por VPN/proxy continúa bloqueado incluso cuando otro visitante obtuvo previamente un `HIT` de la misma URL.
+- [ ] La clave de caché no cruza host, tienda, ruta ni query string funcional y no depende de identificadores personales innecesarios.
+- [ ] No se cachean respuestas con `Set-Cookie`, errores, autenticación, datos privados ni contenido personalizado.
+- [ ] Cambios de catálogo se invalidan de forma reproducible o aparecen dentro del TTL aprobado.
+- [ ] El TTFB mediano de producción mejora al menos 30 % frente a la línea base, sin regresión superior al 10 % en la mediana de carga completa; si el HTML debe permanecer dinámico, se documenta el máximo seguro conseguido sin forzar este umbral.
+- [ ] Existe procedimiento probado para desactivar reglas, purgar host/prefijo y restaurar inmediatamente el comportamiento `DYNAMIC`.
+- [ ] La matriz automática y manual de seguridad, aislamiento, contenido fresco, rendimiento y rollback queda documentada en `docs/tusenda84/reportes/PZ-APP-C014-cache-cloudflare-segura.md`.
+
 ## 9. Criterios maestros de aceptación
 
 El proyecto completo solo se marcará terminado cuando:
@@ -947,6 +987,7 @@ El proyecto completo solo se marcará terminado cuando:
 - [ ] Se puede construir otra app de tienda cambiando configuración, sin duplicar el código.
 - [ ] APK directo y AAB de Google Play se verificaron por separado.
 - [ ] La app administrativa y sus alertas no sufrieron regresiones.
+- [ ] C014 confirma una estrategia Cloudflare segura, medible y reversible o documenta por qué el HTML debe permanecer dinámico.
 
 ## 10. Fuera del alcance de la primera versión
 
