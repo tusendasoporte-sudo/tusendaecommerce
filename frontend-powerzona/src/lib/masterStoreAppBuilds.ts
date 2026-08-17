@@ -506,13 +506,22 @@ function preview(value: any): StorefrontAppBuildPreview | null {
   return value as StorefrontAppBuildPreview;
 }
 
+function legacyPreview(value: any) {
+  if (!value || value.schema_version !== 1 || !['provision', 'update'].includes(value.operation)) return false;
+  if (!RECORD_ID_PATTERN.test(text(value.store?.id, 15))) return false;
+  if (!value.identity || !value.engine || !value.firebase || !value.signing || !value.build || !value.delivery) return false;
+  return ENGINE_VERSION_PATTERN.test(text(value.engine.target_version, 40))
+    && ENGINE_REVISION_PATTERN.test(text(value.engine.target_revision, 40).toLowerCase())
+    && value.engine.change_scope === 'shared_native_engine';
+}
+
 function job(value: any): StorefrontAppBuildJob | null {
   if (!value || !RECORD_ID_PATTERN.test(text(value.id, 15))) return null;
   if (!['provision', 'update'].includes(value.operation)
     || !['preview', 'queued', 'claimed', 'succeeded', 'failed', 'needs_attention', 'canceled'].includes(value.status)
     || !SHA256_PATTERN.test(text(value.preview_hash, 64))) return null;
   const normalizedPreview = value.preview ? preview(value.preview) : null;
-  if (value.preview && !normalizedPreview) return null;
+  if (value.preview && !normalizedPreview && !legacyPreview(value.preview)) return null;
   const deliveryStatus = text(value.delivery_status, 30);
   const deliverySenderId = text(value.delivery_sender_id, 15);
   const deliveryRecipientId = text(value.delivery_recipient_id, 15);

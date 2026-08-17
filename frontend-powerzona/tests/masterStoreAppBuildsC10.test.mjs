@@ -4,12 +4,93 @@ import test from 'node:test';
 
 import {
   getMasterAppBuildErrorMessage,
+  getMasterStoreAppBuilds,
   getMasterStoreAppEngineUpdates,
   markMasterStoreAppWhatsappSent,
   previewMasterStoreAppWhatsappDelivery,
   proposeFirebaseProjectId,
   saveMasterWhatsappSettings,
 } from '../src/lib/masterStoreAppBuilds.ts';
+
+test('conserva visible un trabajo C10 heredado para poder cancelarlo antes de cargar la marca', async () => {
+  const originalFetch = globalThis.fetch;
+  const storeId = 'storec10test001';
+  const profileId = 'profilec10test1';
+  const jobId = 'jobc10legacy001';
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    ok: true,
+    generated_at: '2026-08-17T12:00:00.000Z',
+    store: { id: storeId, name: 'Tenant C10', slug: 'tenant-c10' },
+    engine_release: { version: '1.0.0', revision: 'a'.repeat(40), severity: 'recommended' },
+    brand_assets: {
+      ready: false,
+      normalizer_policy: {
+        input: ['jpeg', 'png', 'webp'],
+        icon: { width: 1024, height: 1024 },
+        splash: { width: 1080, height: 1920 },
+        fit: 'contain_without_crop',
+        metadata_removed: true,
+      },
+      palette: { splash_background: '#ffffff' },
+      icon: null,
+      splash: null,
+    },
+    manual_whatsapp_delivery: {
+      mode: 'manual_wa_me', automatic_send: false, cloud_api: false, attachment_mode: 'manual',
+      sender: {
+        user_id: 'masterc10test01', display_name: 'Master', whatsapp_number: '5351112233',
+        configured: true, phone_state: 'configured',
+      },
+      recipient: {
+        status: 'ready', user_id: 'primaryc10test1', display_name: 'Principal', whatsapp_number: '5354445566',
+        configured: true, phone_state: 'configured',
+      },
+    },
+    profile: {
+      id: profileId,
+      app_key: 'tenant-c10-storefront', display_name: 'Tenant C10', package_name: 'com.tusenda84.tenantc10',
+      store_url: 'https://tusenda84.com/t/tenant-c10', brand_key: 'tenant-c10', distribution: 'direct',
+      status: 'queued', firebase_project_id: 'ts84-tenant-c10-test001', firebase_project_number: '',
+      firebase_app_id: '', signing_cert_sha256: '', upload_cert_sha256: '', current_version_code: 1,
+      current_version_name: '1.0.1', current_engine_version: '', current_engine_revision: '',
+      icon_asset_id: '', splash_asset_id: '',
+      engine_update: {
+        status: 'pending_first_build', available: false, severity: 'none', reason: 'first_build_pending',
+        current_version: '', current_revision: '', target_version: '1.0.0', target_revision: 'a'.repeat(40),
+      },
+      created: '2026-08-17T12:00:00.000Z', updated: '2026-08-17T12:00:00.000Z',
+    },
+    jobs: [{
+      id: jobId, profile_id: profileId, operation: 'provision', status: 'queued', preview_hash: 'b'.repeat(64),
+      preview: {
+        schema_version: 1, operation: 'provision', store: { id: storeId, name: 'Tenant C10', slug: 'tenant-c10' },
+        identity: {},
+        engine: { target_version: '1.0.0', target_revision: 'a'.repeat(40), change_scope: 'shared_native_engine' },
+        firebase: {}, signing: {}, build: {}, delivery: {},
+      },
+      preview_expires_at: '', confirmed_at: '2026-08-17T12:00:00.000Z', runner_id: '', failure_code: '',
+      started_at: '', completed_at: '', delivery_status: '', delivery_sender_id: '', delivery_recipient_id: '',
+      delivery_sender_whatsapp: '', delivery_recipient_whatsapp: '', delivery_message_sha256: '',
+      delivery_marked_at: '', created: '2026-08-17T12:00:00.000Z', updated: '2026-08-17T12:00:00.000Z',
+    }],
+    artifacts: [],
+    policy: {
+      firebase_project_per_store: true, signing_custodian: 'Tu Senda 84',
+      store_admin_delivery: ['apk', 'checksums', 'instructions'], powerzona_distribution: 'play_and_direct',
+      tenant_distribution: 'direct', runner_isolated: true,
+    },
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  try {
+    const result = await getMasterStoreAppBuilds('https://pb.example.test', 'token-c10', storeId);
+    assert.equal(result.available, true);
+    assert.equal(result.data?.jobs.length, 1);
+    assert.equal(result.data?.jobs[0].id, jobId);
+    assert.equal(result.data?.jobs[0].status, 'queued');
+    assert.equal(result.data?.jobs[0].preview, null);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('propone un ID Firebase reproducible desde el nombre y la identidad estable de la tienda', () => {
   const storeId = 'storec10test001';
