@@ -2253,7 +2253,8 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 
 - Se aprobó añadir antes del cierre C10 el mecanismo que permitirá propagar futuras funciones nativas comunes a apps nuevas y detectar las apps ya construidas que requieren una nueva APK/AAB.
 - `engine.properties` fija una release SemVer común. Cada build registra versión y commit; el perfil privado conserva esa procedencia y el runner Release exige un workspace Git limpio.
-- El backend compara los perfiles con la release aprobada por variables de runtime y expone un inventario privado exclusivo Master. La revisión exacta es opcional solo en desarrollo local; para una release operativa debe configurarse el commit de 40 caracteres.
+- El backend compara los perfiles con la release aprobada por variables de runtime y expone un inventario privado exclusivo Master. Crear, confirmar o reintentar una vista previa exige siempre la versión SemVer y el commit exacto de 40 caracteres; una release sin fijar o cambiada falla cerrado antes de entrar en cola.
+- `PZ_STOREFRONT_ENGINE_REVISION` se fija al último commit aprobado que modificó `mobile-storefront`, y el runner usa un checkout limpio de ese mismo commit. Los commits exclusivos del panel o backend no cambian esta señal ni generan alertas globales innecesarias.
 - El resumen Master presenta una alerta global y la página App Android muestra una alerta por tienda con severidad normal, recomendada o crítica. Ninguna alerta compila, firma, despliega o publica automáticamente.
 - Solo cambios del motor Android común activan todas las apps. Cambios exclusivos de marca/configuración o de la web remota quedan fuera de esa señal.
 - El futuro panel inferior nativo no se implementó en este paso. Será una evolución posterior del motor, antes de C11, y al incrementar la release marcará las apps existentes como pendientes.

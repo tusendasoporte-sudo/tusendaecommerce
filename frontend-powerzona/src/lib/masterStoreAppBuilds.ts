@@ -707,6 +707,8 @@ export function getMasterAppBuildErrorMessage(error: string) {
     active_job_exists: 'Ya existe un trabajo confirmado o en ejecución para esta tienda.',
     brand_assets_required: 'Carga y revisa el icono y el splash antes de crear la vista previa.',
     brand_assets_changed: 'El icono o el splash cambiaron. Crea y revisa una nueva vista previa.',
+    engine_release_unconfigured: 'El motor aprobado no tiene una versión y revisión Git exactas configuradas. Configúralas antes de crear o confirmar la vista previa.',
+    engine_release_changed: 'La release aprobada del motor cambió. Cierra esta vista previa y crea una nueva con la revisión Git actual.',
     brand_asset_invalid: 'El archivo normalizado no cumple el contrato seguro de la app.',
     brand_asset_input_too_large: 'La imagen supera el máximo permitido de 12 MB.',
     brand_asset_dimensions_too_large: 'La imagen supera el máximo de 8000 px o 40 megapíxeles.',

@@ -13,6 +13,10 @@ const ARTIFACT_ID = 'artc10deliver01';
 const MASTER_ID = 'masterc10test01';
 const PRIMARY_ID = 'primaryc10test1';
 
+process.env.PZ_STOREFRONT_ENGINE_VERSION = '1.0.0';
+process.env.PZ_STOREFRONT_ENGINE_REVISION = 'a'.repeat(40);
+process.env.PZ_STOREFRONT_ENGINE_UPDATE_SEVERITY = 'recommended';
+
 function record(id, values) {
   return { id, get(key) { return values[key]; } };
 }
@@ -174,6 +178,33 @@ test('release aprobada detecta apps atrasadas y conserva severidad visual', () =
     })) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
+  }
+});
+
+test('preview y confirmación fallan cerrado sin una revisión exacta del motor', () => {
+  const previousVersion = process.env.PZ_STOREFRONT_ENGINE_VERSION;
+  const previousRevision = process.env.PZ_STOREFRONT_ENGINE_REVISION;
+  const store = record(STORE_ID, { slug: 'tenant-c10', name: 'Tenant C10' });
+  try {
+    delete process.env.PZ_STOREFRONT_ENGINE_REVISION;
+    assert.throws(
+      () => builds.buildPreview(store, builds.parsePreviewPayload(provisionPayload()), null, undefined, branding()),
+      /engine_release_unconfigured/,
+    );
+    process.env.PZ_STOREFRONT_ENGINE_REVISION = 'a'.repeat(40);
+    const preview = builds.buildPreview(store, builds.parsePreviewPayload(provisionPayload()), null, undefined, branding());
+    assert.equal(preview.engine.target_revision, 'a'.repeat(40));
+    assert.doesNotThrow(() => builds.assertPreviewEngineRelease(preview));
+    assert.throws(
+      () => builds.assertPreviewEngineRelease({
+        ...preview,
+        engine: { ...preview.engine, target_revision: 'b'.repeat(40) },
+      }),
+      /engine_release_changed/,
+    );
+  } finally {
+    process.env.PZ_STOREFRONT_ENGINE_VERSION = previousVersion;
+    process.env.PZ_STOREFRONT_ENGINE_REVISION = previousRevision;
   }
 });
 

@@ -143,6 +143,26 @@ function engineRelease() {
   };
 }
 
+function assertEngineReleaseConfigured() {
+  const configuredVersion = environment("PZ_STOREFRONT_ENGINE_VERSION", 40);
+  const configuredRevision = environment("PZ_STOREFRONT_ENGINE_REVISION", 40).toLowerCase();
+  if (!ENGINE_VERSION_PATTERN.test(configuredVersion) || !ENGINE_REVISION_PATTERN.test(configuredRevision)) {
+    throw new Error("engine_release_unconfigured");
+  }
+  return engineRelease();
+}
+
+function assertPreviewEngineRelease(preview) {
+  const release = assertEngineReleaseConfigured();
+  const engine = bodyValue(preview, "engine") || {};
+  const targetVersion = text(bodyValue(engine, "target_version"), 40);
+  const targetRevision = text(bodyValue(engine, "target_revision"), 40).toLowerCase();
+  if (targetVersion !== release.version || targetRevision !== release.revision) {
+    throw new Error("engine_release_changed");
+  }
+  return release;
+}
+
 function engineUpdateState(profile, release) {
   const target = release || engineRelease();
   if (!profile) return {
@@ -171,8 +191,8 @@ function engineUpdateState(profile, release) {
   };
 }
 
-function previewEngine(profile) {
-  const release = engineRelease();
+function previewEngine(profile, approvedRelease) {
+  const release = approvedRelease || engineRelease();
   const update = engineUpdateState(profile, release);
   return {
     target_version: release.version,
@@ -702,6 +722,7 @@ function assertUniqueIdentity(app, parsed) {
 
 function buildPreview(store, parsed, profile, now, branding) {
   const generatedAt = new Date(now || Date.now());
+  const approvedRelease = assertEngineReleaseConfigured();
   const brandAssets = bodyValue(branding, "assets");
   if (!branding || !brandAssets || !bodyValue(brandAssets, "icon") || !bodyValue(brandAssets, "splash")) {
     throw new Error("brand_assets_required");
@@ -725,7 +746,7 @@ function buildPreview(store, parsed, profile, now, branding) {
         app_key: parsed.appKey, brand_key: parsed.brandKey, display_name: parsed.displayName,
         package_name: parsed.packageName, store_url: parsed.storeUrl,
       },
-      engine: previewEngine(null),
+      engine: previewEngine(null, approvedRelease),
       branding: lockedBranding,
       firebase: {
         organization: "Tu Senda 84",
@@ -758,7 +779,7 @@ function buildPreview(store, parsed, profile, now, branding) {
       app_key: current.app_key, brand_key: current.brand_key, display_name: current.display_name,
       package_name: current.package_name, store_url: current.store_url,
     },
-    engine: previewEngine(profile),
+    engine: previewEngine(profile, approvedRelease),
     branding: lockedBranding,
     firebase: { organization: "Tu Senda 84", project_id: current.firebase_project_id, create_project: false, register_android_app: false },
     signing: { create_app_signing_key: false, create_play_upload_key: false, reuse_signing_cert_sha256: current.signing_cert_sha256, custodian: "Tu Senda 84" },
@@ -1335,6 +1356,7 @@ function knownError(error) {
     "profile_not_provisioned", "version_code_must_increase", "preview_expired",
     "preview_mismatch", "preview_not_confirmable", "active_job_exists",
     "brand_assets_required", "brand_assets_changed", "job_not_cancelable",
+    "engine_release_unconfigured", "engine_release_changed",
   ].includes(code) ? code : "";
 }
 
@@ -1505,6 +1527,7 @@ function handleConfirm(e) {
       if (!store) throw new Error("store_not_found");
       assertPremium(store, new Date());
       const storedPreview = storedPreviewValue(job);
+      assertPreviewEngineRelease(storedPreview);
       const brandAssetRecords = assertPreviewBrandingCurrent(app, store, storedPreview);
       let profile = null;
       if (parsed.operation === "provision") {
@@ -1561,7 +1584,9 @@ function handleRetry(e) {
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!profile || !store) throw new Error("profile_not_found");
       assertPremium(store, new Date());
-      assertPreviewBrandingCurrent(app, store, storedPreviewValue(job));
+      const storedPreview = storedPreviewValue(job);
+      assertPreviewEngineRelease(storedPreview);
+      assertPreviewBrandingCurrent(app, store, storedPreview);
       job.set("status", "queued");
       job.set("failure_code", "");
       job.set("runner_id", "");
@@ -1580,7 +1605,8 @@ function handleRetry(e) {
   } catch (error) {
     const code = text(error && error.message, 80);
     if (code === "unauthorized") return e.json(403, { ok: false, error: code });
-    if (["job_not_retryable", "preview_mismatch", "active_job_exists", "premium_required"].includes(code)) {
+    if (["job_not_retryable", "preview_mismatch", "active_job_exists", "premium_required",
+      "engine_release_unconfigured", "engine_release_changed"].includes(code)) {
       return e.json(409, { ok: false, error: code });
     }
     return e.json(500, { ok: false, error: "app_build_retry_failed" });
@@ -1808,6 +1834,8 @@ module.exports = {
   JOBS,
   PREVIEW_TTL_MS,
   PROFILES,
+  assertEngineReleaseConfigured,
+  assertPreviewEngineRelease,
   buildManualWhatsappPreview,
   buildPreview,
   canonicalJson,

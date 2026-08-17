@@ -11,6 +11,7 @@ interface Props {
 
 const { data, planPresentation } = Astro.props;
 const { store, profile, jobs, artifacts, brand_assets: brandAssets } = data;
+const engineReleaseReady = /^[a-f0-9]{40}$/.test(data.engine_release.revision);
 const activeExecutionJob = jobs.find((job) => ['queued', 'claimed'].includes(job.status)) || null;
 const legacyBrandJob = jobs.find((job) => job.status === 'needs_attention'
   && job.failure_code === 'brand_assets_required' && !job.runner_id) || null;
@@ -28,6 +29,10 @@ const currentActionJob = jobs.find((job) => belongsToCurrentProfile(job)
     && ['failed', 'needs_attention'].includes(job.status)
     && !(job.failure_code === 'brand_assets_required' && !job.runner_id))
   || null;
+const currentPreviewEngineReady = engineReleaseReady
+  && !!currentActionJob?.preview
+  && currentActionJob.preview.engine.target_version === data.engine_release.version
+  && currentActionJob.preview.engine.target_revision === data.engine_release.revision;
 const retryMode = currentActionJob ? ['failed', 'needs_attention'].includes(currentActionJob.status) : false;
 const isPowerZona = store.slug === 'powerzona';
 const proposedFirebaseProjectId = isPowerZona
@@ -60,7 +65,7 @@ function dateTime(value: string) {
 }
 ---
 
-<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''}>
+<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)}>
   <MasterStoreContextHeader
     store={{
       id: store.id,
@@ -89,6 +94,26 @@ function dateTime(value: string) {
       <span>El administrador de tienda recibe únicamente APK, checksum e instrucciones. El panel nunca compila ni guarda secretos.</span>
     </div>
   </div>
+
+  {!engineReleaseReady && (
+    <section class="master-app-build-queue-lock" role="alert">
+      <MasterIcon name="alert" size={22} />
+      <div>
+        <strong>Falta fijar la revisión exacta del motor aprobado</strong>
+        <span>Configura PZ_STOREFRONT_ENGINE_VERSION y PZ_STOREFRONT_ENGINE_REVISION en el backend. No se puede crear, confirmar ni reintentar una vista previa hasta fijar el commit de 40 caracteres.</span>
+      </div>
+    </section>
+  )}
+
+  {engineReleaseReady && currentActionJob && !currentPreviewEngineReady && (
+    <section class="master-app-build-queue-lock" role="alert">
+      <MasterIcon name="alert" size={22} />
+      <div>
+        <strong>Esta vista previa pertenece a otra release del motor</strong>
+        <span>No puede confirmarse ni reintentarse. Crea una vista previa nueva para fijar la versión y el commit actualmente aprobados.</span>
+      </div>
+    </section>
+  )}
 
   {queueNoticeJob && (
     <section class="master-app-build-queue-lock" role="alert">
@@ -221,7 +246,7 @@ function dateTime(value: string) {
           <strong>{data.engine_release.version} · toda app nueva parte de esta versión</strong>
         </div>
         <p class="master-form-alert" data-app-form-alert hidden></p>
-        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob}><MasterIcon name="eye" size={18} /> Crear vista previa</button></div>
+        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady}><MasterIcon name="eye" size={18} /> Crear vista previa</button></div>
       </form>
     </section>
   )}
@@ -235,7 +260,7 @@ function dateTime(value: string) {
           <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" /></div>
         </div>
         <p class="master-form-alert" data-app-form-alert hidden></p>
-        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
+        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
       </form>
     </section>
   )}
@@ -267,7 +292,7 @@ function dateTime(value: string) {
     <div class="master-card-body">
       <pre data-app-preview-json>{currentActionJob?.preview ? JSON.stringify(currentActionJob.preview, null, 2) : ''}</pre>
       <p class="master-app-build-hash">SHA-256 de la vista previa: <code data-app-preview-hash>{currentActionJob?.preview_hash || ''}</code></p>
-      <label class="master-app-build-confirm"><input type="checkbox" data-app-confirm-check /> He revisado la identidad, Firebase, paquete, firma y artefactos descritos arriba.</label>
+      <label class="master-app-build-confirm"><input type="checkbox" data-app-confirm-check disabled={!currentPreviewEngineReady} /> He revisado la identidad, Firebase, paquete, firma y artefactos descritos arriba.</label>
       <p class="master-form-alert" data-app-confirm-alert hidden></p>
       <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="button" data-app-confirm data-job-id={currentActionJob?.id || ''} data-mode={retryMode ? 'retry' : 'confirm'} disabled><MasterIcon name="check" size={18} /> {retryMode ? 'Confirmar reanudación' : 'Confirmar y poner en cola'}</button></div>
     </div>
@@ -412,6 +437,8 @@ function dateTime(value: string) {
     const storeId = String(root.dataset.storeId || '');
     const storeSlug = String(root.dataset.storeSlug || '');
     const profileId = String(root.dataset.profileId || '');
+    const engineReleaseReady = root.dataset.engineReleaseReady === 'true';
+    let previewEngineReady = root.dataset.previewEngineReady === 'true';
     const previewCard = root.querySelector<HTMLElement>('[data-app-preview-card]');
     const previewJson = root.querySelector<HTMLElement>('[data-app-preview-json]');
     const previewHash = root.querySelector<HTMLElement>('[data-app-preview-hash]');
@@ -484,6 +511,8 @@ function dateTime(value: string) {
     };
     const showPreview = (job: any) => {
       if (!previewCard || !previewJson || !previewHash || !confirmButton) return;
+      previewEngineReady = true;
+      if (confirmCheck) confirmCheck.disabled = false;
       clearPreviewDismissal();
       previewJson.textContent = JSON.stringify(job.preview, null, 2);
       previewHash.textContent = job.preview_hash;
@@ -503,7 +532,7 @@ function dateTime(value: string) {
       const result = await previewMasterStoreAppBuild(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, body as any);
       if (result.data) showPreview(result.data);
       else setAlert(alert, getMasterAppBuildErrorMessage(result.error));
-      if (button) button.disabled = false;
+      if (button) button.disabled = !engineReleaseReady;
     };
 
     root.querySelectorAll<HTMLFormElement>('[data-app-brand-form]').forEach((form) => {
@@ -591,13 +620,13 @@ function dateTime(value: string) {
       });
     });
     confirmCheck?.addEventListener('change', () => {
-      if (confirmButton) confirmButton.disabled = confirmCheck.checked !== true;
+      if (confirmButton) confirmButton.disabled = !previewEngineReady || confirmCheck.checked !== true;
     });
     if (previewToken() && readPreviewDismissal() === previewToken()) collapsePreview(false, false);
     previewCloseButton?.addEventListener('click', () => collapsePreview(true, true));
     previewOpenButton?.addEventListener('click', () => openPreview(true));
     confirmButton?.addEventListener('click', async () => {
-      if (!confirmCheck?.checked || !previewHash?.textContent || !confirmButton.dataset.jobId) return;
+      if (!previewEngineReady || !confirmCheck?.checked || !previewHash?.textContent || !confirmButton.dataset.jobId) return;
       confirmButton.disabled = true;
       setAlert(confirmAlert);
       const action = confirmButton.dataset.mode === 'retry' ? retryMasterStoreAppBuild : confirmMasterStoreAppBuild;

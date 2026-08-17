@@ -82,6 +82,8 @@ Si no existe el registro, las variables legacy `PZ_STOREFRONT_FIREBASE_PROJECT_I
 - `mobile-storefront/config/engine.properties` declara la versión SemVer del motor Android compartido.
 - Cada build exitoso entrega `engine_version` y el commit Git exacto; PocketBase los conserva en el perfil privado de la app.
 - La release aprobada se declara en runtime mediante `PZ_STOREFRONT_ENGINE_VERSION`, `PZ_STOREFRONT_ENGINE_REVISION` y `PZ_STOREFRONT_ENGINE_UPDATE_SEVERITY`.
+- Crear, confirmar o reintentar una vista previa falla cerrado si la versión no es SemVer o la revisión no contiene el commit Git exacto de 40 caracteres. Una vista previa creada para otra release tampoco puede entrar en cola.
+- La revisión permanece fijada al último commit aprobado que modificó `mobile-storefront`; cambios exclusivos del frontend o backend no la mueven. El runner aislado debe usar un checkout limpio de ese mismo commit.
 - El resumen Master muestra todas las apps desactualizadas y la vista de cada tienda presenta una alerta normal, recomendada o crítica.
 - La alerta nunca compila ni publica. El Master debe crear y confirmar una actualización individual, conservando paquete, Firebase y firma.
 - Una función nativa común futura exige incrementar la versión del motor. Un cambio exclusivo de PowerZona, de otra marca o de la web remota no debe alertar a todas las apps.

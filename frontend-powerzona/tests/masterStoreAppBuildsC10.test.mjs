@@ -149,6 +149,11 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /1080 × 1920/);
   assert.match(view, /cancelMasterStoreAppBuild/);
   assert.match(view, /CANCELAR TRABAJO/);
+  assert.match(view, /data-engine-release-ready/);
+  assert.match(view, /data-preview-engine-ready/);
+  assert.match(view, /Falta fijar la revisión exacta del motor aprobado/);
+  assert.match(view, /Esta vista previa pertenece a otra release del motor/);
+  assert.match(view, /disabled=\{!brandAssets\.ready \|\| !!queueNoticeJob \|\| !engineReleaseReady\}/);
   assert.match(brandApi, /requireMasterAdmin/);
   assert.match(brandApi, /storefrontAppBrandSameOriginMutation/);
   assert.match(brandApi, /normalizeStorefrontAppBrandAsset/);
@@ -295,6 +300,8 @@ test('errores de integridad tienen mensajes cerrados y accionables', () => {
   assert.match(getMasterAppBuildErrorMessage('premium_required'), /Premium/i);
   assert.match(getMasterAppBuildErrorMessage('brand_assets_required'), /icono y el splash/i);
   assert.match(getMasterAppBuildErrorMessage('brand_assets_changed'), /nueva vista previa/i);
+  assert.match(getMasterAppBuildErrorMessage('engine_release_unconfigured'), /revisión Git exactas/i);
+  assert.match(getMasterAppBuildErrorMessage('engine_release_changed'), /release aprobada.*cambió/i);
   assert.match(getMasterAppBuildErrorMessage('job_not_cancelable'), /runner/i);
 });
 
