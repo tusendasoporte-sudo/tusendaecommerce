@@ -103,6 +103,8 @@ test('cola descarga marca por job y Gradle consume solo archivos externos', asyn
   assert.match(readiness, /signing_generation_not_authorized/);
   assert.match(readiness, /google_cloud_identity_missing/);
   assert.match(readiness, /'--format=value\(account\)'/);
+  assert.match(readiness, /\$activeAccounts = @\(& \$gcloud auth list/);
+  assert.match(readiness, /\$authListExitCode = \$LASTEXITCODE/);
   assert.match(runner, /PZ_STOREFRONT_BRAND_CONFIG_FILE/);
   assert.match(gradle, /PZ_STOREFRONT_BRAND_CONFIG_FILE/);
   assert.match(gradle, /normalizer_version/);

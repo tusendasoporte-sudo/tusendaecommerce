@@ -123,8 +123,10 @@ if ($RequireFirebaseProvisioning) {
     if (-not $gcloud) {
         Add-Failure 'gcloud_missing'
     } elseif ($firebaseAuthorized -and $organizationConfigured) {
-        $activeAccount = [string](& $gcloud auth list --filter=status:ACTIVE '--format=value(account)' --quiet 2>$null | Select-Object -First 1)
-        if ($LASTEXITCODE -ne 0 -or -not $activeAccount.Trim()) {
+        $activeAccounts = @(& $gcloud auth list --filter=status:ACTIVE '--format=value(account)' --quiet 2>$null)
+        $authListExitCode = $LASTEXITCODE
+        $activeAccount = [string]($activeAccounts | Select-Object -First 1)
+        if ($authListExitCode -ne 0 -or -not $activeAccount.Trim()) {
             Add-Failure 'google_cloud_identity_missing'
         } else {
             $accessToken = [string](& $gcloud auth print-access-token --quiet 2>$null)
