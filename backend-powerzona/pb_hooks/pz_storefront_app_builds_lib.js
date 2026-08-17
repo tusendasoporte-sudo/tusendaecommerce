@@ -11,6 +11,7 @@ const PROFILES = "storefront_app_build_profiles";
 const JOBS = "storefront_app_build_jobs";
 const ARTIFACTS = "storefront_app_artifacts";
 const APP_CONFIGS = "storefront_app_configs";
+const BRAND_ASSETS = "storefront_app_brand_assets";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const BRAND_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/;
@@ -25,6 +26,23 @@ const WHATSAPP_NUMBER_PATTERN = /^[1-9][0-9]{7,14}$/;
 const CERT_SHA256_PATTERN = /^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/;
 const FIREBASE_APP_ID_PATTERN = /^1:[0-9]{6,20}:android:[a-f0-9]{16,64}$/;
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
+const BRAND_ASSET_NORMALIZER_PATTERN = /^[a-z0-9._-]{8,80}$/;
+const BRAND_ASSET_FILE_PATTERN = /^(?:icon|splash)[-_][a-f0-9]{32}(?:_[A-Za-z0-9]{6,32})?\.png$/;
+const BRAND_ASSET_MAX_BYTES = 8 * 1024 * 1024;
+const BRAND_ASSET_PROFILES = Object.freeze({
+  icon: Object.freeze({ width: 1024, height: 1024 }),
+  splash: Object.freeze({ width: 1080, height: 1920 }),
+});
+const TENANT_BRAND_PALETTE = Object.freeze({
+  deep_sapphire: "#2D185E", energy_cobalt: "#6847E8", flash_blue: "#7C5CFC",
+  platinum: "#CEC7E8", luminous_ice: "#EEE9FF", pearl_white: "#FFFFFF",
+  ink: "#21143D", secondary_text: "#625879", base_background: "#F5F1FF",
+});
+const POWERZONA_BRAND_PALETTE = Object.freeze({
+  deep_sapphire: "#071F63", energy_cobalt: "#155EEB", flash_blue: "#4A8DFF",
+  platinum: "#C7D0DE", luminous_ice: "#E9F1FF", pearl_white: "#FFFFFF",
+  ink: "#081735", secondary_text: "#465574", base_background: "#F8FAFF",
+});
 
 function setPrivateHeaders(e) {
   try {
@@ -360,7 +378,7 @@ function canonicalJson(value) {
 
 function hashPreview(preview, sha256) {
   const hash = sha256 || ((material) => $security.sha256(material));
-  return String(hash(`pz_storefront_app_preview:v1|${canonicalJson(preview)}`) || "").trim().toLowerCase();
+  return String(hash(`pz_storefront_app_preview:v2|${canonicalJson(preview)}`) || "").trim().toLowerCase();
 }
 
 function profileSnapshot(profile) {
@@ -384,6 +402,8 @@ function profileSnapshot(profile) {
     current_version_name: recordString(profile, "current_version_name", 40),
     current_engine_version: recordString(profile, "current_engine_version", 40),
     current_engine_revision: recordString(profile, "current_engine_revision", 40),
+    icon_asset_id: relationId(profile, "icon_asset"),
+    splash_asset_id: relationId(profile, "splash_asset"),
     engine_update: engineUpdateState(profile, release),
     created: isoDate(recordValue(profile, "created")),
     updated: isoDate(recordValue(profile, "updated")),
@@ -431,6 +451,125 @@ function artifactSnapshot(artifact) {
     version_name: recordString(artifact, "version_name", 40),
     created: isoDate(recordValue(artifact, "created")),
   };
+}
+
+function brandPalette(store) {
+  return recordString(store, "slug", 80) === "powerzona"
+    ? POWERZONA_BRAND_PALETTE
+    : TENANT_BRAND_PALETTE;
+}
+
+function brandAssetSnapshot(asset) {
+  if (!asset) return null;
+  return {
+    id: text(asset.id || recordString(asset, "id", 15), 15),
+    kind: recordString(asset, "kind", 20),
+    file_name: recordString(asset, "file", 220),
+    sha256: recordString(asset, "sha256", 64).toLowerCase(),
+    width: recordNumber(asset, "width"),
+    height: recordNumber(asset, "height"),
+    bytes: recordNumber(asset, "bytes"),
+    source_format: recordString(asset, "source_format", 20),
+    source_width: recordNumber(asset, "source_width"),
+    source_height: recordNumber(asset, "source_height"),
+    normalizer_version: recordString(asset, "normalizer_version", 80),
+    status: recordString(asset, "status", 20),
+    created: isoDate(recordValue(asset, "created")),
+    updated: isoDate(recordValue(asset, "updated")),
+  };
+}
+
+function validateBrandAssetRecord(asset, storeId, expectedKind, requireActive) {
+  const snapshot = brandAssetSnapshot(asset);
+  const profile = BRAND_ASSET_PROFILES[expectedKind];
+  if (!snapshot || !profile
+    || relationId(asset, "store") !== storeId
+    || snapshot.kind !== expectedKind
+    || (requireActive && snapshot.status !== "active")
+    || !BRAND_ASSET_FILE_PATTERN.test(snapshot.file_name)
+    || !SHA256_PATTERN.test(snapshot.sha256)
+    || snapshot.width !== profile.width
+    || snapshot.height !== profile.height
+    || !Number.isInteger(snapshot.bytes) || snapshot.bytes < 1 || snapshot.bytes > BRAND_ASSET_MAX_BYTES
+    || !["jpeg", "png", "webp"].includes(snapshot.source_format)
+    || !BRAND_ASSET_NORMALIZER_PATTERN.test(snapshot.normalizer_version)) {
+    throw new Error("brand_assets_required");
+  }
+  return snapshot;
+}
+
+function activeBrandAssetRecords(app, storeId) {
+  const found = records(
+    app,
+    BRAND_ASSETS,
+    "store = {:store} && status = 'active'",
+    "+kind",
+    3,
+    { store: storeId },
+  );
+  const result = { icon: null, splash: null };
+  found.forEach((asset) => {
+    const kind = recordString(asset, "kind", 20);
+    if (Object.prototype.hasOwnProperty.call(result, kind)) result[kind] = asset;
+  });
+  return result;
+}
+
+function activeBrandingState(app, store) {
+  const assets = activeBrandAssetRecords(app, store.id);
+  let icon = null;
+  let splash = null;
+  try { icon = validateBrandAssetRecord(assets.icon, store.id, "icon", true); } catch (_) {}
+  try { splash = validateBrandAssetRecord(assets.splash, store.id, "splash", true); } catch (_) {}
+  return {
+    ready: !!icon && !!splash,
+    normalizer_policy: {
+      input: ["image/jpeg", "image/png", "image/webp"],
+      icon: BRAND_ASSET_PROFILES.icon,
+      splash: BRAND_ASSET_PROFILES.splash,
+      fit: "contain_without_crop",
+      metadata_removed: true,
+    },
+    palette: brandPalette(store),
+    icon,
+    splash,
+  };
+}
+
+function requireActiveBranding(app, store) {
+  const recordsByKind = activeBrandAssetRecords(app, store.id);
+  return {
+    records: recordsByKind,
+    snapshot: {
+      palette: brandPalette(store),
+      assets: {
+        icon: validateBrandAssetRecord(recordsByKind.icon, store.id, "icon", true),
+        splash: validateBrandAssetRecord(recordsByKind.splash, store.id, "splash", true),
+      },
+    },
+  };
+}
+
+function assertPreviewBrandingCurrent(app, store, preview) {
+  const branding = bodyValue(preview, "branding");
+  const assets = bodyValue(branding, "assets");
+  if (!preview || Number(bodyValue(preview, "schema_version")) !== 2 || !assets) throw new Error("brand_assets_required");
+  const result = { icon: null, splash: null };
+  ["icon", "splash"].forEach((kind) => {
+    const expected = bodyValue(assets, kind);
+    const id = text(bodyValue(expected, "id"), 15);
+    const asset = RECORD_ID_PATTERN.test(id) ? findRecord(app, BRAND_ASSETS, id) : null;
+    const current = validateBrandAssetRecord(asset, store.id, kind, true);
+    if (current.sha256 !== text(bodyValue(expected, "sha256"), 64).toLowerCase()
+      || current.width !== Number(bodyValue(expected, "width"))
+      || current.height !== Number(bodyValue(expected, "height"))
+      || current.bytes !== Number(bodyValue(expected, "bytes"))
+      || current.normalizer_version !== text(bodyValue(expected, "normalizer_version"), 80)) {
+      throw new Error("brand_assets_changed");
+    }
+    result[kind] = asset;
+  });
+  return result;
 }
 
 function buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256) {
@@ -561,14 +700,25 @@ function assertUniqueIdentity(app, parsed) {
   return existing;
 }
 
-function buildPreview(store, parsed, profile, now) {
+function buildPreview(store, parsed, profile, now, branding) {
   const generatedAt = new Date(now || Date.now());
+  const brandAssets = bodyValue(branding, "assets");
+  if (!branding || !brandAssets || !bodyValue(brandAssets, "icon") || !bodyValue(brandAssets, "splash")) {
+    throw new Error("brand_assets_required");
+  }
+  const lockedBranding = {
+    palette: bodyValue(branding, "palette") || brandPalette(store),
+    assets: {
+      icon: bodyValue(brandAssets, "icon"),
+      splash: bodyValue(brandAssets, "splash"),
+    },
+  };
   if (parsed.operation === "provision") {
     assertStoreUrlMatches(store, parsed.storeUrl);
     assertDistribution(store, parsed);
     const createsAab = parsed.distribution === "play_and_direct";
     return {
-      schema_version: 1,
+      schema_version: 2,
       operation: "provision",
       store: { id: parsed.storeId, slug: recordString(store, "slug", 80), name: recordString(store, "name", 140) },
       identity: {
@@ -576,6 +726,7 @@ function buildPreview(store, parsed, profile, now) {
         package_name: parsed.packageName, store_url: parsed.storeUrl,
       },
       engine: previewEngine(null),
+      branding: lockedBranding,
       firebase: {
         organization: "Tu Senda 84",
         project_id: parsed.firebaseProjectId,
@@ -600,7 +751,7 @@ function buildPreview(store, parsed, profile, now) {
   const current = profileSnapshot(profile);
   const createsAab = current.distribution === "play_and_direct";
   return {
-    schema_version: 1,
+    schema_version: 2,
     operation: "update",
     store: { id: parsed.storeId, slug: recordString(store, "slug", 80), name: recordString(store, "name", 140) },
     identity: {
@@ -608,6 +759,7 @@ function buildPreview(store, parsed, profile, now) {
       package_name: current.package_name, store_url: current.store_url,
     },
     engine: previewEngine(profile),
+    branding: lockedBranding,
     firebase: { organization: "Tu Senda 84", project_id: current.firebase_project_id, create_project: false, register_android_app: false },
     signing: { create_app_signing_key: false, create_play_upload_key: false, reuse_signing_cert_sha256: current.signing_cert_sha256, custodian: "Tu Senda 84" },
     build: { version_code: parsed.versionCode, version_name: parsed.versionName, apk: true, aab: createsAab },
@@ -643,8 +795,11 @@ function managementReady(app) {
     return profiles.listRule === null
       && jobs.listRule === null
       && app.findCollectionByNameOrId(ARTIFACTS).listRule === null
+      && app.findCollectionByNameOrId(BRAND_ASSETS).listRule === null
       && !!profiles.fields.getByName("current_engine_version")
       && !!profiles.fields.getByName("current_engine_revision")
+      && !!profiles.fields.getByName("icon_asset")
+      && !!profiles.fields.getByName("splash_asset")
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
@@ -662,6 +817,7 @@ function detailResponse(app, store, actor) {
     generated_at: new Date().toISOString(),
     store: { id: store.id, name: recordString(store, "name", 140), slug: recordString(store, "slug", 80) },
     engine_release: engineRelease(),
+    brand_assets: activeBrandingState(app, store),
     manual_whatsapp_delivery: manualDeliveryState(app, store, actor),
     profile: profileSnapshot(profile),
     jobs,
@@ -734,8 +890,8 @@ function engineUpdatesResponse(app, actor) {
   };
 }
 
-function createPreviewJob(app, store, actor, parsed, profile, now) {
-  const preview = buildPreview(store, parsed, profile, now);
+function createPreviewJob(app, store, actor, parsed, profile, now, branding) {
+  const preview = buildPreview(store, parsed, profile, now, branding);
   const previewHash = hashPreview(preview);
   if (!SHA256_PATTERN.test(previewHash)) throw new Error("preview_hash_failed");
   const collection = app.findCollectionByNameOrId(JOBS);
@@ -769,6 +925,265 @@ function handleDetail(e) {
   } catch (error) {
     if (String(error && error.message) === "premium_required") return e.json(409, { ok: false, error: "premium_required" });
     return e.json(500, { ok: false, error: "app_build_detail_failed" });
+  }
+}
+
+function integerBodyValue(body, key) {
+  const raw = bodyValue(body, key);
+  if (typeof raw === "number") return Number.isInteger(raw) ? raw : 0;
+  const value = String(raw || "").trim();
+  if (!/^[1-9][0-9]*$/.test(value)) return 0;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : 0;
+}
+
+function parseBrandAssetUpload(body) {
+  const keys = [
+    "bytes", "height", "kind", "normalizer_version", "sha256", "source_format",
+    "source_height", "source_width", "store_id", "width",
+  ];
+  if (!exactPayload(body, keys)) return null;
+  const parsed = {
+    storeId: text(bodyValue(body, "store_id"), 15),
+    kind: text(bodyValue(body, "kind"), 20),
+    sha256: text(bodyValue(body, "sha256"), 64).toLowerCase(),
+    width: integerBodyValue(body, "width"),
+    height: integerBodyValue(body, "height"),
+    bytes: integerBodyValue(body, "bytes"),
+    sourceFormat: text(bodyValue(body, "source_format"), 20),
+    sourceWidth: integerBodyValue(body, "source_width"),
+    sourceHeight: integerBodyValue(body, "source_height"),
+    normalizerVersion: text(bodyValue(body, "normalizer_version"), 80),
+  };
+  const profile = BRAND_ASSET_PROFILES[parsed.kind];
+  if (!RECORD_ID_PATTERN.test(parsed.storeId) || !profile
+    || !SHA256_PATTERN.test(parsed.sha256)
+    || parsed.width !== profile.width || parsed.height !== profile.height
+    || parsed.bytes < 1 || parsed.bytes > BRAND_ASSET_MAX_BYTES
+    || !["jpeg", "png", "webp"].includes(parsed.sourceFormat)
+    || parsed.sourceWidth < 1 || parsed.sourceWidth > 8000
+    || parsed.sourceHeight < 1 || parsed.sourceHeight > 8000
+    || !BRAND_ASSET_NORMALIZER_PATTERN.test(parsed.normalizerVersion)) return null;
+  return parsed;
+}
+
+function uploadedFileName(file) {
+  return text(file && (file.originalName || file.name), 220);
+}
+
+function uploadedFilePrefix(file, length) {
+  let reader = null;
+  try {
+    reader = file && file.reader && typeof file.reader.open === "function" ? file.reader.open() : null;
+    if (!reader) return [];
+    if (typeof toBytes === "function") {
+      const content = toBytes(reader);
+      const output = [];
+      for (let index = 0; index < Math.min(length, Number(content && content.length) || 0); index += 1) {
+        output.push(Number(content[index]) & 255);
+      }
+      return output;
+    }
+    if (typeof readerToString === "function") {
+      const content = readerToString(reader);
+      return Array.from(content.slice(0, length)).map((character) => character.charCodeAt(0) & 255);
+    }
+    return [];
+  } catch (_) { return []; }
+  finally { try { if (reader && typeof reader.close === "function") reader.close(); } catch (_) {} }
+}
+
+function pngDimensions(file) {
+  const bytes = uploadedFilePrefix(file, 24);
+  if (bytes.length !== 24
+    || bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4e || bytes[3] !== 0x47
+    || bytes[4] !== 0x0d || bytes[5] !== 0x0a || bytes[6] !== 0x1a || bytes[7] !== 0x0a
+    || bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null;
+  const unsigned = (value) => Number(value) & 255;
+  const width = (((unsigned(bytes[16]) * 256 + unsigned(bytes[17])) * 256 + unsigned(bytes[18])) * 256 + unsigned(bytes[19]));
+  const height = (((unsigned(bytes[20]) * 256 + unsigned(bytes[21])) * 256 + unsigned(bytes[22])) * 256 + unsigned(bytes[23]));
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function validateUploadedBrandAsset(file, parsed) {
+  const dimensions = pngDimensions(file);
+  if (!file || Number(file.size) !== parsed.bytes
+    || !new RegExp(`^${parsed.kind}-[a-f0-9]{32}\\.png$`).test(uploadedFileName(file))
+    || !dimensions || dimensions.width !== parsed.width || dimensions.height !== parsed.height) {
+    throw new Error("brand_asset_invalid");
+  }
+}
+
+function cancelUnconfirmedPreviews(app, storeId) {
+  records(app, JOBS, "store = {:store} && status = 'preview'", "+created", 100, { store: storeId })
+    .forEach((job) => {
+      job.set("status", "canceled");
+      job.set("failure_code", "brand_assets_changed");
+      job.set("completed_at", new Date().toISOString());
+      app.save(job);
+    });
+}
+
+function handleBrandAssetUpload(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
+    const parsed = parseBrandAssetUpload(info.body || {});
+    if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
+    const files = Array.from(e.findUploadedFiles("file") || []);
+    if (files.length !== 1) return e.json(400, { ok: false, error: "brand_asset_required" });
+    validateUploadedBrandAsset(files[0], parsed);
+    const store = findRecord($app, "stores", parsed.storeId);
+    if (!store) return e.json(404, { ok: false, error: "store_not_found" });
+    assertPremium(store, new Date());
+    const activeJob = findFirst($app, JOBS, "store = {:store} && (status = 'queued' || status = 'claimed')", { store: store.id });
+    if (activeJob) throw new Error("active_job_exists");
+    let created = null;
+    $app.runInTransaction((app) => {
+      const active = findFirst(app, BRAND_ASSETS, "store = {:store} && kind = {:kind} && status = 'active'", {
+        store: store.id, kind: parsed.kind,
+      });
+      if (active) {
+        active.set("status", "retired");
+        app.save(active);
+      }
+      const asset = new Record(app.findCollectionByNameOrId(BRAND_ASSETS), {});
+      asset.set("store", store.id);
+      asset.set("kind", parsed.kind);
+      asset.set("file", files[0]);
+      asset.set("sha256", parsed.sha256);
+      asset.set("width", parsed.width);
+      asset.set("height", parsed.height);
+      asset.set("bytes", parsed.bytes);
+      asset.set("source_format", parsed.sourceFormat);
+      asset.set("source_width", parsed.sourceWidth);
+      asset.set("source_height", parsed.sourceHeight);
+      asset.set("normalizer_version", parsed.normalizerVersion);
+      asset.set("status", "active");
+      asset.set("created_by", recordString(info.auth, "id", 15));
+      app.save(asset);
+      cancelUnconfirmedPreviews(app, store.id);
+      created = asset;
+    });
+    return e.json(201, { ok: true, asset: brandAssetSnapshot(created), brand_assets: activeBrandingState($app, store) });
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (["active_job_exists", "premium_required"].includes(code)) return e.json(409, { ok: false, error: code });
+    if (code === "brand_asset_invalid") return e.json(400, { ok: false, error: code });
+    return e.json(500, { ok: false, error: "brand_asset_upload_failed" });
+  }
+}
+
+function serveBrandAsset(e, asset, disposition) {
+  const filename = recordString(asset, "file", 220);
+  const baseFilesPath = typeof asset.baseFilesPath === "function" ? text(asset.baseFilesPath(), 1000) : "";
+  if (!baseFilesPath || baseFilesPath.includes("..") || !BRAND_ASSET_FILE_PATTERN.test(filename)) {
+    throw new Error("brand_asset_not_found");
+  }
+  try {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "private, no-store, max-age=0");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Content-Disposition", `${disposition}; filename=\"${filename}\"`);
+    headers.set("X-PZ-Asset-SHA256", recordString(asset, "sha256", 64));
+  } catch (_) {}
+  let filesystem = null;
+  try {
+    filesystem = (e.app || $app).newFilesystem();
+    return filesystem.serve(e.response, e.request, `${baseFilesPath}/${filename}`, filename);
+  } finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+}
+
+function handleBrandAssetFile(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    const assetId = text(e.request.pathValue("asset"), 15);
+    const filename = text(e.request.pathValue("filename"), 220);
+    const asset = RECORD_ID_PATTERN.test(assetId) ? findRecord(e.app || $app, BRAND_ASSETS, assetId) : null;
+    if (!asset || relationId(asset, "store") === "" || filename !== recordString(asset, "file", 220)) {
+      return e.json(404, { ok: false, error: "brand_asset_not_found" });
+    }
+    return serveBrandAsset(e, asset, "inline");
+  } catch (_) { return e.json(404, { ok: false, error: "brand_asset_not_found" }); }
+}
+
+function handleRunnerBrandAssetFile(e) {
+  setPrivateHeaders(e);
+  try {
+    const app = e.app || $app;
+    const jobId = text(e.request.pathValue("job"), 15);
+    const kind = text(e.request.pathValue("kind"), 20);
+    const runnerId = requestHeader(e, "x-pz-store-app-runner-id");
+    const job = RECORD_ID_PATTERN.test(jobId) ? findRecord(app, JOBS, jobId) : null;
+    if (!job || !BRAND_ASSET_PROFILES[kind]
+      || recordString(job, "status", 30) !== "claimed"
+      || recordString(job, "runner_id", 100) !== runnerId) {
+      return e.json(409, { ok: false, error: "job_not_claimed" });
+    }
+    const preview = storedPreviewValue(job);
+    const branding = bodyValue(preview, "branding");
+    const assets = bodyValue(branding, "assets");
+    const expected = bodyValue(assets, kind);
+    const assetId = text(bodyValue(expected, "id"), 15);
+    const asset = RECORD_ID_PATTERN.test(assetId) ? findRecord(app, BRAND_ASSETS, assetId) : null;
+    const snapshot = validateBrandAssetRecord(asset, relationId(job, "store"), kind, false);
+    if (snapshot.sha256 !== text(bodyValue(expected, "sha256"), 64).toLowerCase()) throw new Error("brand_assets_changed");
+    return serveBrandAsset(e, asset, "attachment");
+  } catch (_) { return e.json(404, { ok: false, error: "brand_asset_not_found" }); }
+}
+
+function handleCancel(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!exactPayload(info.body || {}, ["confirmation", "job_id"])) return e.json(400, { ok: false, error: "invalid_payload" });
+    const jobId = text(bodyValue(info.body, "job_id"), 15);
+    if (!RECORD_ID_PATTERN.test(jobId) || text(bodyValue(info.body, "confirmation"), 40) !== "CANCELAR TRABAJO") {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
+    let response = null;
+    $app.runInTransaction((app) => {
+      const actor = findRecord(app, "users", recordString(info.auth, "id", 15));
+      const job = findRecord(app, JOBS, jobId);
+      if (!actor || !isMaster(actor)) throw new Error("unauthorized");
+      const status = recordString(job, "status", 30);
+      const legacyUnclaimed = status === "needs_attention"
+        && recordString(job, "failure_code", 80) === "brand_assets_required";
+      if (!job || (status !== "queued" && !legacyUnclaimed) || recordString(job, "runner_id", 100)) {
+        throw new Error("job_not_cancelable");
+      }
+      const store = findRecord(app, "stores", relationId(job, "store"));
+      const profile = findRecord(app, PROFILES, relationId(job, "profile"));
+      if (!store || !profile) throw new Error("profile_not_found");
+      job.set("status", "canceled");
+      job.set("failure_code", "canceled_by_master");
+      job.set("completed_at", new Date().toISOString());
+      if (recordString(job, "operation", 20) === "provision") {
+        if (records(app, ARTIFACTS, "profile = {:profile}", "", 1, { profile: profile.id }).length) {
+          throw new Error("job_not_cancelable");
+        }
+        job.set("profile", "");
+        app.save(job);
+        app.delete(profile);
+        cancelUnconfirmedPreviews(app, store.id);
+        response = { ok: true, job: jobSnapshot(job), profile: null };
+      } else {
+        app.save(job);
+        response = { ok: true, job: jobSnapshot(job), profile: profileSnapshot(profile) };
+      }
+      createActivity(app, store, actor, "app_build_job_canceled", job, "Trabajo Android en cola cancelado por Master antes de ser reclamado por el runner");
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (code === "unauthorized") return e.json(403, { ok: false, error: code });
+    if (["job_not_cancelable", "profile_not_found"].includes(code)) return e.json(409, { ok: false, error: code });
+    return e.json(500, { ok: false, error: "app_build_cancel_failed" });
   }
 }
 
@@ -919,6 +1334,7 @@ function knownError(error) {
     "tenant_distribution_must_be_direct", "app_identity_already_used", "profile_not_found",
     "profile_not_provisioned", "version_code_must_increase", "preview_expired",
     "preview_mismatch", "preview_not_confirmable", "active_job_exists",
+    "brand_assets_required", "brand_assets_changed", "job_not_cancelable",
   ].includes(code) ? code : "";
 }
 
@@ -940,7 +1356,8 @@ function handlePreview(e) {
     }
     const existingJob = findFirst($app, JOBS, "store = {:store} && (status = 'queued' || status = 'claimed')", { store: store.id });
     if (existingJob) throw new Error("active_job_exists");
-    const job = createPreviewJob($app, store, info.auth, parsed, profile, new Date());
+    const branding = requireActiveBranding($app, store);
+    const job = createPreviewJob($app, store, info.auth, parsed, profile, new Date(), branding.snapshot);
     createActivity($app, store, info.auth, "app_build_preview_created", job, "Vista previa de app creada por Master Admin; no se ejecutaron efectos externos");
     return e.json(200, { ok: true, job: jobSnapshot(job) });
   } catch (error) {
@@ -997,7 +1414,42 @@ function parseStoredRequest(job) {
   return null;
 }
 
-function createProfile(app, store, actor, parsed) {
+function jsonObjectValue(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    try {
+      const normalized = JSON.parse(JSON.stringify(value));
+      return normalized && typeof normalized === "object" && !Array.isArray(normalized) ? normalized : null;
+    } catch (_) { return null; }
+  }
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch (_) { return null; }
+}
+
+function storedPreviewValue(job) {
+  if (job && typeof job.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
+    try {
+      const model = new DynamicModel({
+        schema_version: 0, operation: "", store: {}, identity: {}, engine: {},
+        branding: {}, firebase: {}, signing: {}, build: {}, delivery: {}, generated_at: "",
+      });
+      job.unmarshalJSONField("preview_json", model);
+      return {
+        schema_version: Number(model.schema_version), operation: text(model.operation, 20),
+        store: jsonObjectValue(model.store) || {}, identity: jsonObjectValue(model.identity) || {},
+        engine: jsonObjectValue(model.engine) || {}, branding: jsonObjectValue(model.branding) || {},
+        firebase: jsonObjectValue(model.firebase) || {}, signing: jsonObjectValue(model.signing) || {},
+        build: jsonObjectValue(model.build) || {}, delivery: jsonObjectValue(model.delivery) || {},
+        generated_at: text(model.generated_at, 80),
+      };
+    } catch (_) {}
+  }
+  return recordValue(job, "preview_json");
+}
+
+function createProfile(app, store, actor, parsed, brandAssetRecords) {
   const collection = app.findCollectionByNameOrId(PROFILES);
   const profile = new Record(collection, {});
   profile.set("store", store.id);
@@ -1010,6 +1462,8 @@ function createProfile(app, store, actor, parsed) {
   profile.set("distribution", parsed.distribution);
   profile.set("status", "queued");
   profile.set("firebase_project_id", parsed.firebaseProjectId);
+  profile.set("icon_asset", brandAssetRecords && brandAssetRecords.icon ? brandAssetRecords.icon.id : "");
+  profile.set("splash_asset", brandAssetRecords && brandAssetRecords.splash ? brandAssetRecords.splash.id : "");
   if (parsed.existingAppConfigId) {
     const existingAppConfig = findRecord(app, APP_CONFIGS, parsed.existingAppConfigId);
     const firebaseAppId = recordString(existingAppConfig, "firebase_app_id", 255);
@@ -1050,17 +1504,19 @@ function handleConfirm(e) {
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!store) throw new Error("store_not_found");
       assertPremium(store, new Date());
+      const storedPreview = storedPreviewValue(job);
+      const brandAssetRecords = assertPreviewBrandingCurrent(app, store, storedPreview);
       let profile = null;
       if (parsed.operation === "provision") {
         const existingAppConfig = assertUniqueIdentity(app, parsed);
         parsed.existingAppConfigId = existingAppConfig ? existingAppConfig.id : "";
         assertStoreUrlMatches(store, parsed.storeUrl);
         assertDistribution(store, parsed);
-        profile = createProfile(app, store, actor, parsed);
+        profile = createProfile(app, store, actor, parsed, brandAssetRecords);
         job.set("profile", profile.id);
       } else {
         profile = findRecord(app, PROFILES, parsed.profileId);
-        buildPreview(store, parsed, profile, new Date());
+        buildPreview(store, parsed, profile, new Date(), bodyValue(storedPreview, "branding"));
       }
       job.set("status", "queued");
       job.set("confirmed_by", actor.id);
@@ -1105,6 +1561,7 @@ function handleRetry(e) {
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!profile || !store) throw new Error("profile_not_found");
       assertPremium(store, new Date());
+      assertPreviewBrandingCurrent(app, store, storedPreviewValue(job));
       job.set("status", "queued");
       job.set("failure_code", "");
       job.set("runner_id", "");
@@ -1155,7 +1612,19 @@ function handleRunnerClaim(e) {
       const job = records(app, JOBS, "status = 'queued'", "+created", 1, {})[0] || null;
       if (!job) return;
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
-      if (!profile) throw new Error("profile_not_found");
+      const store = findRecord(app, "stores", relationId(job, "store"));
+      if (!profile || !store) throw new Error("profile_not_found");
+      try {
+        assertPreviewBrandingCurrent(app, store, storedPreviewValue(job));
+      } catch (_) {
+        job.set("status", "needs_attention");
+        job.set("failure_code", "brand_assets_required");
+        job.set("completed_at", new Date().toISOString());
+        app.save(job);
+        profile.set("status", "needs_attention");
+        app.save(profile);
+        return;
+      }
       job.set("status", "claimed");
       job.set("runner_id", runnerId);
       job.set("started_at", new Date().toISOString());
@@ -1272,27 +1741,31 @@ function handleRunnerComplete(e) {
       job.set("failure_code", parsed.failureCode);
       job.set("completed_at", new Date().toISOString());
       if (parsed.status === "succeeded") {
-        const preview = recordValue(job, "preview_json") || {};
-        const build = preview.build || {};
-        const targetEngine = preview.engine || {};
+        const preview = storedPreviewValue(job) || {};
+        const completedBrandAssets = assertPreviewBrandingCurrent(app, store, preview);
+        const build = bodyValue(preview, "build") || {};
+        const targetEngine = bodyValue(preview, "engine") || {};
         const artifactKinds = parsed.artifacts.map((item) => item.kind);
         const playDistribution = recordString(profile, "distribution", 30) === "play_and_direct";
         if (playDistribution && (!artifactKinds.includes("aab") || !CERT_SHA256_PATTERN.test(parsed.uploadCertSha256))) {
           throw new Error("play_artifacts_incomplete");
         }
         if (!playDistribution && artifactKinds.includes("aab")) throw new Error("tenant_aab_forbidden");
-        if (text(targetEngine.target_version, 40) !== parsed.engineVersion
-          || (text(targetEngine.target_revision, 40) && text(targetEngine.target_revision, 40) !== parsed.engineRevision)) {
+        if (text(bodyValue(targetEngine, "target_version"), 40) !== parsed.engineVersion
+          || (text(bodyValue(targetEngine, "target_revision"), 40)
+            && text(bodyValue(targetEngine, "target_revision"), 40) !== parsed.engineRevision)) {
           throw new Error("engine_release_mismatch");
         }
         profile.set("firebase_project_number", parsed.firebaseProjectNumber);
         profile.set("firebase_app_id", parsed.firebaseAppId);
         profile.set("signing_cert_sha256", parsed.signingCertSha256);
         profile.set("upload_cert_sha256", parsed.uploadCertSha256);
-        profile.set("current_version_code", Number(build.version_code));
-        profile.set("current_version_name", text(build.version_name, 40));
+        profile.set("current_version_code", Number(bodyValue(build, "version_code")));
+        profile.set("current_version_name", text(bodyValue(build, "version_name"), 40));
         profile.set("current_engine_version", parsed.engineVersion);
         profile.set("current_engine_revision", parsed.engineRevision);
+        profile.set("icon_asset", completedBrandAssets.icon.id);
+        profile.set("splash_asset", completedBrandAssets.splash.id);
         profile.set("status", "provisioned");
         const appConfig = upsertAppConfig(app, profile, parsed);
         profile.set("app_config", appConfig.id);
@@ -1308,8 +1781,8 @@ function handleRunnerComplete(e) {
           artifact.set("storage_locator", item.storageLocator);
           artifact.set("sha256", item.sha256);
           artifact.set("bytes", item.bytes);
-          artifact.set("version_code", Number(build.version_code));
-          artifact.set("version_name", text(build.version_name, 40));
+          artifact.set("version_code", Number(bodyValue(build, "version_code")));
+          artifact.set("version_name", text(bodyValue(build, "version_name"), 40));
           app.save(artifact);
         });
         job.set("delivery_status", "pending");
@@ -1330,6 +1803,8 @@ function handleRunnerComplete(e) {
 module.exports = {
   APP_CONFIGS,
   ARTIFACTS,
+  BRAND_ASSETS,
+  BRAND_ASSET_PROFILES,
   JOBS,
   PREVIEW_TTL_MS,
   PROFILES,
@@ -1341,6 +1816,7 @@ module.exports = {
   engineUpdateState,
   engineUpdatesResponse,
   handleConfirm,
+  handleCancel,
   handleDetail,
   handleEngineUpdates,
   handleWhatsappMarkedSent,
@@ -1348,7 +1824,10 @@ module.exports = {
   handleWhatsappSettings,
   handlePreview,
   handleRetry,
+  handleBrandAssetFile,
+  handleBrandAssetUpload,
   handleRunnerClaim,
+  handleRunnerBrandAssetFile,
   handleRunnerComplete,
   hashPreview,
   normalizeWhatsappNumber,

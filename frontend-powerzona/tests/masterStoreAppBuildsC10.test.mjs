@@ -25,6 +25,7 @@ test('propone un ID Firebase reproducible desde el nombre y la identidad estable
 test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos', () => {
   const page = readFileSync(new URL('../src/pages/master/stores/[storeId]/app.astro', import.meta.url), 'utf8');
   const view = readFileSync(new URL('../src/components/master/MasterStoreAppBuildView.astro', import.meta.url), 'utf8');
+  const brandApi = readFileSync(new URL('../src/pages/api/master/store-app-brand-assets.ts', import.meta.url), 'utf8');
   assert.match(page, /requireMasterAdmin/);
   assert.match(page, /private, no-store/);
   assert.match(view, /previewMasterStoreAppBuild/);
@@ -61,6 +62,17 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.doesNotMatch(view, /data-app-whatsapp-settings-form|Guardar número|saveMasterWhatsappSettings/);
   assert.match(view, /previewMasterStoreAppWhatsappDelivery/);
   assert.match(view, /markMasterStoreAppWhatsappSent/);
+  assert.match(view, /Icono y pantalla de inicio/);
+  assert.match(view, /data-app-brand-form/);
+  assert.match(view, /1024 × 1024/);
+  assert.match(view, /1080 × 1920/);
+  assert.match(view, /cancelMasterStoreAppBuild/);
+  assert.match(view, /CANCELAR TRABAJO/);
+  assert.match(brandApi, /requireMasterAdmin/);
+  assert.match(brandApi, /storefrontAppBrandSameOriginMutation/);
+  assert.match(brandApi, /normalizeStorefrontAppBrandAsset/);
+  assert.match(brandApi, /serverPocketBaseUrl/);
+  assert.doesNotMatch(brandApi, /service.account|private.key|keystore/i);
 });
 
 test('bloque lateral Master abre una configuración global y exclusiva', () => {
@@ -200,6 +212,9 @@ test('errores de integridad tienen mensajes cerrados y accionables', () => {
   assert.match(getMasterAppBuildErrorMessage('version_code_must_increase'), /mayor/i);
   assert.match(getMasterAppBuildErrorMessage('app_identity_already_used'), /otra app/i);
   assert.match(getMasterAppBuildErrorMessage('premium_required'), /Premium/i);
+  assert.match(getMasterAppBuildErrorMessage('brand_assets_required'), /icono y el splash/i);
+  assert.match(getMasterAppBuildErrorMessage('brand_assets_changed'), /nueva vista previa/i);
+  assert.match(getMasterAppBuildErrorMessage('job_not_cancelable'), /runner/i);
 });
 
 test('runner y documentación prohíben efectos desde Preview y secretos en Git', () => {

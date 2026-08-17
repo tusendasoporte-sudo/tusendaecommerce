@@ -2,6 +2,8 @@
 param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[a-z0-9][a-z0-9-]{1,62}$')][string]$ConfigKey,
     [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Provision', 'Update')][string]$Operation,
+    [string]$ConfigPath,
+    [string]$BrandPath,
     [ValidateSet('Provision', 'Update')][string]$PreviewFor,
     [int]$VersionCode,
     [string]$VersionName,
@@ -25,7 +27,7 @@ $ErrorActionPreference = 'Stop'
 $mobileRoot = Split-Path -Parent $PSScriptRoot
 $repositoryRoot = Split-Path -Parent $mobileRoot
 $validator = Join-Path $mobileRoot 'scripts\validate-store-config.ps1'
-$config = & $validator -ConfigKey $ConfigKey -PassThru
+$config = & $validator -ConfigKey $ConfigKey -ExternalConfigPath $ConfigPath -ExternalBrandPath $BrandPath -PassThru
 $engineRevision = [string](& git -C $repositoryRoot rev-parse HEAD 2>$null)
 if ($LASTEXITCODE -ne 0 -or $engineRevision.Trim().ToLowerInvariant() -notmatch '^[a-f0-9]{40}$') {
     throw 'No se pudo determinar la revision Git del motor.'
@@ -43,7 +45,8 @@ if ($VersionName -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') { throw 'VersionName inva
 
 function Get-PreviewHash {
     param([string]$PayloadJson)
-    $bytes = [Text.Encoding]::UTF8.GetBytes("pz_storefront_app_runner_preview:v1|$PayloadJson")
+    $previewContract = if ($BrandPath) { 'v2' } else { 'v1' }
+    $bytes = [Text.Encoding]::UTF8.GetBytes("pz_storefront_app_runner_preview:$previewContract|$PayloadJson")
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
     finally { $sha.Dispose() }
@@ -80,7 +83,7 @@ function Get-SigningCertificateFingerprint {
 }
 
 $payload = [ordered]@{
-    schema_version = 1
+    schema_version = if ($BrandPath) { 2 } else { 1 }
     config_key = $ConfigKey
     operation = $effectiveOperation.ToLowerInvariant()
     identity = [ordered]@{
@@ -109,6 +112,27 @@ $payload = [ordered]@{
     delivery = [ordered]@{
         store_admin = @('apk', 'checksums', 'instructions')
         master_only = if ($config.Distribution -eq 'play_and_direct') { @('aab', 'build_manifest') } else { @('build_manifest') }
+    }
+}
+if ($BrandPath) {
+    $payload.branding = [ordered]@{
+        palette = $config.Brand.palette
+        assets = [ordered]@{
+            icon = [ordered]@{
+                sha256 = [string]$config.Brand.assets.icon.sha256
+                width = [int]$config.Brand.assets.icon.width
+                height = [int]$config.Brand.assets.icon.height
+                bytes = [int64]$config.Brand.assets.icon.bytes
+                normalizer_version = [string]$config.Brand.assets.icon.normalizer_version
+            }
+            splash = [ordered]@{
+                sha256 = [string]$config.Brand.assets.splash.sha256
+                width = [int]$config.Brand.assets.splash.width
+                height = [int]$config.Brand.assets.splash.height
+                bytes = [int64]$config.Brand.assets.splash.bytes
+                normalizer_version = [string]$config.Brand.assets.splash.normalizer_version
+            }
+        }
     }
 }
 $payloadJson = $payload | ConvertTo-Json -Depth 10 -Compress
@@ -158,7 +182,8 @@ if ($BuildType -eq 'Release') {
         }
     }
     if (-not $SigningPropertiesPath) { throw 'Release requiere la firma privada exclusiva de la tienda.' }
-    & $validator -ConfigKey $ConfigKey -RequireFirebase -SigningPropertiesPath $SigningPropertiesPath
+    & $validator -ConfigKey $ConfigKey -ExternalConfigPath $ConfigPath -ExternalBrandPath $BrandPath `
+        -RequireFirebase -SigningPropertiesPath $SigningPropertiesPath
     if (-not $signingCertSha256) { $signingCertSha256 = Get-SigningCertificateFingerprint -PropertiesPath $SigningPropertiesPath }
     if ([bool]$payload.build.aab -and -not $uploadCertSha256 -and $UploadSigningPropertiesPath) {
         $uploadCertSha256 = Get-SigningCertificateFingerprint -PropertiesPath $UploadSigningPropertiesPath
@@ -170,9 +195,13 @@ if (Test-Path -LiteralPath $releaseDirectory) { throw 'La salida de esta version
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
 $gradle = Join-Path $mobileRoot 'gradlew.bat'
 $previousSigning = [string]$env:PZ_STOREFRONT_SIGNING_PROPERTIES
+$previousConfigFile = [string]$env:PZ_STOREFRONT_CONFIG_FILE
+$previousBrandFile = [string]$env:PZ_STOREFRONT_BRAND_CONFIG_FILE
 try {
     $gradleArgs = @("-PPZ_STOREFRONT_CONFIG=$ConfigKey", "-PPZ_STOREFRONT_VERSION_CODE=$VersionCode", "-PPZ_STOREFRONT_VERSION_NAME=$VersionName", '--no-daemon')
     if ($ApiBaseUrl) { $gradleArgs += "-PPZ_STOREFRONT_API_BASE_URL=$ApiBaseUrl" }
+    if ($ConfigPath) { $env:PZ_STOREFRONT_CONFIG_FILE = $config.ConfigPath }
+    if ($BrandPath) { $env:PZ_STOREFRONT_BRAND_CONFIG_FILE = $config.BrandPath }
     if ($BuildType -eq 'Debug') {
         & $gradle 'clean' 'testDebugUnitTest' 'lintDebug' 'assembleDebug' @gradleArgs
         if ($LASTEXITCODE -ne 0) { throw 'Gradle no completo el build Debug.' }
@@ -225,4 +254,8 @@ try {
 } finally {
     if ($previousSigning) { $env:PZ_STOREFRONT_SIGNING_PROPERTIES = $previousSigning }
     else { Remove-Item Env:PZ_STOREFRONT_SIGNING_PROPERTIES -ErrorAction SilentlyContinue }
+    if ($previousConfigFile) { $env:PZ_STOREFRONT_CONFIG_FILE = $previousConfigFile }
+    else { Remove-Item Env:PZ_STOREFRONT_CONFIG_FILE -ErrorAction SilentlyContinue }
+    if ($previousBrandFile) { $env:PZ_STOREFRONT_BRAND_CONFIG_FILE = $previousBrandFile }
+    else { Remove-Item Env:PZ_STOREFRONT_BRAND_CONFIG_FILE -ErrorAction SilentlyContinue }
 }

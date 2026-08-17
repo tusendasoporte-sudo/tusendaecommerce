@@ -6,7 +6,7 @@ Estado: `EN CURSO`. Este documento no autoriza aprovisionamiento, firma, desplie
 
 - El panel vive exclusivamente bajo `/master/stores/{storeId}/app` y hereda el control `master_admin`.
 - El panel no importa Gradle, no invoca shell y no contiene credenciales. Solo consulta, crea previews y confirma trabajos en PocketBase.
-- Las colecciones `storefront_app_build_profiles`, `storefront_app_build_jobs` y `storefront_app_artifacts` son privadas; la API Master es el único acceso de usuario.
+- Las colecciones `storefront_app_build_profiles`, `storefront_app_build_jobs`, `storefront_app_brand_assets` y `storefront_app_artifacts` son privadas; la API Master es el único acceso de usuario.
 - El runner usa endpoints internos separados y `PZ_STORE_APP_RUNNER_SECRET` de al menos 32 caracteres.
 - Preview y confirmación están ligados por SHA-256, actor creador, tienda y vencimiento de 30 minutos.
 - Un trabajo confirmado pasa a `queued`; ninguna ruta Master puede marcarlo completado ni registrar artefactos.
@@ -18,6 +18,7 @@ preview --confirmación Master--> queued --claim runner--> claimed
 claimed --> succeeded
 claimed --> failed
 claimed --> needs_attention
+queued --cancelación Master antes del claim--> canceled
 ```
 
 Una vista previa vencida, alterada, creada por otro actor o con identidad ya utilizada falla cerrada. Solo puede existir un trabajo `queued/claimed` por tienda.
@@ -34,9 +35,18 @@ Una vista previa vencida, alterada, creada por otro actor o con identidad ya uti
 
 `update` no puede crear ninguno de esos recursos. Reutiliza la identidad del perfil y exige incrementar `versionCode`.
 
-La marca versionable (`config/{brand}.properties`, `brands/{brand}/brand.json` y recursos con hash) debe prepararse en el workspace aislado antes de poner el trabajo en cola. No contiene secretos. Al reclamar el trabajo, el runner compara identidad, Firebase, firma y artefactos contra la vista previa Master; cualquier ausencia o diferencia termina en `needs_attention` antes de ejecutar efectos.
+La marca de cada tienda se carga desde el panel Master y se conserva como recurso privado versionado en PocketBase, nunca en Git. La vista previa inmoviliza los IDs, dimensiones, política de normalización y SHA-256 del icono y el splash. Al reclamar el trabajo, el runner descarga exactamente esos recursos a un workspace externo, materializa `storefront.properties` y `brand.json`, y compara identidad, marca, Firebase, firma y artefactos contra la vista previa Master; cualquier ausencia o diferencia termina en `needs_attention` antes de ejecutar efectos.
 
 El runner conserva fallos parciales como `needs_attention`; no elimina proyectos, apps, certificados ni artefactos para “reintentar”.
+
+## Icono y splash administrados por el Master
+
+- El Master acepta únicamente JPG, PNG o WebP no animados, con máximo de 12 MiB, 8000 px por lado y 40 megapíxeles.
+- El frontend SSR rota según orientación, convierte a sRGB, elimina metadatos y ajusta sin recortar. El icono queda en PNG 1024 × 1024 y el splash en PNG opaco 1080 × 1920.
+- La normalización es reproducible: misma entrada, tipo y versión del normalizador producen los mismos bytes y SHA-256. El nombre almacenado usa un token aleatorio para evitar colisiones sin formar parte del contenido aprobado.
+- El panel no permite crear una vista previa hasta que ambos recursos estén activos. Reemplazar uno cancela las vistas previas todavía no confirmadas.
+- Un trabajo `queued/claimed` bloquea cualquier reemplazo. Un trabajo `queued` no reclamado puede cancelarse explícitamente desde el Master; el perfil provisional se elimina solo si nunca produjo artefactos.
+- El runner solo puede descargar los dos hashes aprobados para el trabajo que él mismo reclamó. El endpoint Master de lectura exige sesión `master_admin` y nunca publica una URL directa de PocketBase.
 
 ## Firebase multi-proyecto
 
@@ -93,6 +103,8 @@ El panel inferior nativo conversado no forma parte de C10: se implementará como
 ## Pendientes de aprobación y prueba manual
 
 - Revisar esta arquitectura y la UX final del panel.
+- Cargar imágenes reales de una tienda, revisar visualmente las dos salidas normalizadas y comprobar que persisten después de recargar.
+- Cancelar el trabajo legacy en cola antes de cargar la nueva marca y generar una vista previa de esquema 2 con los hashes revisados.
 - Revisar la alerta global y por tienda, y aprobar el procedimiento para declarar una nueva release del motor.
 - Revisar el número remitente, administrador principal, mensaje, apertura manual de WhatsApp y constancia posterior sin realizar todavía un envío real.
 - Autorizar por separado una vista previa real antes de crear Firebase, registrar paquetes o generar firmas.

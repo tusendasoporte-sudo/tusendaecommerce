@@ -3,6 +3,8 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[a-z0-9][a-z0-9-]{1,62}$')]
     [string]$ConfigKey,
+    [string]$ExternalConfigPath,
+    [string]$ExternalBrandPath,
     [switch]$RequireFirebase,
     [string]$SigningPropertiesPath,
     [switch]$PassThru
@@ -38,7 +40,26 @@ function Get-Sha256Lower {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
-$configPath = Join-Path $mobileRoot "config\$ConfigKey.properties"
+function Get-PngDimensions {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $header = New-Object byte[] 24
+        if ($stream.Read($header, 0, 24) -ne 24 -or
+            -not ($header[0] -eq 0x89 -and $header[1] -eq 0x50 -and $header[2] -eq 0x4e -and $header[3] -eq 0x47 -and
+                $header[4] -eq 0x0d -and $header[5] -eq 0x0a -and $header[6] -eq 0x1a -and $header[7] -eq 0x0a -and
+                $header[12] -eq 0x49 -and $header[13] -eq 0x48 -and $header[14] -eq 0x44 -and $header[15] -eq 0x52)) {
+            throw "El recurso $Path no es un PNG valido."
+        }
+        $width = [int64]$header[16] * 16777216 + [int64]$header[17] * 65536 + [int64]$header[18] * 256 + $header[19]
+        $height = [int64]$header[20] * 16777216 + [int64]$header[21] * 65536 + [int64]$header[22] * 256 + $header[23]
+        return [pscustomobject]@{ Width = $width; Height = $height }
+    } finally { $stream.Dispose() }
+}
+
+$configPath = if ($ExternalConfigPath) {
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ExternalConfigPath)
+} else { Join-Path $mobileRoot "config\$ConfigKey.properties" }
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw "No existe $configPath." }
 $config = Read-PropertiesFile -Path $configPath
 $enginePath = Join-Path $mobileRoot 'config\engine.properties'
@@ -73,7 +94,9 @@ if ($config['store.key'] -eq 'powerzona' -and $config['distribution'] -ne 'play_
 if ($config['store.key'] -ne 'powerzona' -and $config['distribution'] -ne 'direct') { throw 'Una tienda tenant requiere direct.' }
 if ($config['build.publishable'] -notin @('true', 'false')) { throw 'build.publishable debe ser true o false.' }
 
-$brandPath = Join-Path $mobileRoot "brands\$($config['brand.key'])\brand.json"
+$brandPath = if ($ExternalBrandPath) {
+    $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ExternalBrandPath)
+} else { Join-Path $mobileRoot "brands\$($config['brand.key'])\brand.json" }
 if (-not (Test-Path -LiteralPath $brandPath -PathType Leaf)) { throw "No existe $brandPath." }
 $brand = Get-Content -LiteralPath $brandPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($brand.schema_version -ne 1 -or $brand.brand_key -ne $config['brand.key'] -or
@@ -89,6 +112,19 @@ foreach ($assetName in @('icon', 'splash')) {
     $asset = $brand.assets.$assetName
     $assetPath = Join-Path (Split-Path -Parent $brandPath) $asset.file
     if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) { throw "Falta el recurso $assetName." }
+    if ($ExternalBrandPath) {
+        $expectedWidth = if ($assetName -eq 'icon') { 1024 } else { 1080 }
+        $expectedHeight = if ($assetName -eq 'icon') { 1024 } else { 1920 }
+        $dimensions = Get-PngDimensions -Path $assetPath
+        $length = (Get-Item -LiteralPath $assetPath).Length
+        if ([string]$asset.file -cnotmatch "^$assetName[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png$" -or
+            [int64]$asset.width -ne $expectedWidth -or [int64]$asset.height -ne $expectedHeight -or
+            $dimensions.Width -ne $expectedWidth -or $dimensions.Height -ne $expectedHeight -or
+            [int64]$asset.bytes -ne $length -or $length -lt 1 -or $length -gt (8 * 1024 * 1024) -or
+            [string]$asset.normalizer_version -cnotmatch '^[a-z0-9._-]{8,80}$') {
+            throw "El contrato normalizado de $assetName es invalido."
+        }
+    }
     if ((Get-Sha256Lower $assetPath) -ne [string]$asset.sha256) { throw "El hash de $assetName no coincide." }
 }
 
@@ -134,6 +170,9 @@ $result = [pscustomobject]@{
     ConfigKey = $ConfigKey
     ConfigPath = $configPath
     BrandPath = $brandPath
+    Brand = $brand
+    IconPath = Join-Path (Split-Path -Parent $brandPath) ([string]$brand.assets.icon.file)
+    SplashPath = Join-Path (Split-Path -Parent $brandPath) ([string]$brand.assets.splash.file)
     StoreKey = $config['store.key']
     AppKey = $config['app.key']
     DisplayName = $config['app.display_name']

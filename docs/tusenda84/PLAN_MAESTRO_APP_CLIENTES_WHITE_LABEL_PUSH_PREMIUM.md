@@ -851,6 +851,8 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] Ningún secreto queda en Git o en los logs.
 - [ ] Una segunda configuración de prueba compila sin cambiar código fuente.
 - [ ] El script detecta configuraciones incompletas o duplicadas.
+- [ ] El Master normaliza, previsualiza y versiona privadamente un icono 1024 × 1024 y un splash 1080 × 1920 por tienda antes de crear la vista previa.
+- [ ] La vista previa y el runner usan exactamente los mismos SHA-256 de marca sin guardar imágenes de tiendas en Git.
 
 ### [ ] PZ-APP-C11 — Pruebas integrales en staging
 
@@ -2313,3 +2315,13 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Una vista nueva o un checksum distinto ignora el cierre anterior y se abre automáticamente para exigir revisión. Otro navegador o sesión también la muestra abierta inicialmente.
 - La regresión focal y de navegación aprobó 34/34 pruebas y el build Astro completó con las tres advertencias históricas de rutas dinámicas. Una prueba interactiva local confirmó cierre, persistencia tras recarga, reapertura, confirmación reiniciada y apertura automática ante un nuevo checksum, sin errores de consola ni desbordamiento horizontal a 1280 px.
 - El servidor y los archivos temporales de QA se eliminaron al terminar. No se confirmó o ejecutó el trabajo, ni se usaron Firebase, firmas, runner, despliegues o WhatsApp. C10 permanece `EN CURSO`.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: icono y splash privados administrados por el Master
+
+- El propietario acordó incorporar a App Android la carga del icono y el splash propios de cada tienda. Si el original no cumple el tamaño final, el servidor SSR lo rota, convierte a sRGB, ajusta sin recortar y elimina metadatos automáticamente.
+- El contrato de salida queda fijado en PNG 1024 × 1024 para icono y PNG opaco 1080 × 1920 para splash. Solo se aceptan JPG, PNG o WebP no animados dentro de límites cerrados de bytes, dimensiones y píxeles.
+- PocketBase incorpora una colección privada e inmutable por versión. La vista previa de esquema 2 fija IDs, dimensiones, normalizador y SHA-256; cambiar un recurso cancela previews no confirmados y queda bloqueado mientras un trabajo esté `queued/claimed`.
+- El runner descarga únicamente los hashes del trabajo que reclamó y materializa la configuración en su directorio externo de secretos. Gradle valida nuevamente archivo, tamaño, dimensiones, normalizador y checksum antes de compilar.
+- Se añadió cancelación explícita para trabajos todavía no reclamados, necesaria para retirar de forma segura una vista previa legacy sin marca. No revierte efectos externos ni elimina perfiles que ya tengan artefactos.
+- Las pruebas automáticas cubren normalización reproducible, migración privada, runtime PocketBase real, bloqueo durante cola, cancelación previa al runner, compatibilidad de PowerZona y build Astro. No se aprovisionó Firebase, no se registró ningún paquete, no se generaron firmas y no se ejecutó el runner real.
+- C10 permanece `EN CURSO`. Falta publicar esta revisión en dev, cancelar manualmente el trabajo legacy, cargar y revisar visualmente imágenes reales, y solo entonces generar una nueva vista previa para autorización separada.

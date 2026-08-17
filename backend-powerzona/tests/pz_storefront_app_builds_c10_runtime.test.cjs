@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
@@ -93,20 +94,37 @@ async function stopPocketBase(runtime) {
 async function apiRequest(baseUrl, route, {
   token = '', body, headers = {}, method = body === undefined ? 'GET' : 'POST',
 } = {}) {
+  const multipart = typeof FormData !== 'undefined' && body instanceof FormData;
   const response = await fetch(`${baseUrl}${route}`, {
     method,
     headers: {
       ...headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
     signal: AbortSignal.timeout(20_000),
   });
   const raw = await response.text();
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
   return { status: response.status, data, raw };
+}
+
+function normalizedPngFixture(kind) {
+  const dimensions = kind === 'icon' ? [1024, 1024] : [1080, 1920];
+  const bytes = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes, 0);
+  Buffer.from('IHDR').copy(bytes, 12);
+  bytes.writeUInt32BE(dimensions[0], 16);
+  bytes.writeUInt32BE(dimensions[1], 20);
+  return {
+    bytes,
+    width: dimensions[0],
+    height: dimensions[1],
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+    fileName: `${kind}-${(kind === 'icon' ? 'a' : 'b').repeat(32)}.png`,
+  };
 }
 
 function assertStatus(result, expected, action) {
@@ -238,6 +256,40 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(premiumProvisionStore, 200, 'activar Premium en tienda de aprovisionamiento C10');
 
+    const uploadedBrandAssets = {};
+    for (const kind of ['icon', 'splash']) {
+      const fixture = normalizedPngFixture(kind);
+      const form = new FormData();
+      form.append('store_id', provisionStore.id);
+      form.append('kind', kind);
+      form.append('sha256', fixture.sha256);
+      form.append('width', String(fixture.width));
+      form.append('height', String(fixture.height));
+      form.append('bytes', String(fixture.bytes.length));
+      form.append('source_format', 'png');
+      form.append('source_width', String(fixture.width));
+      form.append('source_height', String(fixture.height));
+      form.append('normalizer_version', 'storefront-brand-v1-sharp-0.34');
+      form.append('file', new Blob([fixture.bytes], { type: 'image/png' }), fixture.fileName);
+      const uploaded = await request('/api/pz/master/storefront-app-builds/brand-assets/upload', {
+        token: masterToken, body: form,
+      });
+      assertStatus(uploaded, 201, `guardar ${kind} normalizado`);
+      assert.equal(uploaded.data.asset.sha256, fixture.sha256);
+      uploadedBrandAssets[kind] = uploaded.data.asset;
+    }
+
+    const brandDetail = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: provisionStore.id },
+    });
+    const rawBrandRecords = await request('/api/collections/storefront_app_brand_assets/records?perPage=10', {
+      token: superToken,
+    });
+    assertStatus(brandDetail, 200, 'consultar recursos de marca');
+    assert.equal(brandDetail.data.brand_assets.ready, true, JSON.stringify({ state: brandDetail.data.brand_assets, records: rawBrandRecords.data }));
+    assert.equal(brandDetail.data.brand_assets.icon.id, uploadedBrandAssets.icon.id);
+    assert.equal(brandDetail.data.brand_assets.splash.id, uploadedBrandAssets.splash.id);
+
     const appBuildPreview = await request('/api/pz/master/storefront-app-builds/preview', {
       token: masterToken,
       body: {
@@ -256,6 +308,9 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(appBuildPreview, 200, 'crear vista previa de aprovisionamiento');
     assert.equal(appBuildPreview.data.job.status, 'preview');
+    assert.equal(appBuildPreview.data.job.preview.schema_version, 2);
+    assert.equal(appBuildPreview.data.job.preview.branding.assets.icon.sha256, uploadedBrandAssets.icon.sha256);
+    assert.equal(appBuildPreview.data.job.preview.branding.assets.splash.sha256, uploadedBrandAssets.splash.sha256);
 
     const storedAppBuildPreview = await request(
       `/api/collections/storefront_app_build_jobs/records/${appBuildPreview.data.job.id}`,
@@ -273,9 +328,32 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
         preview_hash: appBuildPreview.data.job.preview_hash,
       },
     });
-    assertStatus(appBuildConfirmed, 200, 'confirmar vista previa de aprovisionamiento');
+    assert.equal(appBuildConfirmed.status, 200, `confirmar vista previa de aprovisionamiento: ${appBuildConfirmed.raw}\n${runtime.output()}`);
     assert.equal(appBuildConfirmed.data.job.status, 'queued');
     assert.equal(appBuildConfirmed.data.profile.status, 'queued');
+
+    const blockedBrandReplacement = new FormData();
+    const replacementFixture = normalizedPngFixture('icon');
+    for (const [key, value] of Object.entries({
+      store_id: provisionStore.id, kind: 'icon', sha256: replacementFixture.sha256,
+      width: replacementFixture.width, height: replacementFixture.height, bytes: replacementFixture.bytes.length,
+      source_format: 'png', source_width: replacementFixture.width, source_height: replacementFixture.height,
+      normalizer_version: 'storefront-brand-v1-sharp-0.34',
+    })) blockedBrandReplacement.append(key, String(value));
+    blockedBrandReplacement.append('file', new Blob([replacementFixture.bytes], { type: 'image/png' }), replacementFixture.fileName);
+    const blockedReplacement = await request('/api/pz/master/storefront-app-builds/brand-assets/upload', {
+      token: masterToken, body: blockedBrandReplacement,
+    });
+    assertStatus(blockedReplacement, 409, 'bloquear cambio de marca con trabajo en cola');
+    assert.equal(blockedReplacement.data.error, 'active_job_exists');
+
+    const canceledProvision = await request('/api/pz/master/storefront-app-builds/cancel', {
+      token: masterToken,
+      body: { job_id: appBuildConfirmed.data.job.id, confirmation: 'CANCELAR TRABAJO' },
+    });
+    assertStatus(canceledProvision, 200, 'cancelar trabajo no reclamado');
+    assert.equal(canceledProvision.data.job.status, 'canceled');
+    assert.equal(canceledProvision.data.profile, null);
 
     const primary = await create('users', {
       email: 'principal-c10-runtime@example.test',

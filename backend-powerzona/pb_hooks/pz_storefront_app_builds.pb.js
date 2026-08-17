@@ -69,6 +69,35 @@ routerAdd(
 );
 
 routerAdd(
+  "GET",
+  "/api/pz/internal/storefront-app-builds/brand-assets/{job}/{kind}",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerBrandAssetFile(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/master/storefront-app-builds/brand-assets/upload",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleBrandAssetUpload(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(12845056),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
+  "/api/pz/master/storefront-app-builds/brand-assets/file/{asset}/{filename}",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleBrandAssetFile(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "POST",
   "/api/pz/master/storefront-app-builds/preview",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handlePreview(e),
@@ -92,6 +121,16 @@ routerAdd(
   "POST",
   "/api/pz/master/storefront-app-builds/retry",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRetry(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/master/storefront-app-builds/cancel",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleCancel(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
   $apis.requireAuth(),
   $apis.bodyLimit(2048),

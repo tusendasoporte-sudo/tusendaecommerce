@@ -37,13 +37,46 @@ export type StorefrontAppBuildProfile = {
   current_version_name: string;
   current_engine_version: string;
   current_engine_revision: string;
+  icon_asset_id: string;
+  splash_asset_id: string;
   engine_update: StorefrontEngineUpdate;
   created: string;
   updated: string;
 };
 
+export type StorefrontAppBrandAsset = {
+  id: string;
+  kind: 'icon' | 'splash';
+  file_name: string;
+  sha256: string;
+  width: number;
+  height: number;
+  bytes: number;
+  source_format: 'jpeg' | 'png' | 'webp';
+  source_width: number;
+  source_height: number;
+  normalizer_version: string;
+  status: 'active' | 'retired';
+  created: string;
+  updated: string;
+};
+
+export type StorefrontAppBrandAssets = {
+  ready: boolean;
+  normalizer_policy: {
+    input: string[];
+    icon: { width: 1024; height: 1024 };
+    splash: { width: 1080; height: 1920 };
+    fit: 'contain_without_crop';
+    metadata_removed: true;
+  };
+  palette: Record<string, string>;
+  icon: StorefrontAppBrandAsset | null;
+  splash: StorefrontAppBrandAsset | null;
+};
+
 export type StorefrontAppBuildPreview = {
-  schema_version: 1;
+  schema_version: 2;
   operation: StorefrontAppOperation;
   store: { id: string; slug: string; name: string };
   identity: { app_key: string; brand_key: string; display_name: string; package_name: string; store_url: string };
@@ -72,6 +105,10 @@ export type StorefrontAppBuildPreview = {
   };
   build: { version_code: number; version_name: string; apk: boolean; aab: boolean };
   delivery: { admin_receives: string[]; master_only: string[] };
+  branding: {
+    palette: Record<string, string>;
+    assets: { icon: StorefrontAppBrandAsset; splash: StorefrontAppBrandAsset };
+  };
   irreversible_or_sensitive_steps: string[];
   immutable_identity?: string[];
   generated_at: string;
@@ -165,6 +202,7 @@ export type MasterStoreAppBuilds = {
   store: { id: string; name: string; slug: string };
   engine_release: StorefrontEngineRelease;
   manual_whatsapp_delivery: ManualWhatsappDelivery;
+  brand_assets: StorefrontAppBrandAssets;
   profile: StorefrontAppBuildProfile | null;
   jobs: StorefrontAppBuildJob[];
   artifacts: StorefrontAppArtifact[];
@@ -417,19 +455,54 @@ function profile(value: any): StorefrontAppBuildProfile | null {
     current_version_name: text(value.current_version_name, 40),
     current_engine_version: currentEngineVersion,
     current_engine_revision: currentEngineRevision,
+    icon_asset_id: text(value.icon_asset_id, 15),
+    splash_asset_id: text(value.splash_asset_id, 15),
     engine_update: normalizedEngineUpdate,
     created: isoDate(value.created),
     updated: isoDate(value.updated),
   };
 }
 
+function brandAsset(value: any, expectedKind: 'icon' | 'splash'): StorefrontAppBrandAsset | null {
+  const expected = expectedKind === 'icon' ? { width: 1024, height: 1024 } : { width: 1080, height: 1920 };
+  if (!value || !RECORD_ID_PATTERN.test(text(value.id, 15))
+    || value.kind !== expectedKind
+    || !/^(?:icon|splash)[-_][a-f0-9]{32}(?:_[A-Za-z0-9]{6,32})?\.png$/.test(text(value.file_name, 220))
+    || !SHA256_PATTERN.test(text(value.sha256, 64).toLowerCase())
+    || integer(value.width) !== expected.width || integer(value.height) !== expected.height
+    || integer(value.bytes) < 1
+    || !['jpeg', 'png', 'webp'].includes(value.source_format)
+    || !/^[a-z0-9._-]{8,80}$/.test(text(value.normalizer_version, 80))
+    || !['active', 'retired'].includes(value.status)) return null;
+  return {
+    id: text(value.id, 15), kind: expectedKind, file_name: text(value.file_name, 220),
+    sha256: text(value.sha256, 64).toLowerCase(), width: expected.width, height: expected.height,
+    bytes: integer(value.bytes), source_format: value.source_format,
+    source_width: integer(value.source_width), source_height: integer(value.source_height),
+    normalizer_version: text(value.normalizer_version, 80), status: value.status,
+    created: isoDate(value.created), updated: isoDate(value.updated),
+  };
+}
+
+function brandAssets(value: any): StorefrontAppBrandAssets | null {
+  if (!value || !value.normalizer_policy || !value.palette) return null;
+  const icon = value.icon ? brandAsset(value.icon, 'icon') : null;
+  const splash = value.splash ? brandAsset(value.splash, 'splash') : null;
+  if ((value.icon && !icon) || (value.splash && !splash) || Boolean(value.ready) !== Boolean(icon && splash)) return null;
+  return {
+    ready: Boolean(icon && splash), normalizer_policy: value.normalizer_policy,
+    palette: value.palette, icon, splash,
+  } as StorefrontAppBrandAssets;
+}
+
 function preview(value: any): StorefrontAppBuildPreview | null {
-  if (!value || value.schema_version !== 1 || !['provision', 'update'].includes(value.operation)) return null;
+  if (!value || value.schema_version !== 2 || !['provision', 'update'].includes(value.operation)) return null;
   if (!RECORD_ID_PATTERN.test(text(value.store?.id, 15))) return null;
-  if (!value.identity || !value.engine || !value.firebase || !value.signing || !value.build || !value.delivery) return null;
+  if (!value.identity || !value.engine || !value.firebase || !value.signing || !value.build || !value.delivery || !value.branding) return null;
   if (!ENGINE_VERSION_PATTERN.test(text(value.engine.target_version, 40))
     || !ENGINE_REVISION_PATTERN.test(text(value.engine.target_revision, 40).toLowerCase())
     || value.engine.change_scope !== 'shared_native_engine') return null;
+  if (!brandAsset(value.branding.assets?.icon, 'icon') || !brandAsset(value.branding.assets?.splash, 'splash')) return null;
   return value as StorefrontAppBuildPreview;
 }
 
@@ -497,12 +570,14 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const artifacts = Array.isArray(value.artifacts) ? value.artifacts.map(artifact).filter(Boolean) as StorefrontAppArtifact[] : [];
   const normalizedEngineRelease = engineRelease(value.engine_release);
   const normalizedManualWhatsappDelivery = manualWhatsappDelivery(value.manual_whatsapp_delivery);
-  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery) return null;
+  const normalizedBrandAssets = brandAssets(value.brand_assets);
+  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets) return null;
   return {
     generated_at: isoDate(value.generated_at),
     store: { id: text(value.store.id, 15), name: text(value.store.name, 140), slug: text(value.store.slug, 80) },
     engine_release: normalizedEngineRelease,
     manual_whatsapp_delivery: normalizedManualWhatsappDelivery,
+    brand_assets: normalizedBrandAssets,
     profile: normalizedProfile,
     jobs,
     artifacts,
@@ -621,6 +696,15 @@ export function getMasterAppBuildErrorMessage(error: string) {
     preview_mismatch: 'La vista previa cambió o no coincide con la confirmación.',
     preview_not_confirmable: 'Esta vista previa ya no se puede confirmar.',
     active_job_exists: 'Ya existe un trabajo confirmado o en ejecución para esta tienda.',
+    brand_assets_required: 'Carga y revisa el icono y el splash antes de crear la vista previa.',
+    brand_assets_changed: 'El icono o el splash cambiaron. Crea y revisa una nueva vista previa.',
+    brand_asset_invalid: 'El archivo normalizado no cumple el contrato seguro de la app.',
+    brand_asset_input_too_large: 'La imagen supera el máximo permitido de 12 MB.',
+    brand_asset_dimensions_too_large: 'La imagen supera el máximo de 8000 px o 40 megapíxeles.',
+    brand_asset_animated_unsupported: 'Usa una imagen JPG, PNG o WebP no animada.',
+    brand_asset_corrupt: 'La imagen no se pudo leer o está dañada.',
+    brand_asset_busy: 'Ya hay varias imágenes convirtiéndose. Espera un momento.',
+    job_not_cancelable: 'El trabajo ya fue reclamado por el runner y no puede cancelarse desde el panel.',
     job_not_retryable: 'Este trabajo ya no admite reanudación.',
     profile_not_provisioned: 'La app todavía no está aprovisionada; no puede generar una actualización.',
     master_whatsapp_required: 'Configura primero el número oficial de WhatsApp del Master con código de país.',
@@ -700,6 +784,18 @@ export function retryMasterStoreAppBuild(
     const normalizedJob = job(value.job);
     const normalizedProfile = profile(value.profile);
     return normalizedJob && normalizedProfile ? { job: normalizedJob, profile: normalizedProfile } : null;
+  });
+}
+
+export function cancelMasterStoreAppBuild(
+  pocketbaseUrl: string,
+  token: string,
+  input: { job_id: string; confirmation: 'CANCELAR TRABAJO' },
+) {
+  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/cancel', input, (value) => {
+    if (value?.ok !== true) return null;
+    const normalizedJob = job(value.job);
+    return normalizedJob?.status === 'canceled' ? { job: normalizedJob } : null;
   });
 }
 

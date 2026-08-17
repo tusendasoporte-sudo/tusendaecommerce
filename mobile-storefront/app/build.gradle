@@ -14,7 +14,7 @@ if (!storeConfigFile.exists()) {
     throw new GradleException("Falta la configuracion storefront ${requestedConfigKey}.")
 }
 def storeProperties = new Properties()
-storeConfigFile.withInputStream { stream -> storeProperties.load(stream) }
+storeConfigFile.withReader('UTF-8') { reader -> storeProperties.load(reader) }
 
 def configuredValue = { String projectProperty, String configProperty ->
     (project.findProperty(projectProperty) ?: storeProperties.getProperty(configProperty) ?: '')
@@ -22,7 +22,8 @@ def configuredValue = { String projectProperty, String configProperty ->
 }
 
 def brandKey = configuredValue('PZ_STOREFRONT_BRAND_KEY', 'brand.key')
-def brandConfigFile = rootProject.file("brands/${brandKey}/brand.json")
+def externalBrandConfigPath = System.getenv('PZ_STOREFRONT_BRAND_CONFIG_FILE')?.trim()
+def brandConfigFile = externalBrandConfigPath ? new File(externalBrandConfigPath) : rootProject.file("brands/${brandKey}/brand.json")
 if (!brandConfigFile.exists()) {
     throw new GradleException("Falta brands/${brandKey}/brand.json para la variante configurada.")
 }
@@ -52,6 +53,19 @@ def validateBrandAsset = { String key ->
     def extension = file.name.tokenize('.').last().toLowerCase()
     if (!['png', 'webp', 'xml'].contains(extension)) {
         throw new GradleException("El recurso ${key} debe ser PNG, WebP o XML vectorial.")
+    }
+    if (externalBrandConfigPath) {
+        def expectedWidth = key == 'icon' ? 1024 : 1080
+        def expectedHeight = key == 'icon' ? 1024 : 1920
+        def decoded = javax.imageio.ImageIO.read(file)
+        if (extension != 'png'
+                || !(file.name ==~ /${key}[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png/)
+                || decoded == null || decoded.width != expectedWidth || decoded.height != expectedHeight
+                || (entry.width as Integer) != expectedWidth || (entry.height as Integer) != expectedHeight
+                || (entry.bytes as Long) != file.length()
+                || !(entry.normalizer_version?.toString() ==~ /[a-z0-9._-]{8,80}/)) {
+            throw new GradleException("El recurso normalizado ${key} no cumple el contrato aprobado.")
+        }
     }
 }
 
@@ -176,14 +190,16 @@ if (configDirectory.exists()) {
     def seenApplicationIds = [:]
     configDirectory.listFiles({ file -> file.name.endsWith('.properties') } as FileFilter)?.sort()?.each { file ->
         def candidate = new Properties()
-        file.withInputStream { stream -> candidate.load(stream) }
+        file.withReader('UTF-8') { reader -> candidate.load(reader) }
         def applicationId = candidate.getProperty('application.id')?.trim()
         if (applicationId && seenApplicationIds.containsKey(applicationId)) {
             throw new GradleException("application.id duplicado en ${seenApplicationIds[applicationId]} y ${file.name}.")
         }
         if (applicationId) seenApplicationIds[applicationId] = file.name
     }
-    if (externalConfigPath && seenApplicationIds.containsKey(configuredApplicationId)) {
+    if (externalConfigPath
+            && seenApplicationIds.containsKey(configuredApplicationId)
+            && seenApplicationIds[configuredApplicationId] != "${requestedConfigKey}.properties") {
         throw new GradleException("application.id externo duplica ${seenApplicationIds[configuredApplicationId]}.")
     }
 }

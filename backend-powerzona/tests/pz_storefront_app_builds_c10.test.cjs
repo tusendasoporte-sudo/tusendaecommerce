@@ -31,6 +31,24 @@ const provisionPayload = () => ({
   version_name: '1.0.0',
 });
 
+const branding = () => ({
+  palette: { deep_sapphire: '#2D185E', pearl_white: '#FFFFFF' },
+  assets: {
+    icon: {
+      id: 'asseticonc10t01', kind: 'icon', file_name: `icon-${'a'.repeat(32)}.png`,
+      sha256: 'b'.repeat(64), width: 1024, height: 1024, bytes: 2048,
+      source_format: 'png', source_width: 800, source_height: 800,
+      normalizer_version: 'storefront-brand-v1-sharp-0.34', status: 'active',
+    },
+    splash: {
+      id: 'assetsplashc101', kind: 'splash', file_name: `splash-${'c'.repeat(32)}.png`,
+      sha256: 'd'.repeat(64), width: 1080, height: 1920, bytes: 4096,
+      source_format: 'jpeg', source_width: 1200, source_height: 2000,
+      normalizer_version: 'storefront-brand-v1-sharp-0.34', status: 'active',
+    },
+  },
+});
+
 test('separa y valida estrictamente aprovisionamiento de actualización', () => {
   assert.deepEqual(builds.parsePreviewPayload(provisionPayload()), {
     operation: 'provision',
@@ -62,7 +80,7 @@ test('separa y valida estrictamente aprovisionamiento de actualización', () => 
 test('preview tenant crea solo APK y enumera efectos sensibles sin incluir secretos', () => {
   const store = record(STORE_ID, { slug: 'tenant-c10', name: 'Tenant C10' });
   const parsed = builds.parsePreviewPayload(provisionPayload());
-  const preview = builds.buildPreview(store, parsed, null, new Date('2026-08-16T20:00:00.000Z'));
+  const preview = builds.buildPreview(store, parsed, null, new Date('2026-08-16T20:00:00.000Z'), branding());
   assert.equal(preview.build.apk, true);
   assert.equal(preview.build.aab, false);
   assert.equal(preview.firebase.create_project, true);
@@ -71,6 +89,8 @@ test('preview tenant crea solo APK y enumera efectos sensibles sin incluir secre
   assert.equal(preview.engine.target_version, builds.engineRelease().version);
   assert.equal(preview.engine.change_scope, 'shared_native_engine');
   assert.equal(preview.engine.update_available, false);
+  assert.equal(preview.schema_version, 2);
+  assert.equal(preview.branding.assets.icon.width, 1024);
   assert.deepEqual(preview.delivery.admin_receives, ['apk', 'checksums', 'instructions']);
   assert.equal(JSON.stringify(preview).match(/password|service_account|private_key|keystore/i), null);
 });
@@ -91,7 +111,7 @@ test('preview PowerZona conserva APK+AAB y puede adoptar app config existente', 
     version_name: '0.2.8',
   });
   parsed.existingAppConfigId = 'appconfigc10a01';
-  const preview = builds.buildPreview(store, parsed, null, new Date('2026-08-16T20:00:00.000Z'));
+  const preview = builds.buildPreview(store, parsed, null, new Date('2026-08-16T20:00:00.000Z'), branding());
   assert.equal(preview.build.aab, true);
   assert.equal(preview.firebase.create_project, false);
   assert.equal(preview.firebase.register_android_app, false);
@@ -113,10 +133,10 @@ test('actualización bloquea identidad, reutiliza firma y exige incrementar vers
   });
   assert.throws(() => builds.buildPreview(store, {
     operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 3, versionName: '1.0.3',
-  }, profile), /version_code_must_increase/);
+  }, profile, undefined, branding()), /version_code_must_increase/);
   const preview = builds.buildPreview(store, {
     operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 4, versionName: '1.0.3',
-  }, profile, new Date('2026-08-16T20:00:00.000Z'));
+  }, profile, new Date('2026-08-16T20:00:00.000Z'), branding());
   assert.equal(preview.firebase.create_project, false);
   assert.equal(preview.signing.create_app_signing_key, false);
   assert.ok(preview.immutable_identity.includes('package_name'));
@@ -316,8 +336,12 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/whatsapp\/settings/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/whatsapp\/preview/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/whatsapp\/marked-sent/);
+  assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/brand-assets\/upload/);
+  assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/brand-assets\/file/);
+  assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/cancel/);
   assert.match(routes, /\$apis\.requireAuth\(\)/);
   assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/claim/);
+  assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/brand-assets/);
   assert.match(routes, /requireRunner/);
   assert.match(routes, /bodyLimit\(65536\)/);
   assert.doesNotMatch(routes, /service.account|private.key|keystore/i);
