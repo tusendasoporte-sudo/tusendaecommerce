@@ -471,11 +471,12 @@ test('detalle pagina diez instalaciones activas y solo expone referencias admini
   assert.equal(first.total_pages, 2);
   assert.equal(first.items.length, 10);
   assert.deepEqual(Object.keys(first.items[0]).sort(), [
-    'android_version', 'app_identifier', 'app_version', 'device_model', 'installation_code', 'package_name',
+    'android_version', 'app_version', 'device_model', 'installation_code',
   ]);
-  assert.equal(first.items[0].app_identifier, 'powerzona-storefront-staging');
-  assert.equal(first.items[0].package_name, 'com.tusenda84.powerzona');
-  assert.doesNotMatch(JSON.stringify(first), /fid_digest|app_set_digest|credential|firebase_app_id/);
+  assert.doesNotMatch(
+    JSON.stringify(first),
+    /fid_digest|app_set_digest|credential|firebase_app_id|app_identifier|package_name/,
+  );
   const second = analytics.buildInstallationDetails(
     app,
     { storeId: STORE },

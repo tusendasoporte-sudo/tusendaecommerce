@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C09 EN CURSO — implementación local autorizada; sin despliegues ni servicios externos |
-| Versión del documento | 1.29 |
+| Estado general | PZ-APP-C09 COMPLETADO — C10 permanece PENDIENTE |
+| Versión del documento | 1.30 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-15 |
+| Última actualización | 2026-08-16 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Implementar y verificar exclusivamente PZ-APP-C09 sobre el respaldo `f1fd3c9`; no iniciar C10 |
+| Próximo prompt | Conversar y acordar exclusivamente PZ-APP-C10 antes de autorizar su implementación |
 
 ### Convención de estados
 
@@ -567,7 +567,7 @@ Estado vigente:
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | COMPLETADO | C01, C03, C06A | Completada en emulador; registro/FID real heredado de C03/C06A en Fold5 | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | COMPLETADO | C04, C05 | Completada parcialmente en staging; pendientes humanos transferidos a C11 | Sol — High |
-| PZ-APP-C09 | Analítica de instalaciones y campañas | EN CURSO | C03, C05, C07, C08 | Sí: contraste del embudo | Sol — Extra High |
+| PZ-APP-C09 | Analítica de instalaciones y campañas | COMPLETADO | C03, C05, C07, C08 | Completada: embudo, atribución, aislamiento y auditoría Master en staging | Sol — Extra High |
 | PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
@@ -782,7 +782,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] Borradores y campañas programadas pueden administrarse.
 - [x] La interfaz funciona en móvil y escritorio.
 
-### [ ] PZ-APP-C09 — Analítica de instalaciones y campañas
+### [x] PZ-APP-C09 — Analítica de instalaciones y campañas
 
 **Objetivo:** medir instalaciones, salud de FID y resultados reales de campañas sin exagerar la precisión.
 
@@ -814,20 +814,20 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] Los conteos distinguen instalaciones de personas.
-- [ ] Los eventos repetidos no inflan métricas.
-- [ ] El administrador solo ve su tienda.
-- [ ] El Master puede auditar seguridad sin exponer datos innecesarios.
-- [ ] Las etiquetas explican límites de medición.
-- [ ] El volumen de eventos tiene estrategia de retención/agregación.
-- [ ] El embudo usa exactamente los denominadores acordados y muestra `No aplica` cuando corresponde.
-- [ ] Apertura, destino, cupón y orden se autentican y atribuyen con las ventanas aprobadas.
-- [ ] La sesión de instalación llega de Android a WebView y de WebView al checkout sin aceptar identidad del cliente.
-- [ ] El contenido vence a siete días sin destruir evidencia todavía necesaria para los plazos de 90 días u órdenes.
-- [ ] `Analíticas` ofrece el rango de 90 días, la pestaña `App instalaciones` y un detalle agregado accesible desde `Ver más`.
-- [ ] Las bajas se presentan como `Bajas detectadas`, nunca como desinstalaciones exactas.
-- [ ] `Campañas push` es una entrada independiente debajo de `Promos` con acceso y puerta Premium coherentes.
-- [ ] Las pruebas locales proporcionales pasan sin usar FCM real ni modificar staging o producción.
+- [x] Los conteos distinguen instalaciones de personas.
+- [x] Los eventos repetidos no inflan métricas.
+- [x] El administrador solo ve su tienda.
+- [x] El Master puede auditar seguridad sin exponer datos innecesarios.
+- [x] Las etiquetas explican límites de medición.
+- [x] El volumen de eventos tiene estrategia de retención/agregación.
+- [x] El embudo usa exactamente los denominadores acordados y muestra `No aplica` cuando corresponde.
+- [x] Apertura, destino, cupón y orden se autentican y atribuyen con las ventanas aprobadas.
+- [x] La sesión de instalación llega de Android a WebView y de WebView al checkout sin aceptar identidad del cliente.
+- [x] El contenido vence a siete días sin destruir evidencia todavía necesaria para los plazos de 90 días u órdenes.
+- [x] `Analíticas` ofrece el rango de 90 días, la pestaña `App instalaciones` y un detalle agregado accesible desde `Ver más`.
+- [x] Las bajas se presentan como `Bajas detectadas`, nunca como desinstalaciones exactas.
+- [x] `Campañas push` es una entrada independiente debajo de `Promos` con acceso y puerta Premium coherentes.
+- [x] Las pruebas locales proporcionales pasan sin usar FCM real ni modificar staging o producción.
 
 ### [ ] PZ-APP-C10 — Generador reproducible APK/AAB por tienda
 
@@ -2090,15 +2090,15 @@ El 2026-08-15 el propietario decidió cerrar C08 con la evidencia funcional, aut
 
 ### 2026-08-15 — PZ-APP-C09 — Analítica de instalaciones y campañas
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex / propietario de Tu Senda 84
-- Entorno: local
-- Branch: `HEAD` separado en el worktree de la tarea
+- Entorno: local y staging
+- Branch: `dev`
 - Commit de respaldo previo: `f1fd3c9`
 - Fecha de inicio: 2026-08-15
-- Fecha de cierre: pendiente
+- Fecha de cierre: 2026-08-16
 
-#### Objetivo en ejecución
+#### Objetivo completado
 
 Implementar el contrato de analítica aprobado para instalaciones, campañas y atribución, preservando los comportamientos operativos de C03, C05, C07 y C08. Toda modificación necesaria sobre una pieza ya funcional se anunciará y quedará cubierta por pruebas de regresión.
 
@@ -2109,7 +2109,7 @@ Implementar el contrato de analítica aprobado para instalaciones, campañas y a
 - Rango general de 90 días, pestaña `App instalaciones`, detalle agregado y navegación independiente de `Campañas push` bajo `Promos`.
 - Pruebas locales automáticas y preparación de prueba manual aislada.
 
-#### Límites vigentes
+#### Límites iniciales
 
 - No desplegar ni modificar staging o producción.
 - No enviar FCM ni generar eventos externos reales.
@@ -2150,8 +2150,21 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 
 #### Despliegue
 
-- No autorizado ni realizado.
+- Con autorizaciones expresas posteriores, frontend y PocketBase de staging se desplegaron mediante el auto despliegue de Coolify; producción permaneció fuera de alcance.
+- La prueba manual usó la APK staging `0.2.8-staging` en teléfono físico y emulador. No se modificaron Firebase, App Check, firmas, secretos ni `google-services.json`.
+
+#### Evidencia final de cierre
+
+- Los cinco periodos `Hoy`, `7`, `15`, `30` y `90 días` funcionaron; instalaciones vigentes, nuevas y bajas detectadas coincidieron con las pruebas controladas.
+- El embudo controlado distinguió seleccionadas, aceptadas por Firebase, aperturas y destino visto. La corrección de `destination_viewed` fue validada en teléfono físico sin inflar resultados al actualizar.
+- El cupón aplicado, la orden atribuida, la instalación compradora y la separación vigente/cancelada quedaron verificados; cancelar conservó la evidencia histórica.
+- Una compra web orgánica con el mismo cupón, sin apertura autenticada de la notificación, no se atribuyó falsamente a la campaña.
+- La segunda tienda no mostró actividad de PowerZona. Plan Básico mostró la puerta Premium y PowerZona Premium conservó acceso; `Campañas push` quedó independiente debajo de `Promos`.
+- La lectura en modo soporte Master creó la auditoría `Analítica agregada de la app` con el rango consultado y sin FID, token, credencial, URL, payload ni identificadores de instalación.
+- La carga JPG/PNG/WebP y la vista previa sin recorte quedaron aprobadas. La URL de cupón conservó el prefijo canónico de la tienda.
+- La validación final de retención, privacidad, migraciones y atribución aprobó 23/23 pruebas focales. La expectativa obsoleta del detalle se corrigió sin cambiar backend, panel ni app.
+- El propietario confirmó expresamente los resultados esperados y autorizó marcar C09 como `COMPLETADO`.
 
 #### Siguiente paso
 
-- Revisar el commit local de implementación y, solo con autorización expresa separada, ejecutar la prueba manual aislada de C09 en staging. Mantener C09 `EN CURSO` y C10 `PENDIENTE` hasta entonces.
+- C09 queda `COMPLETADO`. C10 permanece `PENDIENTE` y no se iniciará sin una conversación y autorización nuevas.
