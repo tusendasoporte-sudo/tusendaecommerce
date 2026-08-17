@@ -1,7 +1,7 @@
 ---
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
-import type { MasterStoreAppBuilds } from '../../lib/masterStoreAppBuilds';
+import { proposeFirebaseProjectId, type MasterStoreAppBuilds } from '../../lib/masterStoreAppBuilds';
 import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
@@ -16,6 +16,9 @@ const currentActionJob = jobs.find((job) => job.status === 'preview' && new Date
   || null;
 const retryMode = currentActionJob ? ['failed', 'needs_attention'].includes(currentActionJob.status) : false;
 const isPowerZona = store.slug === 'powerzona';
+const proposedFirebaseProjectId = isPowerZona
+  ? 'tu-senda-84-storefront-staging'
+  : proposeFirebaseProjectId(store.name, store.id);
 const engineUpdate = profile?.engine_update || null;
 const engineNeedsUpdate = engineUpdate?.available === true;
 const engineSeverityLabel = engineUpdate?.severity === 'critical'
@@ -114,7 +117,11 @@ function dateTime(value: string) {
           <div class="master-field"><label for="app-key">App key</label><input id="app-key" name="app_key" required value={isPowerZona ? 'powerzona-storefront-staging' : `${store.slug}-storefront`} /></div>
           <div class="master-field"><label for="app-package">Paquete Android exclusivo</label><input id="app-package" name="package_name" required value={`com.tusenda84.${store.slug.replaceAll('-', '')}`} /></div>
           <div class="master-field master-field--full"><label for="app-store-url">URL pública</label><input id="app-store-url" name="store_url" type="url" required value={`https://tusenda84.com/t/${store.slug}`} /></div>
-          <div class="master-field master-field--full"><label for="app-firebase-project">ID propuesto del proyecto Firebase exclusivo</label><input id="app-firebase-project" name="firebase_project_id" maxlength="30" required value={isPowerZona ? 'tu-senda-84-storefront-staging' : ''} placeholder={`tusenda84-${store.slug}-app`} /></div>
+          <div class="master-field master-field--full">
+            <label for="app-firebase-project">ID propuesto del proyecto Firebase exclusivo</label>
+            <input id="app-firebase-project" name="firebase_project_id" minlength="6" maxlength="30" pattern={'[a-z][a-z0-9\\-]{4,28}[a-z0-9]'} required value={proposedFirebaseProjectId} aria-describedby="app-firebase-project-help" />
+            <small id="app-firebase-project-help">Generado desde el nombre de la tienda y un sufijo estable. Puedes editarlo antes de crear la vista previa; Firebase todavía no se crea.</small>
+          </div>
           <div class="master-field"><label for="app-version-code">versionCode inicial</label><input id="app-version-code" name="version_code" type="number" min="1" max="2147483647" required value={isPowerZona ? 10 : 1} /></div>
           <div class="master-field"><label for="app-version-name">versionName inicial</label><input id="app-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} value={isPowerZona ? '0.2.8' : '1.0.0'} /></div>
         </div>

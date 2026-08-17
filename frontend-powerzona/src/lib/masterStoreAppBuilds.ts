@@ -229,6 +229,25 @@ const VERSION_NAME_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const WHATSAPP_NUMBER_PATTERN = /^$|^[1-9][0-9]{7,14}$/;
 const REQUEST_TIMEOUT_MS = 12000;
 
+export function proposeFirebaseProjectId(storeName: string, storeId: string) {
+  const suffix = String(storeId || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(-8) || 'tienda84';
+  const normalizedName = String(storeName || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/google|ssl|undefined|null/g, 'tienda');
+  const availableNameLength = 30 - 'ts84--'.length - suffix.length;
+  const nameSegment = (normalizedName || 'tienda')
+    .slice(0, availableNameLength)
+    .replace(/-+$/g, '') || 'tienda';
+  return `ts84-${nameSegment}-${suffix}`;
+}
+
 function text(value: unknown, max: number) {
   return String(value || '').trim().slice(0, max);
 }

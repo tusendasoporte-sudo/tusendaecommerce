@@ -2255,3 +2255,11 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Se corrigieron los patrones HTML de clave de marca y versionName para la sintaxis Unicode moderna de los navegadores. Valores inválidos quedan bloqueados antes de llamar al backend.
 - Las pruebas focales C10 y navegación aprobaron 33/33 casos y el build Astro completó. La prueba interactiva aprobó creación de preview, cierre con confirmación marcada, restauración tras recarga, orden de navegación y diseño sin desbordamiento en 1440×900 y 390×844, sin errores de consola.
 - No se confirmó ni ejecutó el trabajo, no se usó el runner, Firebase, firmas, despliegues o WhatsApp. C10 permanece `EN CURSO`.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: propuesta automática del proyecto Firebase
+
+- Durante la prueba manual se acordó que el ID propuesto del proyecto Firebase no quede vacío para una tienda nueva: el panel lo genera reproduciblemente a partir del nombre de la tienda y un sufijo estable derivado de su identidad interna.
+- La propuesta cumple localmente el formato técnico de Google Cloud —minúsculas, números y guiones, entre 6 y 30 caracteres, inicio con letra y final alfanumérico—, elimina acentos y evita cadenas reservadas conocidas. El sufijo reduce colisiones, pero no afirma disponibilidad global.
+- El Master puede editar la propuesta antes de crear la vista previa. La propuesta local no consulta, reserva ni crea recursos Firebase; cualquier comprobación externa continúa separada y requiere la autorización prevista.
+- PowerZona conserva su proyecto Firebase compatible ya definido. Tras el aprovisionamiento, el perfil guarda el ID real y las actualizaciones lo reutilizan como identidad inmutable, sin regenerarlo desde el nombre de la tienda.
+- C10 continúa `EN CURSO` y la prueba manual de vista previa debe repetirse después de publicar esta corrección en dev.

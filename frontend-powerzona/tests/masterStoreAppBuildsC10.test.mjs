@@ -7,8 +7,20 @@ import {
   getMasterStoreAppEngineUpdates,
   markMasterStoreAppWhatsappSent,
   previewMasterStoreAppWhatsappDelivery,
+  proposeFirebaseProjectId,
   saveMasterWhatsappSettings,
 } from '../src/lib/masterStoreAppBuilds.ts';
+
+test('propone un ID Firebase reproducible desde el nombre y la identidad estable de la tienda', () => {
+  const storeId = 'storec10test001';
+  const proposal = proposeFirebaseProjectId('Ferretería El Sol', storeId);
+  assert.equal(proposal, 'ts84-ferreteria-el-so-0test001');
+  assert.equal(proposeFirebaseProjectId('Ferretería El Sol', storeId), proposal);
+  assert.notEqual(proposeFirebaseProjectId('Ferretería El Sol', 'storec10test002'), proposal);
+  assert.match(proposal, /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/);
+  assert.equal(proposal.length <= 30, true);
+  assert.doesNotMatch(proposeFirebaseProjectId('Google SSL', storeId), /google|ssl/);
+});
 
 test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos', () => {
   const page = readFileSync(new URL('../src/pages/master/stores/[storeId]/app.astro', import.meta.url), 'utf8');
@@ -159,6 +171,9 @@ test('UX separa primer aprovisionamiento de actualización y exige confirmación
   assert.match(view, /data-app-confirm-check/);
   assert.match(view, /Vista previa pendiente de confirmación/);
   assert.match(view, /storeSlug === 'powerzona' \? 'play_and_direct' : 'direct'/);
+  assert.match(view, /proposeFirebaseProjectId\(store\.name, store\.id\)/);
+  assert.match(view, /value=\{proposedFirebaseProjectId\}/);
+  assert.match(view, /Generado desde el nombre de la tienda y un sufijo estable/);
 });
 
 test('resumen Master muestra inventario visual de motores pendientes', () => {
