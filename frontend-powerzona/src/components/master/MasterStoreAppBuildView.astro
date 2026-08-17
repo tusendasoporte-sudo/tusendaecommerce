@@ -110,13 +110,13 @@ function dateTime(value: string) {
       <form class="master-card-body master-form" data-app-provision-form>
         <div class="master-field-grid">
           <div class="master-field"><label for="app-display-name">Nombre visible</label><input id="app-display-name" name="display_name" maxlength="60" required value={isPowerZona ? 'PowerZona' : store.name} /></div>
-          <div class="master-field"><label for="app-brand-key">Clave de marca</label><input id="app-brand-key" name="brand_key" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" required value={store.slug} /></div>
+          <div class="master-field"><label for="app-brand-key">Clave de marca</label><input id="app-brand-key" name="brand_key" pattern={'[a-z0-9][a-z0-9\\-]{1,62}[a-z0-9]'} required value={store.slug} /></div>
           <div class="master-field"><label for="app-key">App key</label><input id="app-key" name="app_key" required value={isPowerZona ? 'powerzona-storefront-staging' : `${store.slug}-storefront`} /></div>
           <div class="master-field"><label for="app-package">Paquete Android exclusivo</label><input id="app-package" name="package_name" required value={`com.tusenda84.${store.slug.replaceAll('-', '')}`} /></div>
           <div class="master-field master-field--full"><label for="app-store-url">URL pública</label><input id="app-store-url" name="store_url" type="url" required value={`https://tusenda84.com/t/${store.slug}`} /></div>
           <div class="master-field master-field--full"><label for="app-firebase-project">ID propuesto del proyecto Firebase exclusivo</label><input id="app-firebase-project" name="firebase_project_id" maxlength="30" required value={isPowerZona ? 'tu-senda-84-storefront-staging' : ''} placeholder={`tusenda84-${store.slug}-app`} /></div>
           <div class="master-field"><label for="app-version-code">versionCode inicial</label><input id="app-version-code" name="version_code" type="number" min="1" max="2147483647" required value={isPowerZona ? 10 : 1} /></div>
-          <div class="master-field"><label for="app-version-name">versionName inicial</label><input id="app-version-name" name="version_name" required pattern="[0-9]+\.[0-9]+\.[0-9]+" value={isPowerZona ? '0.2.8' : '1.0.0'} /></div>
+          <div class="master-field"><label for="app-version-name">versionName inicial</label><input id="app-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} value={isPowerZona ? '0.2.8' : '1.0.0'} /></div>
         </div>
         <div class="master-app-build-fixed-policy">
           <span>Canal autorizado</span>
@@ -138,7 +138,7 @@ function dateTime(value: string) {
       <form class="master-card-body master-form" data-app-update-form>
         <div class="master-field-grid">
           <div class="master-field"><label for="update-version-code">Nuevo versionCode</label><input id="update-version-code" name="version_code" type="number" min={profile.current_version_code + 1} max="2147483647" required value={profile.current_version_code + 1} /></div>
-          <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern="[0-9]+\.[0-9]+\.[0-9]+" placeholder="1.0.1" /></div>
+          <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" /></div>
         </div>
         <p class="master-form-alert" data-app-form-alert hidden></p>
         <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit"><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
@@ -146,8 +146,16 @@ function dateTime(value: string) {
     </section>
   )}
 
-  <section class="master-card master-app-build-preview" data-app-preview-card hidden={!currentActionJob}>
-    <header class="master-card-header"><div><h2 class="master-card-title">{retryMode ? 'Reanudar trabajo con la misma vista previa' : 'Vista previa pendiente de confirmación'}</h2><p class="master-card-subtitle">Verifica cada efecto antes de enviarlo al runner.</p></div><span class="master-pill master-pill--warning">{retryMode ? 'Requiere atención' : 'No ejecutado'}</span></header>
+  <section class="master-card master-app-build-preview" id="vista-previa-app" data-app-preview-card hidden={!currentActionJob}>
+    <header class="master-card-header">
+      <div><h2 class="master-card-title">{retryMode ? 'Reanudar trabajo con la misma vista previa' : 'Vista previa pendiente de confirmación'}</h2><p class="master-card-subtitle">Verifica cada efecto antes de enviarlo al runner.</p></div>
+      <div class="master-app-build-preview__header-actions">
+        <span class="master-pill master-pill--warning">{retryMode ? 'Requiere atención' : 'No ejecutado'}</span>
+        <button class="master-btn master-btn--secondary" type="button" data-app-preview-close aria-controls="vista-previa-app">
+          <MasterIcon name="close" size={18} /> Cerrar vista previa
+        </button>
+      </div>
+    </header>
     <div class="master-card-body">
       <pre data-app-preview-json>{currentActionJob?.preview ? JSON.stringify(currentActionJob.preview, null, 2) : ''}</pre>
       <p class="master-app-build-hash">SHA-256 de la vista previa: <code data-app-preview-hash>{currentActionJob?.preview_hash || ''}</code></p>
@@ -171,29 +179,18 @@ function dateTime(value: string) {
         <span>No se guardan sesiones, códigos QR ni credenciales. El APK debe adjuntarse manualmente después de abrir el chat.</span>
       </div>
 
-      <div class="master-app-whatsapp__contacts">
-        <form class="master-app-whatsapp__contact" data-app-whatsapp-settings-form>
+      {!manualDelivery.sender.configured && (
+        <div class="master-app-whatsapp__global-warning" role="alert">
+          <MasterIcon name="alert" size={20} />
           <div>
-            <span>Remitente</span>
-            <strong>{manualDelivery.sender.display_name || 'Master Admin'}</strong>
-            <small>Número oficial del Master con código de país.</small>
+            <strong>Falta el número global del Master</strong>
+            <span>Configúralo una sola vez en la sección Master para habilitar las entregas de todas las tiendas.</span>
           </div>
-          <div class="master-app-whatsapp__phone-form">
-            <input
-              name="whatsapp_number"
-              type="tel"
-              inputmode="tel"
-              maxlength="24"
-              required
-              value={manualDelivery.sender.whatsapp_number ? `+${manualDelivery.sender.whatsapp_number}` : ''}
-              placeholder="+53 5 123 4567"
-              aria-label="Número oficial de WhatsApp del Master"
-            />
-            <button class="master-btn" type="submit"><MasterIcon name="save" size={17} /> Guardar número</button>
-          </div>
-          <p class="master-form-alert" data-app-whatsapp-settings-alert hidden></p>
-        </form>
+          <a class="master-btn" href="/master/settings#whatsapp-master">Configurar en Master</a>
+        </div>
+      )}
 
+      <div class="master-app-whatsapp__contacts">
         <article class="master-app-whatsapp__contact">
           <div>
             <span>Destinatario</span>
@@ -251,7 +248,7 @@ function dateTime(value: string) {
         <textarea rows="15" readonly data-app-whatsapp-message aria-label="Vista previa del mensaje de WhatsApp"></textarea>
         <p data-app-whatsapp-sender-warning></p>
         <label class="master-app-build-confirm">
-          <input type="checkbox" data-app-whatsapp-account-check /> Confirmo que la sesión abierta de WhatsApp corresponde al número oficial indicado arriba.
+          <input type="checkbox" data-app-whatsapp-account-check /> Confirmo que la sesión abierta de WhatsApp corresponde al número oficial configurado en la sección Master.
         </label>
         <div class="master-app-whatsapp__preview-actions">
           <button class="master-btn master-btn--primary" type="button" data-app-whatsapp-open disabled><MasterIcon name="external" size={18} /> Abrir WhatsApp</button>
@@ -294,7 +291,6 @@ function dateTime(value: string) {
     previewMasterStoreAppBuild,
     previewMasterStoreAppWhatsappDelivery,
     retryMasterStoreAppBuild,
-    saveMasterStoreAppWhatsappSettings,
   } from '../../lib/masterStoreAppBuilds';
 
   function initializeStoreAppBuildPanel() {
@@ -310,11 +306,11 @@ function dateTime(value: string) {
     const previewCard = root.querySelector<HTMLElement>('[data-app-preview-card]');
     const previewJson = root.querySelector<HTMLElement>('[data-app-preview-json]');
     const previewHash = root.querySelector<HTMLElement>('[data-app-preview-hash]');
+    const previewCloseButton = root.querySelector<HTMLButtonElement>('[data-app-preview-close]');
+    const previewSourceButton = root.querySelector<HTMLButtonElement>('[data-app-update-form] button[type="submit"], [data-app-provision-form] button[type="submit"]');
     const confirmCheck = root.querySelector<HTMLInputElement>('[data-app-confirm-check]');
     const confirmButton = root.querySelector<HTMLButtonElement>('[data-app-confirm]');
     const confirmAlert = root.querySelector<HTMLElement>('[data-app-confirm-alert]');
-    const whatsappSettingsForm = root.querySelector<HTMLFormElement>('[data-app-whatsapp-settings-form]');
-    const whatsappSettingsAlert = root.querySelector<HTMLElement>('[data-app-whatsapp-settings-alert]');
     const whatsappAlert = root.querySelector<HTMLElement>('[data-app-whatsapp-alert]');
     const whatsappPreviewButton = root.querySelector<HTMLButtonElement>('[data-app-whatsapp-preview]');
     const whatsappPreviewCard = root.querySelector<HTMLElement>('[data-app-whatsapp-preview-card]');
@@ -389,6 +385,15 @@ function dateTime(value: string) {
     confirmCheck?.addEventListener('change', () => {
       if (confirmButton) confirmButton.disabled = confirmCheck.checked !== true;
     });
+    previewCloseButton?.addEventListener('click', () => {
+      if (!previewCard) return;
+      previewCard.hidden = true;
+      if (confirmCheck) confirmCheck.checked = false;
+      if (confirmButton) confirmButton.disabled = true;
+      setAlert(confirmAlert);
+      previewSourceButton?.focus({ preventScroll: true });
+      previewSourceButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     confirmButton?.addEventListener('click', async () => {
       if (!confirmCheck?.checked || !previewHash?.textContent || !confirmButton.dataset.jobId) return;
       confirmButton.disabled = true;
@@ -402,25 +407,6 @@ function dateTime(value: string) {
       else {
         setAlert(confirmAlert, getMasterAppBuildErrorMessage(result.error));
         confirmButton.disabled = false;
-      }
-    });
-
-    whatsappSettingsForm?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (!whatsappSettingsForm.reportValidity()) return;
-      const button = whatsappSettingsForm.querySelector<HTMLButtonElement>('button[type="submit"]');
-      const values = new FormData(whatsappSettingsForm);
-      setAlert(whatsappSettingsAlert);
-      if (button) button.disabled = true;
-      const result = await saveMasterStoreAppWhatsappSettings(
-        import.meta.env.PUBLIC_POCKETBASE_URL,
-        pb.authStore.token,
-        String(values.get('whatsapp_number') || ''),
-      );
-      if (result.data) window.location.reload();
-      else {
-        setAlert(whatsappSettingsAlert, getMasterAppBuildErrorMessage(result.error));
-        if (button) button.disabled = false;
       }
     });
 
@@ -510,6 +496,7 @@ function dateTime(value: string) {
   .master-app-build-identity strong { overflow-wrap: anywhere; color: #14264b; }
   .master-app-build-fixed-policy { display: grid; gap: .3rem; padding: .85rem 1rem; border-radius: 10px; background: #f4f7fc; }
   .master-app-build-actions { display: flex; justify-content: flex-end; margin-top: .85rem; }
+  .master-app-build-preview__header-actions { display: flex; align-items: center; justify-content: flex-end; gap: .65rem; flex-wrap: wrap; }
   .master-app-build-preview pre { max-height: 36rem; overflow: auto; padding: 1rem; border-radius: 10px; background: #081735; color: #e9f1ff; white-space: pre-wrap; overflow-wrap: anywhere; }
   .master-app-build-hash { color: #5b6880; overflow-wrap: anywhere; }
   .master-app-build-confirm { display: flex; align-items: flex-start; gap: .65rem; padding: 1rem; border: 1px solid #e7b75b; border-radius: 10px; background: #fff9e9; color: #5d430d; }
@@ -520,14 +507,15 @@ function dateTime(value: string) {
   .master-app-build-history article span { color: #68748a; overflow-wrap: anywhere; }
   .master-app-whatsapp__body { display: grid; gap: 1rem; }
   .master-app-whatsapp__notice { display: flex; align-items: flex-start; gap: .7rem; padding: .85rem 1rem; border: 1px solid #bbdfca; border-radius: 12px; background: #effaf3; color: #17643a; }
-  .master-app-whatsapp__contacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .master-app-whatsapp__global-warning { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .75rem; padding: .85rem 1rem; border: 1px solid #e7b75b; border-radius: 12px; background: #fff9e9; color: #6b4d0a; }
+  .master-app-whatsapp__global-warning div { display: grid; gap: .25rem; }
+  .master-app-whatsapp__global-warning span { line-height: 1.45; }
+  .master-app-whatsapp__contacts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
   .master-app-whatsapp__contact { display: grid; align-content: space-between; gap: 1rem; min-width: 0; margin: 0; padding: 1rem; border: 1px solid #dce3ed; border-radius: 12px; background: #f8fafc; }
   .master-app-whatsapp__contact > div:first-child { display: grid; gap: .3rem; }
   .master-app-whatsapp__contact span, .master-app-whatsapp__artifact span, .master-app-whatsapp__preview header span { color: #68748a; font-size: .75rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
   .master-app-whatsapp__contact strong, .master-app-whatsapp__artifact strong { color: #14264b; overflow-wrap: anywhere; }
   .master-app-whatsapp__contact small, .master-app-whatsapp__artifact small { color: #68748a; line-height: 1.45; overflow-wrap: anywhere; }
-  .master-app-whatsapp__phone-form { display: flex; align-items: stretch; gap: .6rem; }
-  .master-app-whatsapp__phone-form input { min-width: 0; flex: 1; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; padding: .7rem .8rem; color: #14264b; font: inherit; }
   .master-app-whatsapp__artifact { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; }
   .master-app-whatsapp__artifact > div { display: grid; gap: .3rem; min-width: 0; }
   .master-app-whatsapp__preview { display: grid; gap: 1rem; padding: 1rem; border: 1px solid #e7b75b; border-radius: 12px; background: #fffaf0; }
@@ -543,11 +531,15 @@ function dateTime(value: string) {
   @media (max-width: 760px) {
     .master-app-build-heading { flex-direction: column; }
     .master-app-build-identity { grid-template-columns: 1fr; }
+    .master-app-build-preview__header-actions { width: 100%; align-items: stretch; flex-direction: column; }
+    .master-app-build-preview__header-actions .master-btn { width: 100%; }
     .master-app-build-history article { align-items: flex-start; flex-direction: column; }
     .master-app-engine-alert { grid-template-columns: auto 1fr; }
     .master-app-engine-alert .master-btn { grid-column: 1 / -1; }
     .master-app-whatsapp__contacts { grid-template-columns: 1fr; }
-    .master-app-whatsapp__phone-form, .master-app-whatsapp__artifact, .master-app-whatsapp__preview header { align-items: stretch; flex-direction: column; }
-    .master-app-whatsapp__phone-form .master-btn, .master-app-whatsapp__preview-actions .master-btn, .master-app-whatsapp__mark .master-btn { width: 100%; justify-self: stretch; }
+    .master-app-whatsapp__global-warning { grid-template-columns: auto 1fr; }
+    .master-app-whatsapp__global-warning .master-btn { grid-column: 1 / -1; width: 100%; }
+    .master-app-whatsapp__artifact, .master-app-whatsapp__preview header { align-items: stretch; flex-direction: column; }
+    .master-app-whatsapp__preview-actions .master-btn, .master-app-whatsapp__mark .master-btn { width: 100%; justify-self: stretch; }
   }
 </style>

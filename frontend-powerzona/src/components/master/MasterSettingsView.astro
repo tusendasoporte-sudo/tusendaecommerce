@@ -1,0 +1,163 @@
+---
+import MasterIcon from './MasterIcon.astro';
+import type { ManualWhatsappContact } from '../../lib/masterStoreAppBuilds';
+
+interface Props {
+  sender: ManualWhatsappContact;
+  loadError?: boolean;
+}
+
+const { sender, loadError = false } = Astro.props;
+const displayPhone = sender.whatsapp_number ? `+${sender.whatsapp_number}` : '';
+---
+
+<section class="master-page master-settings-page" data-master-settings>
+  <header class="master-settings-heading">
+    <p>Administración global</p>
+    <h2>Configuración del Master</h2>
+    <span>Aquí vivirán los ajustes generales que se aplican a todo el panel y a todas las tiendas.</span>
+  </header>
+
+  {loadError && (
+    <div class="master-error" role="alert">
+      No fue posible consultar el estado actual del número. Puedes guardarlo nuevamente de forma segura.
+    </div>
+  )}
+
+  <section class="master-card" id="whatsapp-master" aria-labelledby="whatsapp-master-title">
+    <header class="master-card-header">
+      <div>
+        <h3 class="master-card-title" id="whatsapp-master-title">WhatsApp oficial del Master</h3>
+        <p class="master-card-subtitle">Número global para preparar entregas manuales de actualizaciones a los administradores de tienda.</p>
+      </div>
+      <span
+        class:list={['master-pill', sender.configured ? 'master-pill--success' : 'master-pill--warning']}
+        data-master-whatsapp-status
+      >{sender.configured ? 'Configurado' : 'Pendiente'}</span>
+    </header>
+
+    <form class="master-card-body master-settings-whatsapp" data-master-whatsapp-settings-form>
+      <div class="master-settings-whatsapp__content">
+        <div class="master-field">
+          <label for="master-whatsapp-number">Número del Master</label>
+          <input
+            id="master-whatsapp-number"
+            name="whatsapp_number"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            maxlength="24"
+            pattern={'[+0-9 .\\(\\)\\-]{8,24}'}
+            title="Usa entre 8 y 15 dígitos e incluye el código de país."
+            required
+            value={displayPhone}
+            placeholder="+53 5 123 4567"
+          />
+          <small>Incluye el código de país. Se guardará normalizado, por ejemplo: +5351234567.</small>
+        </div>
+
+        <aside class="master-settings-whatsapp__scope" role="note">
+          <MasterIcon name="stores" size={22} />
+          <div>
+            <strong>Un solo número para todas las tiendas</strong>
+            <span>Las apps usan este remitente esperado y cada una conserva su propio administrador destinatario.</span>
+          </div>
+        </aside>
+      </div>
+
+      <div class="master-settings-whatsapp__privacy" role="note">
+        <MasterIcon name="lock" size={20} />
+        <span>No se guardan sesiones de WhatsApp, códigos QR ni credenciales. Siempre revisarás el mensaje antes de abrir el chat.</span>
+      </div>
+
+      <p class="master-form-alert" data-master-whatsapp-settings-alert aria-live="polite" hidden></p>
+      <div class="master-settings-whatsapp__actions">
+        <button class="master-btn master-btn--primary" type="submit" data-master-whatsapp-settings-save>
+          <MasterIcon name="save" size={18} /> Guardar número global
+        </button>
+      </div>
+    </form>
+  </section>
+</section>
+
+<script>
+  import PocketBase from 'pocketbase';
+  import { getMasterAppBuildErrorMessage, saveMasterWhatsappSettings } from '../../lib/masterStoreAppBuilds';
+
+  function initializeMasterSettings() {
+    const root = document.querySelector<HTMLElement>('[data-master-settings]');
+    if (!root || root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
+
+    const form = root.querySelector<HTMLFormElement>('[data-master-whatsapp-settings-form]');
+    const input = form?.elements.namedItem('whatsapp_number');
+    const button = root.querySelector<HTMLButtonElement>('[data-master-whatsapp-settings-save]');
+    const alert = root.querySelector<HTMLElement>('[data-master-whatsapp-settings-alert]');
+    const status = root.querySelector<HTMLElement>('[data-master-whatsapp-status]');
+    if (!form || !(input instanceof HTMLInputElement)) return;
+
+    const pb = new PocketBase(import.meta.env.PUBLIC_POCKETBASE_URL);
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.autoCancellation(false);
+
+    const setAlert = (message = '', success = false) => {
+      if (!alert) return;
+      alert.textContent = message;
+      alert.hidden = !message;
+      alert.classList.toggle('is-success', success);
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      setAlert();
+      if (button) button.disabled = true;
+
+      const result = await saveMasterWhatsappSettings(
+        import.meta.env.PUBLIC_POCKETBASE_URL,
+        pb.authStore.token,
+        input.value,
+      );
+
+      if (result.data) {
+        input.value = result.data.whatsapp_number ? `+${result.data.whatsapp_number}` : '';
+        if (status) {
+          status.textContent = 'Configurado';
+          status.classList.remove('master-pill--warning');
+          status.classList.add('master-pill--success');
+        }
+        setAlert(`Número global guardado: +${result.data.whatsapp_number}.`, true);
+      } else {
+        const message = result.error === 'invalid_payload'
+          ? 'Escribe un número válido de 8 a 15 dígitos e incluye el código de país.'
+          : getMasterAppBuildErrorMessage(result.error);
+        setAlert(message);
+      }
+
+      if (button) button.disabled = false;
+    });
+  }
+
+  document.addEventListener('astro:page-load', initializeMasterSettings);
+  initializeMasterSettings();
+</script>
+
+<style>
+  .master-settings-page { gap: 1.25rem; }
+  .master-settings-heading { display: grid; gap: .35rem; }
+  .master-settings-heading p { margin: 0; color: #155eeb; font-size: .75rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+  .master-settings-heading h2 { margin: 0; color: #0b1d43; font-size: clamp(1.65rem, 3vw, 2.25rem); }
+  .master-settings-heading > span { color: #5b6880; line-height: 1.5; }
+  .master-settings-whatsapp { display: grid; gap: 1rem; }
+  .master-settings-whatsapp__content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); align-items: stretch; gap: 1rem; }
+  .master-settings-whatsapp .master-field small { color: #68748a; line-height: 1.45; }
+  .master-settings-whatsapp__scope { display: flex; align-items: flex-start; gap: .75rem; margin: 0; border: 1px solid #bfdbfe; border-radius: 12px; background: #f3f7ff; color: #1e4d92; padding: 1rem; }
+  .master-settings-whatsapp__scope div { display: grid; gap: .3rem; }
+  .master-settings-whatsapp__scope span { color: #526987; line-height: 1.45; }
+  .master-settings-whatsapp__privacy { display: flex; align-items: flex-start; gap: .7rem; border: 1px solid #bbdfca; border-radius: 12px; background: #effaf3; color: #17643a; padding: .85rem 1rem; }
+  .master-settings-whatsapp__actions { display: flex; justify-content: flex-end; }
+  @media (max-width: 760px) {
+    .master-settings-whatsapp__content { grid-template-columns: 1fr; }
+    .master-settings-whatsapp__actions .master-btn { width: 100%; }
+  }
+</style>

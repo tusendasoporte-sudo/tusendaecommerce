@@ -117,7 +117,7 @@ html.master-drawer-open { overflow: hidden; }
 .master-sidebar__store-status { width: max-content; border-radius: 999px; padding: 4px 7px; font-size: var(--master-font-caption); font-weight: 850; }
 .master-sidebar__store-status.is-active { background: #1fa35b; color: #fff; }
 .master-sidebar__store-status.is-suspended { background: #b91c1c; color: #fff; }
-.master-sidebar__profile { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 88px; border-top: 1px solid var(--master-sidebar-line); padding: 15px 18px; }
+.master-sidebar__profile { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 88px; border-top: 1px solid var(--master-sidebar-line); padding: 15px 18px; }
 .master-sidebar__profile-avatar { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(145deg, #6658b7, #40348c); color: #fff; font-size: var(--master-font-caption); font-weight: 900; }
 .master-sidebar__profile-copy { display: grid; gap: 2px; min-width: 0; }
 .master-sidebar__profile-copy strong, .master-sidebar__profile-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

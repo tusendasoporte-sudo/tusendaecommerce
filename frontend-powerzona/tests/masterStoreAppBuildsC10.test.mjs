@@ -7,7 +7,7 @@ import {
   getMasterStoreAppEngineUpdates,
   markMasterStoreAppWhatsappSent,
   previewMasterStoreAppWhatsappDelivery,
-  saveMasterStoreAppWhatsappSettings,
+  saveMasterWhatsappSettings,
 } from '../src/lib/masterStoreAppBuilds.ts';
 
 test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos', () => {
@@ -25,10 +25,41 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /Sin Cloud API/);
   assert.match(view, /data-app-whatsapp-account-check/);
   assert.match(view, /data-app-whatsapp-sent-check/);
+  assert.match(view, /data-app-preview-close/);
+  assert.match(view, /Cerrar vista previa/);
+  assert.match(view, /previewCard\.hidden = true/);
+  assert.match(view, /confirmCheck\.checked = false/);
+  assert.match(view, /confirmButton\.disabled = true/);
+  assert.equal(view.includes("pattern={'[a-z0-9][a-z0-9\\\\-]{1,62}[a-z0-9]'}"), true);
+  assert.equal((view.match(/pattern=\{'\[0-9\]\+\\\\\.\[0-9\]\+\\\\\.\[0-9\]\+'\}/g) || []).length, 2);
   assert.match(view, /El APK debe adjuntarse manualmente/);
-  assert.match(view, /saveMasterStoreAppWhatsappSettings/);
+  assert.match(view, />Destinatario</);
+  assert.match(view, /\/master\/settings#whatsapp-master/);
+  assert.doesNotMatch(view, /data-app-whatsapp-settings-form|Guardar número|saveMasterWhatsappSettings/);
   assert.match(view, /previewMasterStoreAppWhatsappDelivery/);
   assert.match(view, /markMasterStoreAppWhatsappSent/);
+});
+
+test('bloque lateral Master abre una configuración global y exclusiva', () => {
+  const sidebar = readFileSync(new URL('../src/components/master/MasterSidebar.astro', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../src/pages/master/settings.astro', import.meta.url), 'utf8');
+  const view = readFileSync(new URL('../src/components/master/MasterSettingsView.astro', import.meta.url), 'utf8');
+  assert.match(sidebar, /Notificaciones[\s\S]*href="\/master\/settings"[\s\S]*>Master</);
+  assert.equal((sidebar.match(/href="\/master\/settings"/g) || []).length, 1);
+  assert.doesNotMatch(sidebar, /master-sidebar__profile[\s\S]{0,160}href=/);
+  assert.match(sidebar, /isActive\('\/master\/settings'\)/);
+  assert.match(page, /requireMasterAdmin/);
+  assert.match(page, /private, no-store/);
+  assert.match(page, /manual_whatsapp_sender/);
+  assert.match(view, /Configuración del Master/);
+  assert.match(view, /Un solo número para todas las tiendas/);
+  assert.match(view, /data-master-whatsapp-settings-form/);
+  assert.match(view, /saveMasterWhatsappSettings/);
+  assert.equal(view.includes("pattern={'[+0-9 .\\\\(\\\\)\\\\-]{8,24}'}"), true);
+  const phonePattern = new RegExp('^(?:[+0-9 .\\(\\)\\-]{8,24})$', 'v');
+  assert.equal(phonePattern.test('+1 (305) 555-0187'), true);
+  assert.equal(phonePattern.test('+53 ABC'), false);
+  assert.doesNotMatch(view, /store_id|administrador destinatario.*input/i);
 });
 
 test('flujo WhatsApp prepara enlace manual y exige constancia separada', async () => {
@@ -99,7 +130,7 @@ test('flujo WhatsApp prepara enlace manual y exige constancia separada', async (
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   try {
-    const settings = await saveMasterStoreAppWhatsappSettings('https://pb.example.test', 'token-c10', '+53 5 111 2233');
+    const settings = await saveMasterWhatsappSettings('https://pb.example.test', 'token-c10', '+53 5 111 2233');
     assert.equal(settings.data?.whatsapp_number, '5351112233');
     const prepared = await previewMasterStoreAppWhatsappDelivery('https://pb.example.test', 'token-c10', {
       store_id: ids.store, artifact_id: ids.artifact,

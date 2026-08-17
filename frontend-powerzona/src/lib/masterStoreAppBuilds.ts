@@ -684,7 +684,7 @@ export function retryMasterStoreAppBuild(
   });
 }
 
-export function saveMasterStoreAppWhatsappSettings(
+export function saveMasterWhatsappSettings(
   pocketbaseUrl: string,
   token: string,
   whatsappNumber: string,
@@ -696,6 +696,9 @@ export function saveMasterStoreAppWhatsappSettings(
     return manualWhatsappContact(value.sender);
   });
 }
+
+// Alias compatible con consumidores C10 anteriores al traslado del ajuste al panel global Master.
+export const saveMasterStoreAppWhatsappSettings = saveMasterWhatsappSettings;
 
 export function previewMasterStoreAppWhatsappDelivery(
   pocketbaseUrl: string,

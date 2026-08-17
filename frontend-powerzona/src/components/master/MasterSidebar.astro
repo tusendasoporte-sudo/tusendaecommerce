@@ -81,6 +81,9 @@ function initials(value: string, fallback: string) {
         <MasterIcon name="bell" size={20} /><span>Notificaciones</span>
         <span class="master-sidebar__notification-dot" data-master-sidebar-unread hidden></span>
       </a>
+      <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/settings') }]} href="/master/settings">
+        <MasterIcon name="settings" size={20} /><span>Master</span>
+      </a>
     </section>
 
     {currentStore && (
@@ -155,13 +158,12 @@ function initials(value: string, fallback: string) {
     )}
   </nav>
 
-  <div class="master-sidebar__profile">
+  <div class="master-sidebar__profile" aria-label="Usuario Master activo">
     <span class="master-sidebar__profile-avatar" aria-hidden="true">{initials(displayName, 'MA')}</span>
     <span class="master-sidebar__profile-copy">
       <strong>{displayName || 'Master Admin'}</strong>
       <span>Administrador</span>
     </span>
-    <MasterIcon name="chevron-right" size={18} />
   </div>
 </aside>
 

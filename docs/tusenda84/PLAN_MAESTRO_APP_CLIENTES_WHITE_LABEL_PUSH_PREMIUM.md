@@ -2220,7 +2220,7 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 
 - Se aprobó que el Master prepare y envíe personalmente desde su propio número el aviso de actualización al administrador principal de cada tienda, sin WhatsApp Cloud API ni envío automático.
 - Se reutilizan relaciones existentes: `users.phone` para el número oficial del Master y `stores.primary_admin_user` más el teléfono de ese usuario para el destinatario. Ambos números deben incluir código de país.
-- El panel de cada app incorpora configuración del remitente, estado del administrador principal, APK pendiente, vista previa del mensaje, confirmación de la sesión abierta, apertura de `wa.me` y confirmación posterior `MARCAR ENVIADO`.
+- La sección global Master incorpora la configuración del remitente. El panel de cada app conserva únicamente el estado del administrador principal destinatario, APK pendiente, vista previa del mensaje, confirmación de la sesión abierta, apertura manual de WhatsApp y confirmación posterior de envío.
 - El destinatario no puede sustituirse dentro del envío: debe ser el administrador principal activo de la misma tienda. Si falta o su teléfono es inválido, el flujo falla cerrado y dirige al control de usuarios.
 - La vista previa solo se habilita para un build exitoso con APK entregable y contiene versión, archivo y checksum. El APK se adjunta manualmente desde la custodia privada de Tu Senda 84; el panel nunca expone el localizador de almacenamiento.
 - PocketBase conserva la constancia manual por trabajo —actor, destinatario, teléfonos normalizados, hash del mensaje y fecha—, pero no afirma entrega o lectura técnica de WhatsApp.
@@ -2236,3 +2236,22 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - La revisión responsive aprobó en 1440×900, 834×1112 y 390×844: sin desbordamiento horizontal, sin controles visibles menores de 44 px y sin errores ni advertencias de consola.
 - El runtime, las cuatro tiendas, los usuarios, trabajos y artefactos ficticios se eliminaron al terminar. No quedaron procesos ni puertos QA abiertos; no se aprovisionó Firebase, no se registraron paquetes, no se generaron firmas, no se desplegó y no se envió ningún mensaje.
 - C10 permanece `EN CURSO`. Su cierre sigue condicionado a la revisión manual del propietario y a las autorizaciones externas separadas ya definidas.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: configuración global del Master
+
+- El propietario precisó que el bloque inferior Master del menú lateral debía convertirse en una sección global reutilizable, no limitar el número remitente a la página App Android de una tienda.
+- El bloque de perfil lateral ahora abre /master/settings, marca su estado activo y funciona también desde el menú móvil. La nueva página inicia la configuración general del Master con el número oficial de WhatsApp y queda preparada para incorporar futuros ajustes globales.
+- Se conserva una única fuente de verdad: users.phone del Master autenticado. No se creó una tabla, secreto ni configuración por tienda; el endpoint privado existente normaliza el número y continúa exigiendo rol Master.
+- App Android eliminó el formulario y el campo del remitente. Solo muestra el administrador principal destinatario; si falta el número global, bloquea la vista previa y dirige a Master > WhatsApp oficial del Master.
+- La prueba focal C10 aprobó 8/8 casos y el build Astro completó. La prueba interactiva local verificó acceso desde el bloque lateral, rechazo nativo de formato inválido, guardado normalizado, estado ausente/configurado, una sola tarjeta destinatario, sesión no autenticada redirigida y diseño sin desbordamiento en 1440×900 y 390×844.
+- Durante la prueba negativa se detectó y corrigió un patrón HTML incompatible con expresiones regulares Unicode modernas; una prueba de contrato evita su regresión.
+- No se abrió WhatsApp, no se envió ningún mensaje, no se aprovisionó Firebase, no se registraron paquetes, no se generaron firmas y no se desplegó ningún servicio. C10 continúa `EN CURSO` pendiente de revisión manual.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: navegación Master y cierre de vista previa
+
+- El acceso Master se movió al grupo PRINCIPAL del menú lateral, inmediatamente después de Notificaciones. El bloque inferior conserva únicamente la identificación del usuario activo y ya no aparenta ser una navegación duplicada.
+- App Android incorpora Cerrar vista previa tanto para aprovisionamiento como para actualización. La acción solo oculta la tarjeta, limpia cualquier alerta visual, desmarca la revisión y vuelve a bloquear la confirmación; no cancela, modifica ni confirma el trabajo o su hash.
+- Al recargar, una vista previa pendiente vuelve a mostrarse, confirmando que el cierre es únicamente visual y no altera el backend.
+- Se corrigieron los patrones HTML de clave de marca y versionName para la sintaxis Unicode moderna de los navegadores. Valores inválidos quedan bloqueados antes de llamar al backend.
+- Las pruebas focales C10 y navegación aprobaron 33/33 casos y el build Astro completó. La prueba interactiva aprobó creación de preview, cierre con confirmación marcada, restauración tras recarga, orden de navegación y diseño sin desbordamiento en 1440×900 y 390×844, sin errores de consola.
+- No se confirmó ni ejecutó el trabajo, no se usó el runner, Firebase, firmas, despliegues o WhatsApp. C10 permanece `EN CURSO`.

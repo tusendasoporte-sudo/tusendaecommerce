@@ -1,0 +1,42 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import MasterSettingsView from '../../components/master/MasterSettingsView.astro';
+import MasterShell from '../../components/master/MasterShell.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { getMasterStoreAppEngineUpdates, type ManualWhatsappContact } from '../../lib/masterStoreAppBuilds';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+const settingsResult = await getMasterStoreAppEngineUpdates(
+  import.meta.env.PUBLIC_POCKETBASE_URL,
+  authPb.authStore.token,
+);
+const rawFallbackPhone = String(masterUser.phone || '').trim();
+const fallbackDigits = /^[+0-9\s().-]+$/.test(rawFallbackPhone) ? rawFallbackPhone.replace(/\D/g, '') : '';
+const fallbackPhoneIsValid = /^[1-9][0-9]{7,14}$/.test(fallbackDigits);
+const fallbackSender: ManualWhatsappContact = {
+  user_id: String(masterUser.id || ''),
+  display_name: displayName || 'Master Admin',
+  whatsapp_number: fallbackPhoneIsValid ? fallbackDigits : '',
+  configured: fallbackPhoneIsValid,
+  phone_state: fallbackPhoneIsValid ? 'configured' : rawFallbackPhone ? 'invalid' : 'missing',
+};
+const sender = settingsResult.data?.manual_whatsapp_sender || fallbackSender;
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Master">
+    <MasterSettingsView sender={sender} loadError={!settingsResult.available} />
+  </MasterShell>
+</Layout>
