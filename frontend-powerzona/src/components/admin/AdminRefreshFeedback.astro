@@ -22,15 +22,53 @@
     let toastTimer = 0;
     let hideTimer = 0;
 
-    const show = (text, tone = 'success') => {
+    const resetPlacement = () => {
+      if (!toast) return;
+      delete toast.dataset.placement;
+      toast.style.removeProperty('top');
+      toast.style.removeProperty('left');
+      toast.style.removeProperty('right');
+      toast.style.removeProperty('bottom');
+      toast.style.removeProperty('width');
+    };
+
+    const placeInsideSurface = (anchor) => {
+      if (!toast || !(anchor instanceof Element)) return;
+      const surface = anchor.closest('[data-pz-refresh-surface]');
+      if (!(surface instanceof HTMLElement)) return;
+      const surfaceRect = surface.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
+      const width = Math.min(370, Math.max(180, surfaceRect.width - 32));
+      toast.dataset.placement = 'surface';
+      toast.style.width = `${width}px`;
+      toast.style.right = 'auto';
+      toast.style.bottom = 'auto';
+      const toastHeight = toast.getBoundingClientRect().height;
+      const minimumLeft = surfaceRect.left + 16;
+      const maximumLeft = Math.max(minimumLeft, surfaceRect.right - width - 16);
+      const left = Math.min(Math.max(anchorRect.right - width, minimumLeft), maximumLeft);
+      const minimumTop = surfaceRect.top + 16;
+      const maximumTop = Math.max(minimumTop, surfaceRect.bottom - toastHeight - 16);
+      const preferredBelow = anchorRect.bottom + 10;
+      const preferredAbove = anchorRect.top - toastHeight - 10;
+      const top = preferredBelow <= maximumTop
+        ? Math.max(preferredBelow, minimumTop)
+        : Math.min(Math.max(preferredAbove, minimumTop), maximumTop);
+      toast.style.left = `${Math.round(left)}px`;
+      toast.style.top = `${Math.round(top)}px`;
+    };
+
+    const show = (text, tone = 'success', anchor = null) => {
       if (!toast || !message) return;
       window.clearTimeout(toastTimer);
       window.clearTimeout(hideTimer);
+      resetPlacement();
       message.textContent = String(text || (tone === 'error' ? 'No se pudieron actualizar los datos' : 'Datos actualizados'));
       toast.dataset.tone = tone === 'error' ? 'error' : 'success';
       const icon = toast.querySelector('.pz-admin-refresh-toast__icon');
       if (icon) icon.textContent = tone === 'error' ? '!' : '✓';
       toast.hidden = false;
+      placeInsideSurface(anchor);
       toast.classList.remove('is-leaving');
       requestAnimationFrame(() => toast.classList.add('is-visible'));
       toastTimer = window.setTimeout(() => {
@@ -81,12 +119,12 @@
         .then(task)
         .then((result) => {
           finish(state);
-          show(options.successMessage || 'Datos actualizados', 'success');
+          show(options.successMessage || 'Datos actualizados', 'success', button);
           return result;
         })
         .catch((error) => {
           finish(state);
-          show(options.errorMessage || 'No se pudieron actualizar los datos', 'error');
+          show(options.errorMessage || 'No se pudieron actualizar los datos', 'error', button);
           throw error;
         });
       if (state) state.promise = promise;
@@ -162,6 +200,7 @@
   .pz-admin-refresh-toast[hidden] { display: none !important; }
   .pz-admin-refresh-toast.is-visible { opacity: 1; transform: translateY(0); }
   .pz-admin-refresh-toast.is-leaving { pointer-events: none; }
+  .pz-admin-refresh-toast[data-placement="surface"] { right: auto; bottom: auto; }
   .pz-admin-refresh-toast[data-tone="error"] { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
 
   .pz-admin-refresh-toast__icon {

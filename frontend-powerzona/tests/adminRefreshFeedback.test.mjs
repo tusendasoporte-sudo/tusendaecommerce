@@ -63,7 +63,11 @@ test('todas las vistas administrativas que muestran Actualizar usan el contrato 
 
 test('resultados de campañas push solo confirman despues de una lectura exitosa', () => {
   const push = read('../src/components/admin/PushCampaignsView.astro');
+  assert.match(push, /data-campaign-form data-pz-refresh-surface/);
   assert.match(push, /refreshCampaignMetrics\(\{ silent: true, throwOnError: true \}\)/);
   assert.match(push, /successMessage: 'Resultados actualizados'/);
   assert.match(push, /if \(options\.throwOnError\) throw error/);
+  assert.match(feedback, /anchor\.closest\('\[data-pz-refresh-surface\]'\)/);
+  assert.match(feedback, /preferredBelow <= maximumTop/);
+  assert.match(feedback, /show\(options\.successMessage \|\| 'Datos actualizados', 'success', button\)/);
 });
