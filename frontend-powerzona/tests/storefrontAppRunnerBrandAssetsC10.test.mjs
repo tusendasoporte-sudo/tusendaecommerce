@@ -152,3 +152,18 @@ test('preflight informa faltantes sin crear secretos ni ejecutar aprovisionamien
   assert.ok(report.Failures.includes('signing_generation_not_authorized'));
   await assert.rejects(access(secretsRoot), /ENOENT/);
 });
+
+test('custodia local usa DPAPI y el lanzador restaura variables sensibles', async () => {
+  const [initializer, launcher] = await Promise.all([
+    readFile(path.join(workspace, 'mobile-storefront', 'runner', 'initialize-runner-custody.ps1'), 'utf8'),
+    readFile(path.join(workspace, 'mobile-storefront', 'runner', 'invoke-local-runner.ps1'), 'utf8'),
+  ]);
+  assert.match(initializer, /ConvertFrom-SecureString/);
+  assert.match(initializer, /RandomNumberGenerator/);
+  assert.match(initializer, /se prohibe sobrescribir credenciales/);
+  assert.match(initializer, /SecretsRoot debe estar fuera del repositorio/);
+  assert.match(launcher, /ConvertTo-SecureString/);
+  assert.match(launcher, /ZeroFreeBSTR/);
+  assert.match(launcher, /SetEnvironmentVariable\(\$name, \$previous\[\$name\], 'Process'\)/);
+  assert.doesNotMatch(initializer + launcher, /PZ_STORE_APP_(?:KEYSTORE|KEY)_PASSWORD\s*=\s*['"][^'"]{8}/);
+});

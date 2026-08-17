@@ -109,6 +109,8 @@ Variables sensibles del runner:
 - credenciales Google gestionadas fuera de Git;
 - `PZ_STOREFRONT_SIGNING_PROPERTIES` apuntando a un archivo privado.
 
+En un runner Windows temporal, `runner/initialize-runner-custody.ps1` genera el secreto del runner y las contraseñas con aleatoriedad criptográfica, los cifra mediante DPAPI para el usuario actual y restringe la carpeta externa con ACL. `runner/invoke-local-runner.ps1` los descifra solo en memoria durante el proceso y restaura todas las variables al finalizar. La clave de firma y `google-services.json` siguen fuera del repositorio.
+
 ## Verificación local segura
 
 ```powershell
