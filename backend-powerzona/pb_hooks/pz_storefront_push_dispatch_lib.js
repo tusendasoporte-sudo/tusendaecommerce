@@ -316,6 +316,7 @@ function buildRelayGroups(app, campaign, claimedIds, config, now) {
     const appKey = recordString(appConfig, "app_key");
     const packageName = recordString(appConfig, "package_name");
     const firebaseAppId = recordString(appConfig, "firebase_app_id");
+    const firebaseProjectId = recordString(appConfig, "firebase_project_id");
     if (!appConfig
       || relationId(appConfig, "store") !== relationId(campaign, "store")
       || recordString(appConfig, "status") !== "active"
@@ -325,7 +326,7 @@ function buildRelayGroups(app, campaign, claimedIds, config, now) {
       localResults.push(localFailure(deliveryId, "failed_permanent", "app_config_unavailable", 0));
       return;
     }
-    const groupKey = `${appKey}\n${packageName}\n${firebaseAppId}`;
+    const groupKey = `${appKey}\n${packageName}\n${firebaseAppId}\n${firebaseProjectId}`;
     const seen = seenByGroup.get(groupKey) || new Set();
     if (seen.has(fid)) {
       localResults.push(localFailure(deliveryId, "failed_permanent", "duplicate_fid", 0));
@@ -333,8 +334,10 @@ function buildRelayGroups(app, campaign, claimedIds, config, now) {
     }
     seen.add(fid);
     seenByGroup.set(groupKey, seen);
+    const relayApp = { app_key: appKey, package_name: packageName, firebase_app_id: firebaseAppId };
+    if (firebaseProjectId) relayApp.firebase_project_id = firebaseProjectId;
     const group = groups.get(groupKey) || {
-      app: { app_key: appKey, package_name: packageName, firebase_app_id: firebaseAppId },
+      app: relayApp,
       message: {
         schema_version: "1",
         channel: "storefront",

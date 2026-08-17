@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PowerZonaStorefront" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.Storefront" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">@color/pz_brand_base_background</item>
         <item name="android:windowLightStatusBar">true</item>
@@ -11,8 +11,8 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.PowerZonaStorefront.Launch" parent="Theme.PowerZonaStorefront">
-        <item name="android:windowBackground">@drawable/pz_launch_screen</item>
+    <style name="Theme.Storefront.Launch" parent="Theme.Storefront">
+        <item name="android:windowBackground">@drawable/storefront_launch_screen</item>
         <item name="android:windowDisablePreview">false</item>
     </style>
 </resources>

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "brand_key": "demo",
+  "store_key": "demo-c10",
+  "display_name": "Demo C10",
+  "application_id": "com.tusenda84.democ10",
+  "store_url": "https://example.invalid/t/demo-c10",
+  "publishable": false,
+  "firebase_android": {
+    "project_id": "tusenda84-demo-c10",
+    "package_name": "com.tusenda84.democ10",
+    "configuration_file": "app/google-services.json",
+    "tracked_in_git": false
+  },
+  "assets": {
+    "icon": {
+      "file": "icon.xml",
+      "sha256": "0b390eacdffeba845e732fa564e038cfa07999501a8474d8c0ec3d8706e8fe74"
+    },
+    "splash": {
+      "file": "splash.xml",
+      "sha256": "faed07be0caeb180be8fc2f10631fe1d5e6920d59d5755588100c9ee0f8b3aa4"
+    }
+  },
+  "palette": {
+    "deep_sapphire": "#2D185E",
+    "energy_cobalt": "#6847E8",
+    "flash_blue": "#7C5CFC",
+    "platinum": "#CEC7E8",
+    "luminous_ice": "#EEE9FF",
+    "pearl_white": "#FFFFFF",
+    "ink": "#21143D",
+    "secondary_text": "#625879",
+    "base_background": "#F5F1FF"
+  }
+}

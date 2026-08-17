@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tusenda84.com/schemas/storefront-engine-release-v1.json",
+  "title": "Tu Senda 84 Storefront Android engine release",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "engine_version"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "engine_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+  }
+}

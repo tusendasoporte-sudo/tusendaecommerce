@@ -12,6 +12,7 @@ import { getMasterGlobalOverview } from '../../lib/masterStoreOverview';
 import { getMasterNotificationsFeed } from '../../lib/masterNotifications';
 import { getMasterSecuritySettingsMap } from '../../lib/security';
 import { getMasterStoreCounts } from '../../lib/stores';
+import { getMasterStoreAppEngineUpdates } from '../../lib/masterStoreAppBuilds';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -30,13 +31,14 @@ if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect
 if (!masterUser) return Astro.redirect('/master');
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const [storeCounts, totalUsers, activity, overviewResult, notificationFeed, securityMap] = await Promise.all([
+const [storeCounts, totalUsers, activity, overviewResult, notificationFeed, securityMap, engineUpdatesResult] = await Promise.all([
   getMasterStoreCounts(authPb),
   getMasterStoreUserCount(authPb),
   getMasterStoreActivitySummary(pocketbaseUrl, authPb.authStore.token),
   getMasterGlobalOverview(pocketbaseUrl, authPb.authStore.token),
   getMasterNotificationsFeed(pocketbaseUrl, authPb.authStore.token, 5),
   getMasterSecuritySettingsMap(authPb),
+  getMasterStoreAppEngineUpdates(pocketbaseUrl, authPb.authStore.token),
 ]);
 
 const overview = overviewResult.data;
@@ -47,6 +49,7 @@ const pageviewsRecent = activity.items.reduce((total, item) => total + item.page
 const securityValues = Array.from(securityMap.values());
 const securityEnabled = securityValues.filter((item) => item.enabled).length;
 const securityProtected = securityValues.filter((item) => item.enabled && item.mode === 'protection').length;
+const engineUpdates = engineUpdatesResult.data;
 const metrics = [
   ['Tiendas totales', storeCounts.total, 'Todas las tiendas registradas'],
   ['Tiendas activas', storeCounts.active, 'Disponibles al público'],
@@ -94,6 +97,48 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
       </header>
 
       {!overviewResult.available && <div class="master-error" role="alert">El overview privado no está disponible. No se muestran datos estimados para seguimiento ni notificaciones.</div>}
+
+      {engineUpdates && engineUpdates.update_count > 0 && (
+        <section class:list={['master-engine-update-alert', { 'is-critical': engineUpdates.critical_count > 0 }]} role="alert" aria-live="polite">
+          <span class="master-engine-update-alert__icon"><MasterIcon name="alert" size={26} /></span>
+          <div class="master-engine-update-alert__copy">
+            <strong>{number(engineUpdates.update_count)} {engineUpdates.update_count === 1 ? 'app necesita' : 'apps necesitan'} actualizar el motor nativo</strong>
+            <span>Versión aprobada {engineUpdates.engine_release.version}. La alerta no compila ni publica: cada tienda requiere vista previa y confirmación Master.</span>
+            <div class="master-engine-update-alert__apps">
+              {engineUpdates.apps.slice(0, 5).map((item) => (
+                <a href={item.action_url}>{item.store.name || item.display_name}<small>{item.engine_update.current_version || 'Sin trazabilidad'} → {item.engine_update.target_version}</small></a>
+              ))}
+              {engineUpdates.update_count > 5 && <span>+{number(engineUpdates.update_count - 5)} pendientes</span>}
+            </div>
+          </div>
+          <a class="master-btn master-btn--primary" href="/master/stores">Revisar tiendas</a>
+        </section>
+      )}
+
+      {engineUpdates && engineUpdates.delivery_pending_count > 0 && (
+        <section class="master-engine-update-alert is-delivery" role="alert" aria-live="polite">
+          <span class="master-engine-update-alert__icon"><MasterIcon name="bell" size={26} /></span>
+          <div class="master-engine-update-alert__copy">
+            <strong>{number(engineUpdates.delivery_pending_count)} {engineUpdates.delivery_pending_count === 1 ? 'actualización lista' : 'actualizaciones listas'} para enviar por WhatsApp</strong>
+            <span>
+              El APK ya fue generado. El panel solo prepara el mensaje y abre WhatsApp;
+              {engineUpdates.manual_whatsapp_sender.configured
+                ? ` el remitente configurado es +${engineUpdates.manual_whatsapp_sender.whatsapp_number}.`
+                : ' primero debes configurar el número oficial del Master.'}
+            </span>
+            <div class="master-engine-update-alert__apps">
+              {engineUpdates.deliveries.slice(0, 5).map((item) => (
+                <a href={item.action_url}>
+                  {item.store.name || item.display_name}
+                  <small>{item.version_name} · {item.recipient.status === 'ready' ? `+${item.recipient.whatsapp_number}` : 'Revisar administrador principal'}</small>
+                </a>
+              ))}
+              {engineUpdates.delivery_pending_count > 5 && <span>+{number(engineUpdates.delivery_pending_count - 5)} pendientes</span>}
+            </div>
+          </div>
+          <a class="master-btn master-btn--primary" href={engineUpdates.deliveries[0]?.action_url || '/master/stores'}>Preparar envío</a>
+        </section>
+      )}
 
       <div class="master-kpi-grid" aria-label="Resumen global">
         {metrics.map(([label, value, meta]) => (
@@ -145,3 +190,19 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
     </section>
   </MasterShell>
 </Layout>
+
+<style>
+  .master-engine-update-alert { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: 1rem 1.1rem; border: 1px solid #e7b75b; border-radius: 16px; background: #fff8e2; color: #61450a; box-shadow: 0 14px 34px rgba(146, 94, 0, .1); }
+  .master-engine-update-alert.is-critical { border-color: #ef9a9a; background: #fff0f0; color: #8f1d1d; }
+  .master-engine-update-alert.is-delivery { border-color: #87d3a4; background: #effaf3; color: #17643a; }
+  .master-engine-update-alert__icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; background: rgba(255,255,255,.78); }
+  .master-engine-update-alert__copy { display: grid; gap: .3rem; min-width: 0; }
+  .master-engine-update-alert__copy > span { line-height: 1.45; }
+  .master-engine-update-alert__apps { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .35rem; }
+  .master-engine-update-alert__apps a, .master-engine-update-alert__apps > span { display: inline-flex; align-items: center; gap: .35rem; padding: .42rem .62rem; border-radius: 999px; background: rgba(255,255,255,.8); color: inherit; font-size: .82rem; font-weight: 800; text-decoration: none; }
+  .master-engine-update-alert__apps small { font-weight: 600; opacity: .75; }
+  @media (max-width: 760px) {
+    .master-engine-update-alert { grid-template-columns: auto 1fr; }
+    .master-engine-update-alert > .master-btn { grid-column: 1 / -1; }
+  }
+</style>

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tusenda84.com/schemas/storefront-app-config-v1.json",
+  "title": "Tu Senda 84 Storefront Android configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "store_key",
+    "app_key",
+    "store_url",
+    "display_name",
+    "application_id",
+    "brand_key",
+    "firebase_project_id",
+    "firebase_provisioning",
+    "distribution",
+    "publishable",
+    "version_code",
+    "version_name"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "store_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+    "app_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$" },
+    "store_url": { "type": "string", "pattern": "^https://[^/?#]+/t/[a-z0-9][a-z0-9-]{1,62}$" },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "application_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "brand_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+    "firebase_project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" },
+    "firebase_provisioning": { "enum": ["existing", "create"] },
+    "distribution": { "enum": ["play_and_direct", "direct"] },
+    "publishable": { "type": "boolean" },
+    "version_code": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+    "version_name": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" }
+  }
+}

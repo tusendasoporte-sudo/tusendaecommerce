@@ -13,18 +13,16 @@ public final class PowerZonaDestinationsTest {
     }
 
     @Test
-    public void compiledVariantUsesOnlyTheApprovedPowerZonaIdentity() {
-        assertEquals("powerzona", StorefrontConfig.storeKey());
-        assertEquals("powerzona-storefront-staging", StorefrontConfig.appKey());
-        assertEquals("PowerZona", StorefrontConfig.displayName());
-        assertEquals(HOME, StorefrontConfig.storeUrl());
+    public void compiledVariantUsesTheSelectedValidatedIdentity() {
+        assertTrue(!StorefrontConfig.storeKey().isEmpty());
+        assertTrue(!StorefrontConfig.appKey().isEmpty());
+        assertTrue(!StorefrontConfig.displayName().isEmpty());
+        assertTrue(StorefrontConfig.storeUrl().endsWith("/t/" + StorefrontConfig.storeKey()));
         if ("debug".equals(BuildConfig.BUILD_TYPE)) {
-            assertEquals("com.tusenda84.powerzona.debug", BuildConfig.APPLICATION_ID);
+            assertTrue(BuildConfig.APPLICATION_ID.endsWith(".debug"));
             assertTrue(BuildConfig.VERSION_NAME.endsWith("-debug"));
         } else {
-            assertEquals("staging", BuildConfig.BUILD_TYPE);
-            assertEquals("com.tusenda84.powerzona", BuildConfig.APPLICATION_ID);
-            assertTrue(BuildConfig.VERSION_NAME.endsWith("-staging"));
+            assertTrue("staging".equals(BuildConfig.BUILD_TYPE) || "release".equals(BuildConfig.BUILD_TYPE));
         }
     }
 
@@ -62,20 +60,22 @@ public final class PowerZonaDestinationsTest {
 
     @Test
     public void orderRequiresTheAuthenticatedServerResolver() {
+        String configuredHome = StorefrontConfig.storeUrl();
+        String configuredOrigin = configuredHome.substring(0, configuredHome.indexOf("/t/"));
         assertEquals(HOME, resolve("order", ""));
         assertEquals(
-                "https://tusenda84.com/orden/PZ-84/AbCdEfGhIjKlMnOp",
+                configuredOrigin + "/orden/PZ-84/AbCdEfGhIjKlMnOp",
                 StorefrontDeepLink.resolveServerOrderTarget(
-                        HOME,
+                        configuredHome,
                         "/orden/PZ-84/AbCdEfGhIjKlMnOp"
                 )
         );
-        assertEquals(HOME, StorefrontDeepLink.resolveServerOrderTarget(
-                HOME,
+        assertEquals(configuredHome, StorefrontDeepLink.resolveServerOrderTarget(
+                configuredHome,
                 "/orden/PZ-84/short"
         ));
-        assertEquals(HOME, StorefrontDeepLink.resolveServerOrderTarget(
-                HOME,
+        assertEquals(configuredHome, StorefrontDeepLink.resolveServerOrderTarget(
+                configuredHome,
                 "/t/otra/admin"
         ));
     }

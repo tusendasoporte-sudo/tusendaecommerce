@@ -1,16 +1,15 @@
 import type { APIRoute } from 'astro';
 import { timingSafeEqual } from 'node:crypto';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import {
   buildStorefrontMessages,
   classifyFirebaseDeliveryError,
   normalizePushRelayV2Payload,
 } from '../../../../../lib/pushRelayV2Payload.ts';
+import { storefrontFirebaseForPush } from '../../../../../lib/storefrontFirebaseProjects.ts';
 
 export const prerender = false;
 
-const FIREBASE_APP_NAME = 'pz-storefront-push-v2';
 const JSON_HEADERS = Object.freeze({
   'Cache-Control': 'no-store, max-age=0',
   'Content-Type': 'application/json; charset=utf-8',
@@ -28,20 +27,6 @@ function secretMatches(received: string, expected: string) {
   const left = Buffer.from(received, 'utf8');
   const right = Buffer.from(expected, 'utf8');
   return left.length === right.length && timingSafeEqual(left, right);
-}
-
-function initializeStorefrontFirebaseAdmin() {
-  const existing = getApps().find((app) => app.name === FIREBASE_APP_NAME);
-  if (existing) return existing;
-
-  const projectId = String(process.env.PZ_STOREFRONT_FIREBASE_PROJECT_ID || '').trim();
-  const serviceAccountJson = String(process.env.PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
-  if (!projectId || !serviceAccountJson) throw new Error('firebase_not_configured');
-  const serviceAccount = JSON.parse(serviceAccountJson);
-  if (!serviceAccount || String(serviceAccount.project_id || '').trim() !== projectId) {
-    throw new Error('firebase_project_mismatch');
-  }
-  return initializeApp({ credential: cert(serviceAccount), projectId }, FIREBASE_APP_NAME);
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -69,7 +54,10 @@ export const POST: APIRoute = async ({ request }) => {
 
   let messaging;
   try {
-    messaging = getMessaging(initializeStorefrontFirebaseAdmin());
+    messaging = getMessaging(storefrontFirebaseForPush(
+      String(payload.app.firebase_project_id || ''),
+      payload.app.firebase_app_id,
+    ));
   } catch {
     return json(503, { ok: false, error: 'firebase_not_configured', dispatched: false, retryable: true }, {
       'Retry-After': '60',

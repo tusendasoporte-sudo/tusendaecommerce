@@ -1,0 +1,52 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../layouts/Layout.astro';
+import MasterShell from '../../../../components/master/MasterShell.astro';
+import MasterStoreAppBuildView from '../../../../components/master/MasterStoreAppBuildView.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
+import { getMasterStoreAppBuilds, getMasterAppBuildErrorMessage } from '../../../../lib/masterStoreAppBuilds';
+import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const storeId = String(Astro.params.storeId || '').trim();
+if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+
+const storeRecord: any = await authPb.collection('stores').getOne(storeId, {
+  fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent',
+  requestKey: null,
+}).catch(() => null);
+if (!storeRecord) return Astro.redirect('/master/stores');
+
+const result = await getMasterStoreAppBuilds(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, storeId);
+const currentStore = {
+  id: storeId,
+  name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
+  slug: String(storeRecord.slug || '').trim(),
+  status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
+  planPresentation: resolveStorePlanPresentation(storeRecord),
+};
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={`App Android · ${currentStore.name}`} currentStore={currentStore}>
+    {result.data ? (
+      <MasterStoreAppBuildView data={result.data} planPresentation={currentStore.planPresentation} />
+    ) : (
+      <section class="master-error" role="alert">
+        <strong>El panel de app no está disponible.</strong><br />
+        {getMasterAppBuildErrorMessage(result.error)}
+      </section>
+    )}
+  </MasterShell>
+</Layout>

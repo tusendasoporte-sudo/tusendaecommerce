@@ -365,14 +365,18 @@ function parseEventPayload(value) {
 }
 
 function parseEnvelope(body, action) {
-  if (!exactPayload(body, ["app_id", "credential", "client", "payload"])) return null;
+  const legacyShape = exactPayload(body, ["app_id", "credential", "client", "payload"]);
+  const multiProjectShape = exactPayload(body, ["app_id", "firebase_project_id", "credential", "client", "payload"]);
+  if (!legacyShape && !multiProjectShape) return null;
   const appId = bodyValue(body, "app_id");
+  const firebaseProjectId = multiProjectShape ? safeText(bodyValue(body, "firebase_project_id")) : "";
   const credential = bodyValue(body, "credential");
   if (typeof appId !== "string" || typeof credential !== "string") return null;
   if (action === "session_consume") {
     if (appId || credential) return null;
   } else {
     if (!APP_ID_PATTERN.test(appId)) return null;
+    if (multiProjectShape && !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProjectId)) return null;
     if (credential && !CREDENTIAL_PATTERN.test(credential)) return null;
   }
   const client = parseClient(bodyValue(body, "client"));
@@ -386,7 +390,7 @@ function parseEnvelope(body, action) {
   else if (action === "campaigns_resolve_target") payload = parseCampaignResolvePayload(bodyValue(body, "payload"));
   else if (action === "events_record") payload = parseEventPayload(bodyValue(body, "payload"));
   if (!payload) return null;
-  return Object.freeze({ appId, credential, client, payload });
+  return Object.freeze({ appId, firebaseProjectId, credential, client, payload });
 }
 
 function pruneMemory(nowMs) {
@@ -468,8 +472,10 @@ function findById(app, collection, id) {
   try { return app.findRecordById(collection, id); } catch (_) { return null; }
 }
 
-function resolveAppContext(app, appId, allowInactive) {
-  const appConfig = findFirst(app, APP_CONFIGS_COLLECTION, "firebase_app_id = {:appId}", { appId });
+function resolveAppContext(app, appId, firebaseProjectId, allowInactive) {
+  const appConfig = firebaseProjectId
+    ? findFirst(app, APP_CONFIGS_COLLECTION, "firebase_app_id = {:appId} && firebase_project_id = {:projectId}", { appId, projectId: firebaseProjectId })
+    : findFirst(app, APP_CONFIGS_COLLECTION, "firebase_app_id = {:appId}", { appId });
   if (!appConfig || (!allowInactive && recordString(appConfig, "status") !== "active")) {
     throw new StorefrontInstallationError("app_not_available");
   }
@@ -574,7 +580,7 @@ function mapInstallation(record) {
 }
 
 function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
-  const resolved = resolveAppContext(app, context.appId, false);
+  const resolved = resolveAppContext(app, context.appId, context.firebaseProjectId, false);
   requireRegistrationPlan(resolved.store, context.now);
   const appConfigId = safeText(resolved.appConfig.id || recordString(resolved.appConfig, "id"));
   const digest = fidDigest(appConfigId, context.payload.fid, credentialSecret, context.security);
@@ -654,7 +660,7 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
 
 function resolveCredentialContext(app, context, credentialSecret, allowDisabled, allowInactiveApp) {
   if (!context.credential) throw new StorefrontInstallationError("credential_required");
-  const resolved = resolveAppContext(app, context.appId, allowInactiveApp === true);
+  const resolved = resolveAppContext(app, context.appId, context.firebaseProjectId, allowInactiveApp === true);
   const digest = credentialDigest(context.credential, credentialSecret, context.security);
   const installation = findFirst(
     app,

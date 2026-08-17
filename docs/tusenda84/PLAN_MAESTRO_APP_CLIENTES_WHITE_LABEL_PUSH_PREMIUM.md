@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C09 COMPLETADO — C10 permanece PENDIENTE |
-| Versión del documento | 1.30 |
+| Estado general | PZ-APP-C10 EN CURSO — implementación local, alertas del motor y entrega manual WhatsApp listas para revisión, sin efectos externos |
+| Versión del documento | 1.33 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-16 |
+| Última actualización | 2026-08-17 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Conversar y acordar exclusivamente PZ-APP-C10 antes de autorizar su implementación |
+| Próximo prompt | Revisar el diseño implementado de PZ-APP-C10 y decidir las pruebas manuales/autorizaciones externas separadas |
 
 ### Convención de estados
 
@@ -568,7 +568,7 @@ Estado vigente:
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | COMPLETADO | C04, C05 | Completada parcialmente en staging; pendientes humanos transferidos a C11 | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | COMPLETADO | C03, C05, C07, C08 | Completada: embudo, atribución, aislamiento y auditoría Master en staging | Sol — Extra High |
-| PZ-APP-C10 | Generador reproducible APK/AAB por tienda | PENDIENTE | C06, C07 | Sí: instalar ambos artefactos | Terra — High |
+| PZ-APP-C10 | Generador reproducible APK/AAB por tienda | EN CURSO | C06, C07 | Pendiente: APK firmados y AAB Play sin publicar | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
 | PZ-APP-C013 | Reconciliación de instalaciones legacy y validación física de App Set ID | PENDIENTE | C12 | Sí: APK nueva y teléfono físico conocido | Sol — Extra High |
@@ -2168,3 +2168,71 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 #### Siguiente paso
 
 - C09 queda `COMPLETADO`. C10 permanece `PENDIENTE` y no se iniciará sin una conversación y autorización nuevas.
+
+### 2026-08-16 — PZ-APP-C10 EN CURSO: implementación local autorizada, sin aprovisionamiento ni firmas reales
+
+#### Autorización y límites
+
+- El propietario aprobó el diseño C10 y autorizó exclusivamente su implementación local.
+- Permanecieron prohibidos: crear proyectos Firebase, registrar paquetes, generar firmas reales, desplegar servicios, modificar staging/producción o publicar artefactos.
+- Se avisó antes de modificar componentes Android, Firebase/push, PocketBase, panel Master y este plan. Los cambios locales preexistentes de pruebas y C014 se preservaron.
+
+#### Diseño local implementado
+
+- Se añadió el panel privado `/master/stores/{storeId}/app`; solo crea vistas previas y confirma trabajos. No compila, no ejecuta shell y no recibe secretos.
+- La migración aditiva `1786838400_storefront_app_builds_c10.js` crea perfiles, trabajos y metadatos de artefactos privados, y amplía `storefront_app_configs` con proyecto Firebase sin invalidar PowerZona legacy.
+- Aprovisionamiento y actualización usan contratos separados. Preview queda ligado a actor, tienda, SHA-256 y vencimiento; confirmar únicamente cambia el trabajo a `queued`.
+- El runner Android aislado usa endpoints internos y un secreto exclusivo. Ninguna ruta Master puede reclamar/completar trabajos o registrar artefactos.
+- PowerZona conserva `play_and_direct`; las demás tiendas fallan cerrado si intentan AAB. APK, checksum e instrucciones son entregables; AAB y manifiesto técnico son solo Master.
+- Firma de app y clave de subida son distintas para PowerZona. Cada tienda exige su propia firma; el generador prohíbe sobrescribir keystores.
+- Firebase admite un registro multi-proyecto por runtime con apps Admin nombradas. El gateway selecciona proyecto usando claims no confiables solo como ruteo y luego verifica criptográficamente App Check. Las variables legacy mantienen compatibilidad PowerZona.
+
+#### Motor reproducible y prueba local
+
+- `scripts/build-store-app.ps1` crea previews sin efectos; la ejecución exige la ruta y hash exactos confirmados, `-ExecuteBuild` y switches adicionales para Firebase/firma.
+- `config/schema.json`, validación PowerShell, hashes de marca, detección de paquetes duplicados, wrapper SHA-256, dependency locking y verification metadata fijan entradas relevantes.
+- PowerZona y `demo` usan el mismo código fuente. Demo tiene paquete, app key, proyecto ficticio, nombre, paleta e iconos distintos, y se bloquea para Release.
+- PowerZona: `testDebugUnitTest`, `lintDebug` y `assembleDebug` aprobaron 27/27 pruebas.
+- Demo: `testDebugUnitTest`, `lintDebug` y `assembleDebug` aprobaron 27/27 pruebas sin editar `app/src/main` entre marcas.
+- `mobile-storefront/scripts/test-store-config.ps1` aprobó aislamiento de paquete, app key, Firebase y distribución.
+- Backend focal C10 + compatibilidad C03/C05: 40/40 pruebas aprobadas, incluido el runtime PocketBase real de instalaciones y el contrato de entrega manual WhatsApp.
+- Frontend focal C10/Firebase/gateway: 30/30 pruebas aprobadas y `astro build` completó. La suite global heredada quedó en 515/523 por las mismas ocho expectativas M7U2/V7E9 sobre archivos fuera del inventario C10 y ya divergentes en el árbol recibido; no se modificaron dentro de este prompt.
+- `git diff --check`, parser de scripts PowerShell y auditoría de archivos sensibles aprobaron. El lockfile Gradle se revalidó en modo estricto para ambas marcas.
+- No se abrió ni alteró ningún secreto, keystore o `google-services.json`; no se usaron Firebase/FCM reales.
+
+#### Archivos y revisión
+
+- Diseño operativo: `docs/tusenda84/PZ_APP_C10_DISENO_IMPLEMENTACION_LOCAL.md`.
+- Motor y custodia: `mobile-storefront/README.md` y `mobile-storefront/runner/`.
+- C10 permanece `EN CURSO`. Los criterios de artefactos firmados, instalación física y validación AAB requieren revisión del diseño y autorizaciones externas separadas.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: versión del motor y alertas de actualización
+
+- Se aprobó añadir antes del cierre C10 el mecanismo que permitirá propagar futuras funciones nativas comunes a apps nuevas y detectar las apps ya construidas que requieren una nueva APK/AAB.
+- `engine.properties` fija una release SemVer común. Cada build registra versión y commit; el perfil privado conserva esa procedencia y el runner Release exige un workspace Git limpio.
+- El backend compara los perfiles con la release aprobada por variables de runtime y expone un inventario privado exclusivo Master. La revisión exacta es opcional solo en desarrollo local; para una release operativa debe configurarse el commit de 40 caracteres.
+- El resumen Master presenta una alerta global y la página App Android muestra una alerta por tienda con severidad normal, recomendada o crítica. Ninguna alerta compila, firma, despliega o publica automáticamente.
+- Solo cambios del motor Android común activan todas las apps. Cambios exclusivos de marca/configuración o de la web remota quedan fuera de esa señal.
+- El futuro panel inferior nativo no se implementó en este paso. Será una evolución posterior del motor, antes de C11, y al incrementar la release marcará las apps existentes como pendientes.
+- No se aprovisionó Firebase, no se registraron paquetes, no se generaron firmas y no se desplegó ningún servicio. C10 continúa `EN CURSO`.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: entrega manual de actualizaciones por WhatsApp
+
+- Se aprobó que el Master prepare y envíe personalmente desde su propio número el aviso de actualización al administrador principal de cada tienda, sin WhatsApp Cloud API ni envío automático.
+- Se reutilizan relaciones existentes: `users.phone` para el número oficial del Master y `stores.primary_admin_user` más el teléfono de ese usuario para el destinatario. Ambos números deben incluir código de país.
+- El panel de cada app incorpora configuración del remitente, estado del administrador principal, APK pendiente, vista previa del mensaje, confirmación de la sesión abierta, apertura de `wa.me` y confirmación posterior `MARCAR ENVIADO`.
+- El destinatario no puede sustituirse dentro del envío: debe ser el administrador principal activo de la misma tienda. Si falta o su teléfono es inválido, el flujo falla cerrado y dirige al control de usuarios.
+- La vista previa solo se habilita para un build exitoso con APK entregable y contiene versión, archivo y checksum. El APK se adjunta manualmente desde la custodia privada de Tu Senda 84; el panel nunca expone el localizador de almacenamiento.
+- PocketBase conserva la constancia manual por trabajo —actor, destinatario, teléfonos normalizados, hash del mensaje y fecha—, pero no afirma entrega o lectura técnica de WhatsApp.
+- El resumen Master separa apps que necesitan generar una nueva versión de APK ya generadas que todavía deben enviarse. Ninguna acción abre WhatsApp durante pruebas automáticas.
+- No se enviaron mensajes reales, no se usó una sesión de WhatsApp y no se añadió ninguna credencial externa. C10 continúa `EN CURSO` hasta revisar visualmente este flujo y completar las pruebas manuales autorizadas.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: cierre de pruebas automáticas de entrega manual
+
+- Un runtime PocketBase 0.38.2 desechable aplicó íntegramente las migraciones y aprobó 1/1 prueba HTTP real del flujo C10: autorización Master, colecciones privadas, remitente ausente o inválido, administrador principal ausente o con teléfono inválido, APK inexistente, preview `wa.me`, checksum, confirmación exacta, persistencia e idempotencia de `MARCAR ENVIADO`.
+- La regresión backend C10 aprobó 13/13 pruebas; la regresión frontend C10/Firebase/gateway aprobó 30/30 y el build Astro terminó correctamente con las tres advertencias históricas de rutas dinámicas.
+- El panel se recorrió con cuatro tiendas ficticias: lista para enviar, sin administrador principal, con teléfono inválido y sin APK. El resumen separó correctamente 1 actualización de motor de 3 APK pendientes de entrega.
+- La vista previa mostró destinatario, versión, archivo, SHA-256 e instrucciones; `Abrir WhatsApp` permaneció deshabilitado hasta confirmar la cuenta y la confirmación posterior permaneció oculta. La ejecución se detuvo antes de abrir WhatsApp y no apareció ninguna pestaña externa.
+- La revisión responsive aprobó en 1440×900, 834×1112 y 390×844: sin desbordamiento horizontal, sin controles visibles menores de 44 px y sin errores ni advertencias de consola.
+- El runtime, las cuatro tiendas, los usuarios, trabajos y artefactos ficticios se eliminaron al terminar. No quedaron procesos ni puertos QA abiertos; no se aprovisionó Firebase, no se registraron paquetes, no se generaron firmas, no se desplegó y no se envió ningún mensaje.
+- C10 permanece `EN CURSO`. Su cierre sigue condicionado a la revisión manual del propietario y a las autorizaciones externas separadas ya definidas.

@@ -5,7 +5,9 @@
   "display_name": "PowerZona",
   "application_id": "com.tusenda84.powerzona",
   "store_url": "https://tusenda84.com/t/powerzona",
+  "publishable": true,
   "firebase_android": {
+    "project_id": "tu-senda-84-storefront-staging",
     "package_name": "com.tusenda84.powerzona",
     "configuration_file": "app/google-services.json",
     "tracked_in_git": false

@@ -40,6 +40,18 @@ test('normaliza un lote storefront exacto sin cruzar app ni paquete', () => {
   assert.equal(normalizePushRelayV2Payload(duplicate), null);
 });
 
+test('acepta proyecto Firebase explícito y rechaza proyecto o app inyectados', () => {
+  const multiProject = payload();
+  multiProject.app.firebase_project_id = 'tu-senda-84-storefront-staging';
+  assert.deepEqual(normalizePushRelayV2Payload(multiProject), multiProject);
+  const invalidProject = payload();
+  invalidProject.app.firebase_project_id = '../otro';
+  assert.equal(normalizePushRelayV2Payload(invalidProject), null);
+  const extra = payload();
+  extra.app.credential_env = 'PZ_SECRET';
+  assert.equal(normalizePushRelayV2Payload(extra), null);
+});
+
 test('rechaza campos extra, destinos administrativos, URL no HTTPS y más de 500 FID', () => {
   assert.equal(normalizePushRelayV2Payload({ ...payload(), injected: true }), null);
   const admin = payload();
@@ -116,9 +128,12 @@ test('valida resultados por delivery sin aceptar IDs, estados o campos inyectado
 
 test('v2 usa credenciales y secreto storefront sin modificar el relay administrativo v1', () => {
   const v2 = readFileSync(new URL('../src/pages/api/internal/push/v2/send.ts', import.meta.url), 'utf8');
+  const projects = readFileSync(new URL('../src/lib/storefrontFirebaseProjects.ts', import.meta.url), 'utf8');
   const v1 = readFileSync(new URL('../src/pages/api/internal/push/send.ts', import.meta.url), 'utf8');
   assert.match(v2, /PZ_STOREFRONT_PUSH_RELAY_SECRET/);
-  assert.match(v2, /PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON/);
+  assert.match(v2, /storefrontFirebaseForPush/);
+  assert.match(projects, /PZ_STOREFRONT_FIREBASE_PROJECTS_JSON/);
+  assert.match(projects, /PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON/);
   assert.match(v2, /firebase_send_ambiguous/);
   assert.match(v1, /PZ_PUSH_RELAY_SECRET/);
   assert.doesNotMatch(v1, /STOREFRONT/);

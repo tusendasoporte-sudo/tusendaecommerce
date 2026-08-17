@@ -62,7 +62,7 @@ public final class StorefrontActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setTheme(R.style.Theme_PowerZonaStorefront);
+        setTheme(R.style.Theme_Storefront);
         super.onCreate(savedInstanceState);
         configureWindow();
         setContentView(R.layout.activity_storefront);

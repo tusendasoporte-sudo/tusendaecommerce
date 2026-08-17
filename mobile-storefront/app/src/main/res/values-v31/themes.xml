@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PowerZonaStorefront.Launch" parent="Theme.PowerZonaStorefront">
+    <style name="Theme.Storefront.Launch" parent="Theme.Storefront">
         <item name="android:windowSplashScreenBackground">@color/pz_brand_base_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/storefront_icon</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/pz_brand_base_background</item>
     </style>
 </resources>

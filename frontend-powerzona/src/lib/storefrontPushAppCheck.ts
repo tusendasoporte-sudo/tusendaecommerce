@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAppCheck } from 'firebase-admin/app-check';
+import { storefrontFirebaseForAppCheckToken } from './storefrontFirebaseProjects.ts';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 import {
   publicSecurityProxyDiagnostics,
@@ -20,7 +20,6 @@ const INTERNAL_SECRET_HEADER = 'x-pz-storefront-internal';
 const INTERNAL_TIMESTAMP_HEADER = 'x-pz-storefront-timestamp';
 const INTERNAL_NONCE_HEADER = 'x-pz-storefront-nonce';
 const INTERNAL_SIGNATURE_HEADER = 'x-pz-storefront-signature';
-const FIREBASE_APP_NAME = 'pz-storefront-app-check';
 const INTERNAL_RESPONSE_MAX_BYTES = 65_536;
 const RATE_WINDOW_MS = 60_000;
 const RATE_BUCKET_LIMIT = 20_000;
@@ -47,7 +46,7 @@ const ACTION_LIMITS = Object.freeze({
 
 type StorefrontAction = keyof typeof ACTION_LIMITS;
 type GatewayPayloadParser<T> = (value: unknown) => T | null;
-type AppCheckVerifier = (token: string) => Promise<{ appId: string }>;
+type AppCheckVerifier = (token: string) => Promise<{ appId: string; projectId?: string }>;
 type FetchLike = typeof fetch;
 
 type RateBucket = { count: number; resetAt: number };
@@ -152,26 +151,12 @@ function configuredInternalSecret() {
   ]) ? secret : '';
 }
 
-function initializeStorefrontFirebaseAdmin() {
-  const existing = getApps().find((app) => app.name === FIREBASE_APP_NAME);
-  if (existing) return existing;
-
-  const projectId = environmentValue('PZ_STOREFRONT_FIREBASE_PROJECT_ID');
-  const inlineServiceAccount = environmentValue('PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON');
-  if (!projectId || !inlineServiceAccount) {
-    throw new Error('Storefront Firebase credentials are not configured');
-  }
-
-  const serviceAccount = JSON.parse(inlineServiceAccount) as Record<string, unknown>;
-  if (String(serviceAccount.project_id || '').trim() !== projectId) {
-    throw new Error('Storefront Firebase project mismatch');
-  }
-  return initializeApp({ credential: cert(serviceAccount), projectId }, FIREBASE_APP_NAME);
-}
-
 async function defaultAppCheckVerifier(token: string) {
-  const result = await getAppCheck(initializeStorefrontFirebaseAdmin()).verifyToken(token);
-  return { appId: String(result.appId || '').trim() };
+  const selected = storefrontFirebaseForAppCheckToken(token);
+  const result = await getAppCheck(selected.app).verifyToken(token);
+  const appId = String(result.appId || '').trim();
+  if (selected.expectedAppId && appId !== selected.expectedAppId) throw new Error('app_check_project_mismatch');
+  return { appId, projectId: selected.projectId };
 }
 
 export function storefrontAppCheckToken(request: Request) {
@@ -193,7 +178,8 @@ export async function verifyStorefrontAppCheck(
     if (!appId || appId.length > 255 || /[\s\u0000-\u001f\u007f]/.test(appId)) {
       return { ok: false as const, status: 401, error: 'app_check_invalid' };
     }
-    return { ok: true as const, appId };
+    const projectId = String(verified?.projectId || '').trim();
+    return projectId ? { ok: true as const, appId, projectId } : { ok: true as const, appId };
   } catch {
     return { ok: false as const, status: 401, error: 'app_check_invalid' };
   }
@@ -379,8 +365,10 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     return storefrontJson(429, { ok: false, error: 'rate_limited' }, { 'Retry-After': '60' });
   }
 
+  const verifiedProjectId = 'projectId' in appCheck ? String(appCheck.projectId || '') : '';
   const envelope = Object.freeze({
     app_id: appCheck.appId,
+    ...(verifiedProjectId ? { firebase_project_id: verifiedProjectId } : {}),
     credential,
     client,
     payload,

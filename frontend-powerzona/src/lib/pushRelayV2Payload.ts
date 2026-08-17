@@ -1,6 +1,7 @@
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
 const APP_ID_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const FIREBASE_APP_ID_PATTERN = /^1:[0-9]{6,20}:android:[a-f0-9]{16,64}$/;
+const FIREBASE_PROJECT_ID_PATTERN = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const SAFE_TARGET_PATH_PATTERN = /^\/t\/[a-z0-9][a-z0-9-]*(?:[/?][A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$/;
@@ -44,7 +45,9 @@ function validTargetPath(type: string, value: string) {
 
 export function normalizePushRelayV2Payload(value: any) {
   if (!exactObject(value, ['app', 'deliveries', 'message'])) return null;
-  if (!exactObject(value.app, ['app_key', 'firebase_app_id', 'package_name'])) return null;
+  const legacyAppShape = exactObject(value.app, ['app_key', 'firebase_app_id', 'package_name']);
+  const multiProjectAppShape = exactObject(value.app, ['app_key', 'firebase_app_id', 'firebase_project_id', 'package_name']);
+  if (!legacyAppShape && !multiProjectAppShape) return null;
   if (!exactObject(value.message, [
     'body',
     'campaign_id',
@@ -63,9 +66,11 @@ export function normalizePushRelayV2Payload(value: any) {
   const appKey = clean(value.app.app_key, 64);
   const packageName = clean(value.app.package_name, 190);
   const firebaseAppId = clean(value.app.firebase_app_id, 255);
+  const firebaseProjectId = multiProjectAppShape ? clean(value.app.firebase_project_id, 128) : '';
   if (!APP_KEY_PATTERN.test(appKey)
     || !APP_ID_PATTERN.test(packageName)
-    || !FIREBASE_APP_ID_PATTERN.test(firebaseAppId)) return null;
+    || !FIREBASE_APP_ID_PATTERN.test(firebaseAppId)
+    || (multiProjectAppShape && !FIREBASE_PROJECT_ID_PATTERN.test(firebaseProjectId))) return null;
 
   const campaignId = clean(value.message.campaign_id, 15);
   const storeKey = clean(value.message.store_key, 64);
@@ -105,6 +110,7 @@ export function normalizePushRelayV2Payload(value: any) {
       app_key: appKey,
       firebase_app_id: firebaseAppId,
       package_name: packageName,
+      ...(multiProjectAppShape ? { firebase_project_id: firebaseProjectId } : {}),
     },
     message: {
       schema_version: '1',

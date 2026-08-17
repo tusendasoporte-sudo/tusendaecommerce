@@ -24,5 +24,5 @@
     <string name="external_app_unavailable">No hay una aplicación disponible para abrir este enlace.</string>
     <string name="downloads_blocked">Las descargas se abren fuera de la app cuando están permitidas.</string>
     <string name="still_offline">Todavía no hay conexión a internet.</string>
-    <string name="push_target_unavailable">El destino ya no está disponible. Abrimos la portada de PowerZona.</string>
+    <string name="push_target_unavailable">El destino ya no está disponible. Abrimos la portada de la tienda.</string>
 </resources>

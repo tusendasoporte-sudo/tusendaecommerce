@@ -2,9 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
-def storeConfigFile = rootProject.file('config/powerzona.properties')
+def requestedConfigKey = (project.findProperty('PZ_STOREFRONT_CONFIG')
+        ?: System.getenv('PZ_STOREFRONT_CONFIG')
+        ?: 'powerzona').toString().trim()
+if (!(requestedConfigKey ==~ /[a-z0-9][a-z0-9-]{1,62}/)) {
+    throw new GradleException('PZ_STOREFRONT_CONFIG debe ser una clave de configuracion segura.')
+}
+def externalConfigPath = System.getenv('PZ_STOREFRONT_CONFIG_FILE')?.trim()
+def storeConfigFile = externalConfigPath ? new File(externalConfigPath) : rootProject.file("config/${requestedConfigKey}.properties")
 if (!storeConfigFile.exists()) {
-    throw new GradleException('Falta config/powerzona.properties para la variante PowerZona C07.')
+    throw new GradleException("Falta la configuracion storefront ${requestedConfigKey}.")
 }
 def storeProperties = new Properties()
 storeConfigFile.withInputStream { stream -> storeProperties.load(stream) }
@@ -40,7 +47,11 @@ def validateBrandAsset = { String key ->
     def file = brandAsset(key)
     def expected = entry?.sha256?.toString()?.trim()?.toLowerCase()
     if (file == null || !file.exists() || !(expected ==~ /[a-f0-9]{64}/) || sha256(file) != expected) {
-        throw new GradleException("El recurso PowerZona ${key} no coincide con el maestro v3 aprobado.")
+        throw new GradleException("El recurso ${key} de ${brandKey} no coincide con su hash versionado.")
+    }
+    def extension = file.name.tokenize('.').last().toLowerCase()
+    if (!['png', 'webp', 'xml'].contains(extension)) {
+        throw new GradleException("El recurso ${key} debe ser PNG, WebP o XML vectorial.")
     }
 }
 
@@ -51,9 +62,10 @@ def stagingPackagingRequested = requestedTasks.any { name ->
 def releasePackagingRequested = requestedTasks.any { name ->
     name.contains('assemblerelease') || name.contains('bundlerelease') || name.contains('installrelease')
 }
+def publishablePackagingRequested = stagingPackagingRequested || releasePackagingRequested
 
 def firebaseConfigFile = file('google-services.json')
-if (firebaseConfigFile.exists() && stagingPackagingRequested) {
+if (firebaseConfigFile.exists() && publishablePackagingRequested) {
     apply plugin: 'com.google.gms.google-services'
 }
 
@@ -64,8 +76,12 @@ def stagingStoreUrl = apiBaseUrl ? "${apiBaseUrl}/t/${storeKey}" : ''
 def appKey = configuredValue('PZ_STOREFRONT_APP_KEY', 'app.key')
 def appDisplayName = configuredValue('PZ_STOREFRONT_APP_NAME', 'app.display_name')
 def configuredApplicationId = configuredValue('PZ_STOREFRONT_APPLICATION_ID', 'application.id')
+def configuredFirebaseProjectId = configuredValue('PZ_STOREFRONT_FIREBASE_PROJECT_ID', 'firebase.project_id')
+def configuredDistribution = configuredValue('PZ_STOREFRONT_DISTRIBUTION', 'distribution')
+def configuredPublishable = configuredValue('PZ_STOREFRONT_PUBLISHABLE', 'build.publishable').equalsIgnoreCase('true')
 def configuredVersionCode = configuredValue('PZ_STOREFRONT_VERSION_CODE', 'version.code')
 def configuredVersionName = configuredValue('PZ_STOREFRONT_VERSION_NAME', 'version.name')
+def configuredSchemaVersion = configuredValue('PZ_STOREFRONT_SCHEMA_VERSION', 'schema.version')
 def destructiveTestsEnabled = (project.findProperty('PZ_ALLOW_STAGING_DESTRUCTIVE_TESTS') ?: 'false')
         .toString().trim().equalsIgnoreCase('true')
 def configuredSigningPropertiesPath = System.getenv('PZ_STOREFRONT_SIGNING_PROPERTIES')?.trim()
@@ -84,53 +100,47 @@ def validHttpsOrigin = { String value ->
     try {
         def parsed = new URI(value)
         def path = parsed.path ?: ''
-        return parsed.scheme == 'https'
-                && parsed.host
-                && !parsed.userInfo
-                && (parsed.port == -1 || parsed.port == 443)
-                && (path == '' || path == '/')
-                && !parsed.query
-                && !parsed.fragment
-    } catch (Exception ignored) {
-        return false
-    }
+        return parsed.scheme == 'https' && parsed.host && !parsed.userInfo
+                && (parsed.port == -1 || parsed.port == 443) && (path == '' || path == '/')
+                && !parsed.query && !parsed.fragment
+    } catch (Exception ignored) { return false }
 }
 
 def validStoreUrl = { String value, String key ->
     try {
         def parsed = new URI(value)
-        def expectedPath = "/t/${key}"
-        return parsed.scheme == 'https'
-                && parsed.host
-                && !parsed.userInfo
-                && (parsed.port == -1 || parsed.port == 443)
-                && parsed.path == expectedPath
-                && !parsed.query
-                && !parsed.fragment
-                && key ==~ /[a-z0-9][a-z0-9-]{1,62}/
-    } catch (Exception ignored) {
-        return false
-    }
+        return parsed.scheme == 'https' && parsed.host && !parsed.userInfo
+                && (parsed.port == -1 || parsed.port == 443) && parsed.path == "/t/${key}"
+                && !parsed.query && !parsed.fragment && key ==~ /[a-z0-9][a-z0-9-]{1,62}/
+    } catch (Exception ignored) { return false }
 }
 
+if (configuredSchemaVersion != '1') {
+    throw new GradleException('La configuracion debe declarar schema.version=1.')
+}
 if (!validStoreUrl(storeUrl, storeKey)) {
-    throw new GradleException(
-            'PZ_STOREFRONT_STORE_URL debe ser una URL HTTPS /t/{store_key} y coincidir con PZ_STOREFRONT_STORE_KEY.'
-    )
+    throw new GradleException('store.url debe ser una URL HTTPS /t/{store.key} y coincidir con store.key.')
 }
 if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
-    throw new GradleException('PZ_STOREFRONT_APP_NAME debe contener entre 1 y 60 caracteres visibles.')
+    throw new GradleException('app.display_name debe contener entre 1 y 60 caracteres visibles.')
 }
 if (!(appKey ==~ /[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]/)) {
-    throw new GradleException('PZ_STOREFRONT_APP_KEY debe ser una app_key publica valida.')
+    throw new GradleException('app.key debe ser una app_key publica valida.')
 }
-if (brandKey != 'powerzona'
-        || storeKey != 'powerzona'
-        || appKey != 'powerzona-storefront-staging'
-        || storeUrl != 'https://tusenda84.com/t/powerzona'
-        || appDisplayName != 'PowerZona'
-        || configuredApplicationId != 'com.tusenda84.powerzona') {
-    throw new GradleException('La variante C07 debe conservar exactamente la identidad PowerZona aprobada.')
+if (!(configuredApplicationId ==~ /[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+/)) {
+    throw new GradleException('application.id no es un paquete Android valido.')
+}
+if (!(configuredFirebaseProjectId ==~ /[a-z][a-z0-9-]{4,28}[a-z0-9]/)) {
+    throw new GradleException('firebase.project_id no es valido.')
+}
+if (!['play_and_direct', 'direct'].contains(configuredDistribution)) {
+    throw new GradleException('distribution debe ser play_and_direct o direct.')
+}
+if (storeKey == 'powerzona' && configuredDistribution != 'play_and_direct') {
+    throw new GradleException('PowerZona debe conservar distribucion APK directa y AAB para Google Play.')
+}
+if (storeKey != 'powerzona' && configuredDistribution != 'direct') {
+    throw new GradleException('Las tiendas tenant solo generan APK de distribucion directa.')
 }
 if (brandConfig.schema_version != 1
         || brandConfig.brand_key != brandKey
@@ -138,41 +148,98 @@ if (brandConfig.schema_version != 1
         || brandConfig.display_name != appDisplayName
         || brandConfig.application_id != configuredApplicationId
         || brandConfig.store_url != storeUrl
+        || brandConfig.publishable != configuredPublishable
+        || (brandConfig.firebase_android as Map)?.project_id != configuredFirebaseProjectId
         || (brandConfig.firebase_android as Map)?.package_name != configuredApplicationId
         || (brandConfig.firebase_android as Map)?.tracked_in_git != false) {
-    throw new GradleException('brands/powerzona/brand.json no coincide con la configuración C07 autorizada.')
+    throw new GradleException("brands/${brandKey}/brand.json no coincide con la configuracion seleccionada.")
+}
+def palette = brandConfig.palette as Map
+def requiredPalette = [
+        'deep_sapphire', 'energy_cobalt', 'flash_blue', 'platinum', 'luminous_ice',
+        'pearl_white', 'ink', 'secondary_text', 'base_background'
+]
+if (requiredPalette.any { !(palette?.get(it)?.toString() ==~ /#[A-Fa-f0-9]{6}/) }) {
+    throw new GradleException("La paleta de ${brandKey} esta incompleta o contiene colores invalidos.")
 }
 def versionCodeValue
 try { versionCodeValue = Integer.parseInt(configuredVersionCode) } catch (Exception ignored) { versionCodeValue = 0 }
 if (versionCodeValue < 1 || versionCodeValue > 2_147_483_647
         || !(configuredVersionName ==~ /[0-9]+\.[0-9]+\.[0-9]+/)) {
-    throw new GradleException('La versión PowerZona debe usar versionCode positivo y versionName semántico.')
+    throw new GradleException('La version debe usar versionCode positivo y versionName semantico.')
 }
 validateBrandAsset('icon')
 validateBrandAsset('splash')
 
-if (stagingPackagingRequested) {
-    if (!signingConfigured) {
-        throw new GradleException(
-                'La firma de staging no esta configurada. Crea .secrets/mobile-storefront-staging.properties.'
-        )
+def configDirectory = rootProject.file('config')
+if (configDirectory.exists()) {
+    def seenApplicationIds = [:]
+    configDirectory.listFiles({ file -> file.name.endsWith('.properties') } as FileFilter)?.sort()?.each { file ->
+        def candidate = new Properties()
+        file.withInputStream { stream -> candidate.load(stream) }
+        def applicationId = candidate.getProperty('application.id')?.trim()
+        if (applicationId && seenApplicationIds.containsKey(applicationId)) {
+            throw new GradleException("application.id duplicado en ${seenApplicationIds[applicationId]} y ${file.name}.")
+        }
+        if (applicationId) seenApplicationIds[applicationId] = file.name
+    }
+    if (externalConfigPath && seenApplicationIds.containsKey(configuredApplicationId)) {
+        throw new GradleException("application.id externo duplica ${seenApplicationIds[configuredApplicationId]}.")
+    }
+}
+
+if (publishablePackagingRequested) {
+    if (!configuredPublishable) throw new GradleException('La configuracion demo no es publicable ni firmable.')
+    if (!signingConfigured) throw new GradleException('La firma no esta configurada en el runner privado.')
+    if (releasePackagingRequested && !configuredSigningPropertiesPath) {
+        throw new GradleException('Release exige PZ_STOREFRONT_SIGNING_PROPERTIES explicito; no usa la firma staging por defecto.')
     }
     if (!firebaseConfigFile.exists()) {
-        throw new GradleException('Falta mobile-storefront/app/google-services.json local e ignorado por Git.')
+        throw new GradleException('Falta app/google-services.json local e ignorado por Git.')
     }
+    def firebaseConfig = new groovy.json.JsonSlurper().parseText(firebaseConfigFile.getText('UTF-8')) as Map
+    def firebaseProjectId = (firebaseConfig.project_info as Map)?.project_id?.toString()?.trim()
+    def firebasePackages = ((firebaseConfig.client ?: []) as List).collect { client ->
+        ((client.client_info as Map)?.android_client_info as Map)?.package_name?.toString()?.trim()
+    }.findAll { it }
+    if (firebaseProjectId != configuredFirebaseProjectId || !firebasePackages.contains(configuredApplicationId)) {
+        throw new GradleException('google-services.json no coincide con firebase.project_id y application.id.')
+    }
+}
+if (stagingPackagingRequested) {
     if (!validHttpsOrigin(apiBaseUrl)) {
         throw new GradleException('PZ_STOREFRONT_API_BASE_URL debe ser un origen HTTPS sin ruta, query ni fragmento.')
     }
     if (!validStoreUrl(stagingStoreUrl, storeKey)) {
-        throw new GradleException('El storefront staging debe derivarse del origen HTTPS de PZ_STOREFRONT_API_BASE_URL.')
+        throw new GradleException('El storefront staging debe derivarse del origen HTTPS y store.key.')
     }
-}
-if (releasePackagingRequested) {
-    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C07.')
 }
 
 def javaStringLiteral = { String value ->
     '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+
+def generatedBrandResDirectory = layout.buildDirectory.dir('generated/storefrontBrand/res')
+def generateStorefrontBrandResources = tasks.register('generateStorefrontBrandResources') {
+    inputs.file(brandConfigFile)
+    inputs.file(brandAsset('icon'))
+    inputs.file(brandAsset('splash'))
+    outputs.dir(generatedBrandResDirectory)
+    doLast {
+        def output = generatedBrandResDirectory.get().asFile
+        delete(output)
+        ['icon', 'splash'].each { key ->
+            def source = brandAsset(key)
+            def extension = source.name.tokenize('.').last().toLowerCase()
+            def resourceDirectory = new File(output, extension == 'xml' ? 'drawable' : 'drawable-nodpi')
+            resourceDirectory.mkdirs()
+            copy {
+                from source
+                into resourceDirectory
+                rename { "storefront_${key}.${extension}" }
+            }
+        }
+    }
 }
 
 android {
@@ -191,20 +258,37 @@ android {
         buildConfigField 'String', 'STORE_KEY', javaStringLiteral(storeKey)
         buildConfigField 'String', 'APP_KEY', javaStringLiteral(appKey)
         buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(appDisplayName)
+        buildConfigField 'String', 'FIREBASE_PROJECT_ID', javaStringLiteral(configuredFirebaseProjectId)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', 'false'
         buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()
         manifestPlaceholders = [storefrontAppName: appDisplayName]
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+
+        resValue 'color', 'storefront_brand_deep_sapphire', palette.deep_sapphire
+        resValue 'color', 'storefront_brand_energy_cobalt', palette.energy_cobalt
+        resValue 'color', 'storefront_brand_flash_blue', palette.flash_blue
+        resValue 'color', 'storefront_brand_platinum', palette.platinum
+        resValue 'color', 'storefront_brand_luminous_ice', palette.luminous_ice
+        resValue 'color', 'storefront_brand_pearl_white', palette.pearl_white
+        resValue 'color', 'storefront_brand_ink', palette.ink
+        resValue 'color', 'storefront_brand_secondary_text', palette.secondary_text
+        resValue 'color', 'storefront_brand_base_background', palette.base_background
     }
 
     buildFeatures {
         buildConfig true
+        resValues true
     }
 
+    sourceSets { main.res.srcDir(generatedBrandResDirectory.get().asFile) }
+
     signingConfigs {
-        staging {
+        storefront {
             if (signingConfigured) {
-                storeFile new File(signingPropertiesFile.parentFile, signingProperties.getProperty('storeFile'))
+                def configuredStoreFile = new File(signingProperties.getProperty('storeFile'))
+                storeFile configuredStoreFile.isAbsolute()
+                        ? configuredStoreFile
+                        : new File(signingPropertiesFile.parentFile, signingProperties.getProperty('storeFile'))
                 storePassword signingProperties.getProperty('storePassword')
                 keyAlias signingProperties.getProperty('keyAlias')
                 keyPassword signingProperties.getProperty('keyPassword')
@@ -227,12 +311,14 @@ android {
             manifestPlaceholders = [storefrontAppName: "${appDisplayName} Staging"]
             minifyEnabled false
             shrinkResources false
-            if (signingConfigured) signingConfig signingConfigs.staging
+            if (signingConfigured) signingConfig signingConfigs.storefront
         }
         release {
+            buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (signingConfigured) signingConfig signingConfigs.storefront
         }
     }
 
@@ -241,15 +327,11 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    lint {
-        abortOnError true
-        checkReleaseBuilds true
-    }
-
-    testOptions {
-        unitTests.returnDefaultValues = true
-    }
+    lint { abortOnError true; checkReleaseBuilds true }
+    testOptions { unitTests.returnDefaultValues = true }
 }
+
+tasks.named('preBuild').configure { dependsOn(generateStorefrontBrandResources) }
 
 dependencies {
     implementation platform('com.google.firebase:firebase-bom:34.17.0')

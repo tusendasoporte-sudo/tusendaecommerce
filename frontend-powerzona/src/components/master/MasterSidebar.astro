@@ -142,6 +142,12 @@ function initials(value: string, fallback: string) {
         >
           <MasterIcon name="plan" size={20} /><span>Plan y límites</span>
         </a>
+        <a
+          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/app`) }]}
+          href={`/master/stores/${encodeURIComponent(currentStore.id)}/app`}
+        >
+          <MasterIcon name="settings" size={20} /><span>App Android</span>
+        </a>
         <a class="master-sidebar__link master-sidebar__link--back" href="/master/stores">
           <MasterIcon name="back" size={20} /><span>Volver a tiendas</span>
         </a>

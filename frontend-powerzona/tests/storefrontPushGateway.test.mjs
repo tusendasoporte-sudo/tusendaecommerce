@@ -389,9 +389,10 @@ test('consumo bootstrap establece cookie HttpOnly Secure y solo redirige a ruta 
   assert.doesNotMatch(response.headers.get('set-cookie'), new RegExp(code));
 });
 
-test('inventario C03+C07 conserva el gateway y añade solo el resolvedor tipado', () => {
+test('inventario C03+C10 conserva el gateway, el resolvedor tipado y Firebase legacy', () => {
   const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
   const gateway = read('../src/lib/storefrontPushAppCheck.ts');
+  const projects = read('../src/lib/storefrontFirebaseProjects.ts');
   const routes = [
     '../src/pages/api/storefront/v1/installations/register.ts',
     '../src/pages/api/storefront/v1/installations/heartbeat.ts',
@@ -402,10 +403,11 @@ test('inventario C03+C07 conserva el gateway y añade solo el resolvedor tipado'
     '../src/pages/api/storefront/v1/campaigns/resolve-target.ts',
   ].map(read).join('\n');
   assert.match(gateway, /verifyToken\(token\)/);
-  assert.match(gateway, /environmentValue\('PZ_STOREFRONT_FIREBASE_PROJECT_ID'\)/);
-  assert.match(gateway, /environmentValue\('PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON'\)/);
-  assert.match(gateway, /Storefront Firebase credentials are not configured/);
-  assert.match(gateway, /Storefront Firebase project mismatch/);
+  assert.match(gateway, /storefrontFirebaseForAppCheckToken/);
+  assert.match(projects, /PZ_STOREFRONT_FIREBASE_PROJECTS_JSON/);
+  assert.match(projects, /PZ_STOREFRONT_FIREBASE_PROJECT_ID/);
+  assert.match(projects, /PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON/);
+  assert.match(projects, /firebase_project_mismatch/);
   assert.doesNotMatch(gateway, /environmentValue\('FIREBASE_(?:PROJECT_ID|SERVICE_ACCOUNT_JSON)'\)/);
   assert.match(gateway, /publicSecurityProxyHeaders\(request, clientAddress, false\)/);
   assert.match(routes, /installations_register/);

@@ -11,12 +11,12 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:hardwareAccelerated="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/storefront_icon"
         android:label="${storefrontAppName}"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/storefront_icon"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PowerZonaStorefront"
+        android:theme="@style/Theme.Storefront"
         android:usesCleartextTraffic="false">
 
         <meta-data
@@ -51,7 +51,7 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.PowerZonaStorefront.Launch"
+            android:theme="@style/Theme.Storefront.Launch"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

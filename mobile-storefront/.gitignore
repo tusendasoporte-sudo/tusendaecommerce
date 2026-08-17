@@ -5,6 +5,12 @@ captures/
 releases/
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+app-signing.properties
+upload-signing.properties
 app/google-services.json
 firebase-service-account*.json
 service-account*.json
