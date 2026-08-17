@@ -11,8 +11,11 @@ interface Props {
 
 const { data, planPresentation } = Astro.props;
 const { store, profile, jobs, artifacts } = data;
-const currentActionJob = jobs.find((job) => job.status === 'preview' && new Date(job.preview_expires_at).getTime() > Date.now())
-  || jobs.find((job) => ['failed', 'needs_attention'].includes(job.status))
+const belongsToCurrentProfile = (job: (typeof jobs)[number]) => !profile || job.profile_id === profile.id;
+const currentActionJob = jobs.find((job) => belongsToCurrentProfile(job)
+  && job.status === 'preview'
+  && new Date(job.preview_expires_at).getTime() > Date.now())
+  || jobs.find((job) => belongsToCurrentProfile(job) && ['failed', 'needs_attention'].includes(job.status))
   || null;
 const retryMode = currentActionJob ? ['failed', 'needs_attention'].includes(currentActionJob.status) : false;
 const isPowerZona = store.slug === 'powerzona';

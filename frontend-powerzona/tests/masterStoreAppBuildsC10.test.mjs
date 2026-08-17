@@ -49,6 +49,8 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /clearPreviewDismissal\(\)/);
   assert.match(view, /previewCard\.hidden = true/);
   assert.match(view, /previewCollapsed\.hidden = false/);
+  assert.match(view, /!profile \|\| job\.profile_id === profile\.id/);
+  assert.match(view, /belongsToCurrentProfile\(job\).*job\.status === 'preview'/s);
   assert.match(view, /confirmCheck\.checked = false/);
   assert.match(view, /confirmButton\.disabled = true/);
   assert.equal(view.includes("pattern={'[a-z0-9][a-z0-9\\\\-]{1,62}[a-z0-9]'}"), true);
