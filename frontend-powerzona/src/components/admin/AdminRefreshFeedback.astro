@@ -17,6 +17,8 @@
 
     const toast = document.querySelector('[data-pz-admin-refresh-toast]');
     const message = toast?.querySelector('[data-pz-admin-refresh-message]');
+    const toastHome = toast?.parentNode || null;
+    const toastHomeNextSibling = toast?.nextSibling || null;
     const active = new WeakMap();
     const navigationKey = 'pz:admin-refresh:navigation';
     let toastTimer = 0;
@@ -24,6 +26,10 @@
 
     const resetPlacement = () => {
       if (!toast) return;
+      if (toastHome && toast.parentNode !== toastHome) {
+        const reference = toastHomeNextSibling?.parentNode === toastHome ? toastHomeNextSibling : null;
+        toastHome.insertBefore(toast, reference);
+      }
       delete toast.dataset.placement;
       toast.style.removeProperty('top');
       toast.style.removeProperty('left');
@@ -36,6 +42,7 @@
       if (!toast || !(anchor instanceof Element)) return;
       const surface = anchor.closest('[data-pz-refresh-surface]');
       if (!(surface instanceof HTMLElement)) return;
+      surface.appendChild(toast);
       const surfaceRect = surface.getBoundingClientRect();
       const anchorRect = anchor.getBoundingClientRect();
       const width = Math.min(370, Math.max(180, surfaceRect.width - 32));
@@ -77,6 +84,7 @@
         hideTimer = window.setTimeout(() => {
           toast.hidden = true;
           toast.classList.remove('is-leaving');
+          resetPlacement();
         }, 180);
       }, tone === 'error' ? 4200 : 3000);
     };

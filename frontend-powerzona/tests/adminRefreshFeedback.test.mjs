@@ -68,6 +68,8 @@ test('resultados de campañas push solo confirman despues de una lectura exitosa
   assert.match(push, /successMessage: 'Resultados actualizados'/);
   assert.match(push, /if \(options\.throwOnError\) throw error/);
   assert.match(feedback, /anchor\.closest\('\[data-pz-refresh-surface\]'\)/);
+  assert.match(feedback, /surface\.appendChild\(toast\)/);
+  assert.match(feedback, /toastHome\.insertBefore\(toast, reference\)/);
   assert.match(feedback, /preferredBelow <= maximumTop/);
   assert.match(feedback, /show\(options\.successMessage \|\| 'Datos actualizados', 'success', button\)/);
 });
