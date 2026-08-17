@@ -3478,7 +3478,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                     <div class="variation-actions pz-variations-actions" style="margin-top:0;">
                       <button id="variation-new-btn" class:list={['mini-btn pz-variation-btn', !(canCreateProducts && canEditProducts) && 'hidden']} type="button" disabled={!(canCreateProducts && canEditProducts)}>Nueva variación</button>
-                      <button id="variation-refresh-btn" class="mini-btn pz-variation-btn pz-variation-btn-primary" type="button">Actualizar</button>
+                      <button id="variation-refresh-btn" class="mini-btn pz-variation-btn pz-variation-btn-primary" type="button" data-pz-refresh-feedback>Actualizar</button>
                     </div>
                   </div>
 
@@ -3726,7 +3726,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <option value="out-stock">Sin stock general</option>
                 </select>
               </div>
-              <button id="refresh-btn" class="action-btn pz-admin-action-btn filter-field" type="button">Actualizar</button>
+              <button id="refresh-btn" class="action-btn pz-admin-action-btn filter-field" type="button" data-pz-refresh-feedback>Actualizar</button>
             </section>
 
             <section class="list-card products-table-card">
@@ -7309,7 +7309,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }).join('');
         renderProductPagination(filtered.length, startIndex + 1, Math.min(startIndex + visibleProducts.length, filtered.length), totalPages);
       }
-      async function loadProducts({ openFromUrl = false } = {}) {
+      async function loadProducts({ openFromUrl = false, throwOnError = false } = {}) {
         if (refreshBtn) refreshBtn.disabled = true;
         productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
         try {
@@ -7339,11 +7339,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (openFromUrl) openEditorFromUrl();
         } catch (error) {
           productsList.innerHTML = '<div class="empty-state">No se pudieron cargar los productos. Revisa tu sesión admin.</div>';
+          if (throwOnError) throw error;
         } finally {
           if (refreshBtn) refreshBtn.disabled = false;
         }
       }
-      refreshBtn?.addEventListener('click', loadProducts);
+      refreshBtn?.addEventListener('click', () => {
+        const feedback = window.PZAdminRefreshFeedback;
+        const operation = feedback?.run
+          ? feedback.run(refreshBtn, () => loadProducts({ throwOnError: true }), { successMessage: 'Productos actualizados' })
+          : loadProducts();
+        Promise.resolve(operation).catch(() => {});
+      });
       relatedProductsOpenBtn?.addEventListener('click', openRelatedProductsModal);
       relatedProductsCloseBtn?.addEventListener('click', closeRelatedProductsModal);
       relatedProductsCancelBtn?.addEventListener('click', closeRelatedProductsModal);
@@ -7565,11 +7572,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           closeQuickCreatePanelsAndRestoreSelects();
         }
       });
-      variationRefreshBtn?.addEventListener('click', async () => {
-        const currentProductId = productIdInput.value;
-        if (!currentProductId) return;
-        await loadProductVariations(currentProductId);
-        setVariationAlert('Variaciones actualizadas.', 'success');
+      variationRefreshBtn?.addEventListener('click', () => {
+        const feedback = window.PZAdminRefreshFeedback;
+        const task = async () => {
+          const currentProductId = productIdInput.value;
+          if (!currentProductId) throw new Error('missing_product');
+          await loadProductVariations(currentProductId);
+        };
+        const operation = feedback?.run
+          ? feedback.run(variationRefreshBtn, task, { successMessage: 'Variaciones actualizadas' })
+          : task();
+        Promise.resolve(operation).catch(() => {});
       });
       variationNewBtn?.addEventListener('click', openNewVariationEditor);
       variationCancelBtn?.addEventListener('click', resetVariationEditor);

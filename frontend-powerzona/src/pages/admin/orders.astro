@@ -981,7 +981,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
             descriptionId="admin-subtitle"
             bellId="admin-orders-bell"
           >
-            <button id="refresh-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+            <button id="refresh-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action" data-pz-refresh-feedback>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>
               <span>Actualizar</span>
             </button>
@@ -1069,7 +1069,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
                   <h2>Listado de pedidos</h2>
                   <p>Visualiza y gestiona todos los pedidos de tu tienda.</p>
                 </div>
-                <button id="orders-list-refresh-btn" class="btn btn-secondary" type="button">Actualizar</button>
+                <button id="orders-list-refresh-btn" class="btn btn-secondary" type="button" data-pz-refresh-feedback>Actualizar</button>
               </div>
               <div id="orders-list"></div>
               <div id="orders-pagination" class="orders-pagination hidden"></div>
@@ -1902,7 +1902,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         }
       }
 
-      async function loadOrders() {
+      async function loadOrders({ throwOnError = false } = {}) {
         ordersList.innerHTML = '<div class="empty-state">Cargando órdenes...</div>';
         refreshBtn.disabled = true;
         try {
@@ -1938,6 +1938,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           if (selectedOrder && !orders.some((order) => order.id === selectedOrder.id)) clearDetail();
         } catch (error) {
           ordersList.innerHTML = '<div class="empty-state">No se pudieron cargar las órdenes. Revisa tu sesion admin o las reglas administrativas.</div>';
+          if (throwOnError) throw error;
         } finally {
           refreshBtn.disabled = false;
         }
@@ -4043,12 +4044,16 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           },
         });
       }
-      const refreshOrdersView = () => {
-        loadOrders();
+      const refreshOrdersView = (button = refreshBtn) => {
+        const feedback = window.PZAdminRefreshFeedback;
+        const operation = feedback?.run
+          ? feedback.run(button, () => loadOrders({ throwOnError: true }), { successMessage: 'Pedidos actualizados' })
+          : loadOrders();
+        Promise.resolve(operation).catch(() => {});
       };
-      refreshBtn.addEventListener('click', refreshOrdersView);
-      refreshMobileBtn?.addEventListener('click', refreshOrdersView);
-      ordersListRefreshBtn?.addEventListener('click', refreshOrdersView);
+      refreshBtn.addEventListener('click', () => refreshOrdersView(refreshBtn));
+      refreshMobileBtn?.addEventListener('click', () => refreshOrdersView(refreshMobileBtn));
+      ordersListRefreshBtn?.addEventListener('click', () => refreshOrdersView(ordersListRefreshBtn));
       searchInput.addEventListener('input', () => { currentOrdersPage = 1; renderOrders(); });
       statusFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
       deliveryFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });

@@ -2927,7 +2927,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 <h2 class="section-title">Ajustes generales públicos</h2>
                 <p class="section-subtitle">Edita los datos principales que verá el cliente en la tienda pública.</p>
               </div>
-              <button id="settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              <button id="settings-refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
             </div>
             <div class="settings-preview">
               <div id="settings-logo-preview" class="settings-logo-box">Logo / icono</div>
@@ -2967,7 +2967,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
               <div id="footer-settings-alert" class="alert alert-info hidden full"></div>
               <div class="full hero-actions" style="justify-content:flex-start">
                 <button class="submit-btn" type="submit">Guardar footer público</button>
-                <button id="footer-settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+                <button id="footer-settings-refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
               </div>
             </form>
           </section>
@@ -2978,7 +2978,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 <h2 class="section-title">Monedas</h2>
                 <p class="section-subtitle">USD sigue siendo la moneda base real. Activa las monedas visuales y configura la tasa que verá el cliente.</p>
               </div>
-              <button id="currency-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              <button id="currency-refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
             </div>
             <div id="currency-list" class="list-card" style="padding:14px; display:grid; gap:10px;"></div>
             <div id="currency-alert" class="alert alert-info hidden"></div>
@@ -6858,9 +6858,21 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           }
         }
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
-        refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
+        refreshBtn && refreshBtn.addEventListener('click', () => {
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(refreshBtn, loadSettings, { successMessage: 'Ajustes actualizados' })
+            : loadSettings();
+          Promise.resolve(operation).catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error'));
+        });
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));
-        footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch((error) => showFooter(error.message || 'No se pudieron cargar los ajustes.', 'error')));
+        footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => {
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(footerRefreshBtn, loadSettings, { successMessage: 'Footer actualizado' })
+            : loadSettings();
+          Promise.resolve(operation).catch((error) => showFooter(error.message || 'No se pudieron cargar los ajustes.', 'error'));
+        });
         marketingAddOfferBtn && marketingAddOfferBtn.addEventListener('click', () => {
           closeMarketingMenus();
           if (currentMarketingItems().length >= 3) {
@@ -7118,7 +7130,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           const row = btn.closest('[data-currency-id]');
           saveCurrency(row).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error'));
         });
-        refreshBtn?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
+        refreshBtn?.addEventListener('click', () => {
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(refreshBtn, loadCurrencies, { successMessage: 'Monedas actualizadas' })
+            : loadCurrencies();
+          Promise.resolve(operation).catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error'));
+        });
         createForm?.addEventListener('submit', (event) => createCurrency(event).catch((error) => show(error.message || 'No se pudo crear la moneda.', 'error')));
         document.querySelector('[data-tab="monedas"]')?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
         if (token() && CAN_MANAGE_STORE_SETTINGS) loadCurrencies().catch(() => {});

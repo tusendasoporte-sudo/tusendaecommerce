@@ -59,7 +59,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
       <h2 id={`${activityInstance}-title`} data-activity-title>{title}</h2>
       <p>{description}</p>
     </div>
-    <button class="store-activity-refresh" type="button" data-activity-refresh aria-label="Actualizar actividad">
+    <button class="store-activity-refresh" type="button" data-activity-refresh data-pz-refresh-feedback aria-label="Actualizar actividad">
       Actualizar
     </button>
   </header>
@@ -582,7 +582,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
       return '<div class="store-activity-skeleton" aria-label="Cargando actividad"><span></span><span></span><span></span></div>';
     }
 
-    async function loadActivity() {
+    async function loadActivity(options: { throwOnError?: boolean } = {}) {
       if (!activated || loading) return;
       loading = true;
       showMessage(alert);
@@ -625,6 +625,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
           : getStoreActivityErrorMessage(error);
         showMessage(alert, message);
         if (list) list.innerHTML = '<p class="store-activity-empty">No se pudo cargar la actividad.</p>';
+        if (options.throwOnError) throw error;
       } finally {
         loading = false;
         refreshButton?.removeAttribute('aria-busy');
@@ -755,7 +756,13 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
       }, 0);
     }, listenerOptions);
 
-    refreshButton?.addEventListener('click', () => void loadActivity(), listenerOptions);
+    refreshButton?.addEventListener('click', () => {
+      const feedback = (window as any).PZAdminRefreshFeedback;
+      const operation = feedback?.run
+        ? feedback.run(refreshButton, () => loadActivity({ throwOnError: true }), { successMessage: 'Actividad actualizada' })
+        : loadActivity();
+      void Promise.resolve(operation).catch(() => {});
+    }, listenerOptions);
     root.querySelector('[data-activity-resource-filter-clear]')?.addEventListener('click', () => {
       clearResourceFilter();
       currentPage = 1;

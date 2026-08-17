@@ -85,7 +85,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         <h2 id="push-campaign-list-title">Historial y borradores</h2>
         <p>Los resultados siempre pertenecen a esta tienda. Se muestran hasta 10 campañas por página.</p>
       </div>
-      <button class="push-icon-btn" type="button" data-refresh-campaigns aria-label="Actualizar campañas" title="Actualizar campañas">
+      <button class="push-icon-btn" type="button" data-refresh-campaigns data-pz-refresh-feedback aria-label="Actualizar campañas" title="Actualizar campañas">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
       </button>
     </div>
@@ -302,7 +302,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
                 <strong data-audience-estimate>Sin calcular</strong>
                 <small data-audience-note>Se calculará automáticamente al abrir el editor.</small>
               </div>
-              <button class="push-btn push-btn--secondary" type="button" data-estimate-audience>Actualizar cálculo</button>
+              <button class="push-btn push-btn--secondary" type="button" data-estimate-audience data-pz-refresh-feedback>Actualizar cálculo</button>
             </div>
           </fieldset>
 
@@ -411,7 +411,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
                 <h3 id="push-metrics-title" class="admin-compact-summary__title">Resultados</h3>
                 <p class="admin-compact-summary__subtitle">Alcance e interacción registrados.</p>
               </div>
-              <button class="push-icon-btn push-detail-summary__refresh" type="button" data-refresh-campaign-metrics aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
+              <button class="push-icon-btn push-detail-summary__refresh" type="button" data-refresh-campaign-metrics data-pz-refresh-feedback aria-label="Actualizar resultados" title="Actualizar resultados" hidden>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z" /></svg>
               </button>
             </div>
@@ -640,6 +640,11 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       toast.hidden = false;
       state.toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4200);
     }
+    function runRefreshFeedback(button, task, options = {}) {
+      const feedback = window.PZAdminRefreshFeedback;
+      if (!feedback?.run) return Promise.resolve().then(task);
+      return feedback.run(button, task, options);
+    }
     function showFormError(error) {
       const code = String(error?.code || error?.message || 'campaign_request_failed');
       errorBox.textContent = storefrontPushAdminErrorMessage(code);
@@ -851,7 +856,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       renderPart('daily', quota.daily, '');
       renderPart('monthly', quota.monthly, '; los borradores no consumen');
     }
-    async function loadCampaigns() {
+    async function loadCampaigns(options = {}) {
       setBusy(true, 'Cargando campañas…');
       let loaded = false;
       try {
@@ -871,6 +876,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         renderQuota(null);
         list.innerHTML = `<div class="push-empty push-empty--error"><strong>No pudimos cargar las campañas</strong><p>${escapeHtml(storefrontPushAdminErrorMessage(error?.code || error?.message))}</p></div>`;
         live.textContent = 'Error al cargar campañas.';
+        if (options.throwOnError) throw error;
       } finally {
         setBusy(false);
         if (loaded) renderCampaigns();
@@ -1286,6 +1292,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         renderCampaignDetailSummary(detail.campaign);
         renderCampaignMetrics(detail.metrics);
       } catch (error) {
+        if (options.throwOnError) throw error;
         if (!options.silent) showToast(storefrontPushAdminErrorMessage(error?.code || error?.message), 'error');
       } finally {
         if (requestId === state.metricsRequestId) {
@@ -1607,8 +1614,22 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       window.setTimeout(() => field('title')?.focus(), 30);
     });
     all('[data-close-editor]').forEach((button) => button.addEventListener('click', () => closeDialog(editor)));
-    one('[data-refresh-campaigns]')?.addEventListener('click', loadCampaigns);
-    one('[data-refresh-campaign-metrics]')?.addEventListener('click', () => refreshCampaignMetrics());
+    const refreshCampaignsButton = one('[data-refresh-campaigns]');
+    refreshCampaignsButton?.addEventListener('click', () => {
+      void runRefreshFeedback(
+        refreshCampaignsButton,
+        () => loadCampaigns({ throwOnError: true }),
+        { successMessage: 'Campañas actualizadas' },
+      ).catch(() => {});
+    });
+    const refreshMetricsButton = one('[data-refresh-campaign-metrics]');
+    refreshMetricsButton?.addEventListener('click', () => {
+      void runRefreshFeedback(
+        refreshMetricsButton,
+        () => refreshCampaignMetrics({ silent: true, throwOnError: true }),
+        { successMessage: 'Resultados actualizados' },
+      ).catch(() => {});
+    });
     one('[data-open-push-image]')?.addEventListener('click', () => {
       if (one('[data-detail-image]')?.getAttribute('src')) openDialog(imagePreviewDialog);
     });
@@ -1691,13 +1712,20 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     one('[data-cancel-campaign]')?.addEventListener('click', () => {
       if (state.editing) listAction(state.editing.id, 'cancel');
     });
-    one('[data-estimate-audience]')?.addEventListener('click', async () => {
-      setBusy(true, 'Calculando audiencia…');
-      try {
-        if (state.editorReadonly && state.editing) await calculateOpenedAudience(state.editing);
-        else await calculateEditableAudience();
-      } catch (error) { showFormError(error); }
-      finally { setBusy(false); }
+    one('[data-estimate-audience]')?.addEventListener('click', (event) => {
+      const button = event.currentTarget;
+      void runRefreshFeedback(button, async () => {
+        setBusy(true, 'Calculando audiencia…');
+        try {
+          if (state.editorReadonly && state.editing) await calculateOpenedAudience(state.editing);
+          else await calculateEditableAudience();
+        } catch (error) {
+          showFormError(error);
+          throw error;
+        } finally {
+          setBusy(false);
+        }
+      }, { successMessage: 'Cálculo actualizado' }).catch(() => {});
     });
     one('[data-send-now]')?.addEventListener('click', (event) => {
       dispatchCampaign(event.currentTarget.dataset.mode === 'scheduled' ? 'scheduled' : 'now');

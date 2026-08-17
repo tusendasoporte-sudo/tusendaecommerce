@@ -474,7 +474,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <h2 class="list-title">Listado de regalos</h2>
                   <p class="list-subtitle">Administra todos los regalos promocionales de tu tienda.</p>
                 </div>
-                <button id="refresh-btn" class="btn btn-soft" type="button">Actualizar</button>
+                <button id="refresh-btn" class="btn btn-soft" type="button" data-pz-refresh-feedback>Actualizar</button>
               </div>
               <div class="gift-table-head" aria-hidden="true">
                 <span>Regalo</span>
@@ -1345,7 +1345,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           requestCloseGiftsCategoryInlineCard();
         }
       });
-      refreshBtn?.addEventListener('click', loadGifts);
+      refreshBtn?.addEventListener('click', () => {
+        const feedback = window.PZAdminRefreshFeedback;
+        const operation = feedback?.run
+          ? feedback.run(refreshBtn, loadGifts, { successMessage: 'Regalos actualizados' })
+          : loadGifts();
+        Promise.resolve(operation).catch(() => {});
+      });
       saveSettingsBtn?.addEventListener('click', saveSettingsSmart);
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);

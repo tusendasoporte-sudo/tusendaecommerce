@@ -155,10 +155,10 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
               <h2 id="installation-list-title">Listado de instalaciones</h2>
               <p>Consulta los modelos y versiones registrados para cada instalación activa estimada.</p>
             </div>
-            <a class="table-refresh" href={pageHref(currentPage)}>Actualizar</a>
+            <a class="table-refresh" href={pageHref(currentPage)} data-pz-refresh-navigation data-pz-refresh-success="Instalaciones actualizadas">Actualizar</a>
           </header>
           {!details ? (
-            <div class="error-state">No se pudieron cargar los detalles. No se mostraron datos parciales.</div>
+            <div class="error-state" data-pz-refresh-result="error" data-pz-refresh-error-message="No se pudieron actualizar las instalaciones">No se pudieron cargar los detalles. No se mostraron datos parciales.</div>
           ) : items.length ? (
             <>
               <div class="installation-list-head" aria-hidden="true">

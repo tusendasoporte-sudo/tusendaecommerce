@@ -3865,7 +3865,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
               </div>
               <div class="settings-help-inline-actions">
                 <button class="settings-help-btn" type="button" data-help-key="schedule-main">L&eacute;eme</button>
-                <button id="business-hours-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+                <button id="business-hours-refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
               </div>
             </div>
             <form id="business-hours-form" class="hours-form">
@@ -4187,7 +4187,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                     <p id="currency-tab-summary-help" class="currency-summary-help">Sin configurar</p>
                   </div>
                 </div>
-                <button id="currency-refresh-btn" class="mini-btn" type="button">Actualizar resumen</button>
+                <button id="currency-refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar resumen</button>
               </div>
               <div class="currency-mobile-toolbar">
                 <label class="currency-search-box" for="currency-search">
@@ -4267,7 +4267,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                 <h2 class="section-title">Productos destacados</h2>
                 <p class="section-subtitle">Marca productos existentes para que salgan en la sección pública “Productos destacados”. Aquí ves el resumen de todos los marcados.</p>
               </div>
-              <button id="refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              <button id="refresh-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
             </div>
             <div class="product-picker">
               <div class="field">
@@ -4367,7 +4367,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                 <h2 class="section-title">Organización Visual</h2>
                 <p class="section-subtitle">Ordena lo que ve el cliente en la tienda pública. En este paso puedes mover productos destacados, promos visuales y accesos rápidos.</p>
               </div>
-              <button id="refresh-org-btn" class="mini-btn" type="button">Actualizar</button>
+              <button id="refresh-org-btn" class="mini-btn" type="button" data-pz-refresh-feedback>Actualizar</button>
             </div>
             <div id="organization-alert" class="alert alert-info hidden"></div>
             <div class="organization-grid">
@@ -4849,16 +4849,19 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
           .map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
       }
-      async function loadData() {
+      async function loadData(options = {}) {
+        let visualLoadError = null;
         products = await loadAllRecords('products', withStoreFilter('sort=featured_order,name'));
         categories = await loadAllRecords('categories', withStoreFilter('sort=order,name'));
         try {
           visualItems = await loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title'));
         } catch (error) {
+          visualLoadError = error;
           visualItems = [];
           showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
         }
         renderAll();
+        if (options.throwOnVisualError && visualLoadError) throw visualLoadError;
       }
       async function markFeatured() {
         const productId = featuredProductSelect.value;
@@ -5132,8 +5135,19 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       function showAdmin() { adminView.classList.remove('hidden'); }
 
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
-      refreshBtn?.addEventListener('click', () => loadData());
-      refreshOrgBtn?.addEventListener('click', () => loadData());
+      const refreshStoreData = (button, successMessage) => {
+        const feedback = window.PZAdminRefreshFeedback;
+        const operation = feedback?.run
+          ? feedback.run(
+              button,
+              () => loadData({ throwOnVisualError: button === refreshOrgBtn }),
+              { successMessage },
+            )
+          : loadData();
+        Promise.resolve(operation).catch(() => {});
+      };
+      refreshBtn?.addEventListener('click', () => refreshStoreData(refreshBtn, 'Productos destacados actualizados'));
+      refreshOrgBtn?.addEventListener('click', () => refreshStoreData(refreshOrgBtn, 'Organización visual actualizada'));
       newVisualBtn?.addEventListener('click', () => openVisualForm());
       openVisualFormBtn?.addEventListener('click', () => openVisualForm());
       visualCancelBtn?.addEventListener('click', closeVisualForm);
@@ -7699,7 +7713,13 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           syncHoursSubmitState();
           show('No se pudieron guardar los cambios', 'error');
         }));
-        refreshBtn?.addEventListener('click', () => loadSettings().catch(() => show('No se pudo cargar el horario.', 'error')));
+        refreshBtn?.addEventListener('click', () => {
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(refreshBtn, loadSettings, { successMessage: 'Horario actualizado' })
+            : loadSettings();
+          Promise.resolve(operation).catch(() => show('No se pudo cargar el horario.', 'error'));
+        });
         document.querySelectorAll('[data-tab="horario"]').forEach((tabButton) => tabButton.addEventListener('click', () => loadSettings().catch(() => show('No se pudo cargar el horario.', 'error'))));
         renderDays(DEFAULT_HOURS);
         updateModeUI();
@@ -8211,7 +8231,14 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           saveCurrency(row).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error'));
         });
         byId('currency-create-form')?.addEventListener('submit', (event) => createCurrency(event).catch((error) => show(error.message || 'No se pudo crear la moneda.', 'error')));
-        byId('currency-refresh-btn')?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
+        byId('currency-refresh-btn')?.addEventListener('click', (event) => {
+          const button = event.currentTarget;
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(button, loadCurrencies, { successMessage: 'Monedas actualizadas' })
+            : loadCurrencies();
+          Promise.resolve(operation).catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error'));
+        });
         byId('currency-code')?.addEventListener('input', (event) => { event.target.value = normalizeCode(event.target.value); });
         byId('currency-search')?.addEventListener('input', (event) => {
           state.search = event.target?.value || '';

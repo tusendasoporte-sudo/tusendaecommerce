@@ -1681,7 +1681,7 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
           titleId="raffle-admin-title"
           bellId="admin-raffles-bell"
         >
-          <button id="raffle-new-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+          <button id="raffle-new-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action" data-pz-refresh-feedback>
             <span aria-hidden="true">↻</span>
             <span>Actualizar</span>
           </button>
@@ -4786,7 +4786,13 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
           closeOpenMenus();
           closeSidebar();
         });
-        newBtn?.addEventListener('click', () => loadData().catch((error) => show(alertBox, error.message || 'No se pudieron cargar las rifas.', 'error')));
+        newBtn?.addEventListener('click', () => {
+          const feedback = window.PZAdminRefreshFeedback;
+          const operation = feedback?.run
+            ? feedback.run(newBtn, loadData, { successMessage: 'Rifas actualizadas' })
+            : loadData();
+          Promise.resolve(operation).catch((error) => show(alertBox, error.message || 'No se pudieron cargar las rifas.', 'error'));
+        });
         dateCancelX?.addEventListener('click', () => closeDateModal(null));
         dateCancelBtn?.addEventListener('click', () => closeDateModal(null));
         dateSaveBtn?.addEventListener('click', saveDateModal);

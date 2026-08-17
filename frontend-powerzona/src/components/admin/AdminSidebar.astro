@@ -1,5 +1,6 @@
 ---
 import AdminDialog from './AdminDialog.astro';
+import AdminRefreshFeedback from './AdminRefreshFeedback.astro';
 import StorePlanIndicator from '../shared/StorePlanIndicator.astro';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreSecuritySettingsForToken, isStoreSecurityEnabled } from '../../lib/security';
@@ -629,6 +630,7 @@ const marketingVisualSubClass = (subsection: string) => {
 </nav>
 
 <AdminDialog />
+<AdminRefreshFeedback />
 
 <script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminBasePath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath, canShowNotificationsNav, isPrimaryAdmin, canGenerateRaffleNotifications, isMasterSupportMode }}>
   window.PZ_MASTER_SUPPORT_CONTEXT = isMasterSupportMode === true
