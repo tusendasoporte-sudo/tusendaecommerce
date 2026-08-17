@@ -153,6 +153,20 @@ function dateTime(value: string) {
     </section>
   )}
 
+  <section class="master-card master-app-build-preview-collapsed" data-app-preview-collapsed hidden>
+    <div class="master-app-build-preview-collapsed__summary">
+      <span class="master-app-build-preview-collapsed__icon"><MasterIcon name="eye" size={20} /></span>
+      <div>
+        <strong>Vista previa pendiente cerrada</strong>
+        <span>El trabajo continúa sin ejecutar. Ábrelo cuando quieras revisarlo o confirmarlo.</span>
+        <small data-app-preview-collapsed-hash>{currentActionJob?.preview_hash ? `SHA-256 ${currentActionJob.preview_hash}` : ''}</small>
+      </div>
+    </div>
+    <button class="master-btn master-btn--secondary" type="button" data-app-preview-open aria-controls="vista-previa-app">
+      <MasterIcon name="eye" size={18} /> Abrir vista previa
+    </button>
+  </section>
+
   <section class="master-card master-app-build-preview" id="vista-previa-app" data-app-preview-card hidden={!currentActionJob}>
     <header class="master-card-header">
       <div><h2 class="master-card-title">{retryMode ? 'Reanudar trabajo con la misma vista previa' : 'Vista previa pendiente de confirmación'}</h2><p class="master-card-subtitle">Verifica cada efecto antes de enviarlo al runner.</p></div>
@@ -313,8 +327,10 @@ function dateTime(value: string) {
     const previewCard = root.querySelector<HTMLElement>('[data-app-preview-card]');
     const previewJson = root.querySelector<HTMLElement>('[data-app-preview-json]');
     const previewHash = root.querySelector<HTMLElement>('[data-app-preview-hash]');
+    const previewCollapsed = root.querySelector<HTMLElement>('[data-app-preview-collapsed]');
+    const previewCollapsedHash = root.querySelector<HTMLElement>('[data-app-preview-collapsed-hash]');
+    const previewOpenButton = root.querySelector<HTMLButtonElement>('[data-app-preview-open]');
     const previewCloseButton = root.querySelector<HTMLButtonElement>('[data-app-preview-close]');
-    const previewSourceButton = root.querySelector<HTMLButtonElement>('[data-app-update-form] button[type="submit"], [data-app-provision-form] button[type="submit"]');
     const confirmCheck = root.querySelector<HTMLInputElement>('[data-app-confirm-check]');
     const confirmButton = root.querySelector<HTMLButtonElement>('[data-app-confirm]');
     const confirmAlert = root.querySelector<HTMLElement>('[data-app-confirm-alert]');
@@ -328,6 +344,7 @@ function dateTime(value: string) {
     const whatsappMarkCard = root.querySelector<HTMLElement>('[data-app-whatsapp-mark-card]');
     const whatsappSentCheck = root.querySelector<HTMLInputElement>('[data-app-whatsapp-sent-check]');
     const whatsappMarkButton = root.querySelector<HTMLButtonElement>('[data-app-whatsapp-mark-sent]');
+    const previewDismissalKey = `pz-master-app-preview-closed:${storeId}`;
     let currentWhatsappPreview: any = null;
 
     const setAlert = (element: HTMLElement | null, message = '') => {
@@ -335,14 +352,56 @@ function dateTime(value: string) {
       element.textContent = message;
       element.hidden = !message;
     };
+    const previewToken = () => {
+      const jobId = String(confirmButton?.dataset.jobId || '');
+      const hash = String(previewHash?.textContent || '').trim();
+      return jobId && hash ? `${jobId}:${hash}` : '';
+    };
+    const readPreviewDismissal = () => {
+      try { return window.sessionStorage.getItem(previewDismissalKey) || ''; } catch { return ''; }
+    };
+    const savePreviewDismissal = (token: string) => {
+      try { window.sessionStorage.setItem(previewDismissalKey, token); } catch { /* Preferencia visual opcional. */ }
+    };
+    const clearPreviewDismissal = () => {
+      try { window.sessionStorage.removeItem(previewDismissalKey); } catch { /* Preferencia visual opcional. */ }
+    };
+    const resetPreviewConfirmation = () => {
+      if (confirmCheck) confirmCheck.checked = false;
+      if (confirmButton) confirmButton.disabled = true;
+      setAlert(confirmAlert);
+    };
+    const collapsePreview = (persist: boolean, moveFocus: boolean) => {
+      const token = previewToken();
+      if (!previewCard || !previewCollapsed || !token) return;
+      previewCard.hidden = true;
+      previewCollapsed.hidden = false;
+      if (previewCollapsedHash) previewCollapsedHash.textContent = `SHA-256 ${String(previewHash?.textContent || '').trim()}`;
+      resetPreviewConfirmation();
+      if (persist) savePreviewDismissal(token);
+      if (moveFocus) previewOpenButton?.focus({ preventScroll: true });
+    };
+    const openPreview = (moveFocus: boolean) => {
+      if (!previewCard || !previewCollapsed || !previewToken()) return;
+      clearPreviewDismissal();
+      previewCollapsed.hidden = true;
+      previewCard.hidden = false;
+      resetPreviewConfirmation();
+      if (moveFocus) {
+        previewCloseButton?.focus({ preventScroll: true });
+        previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
     const showPreview = (job: any) => {
       if (!previewCard || !previewJson || !previewHash || !confirmButton) return;
+      clearPreviewDismissal();
       previewJson.textContent = JSON.stringify(job.preview, null, 2);
       previewHash.textContent = job.preview_hash;
+      if (previewCollapsedHash) previewCollapsedHash.textContent = `SHA-256 ${job.preview_hash}`;
       confirmButton.dataset.jobId = job.id;
       confirmButton.dataset.mode = 'confirm';
-      confirmButton.disabled = true;
-      if (confirmCheck) confirmCheck.checked = false;
+      if (previewCollapsed) previewCollapsed.hidden = true;
+      resetPreviewConfirmation();
       previewCard.hidden = false;
       previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
@@ -392,15 +451,9 @@ function dateTime(value: string) {
     confirmCheck?.addEventListener('change', () => {
       if (confirmButton) confirmButton.disabled = confirmCheck.checked !== true;
     });
-    previewCloseButton?.addEventListener('click', () => {
-      if (!previewCard) return;
-      previewCard.hidden = true;
-      if (confirmCheck) confirmCheck.checked = false;
-      if (confirmButton) confirmButton.disabled = true;
-      setAlert(confirmAlert);
-      previewSourceButton?.focus({ preventScroll: true });
-      previewSourceButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+    if (previewToken() && readPreviewDismissal() === previewToken()) collapsePreview(false, false);
+    previewCloseButton?.addEventListener('click', () => collapsePreview(true, true));
+    previewOpenButton?.addEventListener('click', () => openPreview(true));
     confirmButton?.addEventListener('click', async () => {
       if (!confirmCheck?.checked || !previewHash?.textContent || !confirmButton.dataset.jobId) return;
       confirmButton.disabled = true;
@@ -503,6 +556,13 @@ function dateTime(value: string) {
   .master-app-build-identity strong { overflow-wrap: anywhere; color: #14264b; }
   .master-app-build-fixed-policy { display: grid; gap: .3rem; padding: .85rem 1rem; border-radius: 10px; background: #f4f7fc; }
   .master-app-build-actions { display: flex; justify-content: flex-end; margin-top: .85rem; }
+  .master-app-build-preview-collapsed { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border-color: #b9cffb; background: #f3f7ff; }
+  .master-app-build-preview-collapsed[hidden] { display: none; }
+  .master-app-build-preview-collapsed__summary { display: flex; align-items: flex-start; gap: .75rem; min-width: 0; }
+  .master-app-build-preview-collapsed__summary > div { display: grid; gap: .2rem; min-width: 0; }
+  .master-app-build-preview-collapsed__summary strong { color: #14264b; }
+  .master-app-build-preview-collapsed__summary span, .master-app-build-preview-collapsed__summary small { color: #5b6880; overflow-wrap: anywhere; }
+  .master-app-build-preview-collapsed__icon { display: grid; flex: 0 0 auto; place-items: center; width: 42px; height: 42px; border-radius: 11px; background: #e1ebff; color: #155eeb; }
   .master-app-build-preview__header-actions { display: flex; align-items: center; justify-content: flex-end; gap: .65rem; flex-wrap: wrap; }
   .master-app-build-preview pre { max-height: 36rem; overflow: auto; padding: 1rem; border-radius: 10px; background: #081735; color: #e9f1ff; white-space: pre-wrap; overflow-wrap: anywhere; }
   .master-app-build-hash { color: #5b6880; overflow-wrap: anywhere; }
@@ -540,6 +600,8 @@ function dateTime(value: string) {
     .master-app-build-identity { grid-template-columns: 1fr; }
     .master-app-build-preview__header-actions { width: 100%; align-items: stretch; flex-direction: column; }
     .master-app-build-preview__header-actions .master-btn { width: 100%; }
+    .master-app-build-preview-collapsed { align-items: stretch; flex-direction: column; }
+    .master-app-build-preview-collapsed .master-btn { width: 100%; }
     .master-app-build-history article { align-items: flex-start; flex-direction: column; }
     .master-app-engine-alert { grid-template-columns: auto 1fr; }
     .master-app-engine-alert .master-btn { grid-column: 1 / -1; }

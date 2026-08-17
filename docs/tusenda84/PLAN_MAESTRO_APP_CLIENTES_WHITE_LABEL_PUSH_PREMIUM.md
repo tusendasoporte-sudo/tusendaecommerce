@@ -2263,3 +2263,12 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - El Master puede editar la propuesta antes de crear la vista previa. La propuesta local no consulta, reserva ni crea recursos Firebase; cualquier comprobación externa continúa separada y requiere la autorización prevista.
 - PowerZona conserva su proyecto Firebase compatible ya definido. Tras el aprovisionamiento, el perfil guarda el ID real y las actualizaciones lo reutilizan como identidad inmutable, sin regenerarlo desde el nombre de la tienda.
 - C10 continúa `EN CURSO` y la prueba manual de vista previa debe repetirse después de publicar esta corrección en dev.
+
+### 2026-08-17 — PZ-APP-C10 EN CURSO: cierre persistente de la vista previa
+
+- Durante la revisión manual se acordó que una vista previa cerrada no vuelva a desplegarse automáticamente al recargar la misma pestaña.
+- El cierre queda registrado únicamente como preferencia visual en `sessionStorage`, aislada por tienda y ligada al ID del trabajo más su checksum. No se modifica, cancela, confirma ni elimina el trabajo pendiente en PocketBase.
+- Mientras permanece cerrada, el panel muestra un bloque compacto con estado no ejecutado, checksum y la acción Abrir vista previa. Al abrirla se limpia la preferencia y la confirmación continúa desmarcada y bloqueada.
+- Una vista nueva o un checksum distinto ignora el cierre anterior y se abre automáticamente para exigir revisión. Otro navegador o sesión también la muestra abierta inicialmente.
+- La regresión focal y de navegación aprobó 34/34 pruebas y el build Astro completó con las tres advertencias históricas de rutas dinámicas. Una prueba interactiva local confirmó cierre, persistencia tras recarga, reapertura, confirmación reiniciada y apertura automática ante un nuevo checksum, sin errores de consola ni desbordamiento horizontal a 1280 px.
+- El servidor y los archivos temporales de QA se eliminaron al terminar. No se confirmó o ejecutó el trabajo, ni se usaron Firebase, firmas, runner, despliegues o WhatsApp. C10 permanece `EN CURSO`.

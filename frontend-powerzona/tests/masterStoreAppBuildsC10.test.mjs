@@ -39,7 +39,16 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /data-app-whatsapp-sent-check/);
   assert.match(view, /data-app-preview-close/);
   assert.match(view, /Cerrar vista previa/);
+  assert.match(view, /data-app-preview-collapsed/);
+  assert.match(view, /Vista previa pendiente cerrada/);
+  assert.match(view, /data-app-preview-open/);
+  assert.match(view, /Abrir vista previa/);
+  assert.match(view, /pz-master-app-preview-closed:\$\{storeId\}/);
+  assert.match(view, /window\.sessionStorage\.setItem\(previewDismissalKey, token\)/);
+  assert.match(view, /readPreviewDismissal\(\) === previewToken\(\)/);
+  assert.match(view, /clearPreviewDismissal\(\)/);
   assert.match(view, /previewCard\.hidden = true/);
+  assert.match(view, /previewCollapsed\.hidden = false/);
   assert.match(view, /confirmCheck\.checked = false/);
   assert.match(view, /confirmButton\.disabled = true/);
   assert.equal(view.includes("pattern={'[a-z0-9][a-z0-9\\\\-]{1,62}[a-z0-9]'}"), true);
