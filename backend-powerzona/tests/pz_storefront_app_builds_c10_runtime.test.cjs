@@ -214,6 +214,69 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       },
     });
     assertStatus(premiumStore, 200, 'activar Premium en tienda C10');
+
+    const provisionStore = await create('stores', {
+      name: 'Tienda C10 Provision Runtime',
+      slug: 'tienda-c10-provision-runtime',
+      status: 'active',
+      plan: 'premium',
+      plan_started_at: new Date().toISOString(),
+      plan_expires_at: '',
+      plan_duration_months: 0,
+      plan_is_permanent: true,
+    });
+    const premiumProvisionStore = await request('/api/pz/master/store-plan/change', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id,
+        plan: 'premium',
+        is_permanent: true,
+        duration_months: 0,
+        reason: 'Fixture automatica C10 Provision Premium',
+        confirm_expiration_cleanup: false,
+      },
+    });
+    assertStatus(premiumProvisionStore, 200, 'activar Premium en tienda de aprovisionamiento C10');
+
+    const appBuildPreview = await request('/api/pz/master/storefront-app-builds/preview', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id,
+        operation: 'provision',
+        app_key: 'tienda-c10-runtime-provision',
+        brand_key: 'tienda-c10-runtime-provision',
+        display_name: 'App C10 Runtime Provision',
+        distribution: 'direct',
+        firebase_project_id: 'tienda-c10-runtime-provision',
+        package_name: 'com.tusenda84.tiendac10runtimeprovision',
+        store_url: 'https://runtime.example/t/tienda-c10-provision-runtime',
+        version_code: 1,
+        version_name: '1.0.0',
+      },
+    });
+    assertStatus(appBuildPreview, 200, 'crear vista previa de aprovisionamiento');
+    assert.equal(appBuildPreview.data.job.status, 'preview');
+
+    const storedAppBuildPreview = await request(
+      `/api/collections/storefront_app_build_jobs/records/${appBuildPreview.data.job.id}`,
+      { token: superToken },
+    );
+    assertStatus(storedAppBuildPreview, 200, 'consultar vista previa almacenada');
+    assert.equal(storedAppBuildPreview.data.status, 'preview');
+    assert.equal(storedAppBuildPreview.data.created_by, master.id);
+    assert.equal(typeof storedAppBuildPreview.data.request_json, 'object');
+
+    const appBuildConfirmed = await request('/api/pz/master/storefront-app-builds/confirm', {
+      token: masterToken,
+      body: {
+        job_id: appBuildPreview.data.job.id,
+        preview_hash: appBuildPreview.data.job.preview_hash,
+      },
+    });
+    assertStatus(appBuildConfirmed, 200, 'confirmar vista previa de aprovisionamiento');
+    assert.equal(appBuildConfirmed.data.job.status, 'queued');
+    assert.equal(appBuildConfirmed.data.profile.status, 'queued');
+
     const primary = await create('users', {
       email: 'principal-c10-runtime@example.test',
       password: 'Qa-C10-primary-password-2026!',

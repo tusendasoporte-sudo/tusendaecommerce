@@ -951,9 +951,50 @@ function handlePreview(e) {
 }
 
 function parseStoredRequest(job) {
-  const value = recordValue(job, "request_json");
+  const defaults = {
+    operation: "", storeId: "", profileId: "", appKey: "", brandKey: "", displayName: "",
+    distribution: "", firebaseProjectId: "", packageName: "", storeUrl: "", versionCode: 0, versionName: "",
+  };
+  let value = null;
+  if (job && typeof job.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
+    try {
+      const model = new DynamicModel(defaults);
+      job.unmarshalJSONField("request_json", model);
+      value = model;
+    } catch (_) {}
+  }
+  if (!value) {
+    const raw = recordValue(job, "request_json");
+    try {
+      value = typeof raw === "string" ? JSON.parse(raw) : JSON.parse(JSON.stringify(raw));
+    } catch (_) { return null; }
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value;
+  if (value.operation === "provision") {
+    return parsePreviewPayload({
+      operation: "provision",
+      store_id: value.storeId,
+      app_key: value.appKey,
+      brand_key: value.brandKey,
+      display_name: value.displayName,
+      distribution: value.distribution,
+      firebase_project_id: value.firebaseProjectId,
+      package_name: value.packageName,
+      store_url: value.storeUrl,
+      version_code: value.versionCode,
+      version_name: value.versionName,
+    });
+  }
+  if (value.operation === "update") {
+    return parsePreviewPayload({
+      operation: "update",
+      store_id: value.storeId,
+      profile_id: value.profileId,
+      version_code: value.versionCode,
+      version_name: value.versionName,
+    });
+  }
+  return null;
 }
 
 function createProfile(app, store, actor, parsed) {
