@@ -15,6 +15,7 @@ $engine = Join-Path $PSScriptRoot 'store-app-runner.ps1'
 $allowFirebase = [string]$env:PZ_STORE_APP_RUNNER_ALLOW_FIREBASE -eq 'true'
 $allowSigning = [string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -eq 'true'
 $apiBaseUrl = [string]$env:PZ_STOREFRONT_API_BASE_URL
+$readiness = Join-Path $PSScriptRoot 'test-runner-readiness.ps1'
 
 function Write-Utf8NoBom {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$Content)
@@ -169,6 +170,19 @@ do {
         $configKey = [string]$job.profile.brand_key
         $versionCode = [int]$job.preview.build.version_code
         $versionName = [string]$job.preview.build.version_name
+        $readinessArguments = @{
+            TargetRevision = [string]$job.preview.engine.target_revision
+            TargetEngineVersion = [string]$job.preview.engine.target_version
+            Operation = $operation
+            ConfigKey = $configKey
+            SecretsRoot = $SecretsRoot
+            RequireReleaseSigning = $true
+        }
+        if ([bool]$job.preview.firebase.create_project -or [bool]$job.preview.firebase.register_android_app) {
+            $readinessArguments.RequireFirebaseProvisioning = $true
+        }
+        if ([bool]$job.preview.build.aab) { $readinessArguments.RequireAab = $true }
+        & $readiness @readinessArguments
         $jobWorkspace = Materialize-ApprovedBranding -Job $job
         $localPreview = & $engine -ConfigKey $configKey -Operation Preview -PreviewFor $operation `
             -ConfigPath $jobWorkspace.ConfigPath -BrandPath $jobWorkspace.BrandPath `

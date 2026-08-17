@@ -83,6 +83,8 @@ Antes de poner el trabajo en cola, Tu Senda 84 debe preparar en el workspace ais
 
 El proveedor Firebase usa las API oficiales para crear/adoptar el proyecto, añadir Firebase, registrar Android y recuperar `google-services.json`. No crea claves de cuentas de servicio. El runner debe usar identidad de workload o credenciales custodiadas por Tu Senda 84.
 
+Antes de reclamar el primer trabajo real, el checkout aislado debe ejecutar `runner/test-runner-readiness.ps1` con la versión, revisión, operación y marca exactas de la vista previa. La comprobación no crea recursos ni firmas: valida el commit limpio, Android SDK, Java/keytool, identidad activa de Google Cloud, autorizaciones, URL de API y custodia externa. `run-job-queue.ps1` repite obligatoriamente ese preflight después del claim y antes de cualquier efecto.
+
 No se borra automáticamente un proyecto, app o firma ante un fallo parcial. El trabajo pasa a `needs_attention` y debe reanudarse tras auditoría.
 
 ## Actualizaciones

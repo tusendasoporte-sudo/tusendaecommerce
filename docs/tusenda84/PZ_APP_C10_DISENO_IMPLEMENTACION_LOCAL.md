@@ -88,6 +88,7 @@ Si no existe el registro, las variables legacy `PZ_STOREFRONT_FIREBASE_PROJECT_I
 - La alerta nunca compila ni publica. El Master debe crear y confirmar una actualización individual, conservando paquete, Firebase y firma.
 - Una función nativa común futura exige incrementar la versión del motor. Un cambio exclusivo de PowerZona, de otra marca o de la web remota no debe alertar a todas las apps.
 - El runner compara release, identidad y revisión. Release exige un checkout Git limpio y falla `needs_attention` antes de cualquier efecto si hay divergencia.
+- El runner ejecuta un preflight sin efectos antes de materializar o compilar: valida checkout exacto y limpio, Android SDK, Java/keytool, identidad Google Cloud, organización, autorizaciones explícitas, API pública y custodia externa de firmas. Si falta algo, el trabajo queda en `needs_attention` sin crear Firebase, registrar paquetes ni generar claves.
 
 El panel inferior nativo conversado no forma parte de C10: se implementará como evolución posterior del motor, antes de C11, usando este mecanismo.
 

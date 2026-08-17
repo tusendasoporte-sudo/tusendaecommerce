@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -85,15 +85,70 @@ test('runner valida configuración externa con los PNG exactos aprobados por el 
 });
 
 test('cola descarga marca por job y Gradle consume solo archivos externos', async () => {
-  const [queue, runner, gradle] = await Promise.all([
+  const [queue, runner, readiness, gradle] = await Promise.all([
     readFile(path.join(workspace, 'mobile-storefront', 'runner', 'run-job-queue.ps1'), 'utf8'),
     readFile(path.join(workspace, 'mobile-storefront', 'runner', 'store-app-runner.ps1'), 'utf8'),
+    readFile(path.join(workspace, 'mobile-storefront', 'runner', 'test-runner-readiness.ps1'), 'utf8'),
     readFile(path.join(workspace, 'mobile-storefront', 'app', 'build.gradle'), 'utf8'),
   ]);
   assert.match(queue, /brand-assets\/\$jobId\/\$kind/);
   assert.match(queue, /brand_asset_download_mismatch_/);
   assert.match(queue, /_storefront-jobs/);
+  assert.ok(
+    queue.indexOf('& $readiness @readinessArguments') < queue.indexOf('Materialize-ApprovedBranding -Job $job'),
+    'el preflight debe ejecutarse antes de descargar marca o iniciar efectos',
+  );
+  assert.match(readiness, /engine_revision_mismatch/);
+  assert.match(readiness, /firebase_provisioning_not_authorized/);
+  assert.match(readiness, /signing_generation_not_authorized/);
+  assert.match(readiness, /google_cloud_identity_missing/);
   assert.match(runner, /PZ_STOREFRONT_BRAND_CONFIG_FILE/);
   assert.match(gradle, /PZ_STOREFRONT_BRAND_CONFIG_FILE/);
   assert.match(gradle, /normalizer_version/);
+});
+
+test('preflight informa faltantes sin crear secretos ni ejecutar aprovisionamiento', async (context) => {
+  if (process.platform !== 'win32') return context.skip('El runner C10 actual usa Windows PowerShell.');
+  const readiness = path.join(workspace, 'mobile-storefront', 'runner', 'test-runner-readiness.ps1');
+  const targetRevision = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: workspace, encoding: 'utf8', windowsHide: true,
+  }).stdout.trim();
+  const secretsRoot = path.join(os.tmpdir(), `pz-c10-readiness-${Date.now()}-${process.pid}`);
+  const quoted = (value) => `'${String(value).replaceAll("'", "''")}'`;
+  const command = [
+    `& ${quoted(readiness)}`,
+    `-TargetRevision ${quoted(targetRevision)}`,
+    "-TargetEngineVersion '1.0.0'",
+    '-Operation Provision',
+    '-ConfigKey c10-runner-readiness',
+    `-SecretsRoot ${quoted(secretsRoot)}`,
+    '-RequireFirebaseProvisioning',
+    '-RequireReleaseSigning',
+    '-PassThru | ConvertTo-Json -Depth 5 -Compress',
+  ].join(' ');
+  const result = spawnSync('powershell.exe', [
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command,
+  ], {
+    cwd: workspace,
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 30_000,
+    env: {
+      ...process.env,
+      PZ_STORE_APP_RUNNER_SECRET: '',
+      PZ_STOREFRONT_API_BASE_URL: '',
+      PZ_STORE_APP_RUNNER_ALLOW_FIREBASE: '',
+      PZ_STORE_APP_RUNNER_ALLOW_SIGNING: '',
+      PZ_GOOGLE_CLOUD_ORGANIZATION_ID: '',
+      PZ_STORE_APP_KEYSTORE_PASSWORD: '',
+      PZ_STORE_APP_KEY_PASSWORD: '',
+    },
+  });
+  assert.equal(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.Ready, false);
+  assert.ok(report.Failures.includes('runner_secret_missing'));
+  assert.ok(report.Failures.includes('firebase_provisioning_not_authorized'));
+  assert.ok(report.Failures.includes('signing_generation_not_authorized'));
+  await assert.rejects(access(secretsRoot), /ENOENT/);
 });
