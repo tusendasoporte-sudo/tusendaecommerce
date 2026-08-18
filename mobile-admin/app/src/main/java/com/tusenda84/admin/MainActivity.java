@@ -42,9 +42,16 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
 import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.net.URISyntaxException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,6 +80,7 @@ public final class MainActivity extends Activity {
     private PendingDownload pendingDownload;
     private boolean backNavigationPending;
     private final ExecutorService pushRegistrationExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService adminUpdateExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -233,12 +241,17 @@ public final class MainActivity extends Activity {
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setUserAgentString(settings.getUserAgentString() + " TuSenda84Admin/1.0");
+        settings.setUserAgentString(
+                settings.getUserAgentString()
+                        + " TuSenda84Admin/" + BuildConfig.VERSION_NAME
+                        + " (" + BuildConfig.VERSION_CODE + ")"
+        );
 
         webView.setWebViewClient(new AdminWebViewClient());
         webView.setWebChromeClient(new AdminWebChromeClient());
         webView.setDownloadListener(new AdminDownloadListener());
         webView.addJavascriptInterface(new AdminPushBridge(this), "PZAndroidPush");
+        webView.addJavascriptInterface(new AdminUpdateBridge(this), "PZAndroidUpdate");
         webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
     }
 
@@ -589,6 +602,106 @@ public final class MainActivity extends Activity {
         }
     }
 
+    void emitAdminAppStateToWeb() {
+        if (webView == null) return;
+        Uri current = Uri.parse(String.valueOf(webView.getUrl() == null ? "" : webView.getUrl()));
+        if (!"https".equals(normalized(current.getScheme())) || !isAllowedWebHost(current.getHost())) return;
+        try {
+            JSONObject state = new JSONObject();
+            state.put("package_name", getPackageName());
+            state.put("version_code", BuildConfig.VERSION_CODE);
+            state.put("version_name", BuildConfig.VERSION_NAME.replace("-debug", ""));
+            webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('pz:android-admin-app-state',{detail:" + state + "}));",
+                    null
+            );
+        } catch (JSONException ignored) {}
+    }
+
+    void downloadVerifiedAdminUpdate(String rawUrl, String rawSha256, long versionCode, String packageName) {
+        String url = rawUrl == null ? "" : rawUrl.trim();
+        String sha256 = AdminUpdateContract.normalized(rawSha256);
+        String expectedPackage = packageName == null ? "" : packageName.trim();
+        if (!AdminUpdateContract.allowedDownloadUrl(url, BuildConfig.ADMIN_URL)
+                || !AdminUpdateContract.validMetadata(sha256, versionCode, expectedPackage)) {
+            Toast.makeText(this, "La actualización no tiene metadatos válidos.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(this, "Descargando y verificando la actualización…", Toast.LENGTH_SHORT).show();
+        String updateUserAgent = webView.getSettings().getUserAgentString();
+        String updateCookies = CookieManager.getInstance().getCookie(url);
+        adminUpdateExecutor.execute(() -> {
+            File output = null;
+            HttpURLConnection connection = null;
+            try {
+                File directory = new File(getCacheDir(), "admin-updates");
+                if (!directory.exists() && !directory.mkdirs()) throw new IllegalStateException("update_directory_failed");
+                File[] previousUpdates = directory.listFiles((parent, name) -> name.matches("mobile-admin-[0-9]+\\.apk"));
+                if (previousUpdates != null) {
+                    for (File previous : previousUpdates) {
+                        if (!previous.delete()) throw new IllegalStateException("update_cleanup_failed");
+                    }
+                }
+                output = new File(directory, "mobile-admin-" + versionCode + ".apk");
+                connection = (HttpURLConnection) new URL(url).openConnection();
+                connection.setConnectTimeout(15_000);
+                connection.setReadTimeout(120_000);
+                connection.setInstanceFollowRedirects(false);
+                connection.setRequestProperty("Accept", "application/vnd.android.package-archive");
+                connection.setRequestProperty("User-Agent", updateUserAgent);
+                if (updateCookies != null && !updateCookies.isEmpty()) connection.setRequestProperty("Cookie", updateCookies);
+                int responseCode = connection.getResponseCode();
+                long declaredLength = connection.getContentLengthLong();
+                if (responseCode != HttpURLConnection.HTTP_OK || declaredLength > AdminUpdateContract.MAX_APK_BYTES) {
+                    throw new IllegalStateException("update_download_denied");
+                }
+                long total = 0;
+                byte[] buffer = new byte[64 * 1024];
+                try (InputStream input = connection.getInputStream(); FileOutputStream file = new FileOutputStream(output)) {
+                    int read;
+                    while ((read = input.read(buffer)) >= 0) {
+                        if (read == 0) continue;
+                        total += read;
+                        if (total > AdminUpdateContract.MAX_APK_BYTES) throw new IllegalStateException("update_too_large");
+                        file.write(buffer, 0, read);
+                    }
+                    file.getFD().sync();
+                }
+                if (total < 1 || (declaredLength >= 0 && total != declaredLength)) throw new IllegalStateException("update_size_mismatch");
+                AdminApkVerifier.verify(this, output, sha256, versionCode, expectedPackage);
+                File verified = output;
+                runOnUiThread(() -> openVerifiedAdminUpdate(verified));
+            } catch (Exception error) {
+                if (output != null && output.exists()) output.delete();
+                runOnUiThread(() -> Toast.makeText(
+                        this,
+                        "La actualización no superó la verificación. No se abrirá el instalador.",
+                        Toast.LENGTH_LONG
+                ).show());
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    private void openVerifiedAdminUpdate(File apk) {
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            Toast.makeText(this, "Autoriza a Mobile Admin para instalar esta actualización y vuelve a intentarlo.", Toast.LENGTH_LONG).show();
+            Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
+            startActivity(settings);
+            return;
+        }
+        try {
+            Uri content = FileProvider.getUriForFile(this, getPackageName() + ".admin_update_files", apk);
+            Intent install = new Intent(Intent.ACTION_VIEW);
+            install.setDataAndType(content, "application/vnd.android.package-archive");
+            install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(install);
+        } catch (RuntimeException error) {
+            Toast.makeText(this, "Android no pudo abrir el instalador verificado.", Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void handleBackNavigation() {
         if (errorView.getVisibility() == View.VISIBLE) {
             hideError();
@@ -615,6 +728,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         pushRegistrationExecutor.shutdown();
+        adminUpdateExecutor.shutdown();
         if (fileChooserCallback != null) {
             fileChooserCallback.onReceiveValue(null);
             fileChooserCallback = null;
@@ -660,6 +774,7 @@ public final class MainActivity extends Activity {
             progressBar.setVisibility(View.GONE);
             CookieManager.getInstance().flush();
             emitPushStateToWeb();
+            emitAdminAppStateToWeb();
         }
 
         @Override

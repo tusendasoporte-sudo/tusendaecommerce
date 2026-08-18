@@ -10,7 +10,14 @@ if (firebaseConfigFile.exists()) {
 def configuredAppName = (project.findProperty('PZ_APP_NAME') ?: 'Tu Senda 84 Admin').toString()
 def configuredAdminUrl = (project.findProperty('PZ_ADMIN_URL') ?: 'https://tusenda84.com/admin').toString()
 def configuredApplicationId = (project.findProperty('PZ_APPLICATION_ID') ?: 'com.tusenda84.admin').toString()
-def releaseKeystorePropertiesFile = rootProject.file('../.secrets/mobile-admin-upload.properties')
+def configuredVersionCode = Integer.parseInt((project.findProperty('PZ_ADMIN_VERSION_CODE') ?: '3').toString())
+def configuredVersionName = (project.findProperty('PZ_ADMIN_VERSION_NAME') ?: '1.0.2').toString()
+if (configuredVersionCode < 1) throw new GradleException('PZ_ADMIN_VERSION_CODE debe ser mayor que cero.')
+if (!(configuredVersionName ==~ /[0-9]+\.[0-9]+\.[0-9]+/)) throw new GradleException('PZ_ADMIN_VERSION_NAME debe usar formato X.Y.Z.')
+def configuredSigningProperties = (project.findProperty('PZ_ADMIN_SIGNING_PROPERTIES') ?: '').toString().trim()
+def releaseKeystorePropertiesFile = configuredSigningProperties
+    ? rootProject.file(configuredSigningProperties)
+    : rootProject.file('../.secrets/mobile-admin-upload.properties')
 def releaseKeystoreProperties = new Properties()
 if (releaseKeystorePropertiesFile.exists()) {
     releaseKeystorePropertiesFile.withInputStream { stream ->
@@ -19,6 +26,13 @@ if (releaseKeystorePropertiesFile.exists()) {
 }
 def releaseSigningConfigured = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { key ->
     releaseKeystoreProperties.getProperty(key)?.trim()
+}
+def releaseKeystoreFile = null
+if (releaseSigningConfigured) {
+    def configuredKeystore = new File(releaseKeystoreProperties.getProperty('storeFile').trim())
+    releaseKeystoreFile = configuredKeystore.isAbsolute()
+        ? configuredKeystore
+        : new File(releaseKeystorePropertiesFile.parentFile, configuredKeystore.path)
 }
 
 def releasePackagingRequested = gradle.startParameter.taskNames.any { taskName ->
@@ -43,8 +57,8 @@ android {
         applicationId configuredApplicationId
         minSdk 26
         targetSdk 36
-        versionCode 3
-        versionName '1.0.2'
+        versionCode configuredVersionCode
+        versionName configuredVersionName
 
         manifestPlaceholders = [appName: configuredAppName]
         buildConfigField 'String', 'ADMIN_URL', javaStringLiteral(configuredAdminUrl)
@@ -59,7 +73,7 @@ android {
     signingConfigs {
         release {
             if (releaseSigningConfigured) {
-                storeFile rootProject.file(releaseKeystoreProperties.getProperty('storeFile'))
+                storeFile releaseKeystoreFile
                 storePassword releaseKeystoreProperties.getProperty('storePassword')
                 keyAlias releaseKeystoreProperties.getProperty('keyAlias')
                 keyPassword releaseKeystoreProperties.getProperty('keyPassword')
@@ -93,6 +107,8 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.core:core:1.17.0'
     implementation platform('com.google.firebase:firebase-bom:34.17.0')
     implementation 'com.google.firebase:firebase-messaging'
+    testImplementation 'junit:junit:4.13.2'
 }

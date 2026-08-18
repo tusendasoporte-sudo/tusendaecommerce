@@ -21,6 +21,7 @@ const COUNT_KEYS = [
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
   "storefront_order_links", "push_media", "push_campaigns",
   "push_campaign_deliveries", "push_events", "push_daily_stats",
+  "admin_app_release_events", "admin_app_download_tickets", "admin_app_release_assignments",
 ];
 const DIRECT_STORE_COLLECTIONS = [
   "automatic_promotions", "categories", "currencies", "gifts", "manual_coupons",
@@ -35,6 +36,7 @@ const DIRECT_STORE_COLLECTIONS = [
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
   "storefront_order_links", "push_media", "push_campaigns",
   "push_campaign_deliveries", "push_events", "push_daily_stats",
+  "admin_app_release_events", "admin_app_release_assignments",
   "users",
 ];
 const LOG_MESSAGES = {
@@ -282,7 +284,11 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM target_push_campaigns) AS pushCampaigns,
       (SELECT COUNT(*) FROM target_push_deliveries) AS pushCampaignDeliveries,
       (SELECT COUNT(*) FROM push_events WHERE store = {:storeId}) AS pushEvents,
-      (SELECT COUNT(*) FROM push_daily_stats WHERE store = {:storeId}) AS pushDailyStats
+      (SELECT COUNT(*) FROM push_daily_stats WHERE store = {:storeId}) AS pushDailyStats,
+      (SELECT COUNT(*) FROM admin_app_release_events WHERE store = {:storeId}) AS adminAppReleaseEvents,
+      (SELECT COUNT(*) FROM admin_app_download_tickets
+        WHERE assignment IN (SELECT id FROM admin_app_release_assignments WHERE store = {:storeId})) AS adminAppDownloadTickets,
+      (SELECT COUNT(*) FROM admin_app_release_assignments WHERE store = {:storeId}) AS adminAppReleaseAssignments
   `, { storeId }, {
     storeUsers: 0, products: 0, productVariations: 0, orders: 0, orderItems: 0,
     gifts: 0, promotions: 0, coupons: 0, couponUsages: 0, raffles: 0,
@@ -297,6 +303,7 @@ function buildCounts(app, storeId) {
     storefrontAppConfigs: 0, storefrontInstallations: 0, storefrontWebSessions: 0,
     storefrontOrderLinks: 0, pushMedia: 0, pushCampaigns: 0,
     pushCampaignDeliveries: 0, pushEvents: 0, pushDailyStats: 0,
+    adminAppReleaseEvents: 0, adminAppDownloadTickets: 0, adminAppReleaseAssignments: 0,
   }) || {};
   const counts = {
     store_users: nonNegativeInteger(row.storeUsers),
@@ -345,6 +352,9 @@ function buildCounts(app, storeId) {
     push_campaign_deliveries: nonNegativeInteger(row.pushCampaignDeliveries),
     push_events: nonNegativeInteger(row.pushEvents),
     push_daily_stats: nonNegativeInteger(row.pushDailyStats),
+    admin_app_release_events: nonNegativeInteger(row.adminAppReleaseEvents),
+    admin_app_download_tickets: nonNegativeInteger(row.adminAppDownloadTickets),
+    admin_app_release_assignments: nonNegativeInteger(row.adminAppReleaseAssignments),
   };
   counts.total_records = COUNT_KEYS.reduce((total, key) => total + counts[key], 1);
   return counts;
@@ -703,6 +713,9 @@ function executeDeletionPlan(app, storeId, counts) {
 
   // La familia pública se elimina de hijos a padres. No depende de cascadas y
   // nunca toca store_push_devices/store_notifications fuera de su inventario.
+  deleted += deleteExpected(app, "admin_app_release_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.admin_app_release_events));
+  deleted += deleteExpected(app, "admin_app_download_tickets", "assignment.store = {:storeId}", storeId, nonNegativeInteger(counts.admin_app_download_tickets));
+  deleted += deleteExpected(app, "admin_app_release_assignments", "store = {:storeId}", storeId, nonNegativeInteger(counts.admin_app_release_assignments));
   deleted += deleteExpected(app, "push_daily_stats", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_daily_stats));
   deleted += deleteExpected(app, "push_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_events));
   deleted += deleteExpected(app, "push_campaign_deliveries", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaign_deliveries));

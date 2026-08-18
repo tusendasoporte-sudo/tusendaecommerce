@@ -1,0 +1,43 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import MasterShell from '../../components/master/MasterShell.astro';
+import MasterMobileAdminReleaseView from '../../components/master/MasterMobileAdminReleaseView.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { getMasterAdminAppDetail } from '../../lib/mobileAdminReleases';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const master = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !master) return Astro.redirect('/master-login');
+const channel = Astro.url.searchParams.get('channel') === 'production' ? 'production' : 'staging';
+
+const result = await getMasterAdminAppDetail(
+  import.meta.env.PUBLIC_POCKETBASE_URL,
+  authPb.authStore.token,
+  channel,
+);
+const displayName = String(master.display_name || master.name || master.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Mobile Admin">
+    {result.data ? (
+      <MasterMobileAdminReleaseView data={result.data} channel={channel} />
+    ) : (
+      <section class="mobile-admin-error" role="alert">
+        <strong>Mobile Admin no está disponible.</strong>
+        <span>{result.error || 'No se pudo cargar el módulo.'}</span>
+      </section>
+    )}
+  </MasterShell>
+</Layout>
+
+<style>
+  .mobile-admin-error { display:grid; gap:8px; border:1px solid #fecaca; border-radius:14px; background:#fff1f2; color:#991b1b; padding:20px; }
+</style>

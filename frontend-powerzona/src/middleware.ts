@@ -17,6 +17,8 @@ import {
   renderVpnUnavailable,
 } from './lib/publicSecurity';
 import { optimizePublicCatalogResponse } from './lib/publicCatalogResponse';
+import { readAdminDeviceToken } from './lib/adminDevice';
+import { getAdminAppPolicy, parseNativeAdminAppUserAgent } from './lib/mobileAdminReleases';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -32,6 +34,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   }
   if (normalized === 'profits') return { all: ['orders.view', 'catalog.view'] };
   if (normalized === 'account' || normalized.startsWith('account/') || normalized === 'change-temporary-password') return null;
+  if (normalized === 'mobile-app') return null;
   if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };
   if (normalized === 'products' || normalized.startsWith('products/') || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
   if (normalized === 'orders' || normalized.startsWith('orders/')) return { any: ['orders.view'] };
@@ -142,6 +145,34 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isMasterRoute = pathname === '/master' || pathname.startsWith('/master/');
   const professionalAdminMatch = pathname.match(/^\/t\/([^/]+)\/admin(?:\/(.*))?$/);
   const isProfessionalAdminRoute = Boolean(professionalAdminMatch);
+  const isAdminApiRoute = pathname.startsWith('/api/admin/');
+  const isAdminAppControlApi = pathname.startsWith('/api/admin/mobile-app/');
+  const nativeAdminApp = parseNativeAdminAppUserAgent(context.request.headers.get('user-agent') || '');
+
+  if (nativeAdminApp && isAdminApiRoute && !isAdminAppControlApi) {
+    const cookie = context.request.headers.get('cookie') || '';
+    const apiAuth = await refreshAuthFromCookie(cookie);
+    const deviceToken = readAdminDeviceToken(cookie);
+    if (apiAuth.authStore.isValid && isStoreUser(apiAuth.authStore.record as any) && deviceToken) {
+      const policy = await getAdminAppPolicy(
+        import.meta.env.PUBLIC_POCKETBASE_URL,
+        apiAuth.authStore.token,
+        deviceToken,
+        nativeAdminApp,
+      );
+      if (policy.data?.update_required) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: 'admin_app_update_required',
+          minimum_supported_version_code: policy.data.minimum_supported_version_code,
+          portal_path: '/admin/mobile-app',
+        }), {
+          status: 426,
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store, max-age=0' },
+        });
+      }
+    }
+  }
 
   if (!isAdminRoute && !isMasterRoute && !isProfessionalAdminRoute) {
     const resolver = publicSecurityResolverForPath(pathname);
@@ -207,6 +238,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const requestedSection = isAdminRoute
       ? getLegacyAdminSection(pathname)
       : String(professionalAdminMatch?.[2] || '');
+    if (nativeAdminApp && !adminContext.isMasterSupport && requestedSection !== 'mobile-app'
+      && requestedSection !== 'change-temporary-password') {
+      const deviceToken = readAdminDeviceToken(context.request.headers.get('cookie') || '');
+      if (deviceToken) {
+        const policy = await getAdminAppPolicy(
+          import.meta.env.PUBLIC_POCKETBASE_URL,
+          authPb.authStore.token,
+          deviceToken,
+          nativeAdminApp,
+        );
+        if (policy.data?.update_required) return context.redirect(getStoreAdminPath(currentStoreSlug, 'mobile-app'));
+      }
+    }
     if (adminContext.isMasterSupport
       && (requestedSection === 'account' || requestedSection.startsWith('account/') || requestedSection === 'change-temporary-password')) {
       return context.redirect(`/master/stores/${encodeURIComponent(adminContext.storeId)}`);

@@ -1,0 +1,237 @@
+---
+import type { MasterAdminAppDetail } from '../../lib/mobileAdminReleases';
+
+interface Props { data: MasterAdminAppDetail; channel: 'staging' | 'production' }
+const { data, channel } = Astro.props;
+const latestApk = data.artifacts.find((item) => item.kind === 'apk' && item.lifecycle_status === 'available') || null;
+const previewJob = data.jobs.find((item) => item.status === 'preview') || null;
+---
+
+<main class="admin-release" data-admin-release-root data-channel={channel} data-profile-id={data.profile?.id || ''}>
+  <header class="admin-release__hero">
+    <div>
+      <span class="admin-release__eyebrow">PZ-APP-C10.8 · {channel.toUpperCase()}</span>
+      <h1>Mobile Admin protegido</h1>
+      <p>La descarga exige sesión, administrador y dispositivo exactos. El piloto y cada oleada requieren confirmación independiente.</p>
+    </div>
+    <span class:list={['status', `status--${data.profile?.status || 'unconfigured'}`]}>{data.profile?.status || 'Sin configurar'}</span>
+  </header>
+
+  <nav class="channel-tabs" aria-label="Canal de Mobile Admin">
+    <a href="?channel=staging" aria-current={channel === 'staging' ? 'page' : undefined}>Staging</a>
+    <a href="?channel=production" aria-current={channel === 'production' ? 'page' : undefined}>Producción</a>
+  </nav>
+
+  <div class="notice" data-admin-release-notice role="status" hidden></div>
+
+  <section class="panel">
+    <div class="panel__title"><h2>1. Identidad inmutable</h2><span>Una por canal</span></div>
+    <form class="form-grid" data-profile-form>
+      <label>Nombre<input name="display_name" required value={data.profile?.display_name || 'Tu Senda 84 Admin'} /></label>
+      <label>Paquete<input name="package_name" required pattern="[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+" value={data.profile?.package_name || 'com.tusenda84.admin'} /></label>
+      <label>Versión instalada<input name="current_version_name" required pattern="[0-9]+\.[0-9]+\.[0-9]+" value={data.profile?.latest_version_name || '1.0.2'} /></label>
+      <label>versionCode instalado<input name="current_version_code" required type="number" min="1" value={data.profile?.latest_version_code || 3} /></label>
+      <label class="wide">URL administrativa<input name="admin_url" required type="url" value={data.profile?.admin_url || 'https://tusenda84.com/admin'} /></label>
+      <label>Firebase project ID<input name="firebase_project_id" value="" autocomplete="off" placeholder={data.profile?.firebase_configured ? 'Configurado; vacío lo conserva' : 'No configurar en esta fase'} /></label>
+      <label>Firebase app ID<input name="firebase_app_id" value="" autocomplete="off" placeholder={data.profile?.firebase_configured ? 'Configurado; vacío lo conserva' : 'No configurar en esta fase'} /></label>
+      <label class="wide">SHA-256 de firma existente<input name="signing_cert_sha256" value={data.profile?.signing_cert_sha256 || ''} autocomplete="off" placeholder="No genera ni recibe el keystore" /></label>
+      <label class="confirm wide">Confirmación<input name="confirmation" required value="" placeholder="CONFIGURAR MOBILE ADMIN" autocomplete="off" /></label>
+      <button type="submit">Guardar identidad</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel__title"><h2>2. Build reproducible</h2><span>Sin firma ni Firebase desde el panel</span></div>
+    <form class="form-grid form-grid--compact" data-build-preview-form>
+      <label>versionName<input name="version_name" required pattern="[0-9]+\.[0-9]+\.[0-9]+" value={data.profile?.latest_version_code ? '' : '1.0.3'} placeholder="1.0.3" /></label>
+      <label>versionCode<input name="version_code" required type="number" min={(data.profile?.latest_version_code || 0) + 1} value={(data.profile?.latest_version_code || 3) + 1} /></label>
+      <button type="submit" disabled={!data.profile}>Crear vista previa</button>
+    </form>
+    {previewJob && (
+      <article class="preview" data-preview-job data-job-id={previewJob.id} data-preview-hash={previewJob.preview_hash}>
+        <strong>Vista previa {previewJob.version_name} ({previewJob.version_code})</strong>
+        <span>Paquete, firma, almacenamiento privado y entrega autenticada quedan fijados por este hash.</span>
+        <label class="confirm">Confirmación<input data-build-confirmation placeholder="CONFIRMAR BUILD MOBILE ADMIN" /></label>
+        <button type="button" data-confirm-build>Confirmar y poner en cola</button>
+      </article>
+    )}
+    <div class="inventory">
+      {data.jobs.slice(0, 8).map((job) => <span><strong>{job.version_name} ({job.version_code})</strong>{job.status}</span>)}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__title"><h2>3. Piloto y oleadas</h2><span>Destinatarios explícitos</span></div>
+    <form class="form-grid" data-assignment-form>
+      <label>APK
+        <select name="artifact_id" required>
+          <option value="">Selecciona una versión</option>
+          {data.artifacts.filter((item) => item.kind === 'apk' && item.lifecycle_status === 'available').map((item) => (
+            <option value={item.id}>{item.version_name} ({item.version_code}) · {item.sha256.slice(0, 12)}…</option>
+          ))}
+        </select>
+      </label>
+      <label>Administrador y dispositivo
+        <select name="recipient" required>
+          <option value="">Selecciona un destino autorizado</option>
+          {data.eligible_devices.map((item) => (
+            <option value={`${item.user_id}|${item.device_id}`}>{item.store_name} · {item.user_name || item.user_email} · {item.device_label}</option>
+          ))}
+        </select>
+      </label>
+      <label>Etapa<select name="stage"><option value="pilot">Piloto</option><option value="gradual">Gradual</option><option value="general">General</option></select></label>
+      <label>Oleada<input name="wave" type="number" min="0" value="0" /></label>
+      <button type="submit" disabled={!latestApk}>Crear asignación</button>
+    </form>
+    <p class="hint">El grant se muestra una sola vez. Copiarlo no concede acceso sin la sesión y el dispositivo asignados.</p>
+    <div class="assignments">
+      {data.assignments.length ? data.assignments.map((item) => (
+        <article>
+          <div><strong>{item.user.name || item.user.email}</strong><span>{item.store.name} · {item.device.label}</span></div>
+          <span class={`chip chip--${item.stage}`}>{item.stage} · ola {item.wave}</span>
+          <span>{item.installed_version_code ? `Instalada ${item.installed_version_name} (${item.installed_version_code})` : 'Sin check-in'}</span>
+          <span>{item.validated_at ? 'Piloto validado' : `${item.download_count} descarga(s)`}</span>
+          {item.stage === 'pilot' && !item.validated_at && (
+            <button type="button" data-validate-pilot={item.id} disabled={item.installed_version_code === 0}>Validar piloto</button>
+          )}
+          {item.status === 'active' && <button type="button" class="danger" data-revoke-assignment={item.id}>Revocar</button>}
+        </article>
+      )) : <p>No hay asignaciones.</p>}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__title"><h2>4. Actualización obligatoria</h2><span>Solo después de general</span></div>
+    {data.profile ? (
+      <div class="policy-grid">
+        <div><small>Última</small><strong>{data.profile.latest_version_name || 'Sin build'} ({data.profile.latest_version_code})</strong></div>
+        <div><small>Mínima obligatoria</small><strong>{data.profile.minimum_supported_version_code || 'Desactivada'}</strong></div>
+        <form data-minimum-form>
+          <input name="version_code" type="number" min="0" max={data.profile.latest_version_code} value={data.profile.minimum_supported_version_code} />
+          <input name="confirmation" placeholder={`EXIGIR VERSION ${data.profile.latest_version_code}`} />
+          <button type="submit">Cambiar mínimo</button>
+        </form>
+        <form data-status-form>
+          <select name="status"><option value="active" selected={data.profile.status === 'active'}>Activa</option><option value="paused" selected={data.profile.status === 'paused'}>Pausada</option><option value="withdrawn" selected={data.profile.status === 'withdrawn'}>Retirada</option></select>
+          <input name="confirmation" placeholder="CAMBIAR ESTADO PAUSED" />
+          <button type="submit">Cambiar estado</button>
+        </form>
+      </div>
+    ) : <p>Configura primero el perfil.</p>}
+  </section>
+</main>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import {
+    configureMasterAdminApp, confirmMasterAdminAppBuild, getAdminAppErrorMessage,
+    previewMasterAdminAppBuild, runMasterAdminAppAction,
+  } from '../../lib/mobileAdminReleases';
+
+  const root = document.querySelector('[data-admin-release-root]') as HTMLElement | null;
+  const notice = root?.querySelector('[data-admin-release-notice]') as HTMLElement | null;
+  const baseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+  const channel = root?.dataset.channel || 'staging';
+  pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+
+  function show(message: string, error = false) {
+    if (!notice) return;
+    notice.hidden = false;
+    notice.textContent = message;
+    notice.classList.toggle('notice--error', error);
+  }
+  function value(form: HTMLFormElement, name: string) { return String(new FormData(form).get(name) || '').trim(); }
+  function reloadSoon() { window.setTimeout(() => window.location.reload(), 650); }
+
+  root?.querySelector<HTMLFormElement>('[data-profile-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const form = event.currentTarget as HTMLFormElement;
+    const result = await configureMasterAdminApp(baseUrl, pb.authStore.token, {
+      channel, display_name: value(form, 'display_name'), package_name: value(form, 'package_name'),
+      current_version_name: value(form, 'current_version_name'), current_version_code: Number(value(form, 'current_version_code')),
+      admin_url: value(form, 'admin_url'), firebase_project_id: value(form, 'firebase_project_id'),
+      firebase_app_id: value(form, 'firebase_app_id'), signing_cert_sha256: value(form, 'signing_cert_sha256'),
+      confirmation: value(form, 'confirmation'),
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Identidad guardada.'); reloadSoon();
+  });
+
+  root?.querySelector<HTMLFormElement>('[data-build-preview-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const form = event.currentTarget as HTMLFormElement;
+    const result = await previewMasterAdminAppBuild(baseUrl, pb.authStore.token, {
+      channel, version_name: value(form, 'version_name'), version_code: Number(value(form, 'version_code')),
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Vista previa creada.'); reloadSoon();
+  });
+
+  root?.querySelector<HTMLButtonElement>('[data-confirm-build]')?.addEventListener('click', async () => {
+    const card = root.querySelector('[data-preview-job]') as HTMLElement;
+    const confirmation = (root.querySelector('[data-build-confirmation]') as HTMLInputElement)?.value.trim() || '';
+    const result = await confirmMasterAdminAppBuild(baseUrl, pb.authStore.token, {
+      job_id: card.dataset.jobId || '', preview_hash: card.dataset.previewHash || '', confirmation,
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Build confirmado y puesto en cola.'); reloadSoon();
+  });
+
+  root?.querySelector<HTMLFormElement>('[data-assignment-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const form = event.currentTarget as HTMLFormElement;
+    const [user_id = '', device_id = ''] = value(form, 'recipient').split('|');
+    if (!window.confirm(`¿Confirmas esta asignación ${value(form, 'stage')} al administrador y dispositivo seleccionados?`)) return;
+    const result = await runMasterAdminAppAction(baseUrl, pb.authStore.token, {
+      action: 'assign', artifact_id: value(form, 'artifact_id'), user_id, device_id,
+      stage: value(form, 'stage'), wave: Number(value(form, 'wave')),
+    });
+    if (!result.available || !result.data) return show(getAdminAppErrorMessage(result.error), true);
+    const grant = String((result.data as any).grant || '');
+    const storeSlug = String((result.data as any).assignment?.store?.slug || '').trim();
+    const portalPath = storeSlug ? `/t/${encodeURIComponent(storeSlug)}/admin/mobile-app` : '/admin/mobile-app';
+    show(grant ? `Enlace asociado (cópialo ahora): ${window.location.origin}${portalPath}?grant=${grant}` : 'La asignación ya existía; el grant anterior no se vuelve a mostrar.');
+  });
+
+  root?.querySelectorAll<HTMLButtonElement>('[data-validate-pilot]').forEach((button) => button.addEventListener('click', async () => {
+    if (!window.confirm('¿Confirmas que la versión fue probada correctamente en el dispositivo piloto?')) return;
+    const result = await runMasterAdminAppAction(baseUrl, pb.authStore.token, {
+      action: 'validate_pilot', assignment_id: button.dataset.validatePilot || '', confirmation: 'VALIDAR PILOTO MOBILE ADMIN',
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Piloto validado.'); reloadSoon();
+  }));
+
+  root?.querySelectorAll<HTMLButtonElement>('[data-revoke-assignment]').forEach((button) => button.addEventListener('click', async () => {
+    const reason = window.prompt('Motivo de revocación:')?.trim() || '';
+    if (!reason) return;
+    if (!window.confirm('Esta entrega y sus tickets dejarán de funcionar. ¿Confirmas la revocación?')) return;
+    const result = await runMasterAdminAppAction(baseUrl, pb.authStore.token, {
+      action: 'revoke_assignment', assignment_id: button.dataset.revokeAssignment || '', reason,
+      confirmation: 'REVOCAR ENTREGA MOBILE ADMIN',
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Asignación revocada.'); reloadSoon();
+  }));
+
+  root?.querySelector<HTMLFormElement>('[data-minimum-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const form = event.currentTarget as HTMLFormElement;
+    const result = await runMasterAdminAppAction(baseUrl, pb.authStore.token, {
+      action: 'set_minimum', profile_id: root?.dataset.profileId || '',
+      version_code: Number(value(form, 'version_code')), confirmation: value(form, 'confirmation'),
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Versión mínima actualizada.'); reloadSoon();
+  });
+
+  root?.querySelector<HTMLFormElement>('[data-status-form]')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const form = event.currentTarget as HTMLFormElement;
+    const result = await runMasterAdminAppAction(baseUrl, pb.authStore.token, {
+      action: 'set_profile_status', profile_id: root?.dataset.profileId || '',
+      status: value(form, 'status'), confirmation: value(form, 'confirmation'),
+    });
+    if (!result.available) return show(getAdminAppErrorMessage(result.error), true);
+    show('Estado actualizado.'); reloadSoon();
+  });
+</script>
+
+<style>
+  .admin-release{display:grid;gap:18px;color:#0f172a}.admin-release__hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;padding:24px;border-radius:20px;background:linear-gradient(135deg,#111827,#312e81);color:#fff}.admin-release__hero h1{margin:6px 0;font-size:clamp(28px,5vw,42px)}.admin-release__hero p{max-width:740px;margin:0;color:#c7d2fe;line-height:1.55}.admin-release__eyebrow{font-size:11px;font-weight:900;letter-spacing:.12em}.channel-tabs{display:flex;gap:8px}.channel-tabs a{border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#334155;padding:9px 14px;text-decoration:none;font-size:13px;font-weight:900}.channel-tabs a[aria-current="page"]{border-color:#312e81;background:#eef2ff;color:#3730a3}.status,.chip{border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;background:#e2e8f0;color:#334155}.status--active{background:#dcfce7;color:#166534}.status--paused{background:#fef3c7;color:#92400e}.status--withdrawn{background:#fee2e2;color:#991b1b}.panel{display:grid;gap:16px;border:1px solid #dbe3ef;border-radius:18px;background:#fff;padding:20px;box-shadow:0 12px 35px rgba(15,23,42,.06)}.panel__title{display:flex;justify-content:space-between;gap:12px;align-items:center}.panel__title h2{margin:0;font-size:20px}.panel__title span,.hint{color:#64748b;font-size:13px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.form-grid--compact{grid-template-columns:1fr 1fr auto;align-items:end}.form-grid label,.confirm{display:grid;gap:6px;color:#475569;font-size:12px;font-weight:900}.wide{grid-column:1/-1}input,select,button{min-height:42px;border-radius:10px;border:1px solid #cbd5e1;padding:9px 11px;font:inherit}button{background:#111827;color:#fff;border-color:#111827;font-weight:900;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.danger{background:#fff1f2;color:#991b1b;border-color:#fecaca}.notice{border:1px solid #bbf7d0;border-radius:12px;background:#f0fdf4;color:#166534;padding:13px;overflow-wrap:anywhere}.notice--error{border-color:#fecaca;background:#fff1f2;color:#991b1b}.preview{display:grid;gap:10px;border:1px solid #c7d2fe;border-radius:14px;background:#eef2ff;padding:15px}.inventory,.assignments{display:grid;gap:9px}.inventory span{display:flex;justify-content:space-between;border-top:1px solid #eef2f7;padding-top:8px}.assignments article{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(3,minmax(100px,.7fr)) auto auto;gap:10px;align-items:center;border-top:1px solid #eef2f7;padding-top:11px;font-size:13px}.assignments article div{display:grid}.assignments article div span{color:#64748b}.chip--pilot{background:#ede9fe;color:#5b21b6}.chip--gradual{background:#dbeafe;color:#1d4ed8}.chip--general{background:#dcfce7;color:#166534}.policy-grid{display:grid;grid-template-columns:1fr 1fr 2fr 2fr;gap:12px;align-items:end}.policy-grid>div{display:grid;gap:5px}.policy-grid small{color:#64748b}.policy-grid form{display:flex;gap:8px}.policy-grid input,.policy-grid select{min-width:0;width:100%}@media(max-width:900px){.form-grid,.form-grid--compact,.policy-grid{grid-template-columns:1fr}.assignments article{grid-template-columns:1fr}.admin-release__hero{flex-direction:column}.wide{grid-column:auto}}
+</style>

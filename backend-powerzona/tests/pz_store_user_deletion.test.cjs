@@ -137,5 +137,9 @@ test('inventario dinamico limpia opcionales y falla cerrado ante requeridas ines
   assert.match(lib, /throw codedError\("user_delete_failed"\)/);
   assert.match(lib, /record\.set\(field\.name, Number\(field\.maxSelect/);
   assert.match(lib, /store_user_device_audit/);
+  assert.match(lib, /function deleteAdminAppDeliveryForUser/);
+  assert.match(lib, /admin_app_download_tickets/);
+  assert.match(lib, /admin_app_release_assignments/);
+  assert.match(lib, /admin_app_release_events/);
   assert.doesNotMatch(lib, /collection\("users"\)\.delete|users\.deleteRule\s*=/);
 });

@@ -86,3 +86,30 @@ Si Google Play App Signing usa una clave distinta de la clave de carga local, un
 APK local y la versión instalada desde Play no pueden actualizarse entre sí. Para
 permitir esa transición sin reinstalar, descarga desde Google Play Console una APK
 universal firmada por Play después de subir el AAB.
+
+## Entrega privada C10.8
+
+C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públicas:
+
+- el APK queda como archivo protegido en PocketBase;
+- el enlace abre un portal y no concede acceso por sí mismo;
+- cada descarga exige sesión de `store_admin`, tienda, dispositivo autorizado y asignación exactos;
+- el archivo usa un ticket de dos minutos y un solo uso;
+- el rollout avanza por piloto, oleadas explícitas y publicación general;
+- `minimum_supported_version_code` solo puede activarse después de validar el piloto y una asignación general.
+
+El runner está en `runner/run-admin-app-job-queue.ps1`. Requiere el secreto exclusivo
+`PZ_ADMIN_APP_RUNNER_SECRET` y una ruta externa a la firma ya existente. Nunca crea
+una firma, Firebase o una publicación. La vista previa reproducible puede generarse
+sin compilar ni acceder a secretos:
+
+```powershell
+../scripts/build-admin-app.ps1 -Operation Preview `
+  -ReleaseOperation update -VersionCode 4 -VersionName 1.0.3 `
+  -Channel staging
+```
+
+La app añade su versión real al User-Agent y al bridge `PZAndroidUpdate`. El portal
+puede pedir una descarga verificada: antes de abrir el instalador, Android compara
+SHA-256, paquete, `versionCode` y certificado con la app instalada. Si Android pide
+desinstalar la versión anterior, la operación debe cancelarse.

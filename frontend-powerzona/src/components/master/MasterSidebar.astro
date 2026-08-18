@@ -84,6 +84,9 @@ function initials(value: string, fallback: string) {
       <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/settings') }]} href="/master/settings">
         <MasterIcon name="settings" size={20} /><span>Master</span>
       </a>
+      <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/mobile-admin') }]} href="/master/mobile-admin">
+        <MasterIcon name="security" size={20} /><span>Mobile Admin</span>
+      </a>
     </section>
 
     {currentStore && (

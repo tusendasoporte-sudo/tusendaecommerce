@@ -903,6 +903,46 @@ function deleteTargetAccessRecords(app, storeId, userId) {
   return records.length;
 }
 
+function deleteAdminAppDeliveryForUser(app, userId) {
+  try {
+    app.findCollectionByNameOrId("admin_app_release_assignments");
+    app.findCollectionByNameOrId("admin_app_download_tickets");
+    app.findCollectionByNameOrId("admin_app_release_events");
+  } catch (_) { return 0; }
+  let deleted = 0;
+  for (let batch = 0; batch < 1000; batch += 1) {
+    const tickets = app.findRecordsByFilter(
+      "admin_app_download_tickets", "user = {:userId}", "id", 200, 0, { userId }
+    ) || [];
+    if (!tickets.length) break;
+    tickets.forEach((ticket) => { app.delete(ticket); deleted += 1; });
+    if (batch === 999) throw codedError("user_delete_failed");
+  }
+  for (let batch = 0; batch < 1000; batch += 1) {
+    const assignments = app.findRecordsByFilter(
+      "admin_app_release_assignments", "user = {:userId}", "id", 200, 0, { userId }
+    ) || [];
+    if (!assignments.length) break;
+    assignments.forEach((assignment) => {
+      for (let eventBatch = 0; eventBatch < 1000; eventBatch += 1) {
+        const events = app.findRecordsByFilter(
+          "admin_app_release_events", "assignment = {:assignmentId}", "id", 200, 0, { assignmentId: assignment.id }
+        ) || [];
+        if (!events.length) break;
+        events.forEach((event) => { event.set("assignment", ""); app.save(event); });
+        if (eventBatch === 999) throw codedError("user_delete_failed");
+      }
+      app.delete(assignment); deleted += 1;
+    });
+    if (batch === 999) throw codedError("user_delete_failed");
+  }
+  if ((app.findRecordsByFilter("admin_app_download_tickets", "user = {:userId}", "id", 1, 0, { userId }) || []).length
+    || (app.findRecordsByFilter("admin_app_release_assignments", "user = {:userId}", "id", 1, 0, { userId }) || []).length) {
+    throw codedError("user_delete_failed");
+  }
+  return deleted;
+}
+
 function clearDeviceAuditRelations(app, devices) {
   devices.forEach((device) => {
     for (let batch = 0; batch < 1000; batch += 1) {
@@ -920,6 +960,19 @@ function clearDeviceAuditRelations(app, devices) {
         app.save(record);
       });
       if (batch === 999) throw codedError("user_delete_failed");
+    }
+    try {
+      for (let batch = 0; batch < 1000; batch += 1) {
+        const events = app.findRecordsByFilter(
+          "admin_app_release_events", "device = {:deviceId}", "id", 200, 0, { deviceId: device.id }
+        ) || [];
+        if (!events.length) break;
+        events.forEach((event) => { event.set("device", ""); app.save(event); });
+        if (batch === 999) throw codedError("user_delete_failed");
+      }
+    } catch (error) {
+      try { app.findCollectionByNameOrId("admin_app_release_events"); } catch (_) { return; }
+      throw error;
     }
   });
 }
@@ -1774,6 +1827,7 @@ function deleteStoreUserTransactional(app, options) {
   } catch (_) { throw codedError("user_delete_failed"); }
 
   const devices = loadTargetDevices(app, user.id);
+  deleteAdminAppDeliveryForUser(app, user.id);
   assertNoUnexpectedRequiredUserRelations(app, user.id);
   clearOptionalUserRelations(app, user.id);
   clearDeviceAuditRelations(app, devices);
