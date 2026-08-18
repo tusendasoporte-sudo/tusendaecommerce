@@ -55,6 +55,7 @@ const whatsappReady = manualDelivery.sender.configured
   && manualDelivery.recipient.status === 'ready'
   && !!latestApk
   && latestApkJob?.status === 'succeeded'
+  && !!latestApk?.download_url
   && profile?.downloads_allowed === true
   && premiumBuildAllowed;
 const latestApkMarkedSent = latestApkJob?.delivery_status === 'marked_sent';
@@ -406,7 +407,7 @@ function dateTime(value: string) {
     <div class="master-card-body master-app-whatsapp__body">
       <div class="master-app-whatsapp__notice" role="note">
         <MasterIcon name="lock" size={20} />
-        <span>No se guardan sesiones, códigos QR ni credenciales. El APK debe adjuntarse manualmente después de abrir el chat.</span>
+        <span>No se guardan sesiones, códigos QR ni credenciales. El mensaje incluye el enlace permanente de esta versión, su SHA-256 y las instrucciones de instalación.</span>
       </div>
 
       {!manualDelivery.sender.configured && (
@@ -447,13 +448,17 @@ function dateTime(value: string) {
       {latestApk ? (
         <article class="master-app-whatsapp__artifact">
           <div>
-            <span>APK listo para adjuntar</span>
+            <span>APK custodiado en el servidor privado</span>
             <strong>{latestApk.file_name}</strong>
             <small>Versión {latestApk.version_name} ({latestApk.version_code}) · SHA-256 {latestApk.sha256}</small>
+            {latestApk.download_url && <small>Enlace permanente e inmutable de esta versión.</small>}
           </div>
-          <span class:list={['master-pill', latestApkMarkedSent ? 'master-pill--success' : 'master-pill--warning']}>
-            {latestApkMarkedSent ? 'Marcado como enviado' : 'Pendiente de envío'}
-          </span>
+          <div class="master-app-whatsapp__artifact-actions">
+            {latestApk.download_url && <a class="master-btn" href={latestApk.download_url} target="_blank" rel="noreferrer"><MasterIcon name="download" size={17} /> Descargar APK</a>}
+            <span class:list={['master-pill', latestApkMarkedSent ? 'master-pill--success' : 'master-pill--warning']}>
+              {latestApkMarkedSent ? 'Marcado como enviado' : 'Pendiente de envío'}
+            </span>
+          </div>
         </article>
       ) : (
         <p class="master-empty">Cuando el runner registre un APK exitoso, aquí podrás preparar el mensaje para el administrador principal.</p>
@@ -485,8 +490,8 @@ function dateTime(value: string) {
         </div>
         <div class="master-app-whatsapp__mark" data-app-whatsapp-mark-card hidden>
           <strong>Confirmación posterior</strong>
-          <p>Marca el envío únicamente después de adjuntar el APK correcto y presionar Enviar en WhatsApp.</p>
-          <label><input type="checkbox" data-app-whatsapp-sent-check /> Confirmo que envié el mensaje y adjunté el APK indicado.</label>
+          <p>Marca el envío únicamente después de revisar el enlace, el checksum y presionar Enviar en WhatsApp.</p>
+          <label><input type="checkbox" data-app-whatsapp-sent-check /> Confirmo que envié el mensaje con el enlace permanente y SHA-256 indicados.</label>
           <button class="master-btn" type="button" data-app-whatsapp-mark-sent disabled><MasterIcon name="check" size={18} /> Marcar como enviado</button>
         </div>
       </section>
@@ -506,7 +511,7 @@ function dateTime(value: string) {
     <header class="master-card-header"><div><h2 class="master-card-title">Artefactos registrados</h2><p class="master-card-subtitle">Los archivos privados no se almacenan en Git.</p></div></header>
     <div class="master-card-body master-app-build-history">
       {artifacts.length ? artifacts.map((artifact) => (
-        <article><div><strong>{artifact.file_name}</strong><span>SHA-256 {artifact.sha256}</span></div><span class="master-pill">{artifact.lifecycle_status === 'deleted' ? 'Eliminado' : artifact.lifecycle_status === 'deletion_queued' ? 'Eliminación pendiente' : artifact.visibility === 'store_delivery' ? 'Entregable' : 'Solo Master'}</span></article>
+        <article><div><strong>{artifact.file_name}</strong><span>SHA-256 {artifact.sha256}</span>{artifact.download_url && <a href={artifact.download_url} target="_blank" rel="noreferrer">Descargar esta versión</a>}</div><span class="master-pill">{artifact.lifecycle_status === 'staged' ? 'Subida en validación' : artifact.lifecycle_status === 'deleted' ? 'Eliminado' : artifact.lifecycle_status === 'deletion_queued' ? 'Eliminación pendiente' : artifact.visibility === 'store_delivery' ? 'Entregable' : 'Solo Master'}</span></article>
       )) : <p class="master-empty">No hay artefactos generados.</p>}
     </div>
   </section>
@@ -936,6 +941,7 @@ function dateTime(value: string) {
   .master-app-whatsapp__contact small, .master-app-whatsapp__artifact small { color: #68748a; line-height: 1.45; overflow-wrap: anywhere; }
   .master-app-whatsapp__artifact { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; }
   .master-app-whatsapp__artifact > div { display: grid; gap: .3rem; min-width: 0; }
+  .master-app-whatsapp__artifact .master-app-whatsapp__artifact-actions { display: flex; align-items: center; justify-content: flex-end; gap: .65rem; }
   .master-app-whatsapp__preview { display: grid; gap: 1rem; padding: 1rem; border: 1px solid #e7b75b; border-radius: 12px; background: #fffaf0; }
   .master-app-whatsapp__preview header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
   .master-app-whatsapp__preview header div { display: grid; gap: .25rem; }
@@ -968,6 +974,7 @@ function dateTime(value: string) {
     .master-app-whatsapp__global-warning { grid-template-columns: auto 1fr; }
     .master-app-whatsapp__global-warning .master-btn { grid-column: 1 / -1; width: 100%; }
     .master-app-whatsapp__artifact, .master-app-whatsapp__preview header { align-items: stretch; flex-direction: column; }
+    .master-app-whatsapp__artifact .master-app-whatsapp__artifact-actions { align-items: stretch; flex-direction: column; }
     .master-app-whatsapp__preview-actions .master-btn, .master-app-whatsapp__mark .master-btn { width: 100%; justify-self: stretch; }
   }
 </style>

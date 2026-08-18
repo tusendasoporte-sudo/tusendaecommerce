@@ -32,6 +32,9 @@ const PREVIEW_TTL_MS = 30 * 60 * 1000;
 const BRAND_ASSET_NORMALIZER_PATTERN = /^[a-z0-9._-]{8,80}$/;
 const BRAND_ASSET_FILE_PATTERN = /^(?:icon|splash)[-_][a-f0-9]{32}(?:_[A-Za-z0-9]{6,32})?\.png$/;
 const BRAND_ASSET_MAX_BYTES = 8 * 1024 * 1024;
+const ARTIFACT_MAX_BYTES = 100 * 1024 * 1024;
+const DOWNLOAD_NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const DOWNLOAD_CAPABILITY_PATTERN = /^[a-f0-9]{64}$/;
 const BRAND_ASSET_PROFILES = Object.freeze({
   icon: Object.freeze({ width: 1024, height: 1024 }),
   splash: Object.freeze({ width: 1080, height: 1920 }),
@@ -115,6 +118,60 @@ function environment(name, max) {
     if (typeof process !== "undefined") return text(process.env[name], max);
   } catch (_) {}
   return "";
+}
+
+function downloadPublicOrigin() {
+  const value = environment("PZ_STOREFRONT_APP_DOWNLOAD_PUBLIC_ORIGIN", 500).replace(/\/+$/, "");
+  if (/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(value)) return value;
+  if (/^http:\/\/(?:127\.0\.0\.1|localhost)(?::[0-9]{1,5})?$/.test(value)) return value;
+  return "";
+}
+
+function downloadSecret() {
+  const value = environment("PZ_STOREFRONT_APP_DOWNLOAD_SECRET", 512);
+  return value.length >= 32 ? value : "";
+}
+
+function artifactDownloadCapability(artifact, profile, security) {
+  const nonce = recordString(profile, "download_nonce", 64);
+  const secret = downloadSecret();
+  const artifactId = text(artifact && (artifact.id || recordString(artifact, "id", 15)), 15);
+  const profileId = text(profile && (profile.id || recordString(profile, "id", 15)), 15);
+  const fileName = recordString(artifact, "file_name", 220);
+  const sha256 = recordString(artifact, "sha256", 64).toLowerCase();
+  const bytes = recordNumber(artifact, "bytes");
+  const versionCode = recordNumber(artifact, "version_code");
+  const signer = security || (typeof $security !== "undefined" ? $security : null);
+  if (!RECORD_ID_PATTERN.test(artifactId) || !RECORD_ID_PATTERN.test(profileId)
+    || !DOWNLOAD_NONCE_PATTERN.test(nonce) || !/^[A-Za-z0-9._-]+$/.test(fileName)
+    || !SHA256_PATTERN.test(sha256) || !Number.isSafeInteger(bytes) || bytes < 1
+    || !Number.isSafeInteger(versionCode) || versionCode < 1
+    || !secret || !signer || typeof signer.hs256 !== "function") return "";
+  const digest = text(signer.hs256(
+    `pz_storefront_app_download:v1|${profileId}|${artifactId}|${fileName}|${sha256}|${bytes}|${versionCode}|${nonce}`,
+    secret
+  ), 64).toLowerCase();
+  return DOWNLOAD_CAPABILITY_PATTERN.test(digest) ? digest : "";
+}
+
+function artifactDownloadUrl(artifact, profile, options) {
+  const origin = text(options && options.origin, 500).replace(/\/+$/, "") || downloadPublicOrigin();
+  const capability = artifactDownloadCapability(artifact, profile, options && options.security);
+  const artifactId = text(artifact && (artifact.id || recordString(artifact, "id", 15)), 15);
+  const filename = recordString(artifact, "file_name", 220);
+  if (!origin || !capability || !RECORD_ID_PATTERN.test(artifactId) || !/^[A-Za-z0-9._-]+$/.test(filename)) return "";
+  return `${origin}/api/pz/storefront-app-downloads/${artifactId}/${capability}/${encodeURIComponent(filename)}`;
+}
+
+function ensureProfileDownloadNonce(app, profile) {
+  const current = recordString(profile, "download_nonce", 64);
+  if (DOWNLOAD_NONCE_PATTERN.test(current)) return current;
+  let generated = "";
+  try { generated = text($security.randomString(43), 43); } catch (_) {}
+  if (!DOWNLOAD_NONCE_PATTERN.test(generated)) throw new Error("download_link_generation_failed");
+  profile.set("download_nonce", generated);
+  app.save(profile);
+  return generated;
 }
 
 function normalizeWhatsappNumber(value) {
@@ -462,7 +519,7 @@ function jobSnapshot(job) {
   };
 }
 
-function artifactSnapshot(artifact) {
+function artifactSnapshot(artifact, profile) {
   return {
     id: text(artifact && (artifact.id || recordString(artifact, "id", 15)), 15),
     job_id: relationId(artifact, "job"),
@@ -473,6 +530,12 @@ function artifactSnapshot(artifact) {
     bytes: recordNumber(artifact, "bytes"),
     version_code: recordNumber(artifact, "version_code"),
     version_name: recordString(artifact, "version_name", 40),
+    download_url: recordString(artifact, "kind", 30) === "apk"
+      && recordString(artifact, "visibility", 30) === "store_delivery"
+      && recordString(artifact, "file", 220)
+      && recordString(artifact, "lifecycle_status", 30) === "available"
+      ? artifactDownloadUrl(artifact, profile)
+      : "",
     ...appAdmin.artifactAdminSnapshot(artifact),
     created: isoDate(recordValue(artifact, "created")),
   };
@@ -597,7 +660,7 @@ function assertPreviewBrandingCurrent(app, store, preview) {
   return result;
 }
 
-function buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256) {
+function buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256, downloadOptions) {
   if (!store || !profile || !job || !artifact || !sender || !recipient) throw new Error("delivery_not_ready");
   appAdmin.assertDistributionAvailable(profile, artifact);
   const senderPhone = normalizeWhatsappNumber(recordString(sender, "phone", 60));
@@ -626,24 +689,34 @@ function buildManualWhatsappPreview(store, profile, job, artifact, sender, recip
   const versionCode = recordNumber(artifact, "version_code");
   const fileName = recordString(artifact, "file_name", 220);
   const artifactSha256 = recordString(artifact, "sha256", 64).toLowerCase();
-  if (!VERSION_NAME_PATTERN.test(versionName) || !versionCode || !fileName || !SHA256_PATTERN.test(artifactSha256)) {
+  const downloadUrl = artifactDownloadUrl(artifact, profile, downloadOptions);
+  if (!VERSION_NAME_PATTERN.test(versionName) || !versionCode || !fileName || !SHA256_PATTERN.test(artifactSha256)
+    || !recordString(artifact, "file", 220)) {
     throw new Error("apk_not_ready");
   }
+  if (!downloadUrl) throw new Error("download_link_unconfigured");
+  const firstPublication = recordString(job, "operation", 20) === "provision";
   const message = [
     `Hola ${recipientName}.`,
     "",
-    `Tu Senda 84 tiene lista una actualización de ${appName} para ${storeName}.`,
+    `Tu Senda 84 tiene lista ${firstPublication ? "la primera versión" : "una actualización"} de ${appName} para ${storeName}.`,
     `Versión: ${versionName} (${versionCode})`,
     `Archivo: ${fileName}`,
+    `Enlace permanente de esta versión: ${downloadUrl}`,
     `SHA-256: ${artifactSha256}`,
     "",
-    "El APK firmado se adjunta manualmente en este chat. Antes de instalarlo, confirma que el nombre y el checksum coincidan con este mensaje.",
-    "Si Android lo solicita, autoriza temporalmente la instalación desde esta fuente y desactiva ese permiso al terminar.",
+    "Instrucciones:",
+    "1. Abre el enlace y descarga el APK físico.",
+    "2. Confirma que el nombre y el SHA-256 coincidan exactamente con este mensaje.",
+    firstPublication
+      ? "3. Abre el APK. Si Android lo solicita, autoriza temporalmente esta fuente y desactiva el permiso al terminar."
+      : "3. Abre el APK sin desinstalar la app actual; Android la actualizará conservando sus datos porque mantiene el mismo paquete y firma.",
+    "4. Puedes compartir el enlace, pero cualquier persona que lo reciba podrá descargar esta versión mientras la distribución siga activa.",
     "",
     `Mensaje preparado por ${senderName} desde el panel Master de Tu Senda 84.`,
   ].join("\n");
   const material = {
-    schema_version: 1,
+    schema_version: 2,
     mode: "manual_wa_me",
     automatic_send: false,
     cloud_api: false,
@@ -660,11 +733,12 @@ function buildManualWhatsappPreview(store, profile, job, artifact, sender, recip
     version_name: versionName,
     attachment_file_name: fileName,
     attachment_sha256: artifactSha256,
-    attachment_required: true,
+    attachment_required: false,
+    download_url: downloadUrl,
     message,
   };
   const digest = String((sha256 || ((value) => $security.sha256(value)))(
-    `pz_storefront_app_manual_whatsapp:v1|${canonicalJson(material)}`
+    `pz_storefront_app_manual_whatsapp:v2|${canonicalJson(material)}`
   ) || "").trim().toLowerCase();
   if (!SHA256_PATTERN.test(digest)) throw new Error("delivery_preview_hash_failed");
   return {
@@ -830,8 +904,10 @@ function managementReady(app) {
       && !!profiles.fields.getByName("splash_asset")
       && !!profiles.fields.getByName("distribution_status")
       && !!profiles.fields.getByName("lifecycle_status")
+      && !!profiles.fields.getByName("download_nonce")
       && app.findCollectionByNameOrId(appAdmin.ACTIONS).listRule === null
       && !!app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("lifecycle_status")
+      && !!app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("file")
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
@@ -843,7 +919,8 @@ function managementReady(app) {
 function detailResponse(app, store, actor) {
   const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
   const jobs = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id }).map(jobSnapshot);
-  const artifacts = records(app, ARTIFACTS, "store = {:store}", "-created", 50, { store: store.id }).map(artifactSnapshot);
+  const artifacts = records(app, ARTIFACTS, "store = {:store}", "-created", 50, { store: store.id })
+    .map((artifact) => artifactSnapshot(artifact, profile));
   const administrative = appAdmin.adminDetail(app, profile);
   return {
     ok: true,
@@ -1262,7 +1339,7 @@ function manualWhatsappPreviewFor(app, store, actor, artifactId) {
 function deliveryErrorCode(error) {
   const code = text(error && error.message, 80);
   return [
-    "apk_not_ready", "delivery_not_ready", "delivery_preview_hash_failed",
+    "apk_not_ready", "delivery_not_ready", "delivery_preview_hash_failed", "download_link_unconfigured",
     "master_whatsapp_required", "primary_admin_required", "primary_admin_invalid",
     "primary_admin_whatsapp_required", "delivery_preview_mismatch", "delivery_already_marked",
     "app_distribution_withdrawn", "artifact_not_available",
@@ -1688,6 +1765,197 @@ function handleRunnerClaim(e) {
   }
 }
 
+function artifactKindPolicy(kind) {
+  const policies = {
+    apk: { visibility: "store_delivery", maxBytes: ARTIFACT_MAX_BYTES, file: /\.apk$/i, zip: true },
+    aab: { visibility: "master_only", maxBytes: ARTIFACT_MAX_BYTES, file: /\.aab$/i, zip: true },
+    checksums: { visibility: "store_delivery", maxBytes: 1024 * 1024, file: /^SHA256SUMS\.txt$/, text: true },
+    instructions: { visibility: "store_delivery", maxBytes: 1024 * 1024, file: /^INSTRUCCIONES\.txt$/, text: true },
+    build_manifest: { visibility: "master_only", maxBytes: 1024 * 1024, file: /^build-manifest\.json$/, json: true },
+  };
+  return policies[kind] || null;
+}
+
+function parseRunnerArtifactUpload(body) {
+  if (!exactPayload(body, ["bytes", "file_name", "job_id", "kind", "runner_id", "sha256", "visibility"])) return null;
+  const parsed = {
+    jobId: text(bodyValue(body, "job_id"), 15),
+    runnerId: text(bodyValue(body, "runner_id"), 100),
+    kind: text(bodyValue(body, "kind"), 30),
+    visibility: text(bodyValue(body, "visibility"), 30),
+    fileName: text(bodyValue(body, "file_name"), 220),
+    sha256: text(bodyValue(body, "sha256"), 64).toLowerCase(),
+    bytes: Number(bodyValue(body, "bytes")),
+  };
+  const policy = artifactKindPolicy(parsed.kind);
+  if (!RECORD_ID_PATTERN.test(parsed.jobId)
+    || !/^[A-Za-z0-9._:-]{3,100}$/.test(parsed.runnerId)
+    || !policy || parsed.visibility !== policy.visibility
+    || !/^[A-Za-z0-9._-]+$/.test(parsed.fileName) || !policy.file.test(parsed.fileName)
+    || !SHA256_PATTERN.test(parsed.sha256)
+    || !Number.isInteger(parsed.bytes) || parsed.bytes < 1 || parsed.bytes > policy.maxBytes) return null;
+  return parsed;
+}
+
+function validateUploadedArtifact(file, parsed) {
+  if (!file || uploadedFileName(file) !== parsed.fileName || Number(file.size) !== parsed.bytes) {
+    throw new Error("artifact_upload_invalid");
+  }
+  const policy = artifactKindPolicy(parsed.kind);
+  const prefix = uploadedFilePrefix(file, 64);
+  if (!policy || prefix.length < 1) throw new Error("artifact_upload_invalid");
+  if (policy.zip && (prefix.length < 4 || prefix[0] !== 0x50 || prefix[1] !== 0x4b
+    || ![[0x03, 0x04], [0x05, 0x06], [0x07, 0x08]].some((pair) => prefix[2] === pair[0] && prefix[3] === pair[1]))) {
+    throw new Error("artifact_upload_invalid");
+  }
+  if (policy.text && prefix.some((value) => value === 0)) throw new Error("artifact_upload_invalid");
+  if (policy.json) {
+    const first = prefix.find((value) => ![0x09, 0x0a, 0x0d, 0x20].includes(value));
+    if (first !== 0x7b) throw new Error("artifact_upload_invalid");
+  }
+  return true;
+}
+
+function expectedArtifactKinds(job) {
+  const preview = storedPreviewValue(job) || {};
+  const build = bodyValue(preview, "build") || {};
+  const expected = ["apk", "checksums", "instructions", "build_manifest"];
+  if (bodyValue(build, "aab") === true) expected.push("aab");
+  return expected;
+}
+
+function stagedArtifactMatches(artifact, parsed) {
+  return relationId(artifact, "job") === parsed.jobId
+    && recordString(artifact, "kind", 30) === parsed.kind
+    && recordString(artifact, "visibility", 30) === parsed.visibility
+    && recordString(artifact, "file_name", 220) === parsed.fileName
+    && recordString(artifact, "sha256", 64).toLowerCase() === parsed.sha256
+    && recordNumber(artifact, "bytes") === parsed.bytes
+    && recordString(artifact, "lifecycle_status", 30) === "staged"
+    && !!recordString(artifact, "file", 220);
+}
+
+function handleRunnerArtifactUpload(e) {
+  setPrivateHeaders(e);
+  try {
+    if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
+    const info = e.requestInfo();
+    const parsed = parseRunnerArtifactUpload(info.body || {});
+    if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
+    if (requestHeader(e, "x-pz-store-app-runner-id") !== parsed.runnerId) {
+      return e.json(401, { ok: false, error: "unauthorized" });
+    }
+    const files = Array.from(e.findUploadedFiles("file") || []);
+    if (files.length !== 1) return e.json(400, { ok: false, error: "artifact_file_required" });
+    validateUploadedArtifact(files[0], parsed);
+    const job = findRecord($app, JOBS, parsed.jobId);
+    if (!job || recordString(job, "status", 30) !== "claimed"
+      || recordString(job, "runner_id", 100) !== parsed.runnerId) {
+      return e.json(409, { ok: false, error: "job_not_claimed" });
+    }
+    if (!expectedArtifactKinds(job).includes(parsed.kind)) {
+      return e.json(409, { ok: false, error: "artifact_not_expected" });
+    }
+    const profile = findRecord($app, PROFILES, relationId(job, "profile"));
+    const store = findRecord($app, "stores", relationId(job, "store"));
+    if (!profile || !store || relationId(profile, "store") !== store.id) {
+      return e.json(409, { ok: false, error: "profile_not_found" });
+    }
+    const existing = findFirst($app, ARTIFACTS, "job = {:job} && kind = {:kind}", {
+      job: job.id, kind: parsed.kind,
+    });
+    if (existing) {
+      if (!stagedArtifactMatches(existing, parsed)) {
+        return e.json(409, { ok: false, error: "artifact_upload_conflict" });
+      }
+      return e.json(200, { ok: true, idempotent: true, artifact: artifactSnapshot(existing, profile) });
+    }
+    let created = null;
+    $app.runInTransaction((app) => {
+      const transactionJob = findRecord(app, JOBS, job.id);
+      const transactionProfile = findRecord(app, PROFILES, profile.id);
+      if (!transactionJob || !transactionProfile
+        || recordString(transactionJob, "status", 30) !== "claimed"
+        || recordString(transactionJob, "runner_id", 100) !== parsed.runnerId) throw new Error("job_not_claimed");
+      ensureProfileDownloadNonce(app, transactionProfile);
+      const build = bodyValue(storedPreviewValue(transactionJob) || {}, "build") || {};
+      const artifact = new Record(app.findCollectionByNameOrId(ARTIFACTS), {});
+      artifact.set("store", store.id);
+      artifact.set("profile", transactionProfile.id);
+      artifact.set("job", transactionJob.id);
+      artifact.set("kind", parsed.kind);
+      artifact.set("visibility", parsed.visibility);
+      artifact.set("file_name", parsed.fileName);
+      artifact.set("file", files[0]);
+      artifact.set("storage_locator", "pocketbase_managed");
+      artifact.set("sha256", parsed.sha256);
+      artifact.set("bytes", parsed.bytes);
+      artifact.set("version_code", Number(bodyValue(build, "version_code")));
+      artifact.set("version_name", text(bodyValue(build, "version_name"), 40));
+      artifact.set("lifecycle_status", "staged");
+      app.save(artifact);
+      created = artifact;
+    });
+    return e.json(201, { ok: true, idempotent: false, artifact: artifactSnapshot(created, profile) });
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (["artifact_upload_invalid", "artifact_file_required"].includes(code)) {
+      return e.json(400, { ok: false, error: code });
+    }
+    if (["artifact_not_expected", "artifact_upload_conflict", "job_not_claimed", "profile_not_found"].includes(code)) {
+      return e.json(409, { ok: false, error: code });
+    }
+    return e.json(500, { ok: false, error: "artifact_upload_failed" });
+  }
+}
+
+function handleArtifactDownload(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
+  try {
+    if (!managementReady(e.app || $app)) return notFound();
+    const artifactId = text(e.request.pathValue("artifact"), 15);
+    const capability = text(e.request.pathValue("capability"), 64).toLowerCase();
+    const requestedName = text(e.request.pathValue("filename"), 220);
+    if (!RECORD_ID_PATTERN.test(artifactId) || !DOWNLOAD_CAPABILITY_PATTERN.test(capability)
+      || !/^[A-Za-z0-9._-]+$/.test(requestedName)) return notFound();
+    const app = e.app || $app;
+    const artifact = findRecord(app, ARTIFACTS, artifactId);
+    if (!artifact || recordString(artifact, "kind", 30) !== "apk"
+      || recordString(artifact, "visibility", 30) !== "store_delivery"
+      || recordString(artifact, "lifecycle_status", 30) !== "available"
+      || recordString(artifact, "file_name", 220) !== requestedName) return notFound();
+    const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+    const job = findRecord(app, JOBS, relationId(artifact, "job"));
+    if (!profile || !job || recordString(job, "status", 30) !== "succeeded"
+      || relationId(job, "profile") !== profile.id) return notFound();
+    appAdmin.assertDistributionAvailable(profile, artifact);
+    const expected = artifactDownloadCapability(artifact, profile);
+    if (!expected || !$security.equal(expected, capability)) return notFound();
+    const storedName = recordString(artifact, "file", 220);
+    const baseFilesPath = typeof artifact.baseFilesPath === "function" ? text(artifact.baseFilesPath(), 1000) : "";
+    if (!storedName || !/^[A-Za-z0-9._-]+$/.test(storedName) || !baseFilesPath || baseFilesPath.includes("..")) {
+      return notFound();
+    }
+    try {
+      const headers = e.response.header();
+      headers.set("Content-Type", "application/vnd.android.package-archive");
+      headers.set("Content-Disposition", `attachment; filename=\"${requestedName}\"`);
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256", 64));
+      headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
+      headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name", 40));
+    } catch (_) {}
+    let filesystem = null;
+    try {
+      filesystem = app.newFilesystem();
+      return filesystem.serve(e.response, e.request, `${baseFilesPath}/${storedName}`, requestedName);
+    } finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+  } catch (_) {
+    return notFound();
+  }
+}
+
 function parseRunnerArtifact(value) {
   if (!exactPayload(value, ["bytes", "file_name", "kind", "sha256", "storage_locator", "visibility"])) return null;
   const parsed = {
@@ -1701,7 +1969,7 @@ function parseRunnerArtifact(value) {
   if (!["apk", "aab", "checksums", "instructions", "build_manifest"].includes(parsed.kind)
     || !["store_delivery", "master_only"].includes(parsed.visibility)
     || !/^[A-Za-z0-9._-]+$/.test(parsed.fileName)
-    || !parsed.storageLocator
+    || parsed.storageLocator !== "pocketbase_managed"
     || !SHA256_PATTERN.test(parsed.sha256)
     || !Number.isInteger(parsed.bytes) || parsed.bytes < 1) return null;
   if (["apk", "checksums", "instructions"].includes(parsed.kind) && parsed.visibility !== "store_delivery") return null;
@@ -1807,6 +2075,17 @@ function handleRunnerComplete(e) {
             && text(bodyValue(targetEngine, "target_revision"), 40) !== parsed.engineRevision)) {
           throw new Error("engine_release_mismatch");
         }
+        const stagedArtifacts = records(app, ARTIFACTS, "job = {:job}", "+kind", 20, { job: job.id });
+        if (stagedArtifacts.length !== parsed.artifacts.length) throw new Error("artifacts_not_stored");
+        parsed.artifacts.forEach((item) => {
+          const artifact = stagedArtifacts.find((candidate) => recordString(candidate, "kind", 30) === item.kind);
+          if (!artifact || !stagedArtifactMatches(artifact, { ...item, jobId: job.id })
+            || recordNumber(artifact, "version_code") !== Number(bodyValue(build, "version_code"))
+            || recordString(artifact, "version_name", 40) !== text(bodyValue(build, "version_name"), 40)) {
+            throw new Error("artifacts_not_stored");
+          }
+        });
+        ensureProfileDownloadNonce(app, profile);
         profile.set("firebase_project_number", parsed.firebaseProjectNumber);
         profile.set("firebase_app_id", parsed.firebaseAppId);
         profile.set("signing_cert_sha256", parsed.signingCertSha256);
@@ -1821,19 +2100,7 @@ function handleRunnerComplete(e) {
         const appConfig = upsertAppConfig(app, profile, parsed);
         profile.set("app_config", appConfig.id);
         app.save(profile);
-        parsed.artifacts.forEach((item) => {
-          const artifact = new Record(app.findCollectionByNameOrId(ARTIFACTS), {});
-          artifact.set("store", store.id);
-          artifact.set("profile", profile.id);
-          artifact.set("job", job.id);
-          artifact.set("kind", item.kind);
-          artifact.set("visibility", item.visibility);
-          artifact.set("file_name", item.fileName);
-          artifact.set("storage_locator", item.storageLocator);
-          artifact.set("sha256", item.sha256);
-          artifact.set("bytes", item.bytes);
-          artifact.set("version_code", Number(bodyValue(build, "version_code")));
-          artifact.set("version_name", text(bodyValue(build, "version_name"), 40));
+        stagedArtifacts.forEach((artifact) => {
           artifact.set("lifecycle_status", "available");
           app.save(artifact);
         });
@@ -1847,7 +2114,8 @@ function handleRunnerComplete(e) {
     });
     return e.json(200, response);
   } catch (error) {
-    if (text(error && error.message, 80) === "job_not_claimed") return e.json(409, { ok: false, error: "job_not_claimed" });
+    const code = text(error && error.message, 80);
+    if (["job_not_claimed", "artifacts_not_stored"].includes(code)) return e.json(409, { ok: false, error: code });
     return e.json(500, { ok: false, error: "runner_completion_failed" });
   }
 }
@@ -1862,6 +2130,8 @@ module.exports = {
   PROFILES,
   assertEngineReleaseConfigured,
   assertPreviewEngineRelease,
+  artifactDownloadCapability,
+  artifactDownloadUrl,
   buildManualWhatsappPreview,
   buildPreview,
   canonicalJson,
@@ -1880,7 +2150,9 @@ module.exports = {
   handleRetry,
   handleBrandAssetFile,
   handleBrandAssetUpload,
+  handleArtifactDownload,
   handleRunnerClaim,
+  handleRunnerArtifactUpload,
   handleRunnerBrandAssetFile,
   handleRunnerComplete,
   hashPreview,
@@ -1890,6 +2162,7 @@ module.exports = {
   parseWhatsappPreviewPayload,
   parseWhatsappSettingsPayload,
   parseRunnerCompletion,
+  parseRunnerArtifactUpload,
   profileSnapshot,
   requireAuthenticatedUser,
   requireRunner,

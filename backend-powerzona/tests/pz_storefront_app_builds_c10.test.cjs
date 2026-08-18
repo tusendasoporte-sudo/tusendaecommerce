@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { createHash } = require('node:crypto');
+const { createHash, createHmac } = require('node:crypto');
 const test = require('node:test');
 
 const builds = require('../pb_hooks/pz_storefront_app_builds_lib.js');
@@ -16,6 +16,7 @@ const PRIMARY_ID = 'primaryc10test1';
 process.env.PZ_STOREFRONT_ENGINE_VERSION = '1.0.0';
 process.env.PZ_STOREFRONT_ENGINE_REVISION = 'a'.repeat(40);
 process.env.PZ_STOREFRONT_ENGINE_UPDATE_SEVERITY = 'recommended';
+process.env.PZ_STOREFRONT_APP_DOWNLOAD_SECRET = 'c10-download-secret-abcdefghijklmnopqrstuvwxyz';
 
 function record(id, values) {
   return { id, get(key) { return values[key]; } };
@@ -219,7 +220,7 @@ test('hash de preview es canónico, reproducible y cambia ante cualquier versió
 
 test('completion del runner acepta solo metadatos sanitizados y visibilidad fija', () => {
   const artifact = (kind, visibility, fileName) => ({
-    kind, visibility, file_name: fileName, storage_locator: `vault://c10/${fileName}`,
+    kind, visibility, file_name: fileName, storage_locator: 'pocketbase_managed',
     sha256: 'a'.repeat(64), bytes: 123,
   });
   const completion = builds.parseRunnerCompletion({
@@ -252,6 +253,51 @@ test('completion del runner acepta solo metadatos sanitizados y visibilidad fija
   }), null);
 });
 
+test('C10.7 valida carga privada y deriva enlaces permanentes por artefacto', () => {
+  assert.deepEqual(builds.parseRunnerArtifactUpload({
+    job_id: JOB_ID,
+    runner_id: 'runner-c107-01',
+    kind: 'apk',
+    visibility: 'store_delivery',
+    file_name: 'tenant-1.0.0-1-direct.apk',
+    sha256: 'a'.repeat(64),
+    bytes: 2048,
+  }), {
+    jobId: JOB_ID,
+    runnerId: 'runner-c107-01',
+    kind: 'apk',
+    visibility: 'store_delivery',
+    fileName: 'tenant-1.0.0-1-direct.apk',
+    sha256: 'a'.repeat(64),
+    bytes: 2048,
+  });
+  assert.equal(builds.parseRunnerArtifactUpload({
+    job_id: JOB_ID, runner_id: 'runner-c107-01', kind: 'apk', visibility: 'master_only',
+    file_name: 'tenant.aab', sha256: 'a'.repeat(64), bytes: 2048,
+  }), null);
+  const security = { hs256: (value, secret) => createHmac('sha256', secret).update(value).digest('hex') };
+  const profile = record(PROFILE_ID, { download_nonce: 'n'.repeat(43) });
+  const artifact = record(ARTIFACT_ID, {
+    file_name: 'tenant-1.0.0-1-direct.apk', sha256: 'a'.repeat(64), bytes: 2048, version_code: 1,
+  });
+  const first = builds.artifactDownloadUrl(artifact, profile, { origin: 'https://downloads.example.test', security });
+  const second = builds.artifactDownloadUrl(artifact, profile, { origin: 'https://downloads.example.test', security });
+  assert.equal(first, second);
+  assert.match(first, new RegExp(`/api/pz/storefront-app-downloads/${ARTIFACT_ID}/[a-f0-9]{64}/tenant-1\\.0\\.0-1-direct\\.apk$`));
+  assert.notEqual(
+    builds.artifactDownloadUrl(artifact, record(PROFILE_ID, { download_nonce: 'm'.repeat(43) }), {
+      origin: 'https://downloads.example.test', security,
+    }),
+    first,
+  );
+  assert.notEqual(
+    builds.artifactDownloadUrl(record(ARTIFACT_ID, {
+      file_name: 'tenant-1.0.0-1-direct.apk', sha256: 'b'.repeat(64), bytes: 2048, version_code: 1,
+    }), profile, { origin: 'https://downloads.example.test', security }),
+    first,
+  );
+});
+
 test('entrega WhatsApp manual exige numeros internacionales y administrador principal activo', () => {
   assert.equal(builds.normalizeWhatsappNumber('+53 5 555 1234'), '5355551234');
   assert.equal(builds.normalizeWhatsappNumber(''), '');
@@ -266,11 +312,12 @@ test('entrega WhatsApp manual exige numeros internacionales y administrador prin
   });
 
   const store = record(STORE_ID, { name: 'Tenant C10', slug: 'tenant-c10', primary_admin_user: PRIMARY_ID });
-  const profile = record(PROFILE_ID, { store: STORE_ID, display_name: 'Tenant C10' });
-  const job = record(JOB_ID, { store: STORE_ID, profile: PROFILE_ID, status: 'succeeded' });
+  const profile = record(PROFILE_ID, { store: STORE_ID, display_name: 'Tenant C10', download_nonce: 'n'.repeat(43) });
+  const job = record(JOB_ID, { store: STORE_ID, profile: PROFILE_ID, status: 'succeeded', operation: 'provision' });
   const artifact = record(ARTIFACT_ID, {
     store: STORE_ID, profile: PROFILE_ID, job: JOB_ID, kind: 'apk', visibility: 'store_delivery',
-    file_name: 'tenant-c10-1.0.1-2-direct.apk', sha256: 'a'.repeat(64), version_code: 2, version_name: '1.0.1',
+    file: 'tenant-c10-1.0.1-2-direct_x.apk', file_name: 'tenant-c10-1.0.1-2-direct.apk',
+    sha256: 'a'.repeat(64), bytes: 2048, version_code: 2, version_name: '1.0.1',
   });
   const sender = record(MASTER_ID, {
     display_name: 'Master TS84', role: 'master_admin', status: 'active', phone: '+53 5 111 2233',
@@ -279,15 +326,21 @@ test('entrega WhatsApp manual exige numeros internacionales y administrador prin
     display_name: 'Admin principal', role: 'store_admin', status: 'active', store: STORE_ID, phone: '+53 5 444 5566',
   });
   const sha256 = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
-  const preview = builds.buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256);
+  const preview = builds.buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256, {
+    origin: 'https://downloads.example.test',
+    security: { hs256: (value, secret) => createHmac('sha256', secret).update(value).digest('hex') },
+  });
   assert.equal(preview.mode, 'manual_wa_me');
   assert.equal(preview.automatic_send, false);
   assert.equal(preview.cloud_api, false);
-  assert.equal(preview.attachment_required, true);
+  assert.equal(preview.schema_version, 2);
+  assert.equal(preview.attachment_required, false);
   assert.equal(preview.recipient_whatsapp, '5354445566');
   assert.match(preview.whatsapp_url, /^https:\/\/wa\.me\/5354445566\?text=/);
   assert.match(preview.message, /SHA-256: a{64}/);
-  assert.match(preview.message, /se adjunta manualmente/i);
+  assert.match(preview.download_url, /^https:\/\/downloads\.example\.test\/api\/pz\/storefront-app-downloads\//);
+  assert.match(preview.message, /Enlace permanente de esta versión:/i);
+  assert.match(preview.message, /descarga el APK físico/i);
   assert.match(preview.sender_warning, /5351112233/);
   assert.match(preview.message_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(builds.parseWhatsappMarkedPayload({
@@ -310,7 +363,11 @@ test('entrega WhatsApp manual exige numeros internacionales y administrador prin
     record(PRIMARY_ID, {
       display_name: 'Admin principal', role: 'store_admin', status: 'suspended', store: STORE_ID, phone: '5354445566',
     }),
-    sha256
+    sha256,
+    {
+      origin: 'https://downloads.example.test',
+      security: { hs256: (value, secret) => createHmac('sha256', secret).update(value).digest('hex') },
+    }
   ), /primary_admin_invalid/);
 });
 

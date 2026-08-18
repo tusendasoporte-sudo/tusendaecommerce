@@ -9,6 +9,7 @@ export type MasterIconName =
   | 'plan'
   | 'back'
   | 'external'
+  | 'download'
   | 'edit'
   | 'user-plus'
   | 'users'

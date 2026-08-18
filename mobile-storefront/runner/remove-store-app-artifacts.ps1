@@ -42,6 +42,19 @@ function Assert-NoReparsePoint {
     }
 }
 
+function Get-Sha256Hex {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        if ($stream) { $stream.Dispose() }
+        $algorithm.Dispose()
+    }
+}
+
 foreach ($target in $targets) {
     $id = [string]$target.id
     $kind = [string]$target.kind
@@ -56,6 +69,12 @@ foreach ($target in $targets) {
         -or $sha256 -cnotmatch '^[a-f0-9]{64}$' -or $bytes -lt 1) {
         throw 'admin_action_target_invalid'
     }
+    if ($locator -ceq 'pocketbase_managed') {
+        [void]$validated.Add([pscustomobject]@{
+            Id = $id; Path = ''; Sha256 = $sha256; Bytes = $bytes; BackendManaged = $true
+        })
+        continue
+    }
     $resolvedPath = [IO.Path]::GetFullPath(
         $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($locator)
     )
@@ -68,21 +87,24 @@ foreach ($target in $targets) {
     if ($exists) {
         $file = Get-Item -LiteralPath $resolvedPath
         if ($file.Length -ne $bytes `
-            -or (Get-FileHash -LiteralPath $resolvedPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $sha256) {
+            -or (Get-Sha256Hex -Path $resolvedPath) -cne $sha256) {
             throw 'artifact_integrity_mismatch'
         }
     } elseif (Test-Path -LiteralPath $resolvedPath) {
         throw 'artifact_path_not_file'
     }
-    [void]$validated.Add([pscustomobject]@{ Id = $id; Path = $resolvedPath; Sha256 = $sha256; Bytes = $bytes })
+    [void]$validated.Add([pscustomobject]@{
+        Id = $id; Path = $resolvedPath; Sha256 = $sha256; Bytes = $bytes; BackendManaged = $false
+    })
 }
 
 foreach ($item in $validated) {
+    if ($item.BackendManaged) { continue }
     Assert-NoReparsePoint -Path $item.Path -Root $resolvedRoot
     if (Test-Path -LiteralPath $item.Path -PathType Leaf) {
         $file = Get-Item -LiteralPath $item.Path -Force
         if ($file.Length -ne $item.Bytes `
-            -or (Get-FileHash -LiteralPath $item.Path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $item.Sha256) {
+            -or (Get-Sha256Hex -Path $item.Path) -cne $item.Sha256) {
             throw 'artifact_integrity_mismatch'
         }
         Remove-Item -LiteralPath $item.Path -Force

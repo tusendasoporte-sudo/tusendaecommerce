@@ -159,7 +159,8 @@ export type StorefrontAppArtifact = {
   bytes: number;
   version_code: number;
   version_name: string;
-  lifecycle_status: 'available' | 'deletion_queued' | 'deleted';
+  download_url: string;
+  lifecycle_status: 'staged' | 'available' | 'deletion_queued' | 'deleted';
   deleted_at: string;
   created: string;
 };
@@ -205,7 +206,7 @@ export type ManualWhatsappDelivery = {
 };
 
 export type ManualWhatsappDeliveryPreview = {
-  schema_version: 1;
+  schema_version: 2;
   mode: 'manual_wa_me';
   automatic_send: false;
   cloud_api: false;
@@ -222,7 +223,8 @@ export type ManualWhatsappDeliveryPreview = {
   version_name: string;
   attachment_file_name: string;
   attachment_sha256: string;
-  attachment_required: true;
+  attachment_required: false;
+  download_url: string;
   message: string;
   message_sha256: string;
   whatsapp_url: string;
@@ -377,13 +379,14 @@ function manualWhatsappPreview(value: any): ManualWhatsappDeliveryPreview | null
   const messageSha256 = text(value?.message_sha256, 64).toLowerCase();
   const attachmentSha256 = text(value?.attachment_sha256, 64).toLowerCase();
   const whatsappUrl = text(value?.whatsapp_url, 10000);
+  const downloadUrl = text(value?.download_url, 10000);
   const versionCode = integer(value?.version_code);
   const versionName = text(value?.version_name, 40);
-  if (value?.schema_version !== 1
+  if (value?.schema_version !== 2
     || value?.mode !== 'manual_wa_me'
     || value?.automatic_send !== false
     || value?.cloud_api !== false
-    || value?.attachment_required !== true
+    || value?.attachment_required !== false
     || ![value?.store_id, value?.profile_id, value?.job_id, value?.artifact_id, value?.sender_user_id, value?.recipient_user_id]
       .every((id) => RECORD_ID_PATTERN.test(text(id, 15)))
     || !WHATSAPP_NUMBER_PATTERN.test(senderPhone) || !senderPhone
@@ -393,10 +396,12 @@ function manualWhatsappPreview(value: any): ManualWhatsappDeliveryPreview | null
     || !versionCode
     || !VERSION_NAME_PATTERN.test(versionName)
     || !whatsappUrl.startsWith(`https://wa.me/${recipientPhone}?text=`)
+    || !/^https:\/\//.test(downloadUrl)
+    || !downloadUrl.includes(`/api/pz/storefront-app-downloads/${text(value?.artifact_id, 15)}/`)
     || !text(value?.message, 4000)
     || !text(value?.attachment_file_name, 220)) return null;
   return {
-    schema_version: 1,
+    schema_version: 2,
     mode: 'manual_wa_me',
     automatic_send: false,
     cloud_api: false,
@@ -413,7 +418,8 @@ function manualWhatsappPreview(value: any): ManualWhatsappDeliveryPreview | null
     version_name: versionName,
     attachment_file_name: text(value.attachment_file_name, 220),
     attachment_sha256: attachmentSha256,
-    attachment_required: true,
+    attachment_required: false,
+    download_url: downloadUrl,
     message: text(value.message, 4000),
     message_sha256: messageSha256,
     whatsapp_url: whatsappUrl,
@@ -616,11 +622,15 @@ function artifact(value: any): StorefrontAppArtifact | null {
     || !['store_delivery', 'master_only'].includes(value.visibility)
     || !SHA256_PATTERN.test(text(value.sha256, 64))) return null;
   const lifecycleStatus = text(value.lifecycle_status || 'available', 30);
-  if (!['available', 'deletion_queued', 'deleted'].includes(lifecycleStatus)) return null;
+  const downloadUrl = text(value.download_url, 10000);
+  if (!['staged', 'available', 'deletion_queued', 'deleted'].includes(lifecycleStatus)
+    || (downloadUrl && (!/^https:\/\//.test(downloadUrl)
+      || !downloadUrl.includes(`/api/pz/storefront-app-downloads/${text(value.id, 15)}/`)))) return null;
   return {
     id: text(value.id, 15), job_id: text(value.job_id, 15), kind: value.kind, visibility: value.visibility,
     file_name: text(value.file_name, 220), sha256: text(value.sha256, 64), bytes: integer(value.bytes),
     version_code: integer(value.version_code), version_name: text(value.version_name, 40),
+    download_url: downloadUrl,
     lifecycle_status: lifecycleStatus as StorefrontAppArtifact['lifecycle_status'],
     deleted_at: isoDate(value.deleted_at), created: isoDate(value.created),
   };
@@ -826,6 +836,8 @@ export function getMasterAppBuildErrorMessage(error: string) {
     primary_admin_invalid: 'El administrador principal debe estar activo y pertenecer a esta tienda.',
     primary_admin_whatsapp_required: 'El administrador principal necesita un WhatsApp válido con código de país.',
     apk_not_ready: 'Todavía no existe un APK exitoso y entregable para preparar este mensaje.',
+    download_link_unconfigured: 'Configura el origen público HTTPS y el secreto exclusivo de descargas antes de preparar la entrega.',
+    artifacts_not_stored: 'El build no puede completarse hasta que todos sus archivos estén custodiados en el servidor privado.',
     delivery_preview_mismatch: 'La vista previa del mensaje cambió. Revísala nuevamente antes de marcar el envío.',
     delivery_already_marked: 'Este trabajo ya tiene una entrega manual diferente registrada.',
     app_distribution_withdrawn: 'La distribución Android está retirada. Reactívala antes de preparar descargas o entregas.',

@@ -15,7 +15,8 @@ const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
 const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 const ENGINE_REVISION = 'b'.repeat(40);
 const OLD_ENGINE_REVISION = 'a'.repeat(40);
-const APK_SHA256 = 'c'.repeat(64);
+const APK_BYTES = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x43, 0x31, 0x30, 0x37]);
+const APK_SHA256 = createHash('sha256').update(APK_BYTES).digest('hex');
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -142,6 +143,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     PZ_STOREFRONT_ENGINE_REVISION: ENGINE_REVISION,
     PZ_STOREFRONT_ENGINE_UPDATE_SEVERITY: 'recommended',
     PZ_STORE_APP_RUNNER_SECRET: 'runtime-runner-c10-secret-abcdefghijklmnopqrstuvwxyz',
+    PZ_STOREFRONT_APP_DOWNLOAD_SECRET: 'runtime-download-c10-secret-abcdefghijklmnopqrstuvwxyz',
   };
   const superEmail = 'pz-c10-runtime@example.test';
   const superPassword = 'Qa-C10-runtime-password-2026!';
@@ -165,6 +167,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
 
     const port = await freePort();
     const baseUrl = `http://127.0.0.1:${port}`;
+    runtimeEnvironment.PZ_STOREFRONT_APP_DOWNLOAD_PUBLIC_ORIGIN = baseUrl;
     runtime = startPocketBase(dataDirectory, port, runtimeEnvironment);
     await waitForPocketBase(runtime, baseUrl);
 
@@ -178,6 +181,15 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     async function create(collection, body) {
       const result = await request(`/api/collections/${collection}/records`, { token: superToken, body });
       assert.ok([200, 201].includes(result.status), `crear ${collection}: ${result.raw}`);
+      return result.data;
+    }
+
+    async function createWithFile(collection, body, field, bytes, fileName, mimeType) {
+      const form = new FormData();
+      Object.entries(body).forEach(([key, value]) => form.append(key, String(value)));
+      form.append(field, new Blob([bytes], { type: mimeType || 'application/octet-stream' }), fileName);
+      const result = await request(`/api/collections/${collection}/records`, { token: superToken, body: form });
+      assert.ok([200, 201].includes(result.status), `crear ${collection} con archivo: ${result.raw}`);
       return result.data;
     }
 
@@ -355,6 +367,123 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(canceledProvision.data.job.status, 'canceled');
     assert.equal(canceledProvision.data.profile, null);
 
+    const c107Preview = await request('/api/pz/master/storefront-app-builds/preview', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id,
+        operation: 'provision',
+        app_key: 'tienda-c107-runtime-provision',
+        brand_key: 'tienda-c107-runtime-provision',
+        display_name: 'App C10.7 Runtime Provision',
+        distribution: 'direct',
+        firebase_project_id: 'tienda-c107-runtime-provision',
+        package_name: 'com.tusenda84.tiendac107runtimeprovision',
+        store_url: 'https://runtime.example/t/tienda-c10-provision-runtime',
+        version_code: 1,
+        version_name: '1.0.0',
+      },
+    });
+    assertStatus(c107Preview, 200, 'crear vista previa C10.7');
+    const c107Confirmed = await request('/api/pz/master/storefront-app-builds/confirm', {
+      token: masterToken,
+      body: { job_id: c107Preview.data.job.id, preview_hash: c107Preview.data.job.preview_hash },
+    });
+    assertStatus(c107Confirmed, 200, 'confirmar vista previa C10.7');
+    const c107RunnerHeaders = { 'x-pz-store-app-runner': runtimeEnvironment.PZ_STORE_APP_RUNNER_SECRET };
+    const c107Claim = await request('/api/pz/internal/storefront-app-builds/claim', {
+      headers: c107RunnerHeaders,
+      body: { runner_id: 'runtime-c107-runner' },
+    });
+    assertStatus(c107Claim, 200, 'reclamar build C10.7');
+    assert.equal(c107Claim.data.job.id, c107Preview.data.job.id);
+
+    const c107Files = [
+      { kind: 'apk', visibility: 'store_delivery', fileName: 'tienda-c107-1.0.0-1-direct.apk', bytes: APK_BYTES, mime: 'application/vnd.android.package-archive' },
+      { kind: 'checksums', visibility: 'store_delivery', fileName: 'SHA256SUMS.txt', bytes: Buffer.from(`${APK_SHA256}  tienda-c107-1.0.0-1-direct.apk\n`), mime: 'text/plain' },
+      { kind: 'instructions', visibility: 'store_delivery', fileName: 'INSTRUCCIONES.txt', bytes: Buffer.from('Descarga, verifica SHA-256 e instala.\n'), mime: 'text/plain' },
+      { kind: 'build_manifest', visibility: 'master_only', fileName: 'build-manifest.json', bytes: Buffer.from('{"schema_version":1}\n'), mime: 'application/json' },
+    ].map((item) => ({
+      ...item,
+      sha256: createHash('sha256').update(item.bytes).digest('hex'),
+      bytesCount: item.bytes.length,
+      storage_locator: 'pocketbase_managed',
+    }));
+
+    async function uploadC107Artifact(item) {
+      const form = new FormData();
+      form.append('job_id', c107Claim.data.job.id);
+      form.append('runner_id', 'runtime-c107-runner');
+      form.append('kind', item.kind);
+      form.append('visibility', item.visibility);
+      form.append('file_name', item.fileName);
+      form.append('sha256', item.sha256);
+      form.append('bytes', String(item.bytesCount));
+      form.append('file', new Blob([item.bytes], { type: item.mime }), item.fileName);
+      return request('/api/pz/internal/storefront-app-builds/artifacts/upload', {
+        headers: { ...c107RunnerHeaders, 'x-pz-store-app-runner-id': 'runtime-c107-runner' },
+        body: form,
+      });
+    }
+
+    for (const item of c107Files.slice(0, 3)) {
+      const uploaded = await uploadC107Artifact(item);
+      assertStatus(uploaded, 201, `subir ${item.kind} C10.7`);
+      assert.equal(uploaded.data.artifact.lifecycle_status, 'staged');
+      assert.equal(uploaded.data.artifact.download_url, '');
+    }
+    const repeatedUpload = await uploadC107Artifact(c107Files[0]);
+    assertStatus(repeatedUpload, 200, 'repetir carga C10.7 idempotente');
+    assert.equal(repeatedUpload.data.idempotent, true);
+
+    const completionArtifacts = c107Files.map((item) => ({
+      kind: item.kind,
+      visibility: item.visibility,
+      file_name: item.fileName,
+      storage_locator: item.storage_locator,
+      sha256: item.sha256,
+      bytes: item.bytesCount,
+    }));
+    const completionBody = {
+      job_id: c107Claim.data.job.id,
+      runner_id: 'runtime-c107-runner',
+      status: 'succeeded',
+      failure_code: '',
+      engine_version: '2.1.0',
+      engine_revision: ENGINE_REVISION,
+      firebase_project_number: '223456789012',
+      firebase_app_id: '1:223456789012:android:abcdef0123456789',
+      signing_cert_sha256: 'AA:'.repeat(31) + 'AA',
+      upload_cert_sha256: '',
+      artifacts: completionArtifacts,
+    };
+    const incompleteC107 = await request('/api/pz/internal/storefront-app-builds/complete', {
+      headers: c107RunnerHeaders, body: completionBody,
+    });
+    assertStatus(incompleteC107, 409, 'impedir completar C10.7 sin todos los archivos');
+    assert.equal(incompleteC107.data.error, 'artifacts_not_stored');
+
+    const finalUpload = await uploadC107Artifact(c107Files[3]);
+    assertStatus(finalUpload, 201, 'subir manifiesto final C10.7');
+    const c107Completed = await request('/api/pz/internal/storefront-app-builds/complete', {
+      headers: c107RunnerHeaders, body: completionBody,
+    });
+    assertStatus(c107Completed, 200, 'completar build C10.7 custodiado');
+    assert.equal(c107Completed.data.job.status, 'succeeded');
+    assert.equal(c107Completed.data.profile.status, 'provisioned');
+
+    const c107Detail = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: provisionStore.id },
+    });
+    assertStatus(c107Detail, 200, 'consultar custodia C10.7');
+    const c107Apk = c107Detail.data.artifacts.find((item) => item.kind === 'apk');
+    assert.ok(c107Apk);
+    assert.equal(c107Apk.lifecycle_status, 'available');
+    assert.match(c107Apk.download_url, /\/api\/pz\/storefront-app-downloads\//);
+    const c107Physical = await fetch(c107Apk.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(c107Physical.status, 200);
+    assert.equal(c107Physical.headers.get('x-pz-apk-sha256'), c107Files[0].sha256);
+    assert.deepEqual(Buffer.from(await c107Physical.arrayBuffer()), APK_BYTES);
+
     const primary = await create('users', {
       email: 'principal-c10-runtime@example.test',
       password: 'Qa-C10-primary-password-2026!',
@@ -390,6 +519,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       current_version_name: '1.4.0',
       current_engine_version: '2.0.0',
       current_engine_revision: OLD_ENGINE_REVISION,
+      download_nonce: 'n'.repeat(43),
       created_by: master.id,
       updated_by: master.id,
     });
@@ -410,20 +540,20 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       completed_at: new Date().toISOString(),
       delivery_status: 'pending',
     });
-    const artifact = await create('storefront_app_artifacts', {
+    const artifact = await createWithFile('storefront_app_artifacts', {
       store: store.id,
       profile: profile.id,
       job: job.id,
       kind: 'apk',
       visibility: 'store_delivery',
       file_name: 'tienda-c10-runtime-1.4.0.apk',
-      storage_locator: 'runtime-only/never-delivered/tienda-c10-runtime-1.4.0.apk',
+      storage_locator: 'pocketbase_managed',
       sha256: APK_SHA256,
-      bytes: 12345678,
+      bytes: APK_BYTES.length,
       version_code: 7,
       version_name: '1.4.0',
       lifecycle_status: 'available',
-    });
+    }, 'file', APK_BYTES, 'tienda-c10-runtime-1.4.0.apk', 'application/vnd.android.package-archive');
 
     const detailBlocked = await request('/api/pz/master/storefront-app-builds', {
       token: masterToken, body: { store_id: store.id },
@@ -440,6 +570,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(detailBlocked.data.policy.web_store_independent, true);
     assert.deepEqual(detailBlocked.data.admin_actions, []);
     assert.equal(detailBlocked.data.artifacts[0].storage_locator, undefined);
+    assert.match(detailBlocked.data.artifacts[0].download_url, new RegExp(`^${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/api/pz/storefront-app-downloads/`));
 
     const noSender = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
       token: masterToken, body: { store_id: store.id, artifact_id: artifact.id },
@@ -478,8 +609,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(updatesPending, 200, 'consultar alertas pendientes');
     assert.equal(updatesPending.data.update_count, 1);
-    assert.equal(updatesPending.data.delivery_pending_count, 1);
-    assert.equal(updatesPending.data.deliveries[0].recipient.status, 'ready');
+    assert.equal(updatesPending.data.delivery_pending_count, 2);
+    assert.equal(updatesPending.data.deliveries.find((item) => item.store.id === store.id).recipient.status, 'ready');
 
     const preview = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
       token: masterToken, body: { store_id: store.id, artifact_id: artifact.id },
@@ -488,8 +619,10 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(preview.data.preview.mode, 'manual_wa_me');
     assert.equal(preview.data.preview.automatic_send, false);
     assert.equal(preview.data.preview.cloud_api, false);
-    assert.equal(preview.data.preview.attachment_required, true);
+    assert.equal(preview.data.preview.schema_version, 2);
+    assert.equal(preview.data.preview.attachment_required, false);
     assert.equal(preview.data.preview.attachment_sha256, APK_SHA256);
+    assert.equal(preview.data.preview.download_url, detailBlocked.data.artifacts[0].download_url);
     assert.equal(preview.data.preview.sender_whatsapp, '13055550187');
     assert.equal(preview.data.preview.recipient_whatsapp, '5351234567');
     assert.match(preview.data.preview.message, /tienda-c10-runtime-1\.4\.0\.apk/);
@@ -499,6 +632,13 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(whatsappUrl.hostname, 'wa.me');
     assert.equal(whatsappUrl.pathname, '/5351234567');
     assert.ok(whatsappUrl.searchParams.get('text').includes('SHA-256'));
+    assert.ok(whatsappUrl.searchParams.get('text').includes('Enlace permanente'));
+
+    const physicalApk = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(physicalApk.status, 200);
+    assert.equal(physicalApk.headers.get('x-pz-apk-sha256'), APK_SHA256);
+    assert.equal(physicalApk.headers.get('content-disposition'), 'attachment; filename="tienda-c10-runtime-1.4.0.apk"');
+    assert.deepEqual(Buffer.from(await physicalApk.arrayBuffer()), APK_BYTES);
 
     const wrongConfirmation = await request('/api/pz/master/storefront-app-builds/whatsapp/marked-sent', {
       token: masterToken,
@@ -556,7 +696,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       token: masterToken, body: {},
     });
     assertStatus(updatesDone, 200, 'confirmar alerta resuelta');
-    assert.equal(updatesDone.data.delivery_pending_count, 0);
+    assert.equal(updatesDone.data.delivery_pending_count, 1);
 
     const withdraw = await request('/api/pz/master/storefront-app-builds/admin-action', {
       token: masterToken,
@@ -574,6 +714,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(blockedAfterWithdraw, 409, 'bloquear descarga tras retirar distribucion');
     assert.equal(blockedAfterWithdraw.data.error, 'app_distribution_withdrawn');
+    const withdrawnDownload = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(withdrawnDownload.status, 404);
 
     const reactivate = await request('/api/pz/master/storefront-app-builds/admin-action', {
       token: masterToken,
@@ -581,6 +723,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(reactivate, 200, 'reactivar distribucion Android');
     assert.equal(reactivate.data.profile.distribution_status, 'active');
+    const reactivatedDownload = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(reactivatedDownload.status, 200);
 
     const downgrade = await request('/api/pz/master/store-plan/change', {
       token: masterToken,
@@ -675,6 +819,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(afterArtifactDeletion.data.profile.package_name, 'com.tusenda84.tiendac10runtime');
     assert.equal(afterArtifactDeletion.data.profile.lifecycle_status, 'active');
     assert.equal(afterArtifactDeletion.data.store.status, 'active');
+    const deletedDownload = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(deletedDownload.status, 404);
 
     const deleteAppConfirmation = `ELIMINAR APP ${profile.package_name}`;
     const scheduledAppDeletion = await request('/api/pz/master/storefront-app-builds/admin-action', {

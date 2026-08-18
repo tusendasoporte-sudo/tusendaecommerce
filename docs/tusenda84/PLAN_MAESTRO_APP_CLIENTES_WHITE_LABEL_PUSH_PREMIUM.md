@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10 EN CURSO — C10.6 implementado localmente con estados Android independientes, sin efectos externos |
-| Versión del documento | 1.35 |
+| Estado general | PZ-APP-C10.7 EN CURSO — implementación local, volumen y backup integrado de staging verificados; despliegue pendiente |
+| Versión del documento | 1.40 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-18 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Revisar visualmente C10.6 y decidir las pruebas manuales/autorizaciones externas separadas |
+| Próximo prompt | Con autorización separada, desplegar C10.7 únicamente en staging y ejecutar QA aislado con limpieza total posterior |
 
 ### Convención de estados
 
@@ -853,6 +853,46 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] El script detecta configuraciones incompletas o duplicadas.
 - [ ] El Master normaliza, previsualiza y versiona privadamente un icono 1024 × 1024 y un splash 1080 × 1920 por tienda antes de crear la vista previa.
 - [ ] La vista previa y el runner usan exactamente los mismos SHA-256 de marca sin guardar imágenes de tiendas en Git.
+
+#### C10.7 — Primera instalación y actualizaciones
+
+**Resultado funcional:**
+
+- La primera publicación parte de un trabajo `provision` confirmado y solo queda `succeeded` cuando el APK fue transferido y custodiado por el backend privado.
+- El Master prepara, pero no envía, el WhatsApp al administrador principal. El mensaje fija tienda, aplicación, versión, `versionCode`, archivo, enlace permanente por versión, SHA-256 e instrucciones de descarga, verificación e instalación.
+- El administrador puede abrir o compartir el enlace y descargar el APK físico. El enlace no expira, pero deja de responder cuando la distribución se retira, el artefacto deja de estar disponible o la app entra en eliminación.
+- Una actualización usa un trabajo `update`, exige un `versionCode` estrictamente mayor y conserva `app_key`, `package_name`, Firebase, certificado de firma de app y, cuando aplica, certificado de subida. Genera un artefacto y un enlace permanentes nuevos y repite la entrega manual auditada.
+- Preparar o abrir WhatsApp no cuenta como envío. `MARCAR ENVIADO` conserva actor, destinatario, teléfonos normalizados, artefacto y hash exacto del mensaje preparado.
+
+**Almacenamiento real del APK en el servidor privado:**
+
+- `storefront_app_artifacts` incorpora un archivo protegido administrado por PocketBase. Los bytes quedan dentro de `pb_data`; con el contenedor actual, el volumen que debe montarse y respaldarse es `/app/pb_data`. Ninguna respuesta pública contiene `storage_locator` ni una ruta del sistema.
+- El runner sube cada artefacto por un endpoint interno autenticado mientras el trabajo está `claimed`. El backend valida runner, trabajo, clase, visibilidad, nombre, tamaño y SHA-256 declarado antes de aceptar el archivo.
+- La carga es idempotente por `job + kind`: repetir exactamente el mismo archivo reutiliza el registro; cambiar bytes o metadatos falla cerrado. Los archivos empiezan como `staged` y solo pasan a `available` en la transacción que completa el build.
+- Un trabajo no puede terminar `succeeded` si falta algún archivo físico exigido. `storage_locator` queda como referencia interna heredada; C10.7 no persiste la ruta absoluta del runner.
+- El backup válido incluye de forma coherente SQLite y `pb_data/storage`. Antes de producción se debe confirmar en el servidor el montaje persistente, la réplica fuera del host y una restauración ensayada.
+
+**Enlace permanente seguro por versión:**
+
+- La forma lógica es `/api/pz/storefront-app-downloads/{artifact}/{capability}/{filename}`. `capability` es un HMAC-SHA-256 derivado del artefacto, el perfil y un nonce privado con `PZ_STOREFRONT_APP_DOWNLOAD_SECRET`; no es una ruta física ni un token temporal.
+- El backend compara la capacidad en tiempo constante y comprueba que sea un APK `store_delivery`, que el archivo exista, que el trabajo haya terminado y que distribución y ciclo de vida permitan descargar.
+- El enlace siempre representa el mismo `artifact_id`, nombre, tamaño y SHA-256. Cada actualización crea otro enlace, por lo que un mensaje antiguo nunca descarga silenciosamente bytes diferentes.
+- La respuesta usa HTTPS, descarga forzada, rangos, `X-Content-Type-Options: nosniff`, `X-PZ-APK-SHA256`, `X-Robots-Tag: noindex`, `Referrer-Policy: no-referrer` y caché privada desactivada. Nunca sirve AAB, manifiestos, rutas, secretos o listados.
+- La capacidad es compartible por diseño: quien reciba el enlace puede descargar mientras esté activo. No se registra en analítica ni logs de aplicación y puede revocarse retirando la distribución o rotando el nonce privado.
+
+**Criterios de aceptación C10.7:**
+
+- [x] El runner transfiere los archivos físicos al backend privado antes de completar el build y la API rechaza un `succeeded` incompleto.
+- [x] El APK disponible tiene una URL HMAC inmutable ligada a artefacto, nombre, checksum, tamaño y `versionCode`.
+- [x] Retirar, eliminar o programar la eliminación de la app bloquea la descarga; reactivar recupera el mismo enlace si el archivo sigue disponible.
+- [x] La vista Master permite descargar el APK y prepara WhatsApp con enlace, SHA-256 e instrucciones diferenciadas para primera instalación y actualización.
+- [x] `update` continúa exigiendo un `versionCode` mayor y conserva paquete, Firebase y firma.
+- [x] Migración, rollback seguro, runner, backend, frontend y descarga física están cubiertos por pruebas locales aisladas con limpieza total.
+- [x] Coolify confirma que `/app/pb_data` está montado en el volumen Docker persistente nombrado de PocketBase staging.
+- [x] Existe un backup integrado actual previo a C10.7 que incluye `data.db`, `auxiliary.db` y `pb_data/storage` como una unidad coherente.
+- [ ] C10.7 se despliega y prueba en staging con registros QA aislados y eliminación completa posterior, previa autorización separada.
+
+**Límites de C10.7:** no enviar WhatsApp, publicar en Google Play, crear Firebase, generar firmas reales, configurar volúmenes o ejecutar otra acción externa sin autorización separada. Las pruebas deben usar PocketBase y directorios temporales aislados y eliminar todo lo creado aun si fallan.
 
 ### [ ] PZ-APP-C11 — Pruebas integrales en staging
 
@@ -2266,7 +2306,7 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Se reutilizan relaciones existentes: `users.phone` para el número oficial del Master y `stores.primary_admin_user` más el teléfono de ese usuario para el destinatario. Ambos números deben incluir código de país.
 - La sección global Master incorpora la configuración del remitente. El panel de cada app conserva únicamente el estado del administrador principal destinatario, APK pendiente, vista previa del mensaje, confirmación de la sesión abierta, apertura manual de WhatsApp y confirmación posterior de envío.
 - El destinatario no puede sustituirse dentro del envío: debe ser el administrador principal activo de la misma tienda. Si falta o su teléfono es inválido, el flujo falla cerrado y dirige al control de usuarios.
-- La vista previa solo se habilita para un build exitoso con APK entregable y contiene versión, archivo y checksum. El APK se adjunta manualmente desde la custodia privada de Tu Senda 84; el panel nunca expone el localizador de almacenamiento.
+- En C10.6, la vista previa solo se habilitaba para un build exitoso con APK entregable y contenía versión, archivo y checksum; el panel nunca exponía el localizador de almacenamiento. C10.7 sustituye la recuperación y el adjunto manual por el enlace permanente seguro del APK físico custodiado en PocketBase.
 - PocketBase conserva la constancia manual por trabajo —actor, destinatario, teléfonos normalizados, hash del mensaje y fecha—, pero no afirma entrega o lectura técnica de WhatsApp.
 - El resumen Master separa apps que necesitan generar una nueva versión de APK ya generadas que todavía deben enviarse. Ninguna acción abre WhatsApp durante pruebas automáticas.
 - No se enviaron mensajes reales, no se usó una sesión de WhatsApp y no se añadió ninguna credencial externa. C10 continúa `EN CURSO` hasta revisar visualmente este flujo y completar las pruebas manuales autorizadas.
@@ -2344,3 +2384,25 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Frontend retiró la serialización del bearer administrativo en el HTML de Ajustes; los demás fallos heredados correspondían a pruebas que todavía describían contratos anteriores y se realinearon con el comportamiento vigente.
 - Suite backend completa: 707 pruebas, 700 aprobadas, 7 omitidas declaradas y 0 fallidas. Suite frontend completa: 534/534 aprobadas. El build Astro terminó correctamente con las tres advertencias históricas de rutas dinámicas.
 - La migración `1787011200_settings_authenticated_tenant_isolation.js` se validó con PocketBase real mediante subida, reversión exacta y nueva subida sobre una base temporal desechable.
+
+### 2026-08-18 — PZ-APP-C10.7 EN CURSO: primera instalación, custodia y enlace permanente
+
+- Se formalizó que el APK no puede quedar únicamente en la ruta local del runner: antes de completar el build debe subirse como archivo protegido al `pb_data` persistente del backend.
+- Se eligió un enlace de capacidad HMAC permanente e inmutable por artefacto y versión. Esta decisión mantiene unidos enlace, nombre, tamaño y SHA-256 y evita que una URL de un mensaje anterior entregue silenciosamente una versión distinta.
+- La primera versión y cada actualización repiten el mismo flujo Master: build controlado, custodia, vista previa de WhatsApp con enlace/checksum/instrucciones y constancia separada. `update` conserva paquete, Firebase y firma y exige aumentar `versionCode`.
+- El montaje de `/app/pb_data` se confirmó visualmente en Coolify como volumen persistente real del servidor y el backup integrado previo a C10.7 se creó y verificó con autorización separada.
+- La migración aditiva incorpora un nonce privado por perfil, archivo protegido por artefacto y el estado transitorio `staged`. El rollback falla cerrado si encuentra datos C10.7 que pudiera destruir.
+- El runner carga multipart con autenticación separada, reintento idempotente por `job + kind` y localizador interno `pocketbase_managed`. Las eliminaciones C10.6 reconocen esa custodia y dejan que PocketBase retire el archivo físico sin aceptar rutas del cliente.
+- El panel Master consume el enlace únicamente para APK disponible y muestra descarga física, checksum y estado. El mensaje de primera instalación y el de actualización explican pasos distintos; abrir WhatsApp y marcar enviado siguen siendo actos separados y manuales.
+- Validación local final: backend 710 pruebas, 703 aprobadas, 7 omitidas declaradas y 0 fallidas; frontend 534/534; runtime C10 real 1/1; build Astro correcto con las tres advertencias históricas de rutas dinámicas; sintaxis PowerShell correcta.
+- Todos los PocketBase y workspaces de prueba se ejecutaron en carpetas temporales. Se verificó la limpieza y se eliminó también el único `pb_data` C10 temporal heredado que aún permanecía fuera del repositorio; no se tocaron la tienda QA ni staging.
+- Se reparó el control local de Edge y se inspeccionó en modo lectura la instancia autenticada `https://www.mi-descarga.com`: File Browser 2.63.23, 13,4 GiB usados de 74,8 GiB y carpetas raíz `Apps-Android` —vacía— y `Powerzona App`. No se creó, cargó, compartió, movió ni eliminó ningún archivo.
+- File Browser ofrece enlaces permanentes `/share/<capacidad>`, pero la propia instancia anuncia archivo del proyecto el 2026-09-01 y advierte que no debe exponerse directamente sin autenticación frontal. Sus shares portadores quedan descartados como enlace canónico de clientes; File Browser podrá ser consola operativa privada, no autoridad de entrega.
+- La vista de File Browser no expone ni prueba el montaje Docker de PocketBase. La custodia canónica continúa diseñada en el archivo protegido de PocketBase dentro de `/app/pb_data/storage`, y el enlace permanente sigue siendo el endpoint HMAC de PowerZona. Coolify confirmó después el mount actual y PocketBase generó la copia integrada reciente. `Apps-Android` no se usará ni montará sin una autorización y diseño de volumen separados.
+- Una inspección autenticada y de solo lectura en Coolify reconfirmó el recurso exacto `powerzona-pocketbase-repo-staging`, `Running` en `c3d62e49109eaf754d42c6939ae69c874ab1929e`, y su volumen Docker nombrado `imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging` con destino `/app/pb_data`.
+- La terminal del contenedor confirmó `/app/pb_data` montado como `ext4` con `rw`: 74,8 GiB totales, 13,4 GiB usados y 58,3 GiB disponibles. `pb_data` ocupa 239,9 MiB; `storage`, 9,7 MiB y 116 archivos. Directorio, almacenamiento y backups pertenecen a `root:root` con modo `0755`.
+- Antes de la autorización solo existían los backups históricos `c04_predeploy_20260812_1900.zip` y `c04_with_media_20260812_2254.zip`; el segundo contenía 90 archivos de `storage` y ya no protegía el estado actual de 116 archivos.
+- Con autorización expresa se creó mediante la función integrada de PocketBase `c10_7_predeploy_20260818_1415.zip`, de 31,34 MB. Se conservaron intactas las dos copias C04.
+- El ZIP verificó sin errores con `unzip -t`. Contiene `auxiliary.db` de 192.634.880 bytes, `data.db` de 4.366.336 bytes y los 116 archivos actuales de `storage`, que suman 9.580.569 bytes. Su SHA-256 es `a59294cbf3fe70e6f5b543193ff4ecc9e6791c8a8fdef345a52df5250cfc2ab5`.
+- Los tres backups ocupan 68,9 MiB en total; el filesystem conserva 58,3 GiB disponibles y PocketBase respondió salud interna HTTP 200 después de la operación.
+- Fuera de esta copia autorizada no se modificaron archivos ni configuración, no se reinició ni desplegó ningún recurso y no se ejecutaron WhatsApp, Google Play, Firebase, firmas reales o cambios de volumen. C10.7 permanece `EN CURSO` hasta autorizar y probar staging.

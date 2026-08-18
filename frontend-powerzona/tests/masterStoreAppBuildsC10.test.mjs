@@ -138,7 +138,8 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /confirmButton\.disabled = true/);
   assert.equal(view.includes("pattern={'[a-z0-9][a-z0-9\\\\-]{1,62}[a-z0-9]'}"), true);
   assert.equal((view.match(/pattern=\{'\[0-9\]\+\\\\\.\[0-9\]\+\\\\\.\[0-9\]\+'\}/g) || []).length, 2);
-  assert.match(view, /El APK debe adjuntarse manualmente/);
+  assert.match(view, /enlace permanente de esta versión/i);
+  assert.match(view, /Descargar APK/);
   assert.match(view, />Destinatario</);
   assert.match(view, /\/master\/settings#whatsapp-master/);
   assert.doesNotMatch(view, /data-app-whatsapp-settings-form|Guardar número|saveMasterWhatsappSettings/);
@@ -202,7 +203,7 @@ test('flujo WhatsApp prepara enlace manual y exige constancia separada', async (
     master: 'masterc10test01', primary: 'primaryc10test1',
   };
   const deliveryPreview = {
-    schema_version: 1,
+    schema_version: 2,
     mode: 'manual_wa_me',
     automatic_send: false,
     cloud_api: false,
@@ -219,7 +220,8 @@ test('flujo WhatsApp prepara enlace manual y exige constancia separada', async (
     version_name: '1.0.1',
     attachment_file_name: 'tenant-c10-1.0.1-2-direct.apk',
     attachment_sha256: 'a'.repeat(64),
-    attachment_required: true,
+    attachment_required: false,
+    download_url: `https://downloads.example.test/api/pz/storefront-app-downloads/${ids.artifact}/${'d'.repeat(64)}/tenant-c10-1.0.1-2-direct.apk`,
     message: 'Actualización lista\nSHA-256: ' + 'a'.repeat(64),
     message_sha256: 'b'.repeat(64),
     whatsapp_url: 'https://wa.me/5354445566?text=Actualizaci%C3%B3n',
@@ -268,7 +270,8 @@ test('flujo WhatsApp prepara enlace manual y exige constancia separada', async (
       store_id: ids.store, artifact_id: ids.artifact,
     });
     assert.equal(prepared.data?.preview.automatic_send, false);
-    assert.equal(prepared.data?.preview.attachment_required, true);
+    assert.equal(prepared.data?.preview.attachment_required, false);
+    assert.match(prepared.data?.preview.download_url || '', /storefront-app-downloads/);
     assert.equal(prepared.data?.job.delivery_status, 'pending');
     const marked = await markMasterStoreAppWhatsappSent('https://pb.example.test', 'token-c10', {
       store_id: ids.store,

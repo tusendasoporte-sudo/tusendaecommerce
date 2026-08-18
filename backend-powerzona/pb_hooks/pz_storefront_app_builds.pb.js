@@ -69,6 +69,23 @@ routerAdd(
 );
 
 routerAdd(
+  "POST",
+  "/api/pz/internal/storefront-app-builds/artifacts/upload",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerArtifactUpload(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
+  $apis.bodyLimit(106000000),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
+  "/api/pz/storefront-app-downloads/{artifact}/{capability}/{filename}",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleArtifactDownload(e),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "GET",
   "/api/pz/internal/storefront-app-builds/brand-assets/{job}/{kind}",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerBrandAssetFile(e),

@@ -69,6 +69,21 @@ PowerZona genera APK firmado con su clave de firma de app y AAB firmado con una 
 - `INSTRUCCIONES.txt`;
 - `build-manifest.json`, solo Master.
 
+## Custodia y entrega C10.7
+
+El runner no conserva la ruta local como mecanismo de entrega. Después de compilar, sube cada salida por el endpoint interno autenticado y solo solicita completar el trabajo cuando APK, AAB, checksums, instrucciones y manifiesto quedaron almacenados como archivos protegidos de PocketBase. El backend los mantiene primero en `staged` y los promueve de forma transaccional a `available`; un archivo ausente o distinto bloquea `succeeded`.
+
+En el contenedor actual, SQLite y los archivos administrados por PocketBase viven bajo `/app/pb_data`. Ese directorio debe ser un volumen persistente real, y el backup y la restauración deben cubrir conjuntamente base y `pb_data/storage`. Antes de desplegar C10.7 hay que verificar el montaje en el servidor privado; una carpeta efímera dentro del contenedor no sirve como custodia.
+
+La instancia privada de File Browser en `mi-descarga.com` puede utilizarse como consola operativa, pero no es el origen canónico de descarga. La carpeta vacía `Apps-Android` no demuestra ni sustituye el volumen `/app/pb_data`, y los enlaces portadores `/share/<token>` no sustituyen el endpoint HMAC de PowerZona. No debe duplicarse ni cargarse un APK allí sin diseñar y autorizar por separado un volumen compartido.
+
+El backend necesita estas variables, separadas del secreto del runner:
+
+- `PZ_STOREFRONT_APP_DOWNLOAD_PUBLIC_ORIGIN`: origen HTTPS público de la API, sin ruta final;
+- `PZ_STOREFRONT_APP_DOWNLOAD_SECRET`: secreto aleatorio de al menos 32 caracteres para las capacidades HMAC.
+
+Cada APK disponible recibe un enlace permanente e inmutable ligado a su registro, nombre, tamaño y SHA-256. Una actualización genera otro artefacto y otro enlace; el enlace antiguo nunca cambia silenciosamente de bytes. Retirar la distribución o eliminar el archivo revoca la descarga. El panel Master prepara el texto de WhatsApp con enlace, checksum e instrucciones, pero no envía mensajes ni abre sesiones durante la automatización.
+
 ## Primer aprovisionamiento
 
 `Provision` y `Update` son contratos distintos. Solo `Provision` puede crear un proyecto Firebase, registrar el paquete o generar claves. Esas acciones necesitan, además de la vista previa confirmada:
@@ -89,7 +104,7 @@ No se borra automáticamente un proyecto, app o firma ante un fallo parcial. El 
 
 ## Cola administrativa C10.6
 
-`runner/run-job-queue.ps1` atiende antes de los builds las acciones privadas de eliminación ya confirmadas por el Master. `runner/remove-store-app-artifacts.ps1` acepta únicamente `delete_artifacts` o `delete_app`, comprueba el inventario inmutable y valida nombre, tamaño, SHA-256 y pertenencia exacta a `mobile-storefront/releases` antes de borrar archivos individuales.
+`runner/run-job-queue.ps1` atiende antes de los builds las acciones privadas de eliminación ya confirmadas por el Master. Para artefactos C10.7 administrados por PocketBase, el runner confirma cada ID exacto y el backend elimina el archivo protegido al completar la acción. El camino heredado solo acepta `delete_artifacts` o `delete_app`, comprueba el inventario inmutable y valida nombre, tamaño, SHA-256 y pertenencia exacta a `mobile-storefront/releases` antes de borrar archivos individuales.
 
 No usa borrado recursivo ni sigue una ruta fuera de esa custodia. `delete_artifacts` admite solo APK/AAB; `delete_app`, después de los 30 días de recuperación controlados por PocketBase, incluye cualquier artefacto restante del perfil. Un archivo ya ausente se considera convergencia idempotente, pero un archivo alterado, una ruta externa o un directorio en lugar de archivo fallan cerrado y dejan la acción en `needs_attention`.
 

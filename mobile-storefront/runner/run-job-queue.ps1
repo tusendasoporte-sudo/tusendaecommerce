@@ -24,6 +24,19 @@ function Write-Utf8NoBom {
     [IO.File]::WriteAllText($Path, $Content, (New-Object Text.UTF8Encoding($false)))
 }
 
+function Get-Sha256Lower {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        if ($stream) { $stream.Dispose() }
+        $algorithm.Dispose()
+    }
+}
+
 function Materialize-ApprovedBranding {
     param($Job)
     if ([int]$Job.preview.schema_version -ne 2 -or -not $Job.preview.branding -or -not $Job.preview.branding.assets) {
@@ -46,7 +59,7 @@ function Materialize-ApprovedBranding {
         $target = Join-Path $workspaceRoot $fileName
         Invoke-WebRequest -Method Get -Headers $assetHeaders `
             -Uri "$baseUrl/api/pz/internal/storefront-app-builds/brand-assets/$jobId/$kind" -OutFile $target
-        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$asset.sha256 -or
+        if ((Get-Sha256Lower $target) -cne [string]$asset.sha256 -or
             (Get-Item -LiteralPath $target).Length -ne [int64]$asset.bytes) {
             throw "brand_asset_download_mismatch_$kind"
         }
@@ -116,6 +129,63 @@ function Send-Completion {
     param([hashtable]$Body)
     Invoke-RestMethod -Method Post -Headers $headers -Uri "$baseUrl/api/pz/internal/storefront-app-builds/complete" `
         -Body ($Body | ConvertTo-Json -Depth 10 -Compress) | Out-Null
+}
+
+function Send-ArtifactUpload {
+    param(
+        [Parameter(Mandatory = $true)][string]$JobId,
+        [Parameter(Mandatory = $true)][hashtable]$Artifact,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+    Add-Type -AssemblyName System.Net.Http
+    $client = [System.Net.Http.HttpClient]::new()
+    $client.Timeout = [TimeSpan]::FromMinutes(15)
+    $form = [System.Net.Http.MultipartFormDataContent]::new()
+    $stream = $null
+    $fileContent = $null
+    $response = $null
+    try {
+        $client.DefaultRequestHeaders.Add('x-pz-store-app-runner', $runnerSecret)
+        $client.DefaultRequestHeaders.Add('x-pz-store-app-runner-id', $RunnerId)
+        foreach ($field in @{
+            job_id = $JobId
+            runner_id = $RunnerId
+            kind = [string]$Artifact.kind
+            visibility = [string]$Artifact.visibility
+            file_name = [string]$Artifact.file_name
+            sha256 = [string]$Artifact.sha256
+            bytes = [string]$Artifact.bytes
+        }.GetEnumerator()) {
+            $form.Add([System.Net.Http.StringContent]::new([string]$field.Value), [string]$field.Key)
+        }
+        $stream = [IO.File]::OpenRead($Path)
+        $fileContent = [System.Net.Http.StreamContent]::new($stream)
+        $contentType = switch ([string]$Artifact.kind) {
+            'apk' { 'application/vnd.android.package-archive' }
+            'aab' { 'application/octet-stream' }
+            'build_manifest' { 'application/json' }
+            default { 'text/plain' }
+        }
+        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::new($contentType)
+        $form.Add($fileContent, 'file', [string]$Artifact.file_name)
+        $response = $client.PostAsync(
+            "$baseUrl/api/pz/internal/storefront-app-builds/artifacts/upload",
+            $form
+        ).GetAwaiter().GetResult()
+        $responseBody = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        if (-not $response.IsSuccessStatusCode) {
+            $code = ''
+            try { $code = [string](ConvertFrom-Json $responseBody).error } catch {}
+            if (-not $code) { $code = "artifact_upload_http_$([int]$response.StatusCode)" }
+            throw $code
+        }
+    } finally {
+        if ($response) { $response.Dispose() }
+        if ($fileContent) { $fileContent.Dispose() }
+        if ($stream) { $stream.Dispose() }
+        if ($form) { $form.Dispose() }
+        if ($client) { $client.Dispose() }
+    }
 }
 
 function Send-AdminCompletion {
@@ -254,14 +324,16 @@ do {
                 '^build-manifest\.json$' { 'build_manifest'; break }
                 default { continue }
             }
-            $artifactSpecs += @{
+            $artifactSpec = @{
                 kind = $kind
                 visibility = if ($kind -in @('aab', 'build_manifest')) { 'master_only' } else { 'store_delivery' }
                 file_name = $file.Name
-                storage_locator = $file.FullName
-                sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                storage_locator = 'pocketbase_managed'
+                sha256 = Get-Sha256Lower $file.FullName
                 bytes = $file.Length
             }
+            Send-ArtifactUpload -JobId ([string]$job.id) -Artifact $artifactSpec -Path $file.FullName
+            $artifactSpecs += $artifactSpec
         }
         Send-Completion -Body @{
             job_id = [string]$job.id; runner_id = $RunnerId; status = 'succeeded'; failure_code = ''

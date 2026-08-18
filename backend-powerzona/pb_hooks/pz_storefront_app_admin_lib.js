@@ -106,7 +106,7 @@ function profileLifecycleStatus(profile) {
 
 function artifactLifecycleStatus(artifact) {
   const value = recordString(artifact, "lifecycle_status", 30);
-  return ["deletion_queued", "deleted"].includes(value) ? value : "available";
+  return ["staged", "deletion_queued", "deleted"].includes(value) ? value : "available";
 }
 
 function profileAdminSnapshot(profile, now) {
@@ -570,6 +570,7 @@ function handleRunnerAdminComplete(e) {
           throw new Error("admin_action_target_changed");
         }
         artifact.set("lifecycle_status", "deleted");
+        try { artifact.set("file", ""); } catch (_) {}
         artifact.set("storage_locator", "");
         artifact.set("deleted_at", completedAt);
         artifact.set("deleted_by", actorId);

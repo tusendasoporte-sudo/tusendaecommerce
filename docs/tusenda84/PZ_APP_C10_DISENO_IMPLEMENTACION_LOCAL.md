@@ -75,7 +75,14 @@ Si no existe el registro, las variables legacy `PZ_STOREFRONT_FIREBASE_PROJECT_I
 - Contraseñas, keystores, propiedades de firma y `google-services.json` permanecen fuera del repositorio.
 - Artefactos `apk`, checksums e instrucciones usan visibilidad `store_delivery`.
 - AAB y manifiesto técnico usan `master_only`.
-- PocketBase guarda metadatos y localizadores privados, no secretos criptográficos.
+- C10.7 guarda los bytes como archivos protegidos administrados por PocketBase bajo `pb_data`; el runner no publica ni conserva como entrega una ruta local absoluta.
+- El trabajo solo puede pasar de `claimed` a `succeeded` cuando todos sus archivos físicos están en `staged`; la misma transacción los promueve a `available`.
+- `/app/pb_data` debe estar montado como volumen persistente y el backup debe cubrir de forma coherente SQLite y `pb_data/storage`.
+- La verificación de solo lectura en Coolify confirmó el volumen Docker nombrado `imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging` montado en `/app/pb_data` para el PocketBase de staging. El volumen activo usa 239,9 MiB; `storage` usa 9,7 MiB y contiene 116 archivos.
+- Con autorización separada se creó el backup integrado `c10_7_predeploy_20260818_1415.zip`, de 31,34 MB y SHA-256 `a59294cbf3fe70e6f5b543193ff4ecc9e6791c8a8fdef345a52df5250cfc2ab5`. El ZIP pasó la prueba de integridad e incluye `data.db`, `auxiliary.db` y los 116 archivos actuales de `storage`.
+- El APK disponible obtiene un enlace HMAC permanente e inmutable por artefacto. Solo sirve APK de entrega, comprueba el estado del trabajo y de la distribución y nunca expone AAB, manifiestos, rutas o secretos criptográficos.
+- La inspección autenticada del servidor mostró File Browser 2.63.23 con `Apps-Android` vacía y `Powerzona App`, pero no mostró el volumen Docker de PocketBase. File Browser queda como consola privada auxiliar; no se duplican allí los APK ni se usa `/share/<token>` como entrega canónica.
+- Esta exclusión es deliberada: la propia instancia anuncia que File Browser será archivado el 2026-09-01 y que no debe exponerse sin autenticación frontal. El enlace enviado al administrador pertenece siempre a PowerZona y valida en cada descarga HMAC, artefacto, estado, nombre, tamaño y SHA-256.
 
 ## Releases y alertas del motor común
 
@@ -97,8 +104,9 @@ El panel inferior nativo conversado no forma parte de C10: se implementará como
 - No se integra WhatsApp Cloud API ni otro proveedor. El panel genera un enlace `wa.me` con el destinatario y el mensaje prellenado; el Master conserva el acto final de enviar.
 - El número remitente pertenece al usuario Master autenticado y reutiliza su campo privado `phone`. El panel permite configurarlo con código de país, pero no puede seleccionar la sesión de WhatsApp: exige confirmar visualmente que la cuenta abierta coincide.
 - El destinatario se obtiene exclusivamente de `stores.primary_admin_user`. Debe ser un `store_admin` activo, pertenecer a la misma tienda y tener un número internacional válido; el Master no puede escribir manualmente otro destinatario desde este flujo.
-- Solo un trabajo `succeeded` con un artefacto `apk` de visibilidad `store_delivery` permite crear la vista previa. El mensaje fija tienda, app, versión, nombre del archivo y SHA-256.
-- El APK no se adjunta automáticamente: Tu Senda 84 lo recupera de su custodia privada y lo adjunta manualmente en el chat. No se exponen `storage_locator`, AAB, manifiestos técnicos, firmas ni credenciales.
+- Solo un trabajo `succeeded` con un APK físico `available` de visibilidad `store_delivery` permite crear la vista previa. El mensaje fija tienda, app, versión, `versionCode`, nombre, enlace permanente, SHA-256 e instrucciones de descarga, verificación e instalación.
+- El administrador puede abrir o compartir el enlace y descargar el APK. El Master también puede descargar el archivo físico desde el panel si necesita compartirlo por otro medio autorizado. No se exponen `storage_locator`, AAB, manifiestos técnicos, firmas ni credenciales.
+- La primera instalación y cada actualización repiten el mismo flujo. `update` conserva paquete, Firebase y firma, exige aumentar `versionCode` y crea un artefacto y enlace nuevos.
 - Abrir WhatsApp no se registra como entrega. Después del envío, el Master debe confirmar por separado `MARCAR ENVIADO`; PocketBase conserva actor, destinatario, números normalizados, hash exacto del mensaje y fecha como constancia manual.
 - El estado `marked_sent` no significa que WhatsApp haya entregado o que el administrador haya leído el mensaje. Sin API externa no existe confirmación técnica de envío, entrega o lectura.
 - El resumen Master separa apps cuyo motor necesita build de APK ya generadas pendientes de entrega por WhatsApp.
@@ -129,6 +137,7 @@ Las eliminaciones usan `storefront_app_admin_actions`, una colección privada co
 - Probar APK firmado PowerZona y APK firmado tenant en dispositivos distintos.
 - Validar el AAB PowerZona en Play Internal Testing sin publicar.
 - Confirmar almacenamiento privado/backup/recuperación de keystores y artefactos.
+- Con autorización separada, desplegar C10.7 únicamente en staging y ejecutar QA aislado con limpieza total posterior.
 - Revisar visualmente C10.6 y probar sus acciones con artefactos ficticios en staging antes de autorizar cualquier borrado real.
 
 C10 no debe marcarse `COMPLETADO` hasta cerrar esas pruebas y obtener aprobación expresa.

@@ -74,6 +74,9 @@ test('distribucion, ciclo Android y disponibilidad se calculan sin usar el estad
   assert.equal(admin.profileAdminSnapshot(scheduled, '2026-08-18T12:00:00.000Z').can_recover, true);
   assert.equal(admin.profileAdminSnapshot(scheduled, '2026-09-17T12:00:00.000Z').can_recover, false);
   assert.throws(() => admin.assertDistributionAvailable(withdrawn), /app_distribution_withdrawn/);
+  assert.throws(() => admin.assertDistributionAvailable(active, record('artifactc107t01', {
+    lifecycle_status: 'staged',
+  })), /artifact_not_available/);
   assert.throws(() => admin.assertBuildAllowed(scheduled), /app_deletion_pending/);
 });
 
@@ -158,6 +161,11 @@ test('borrado fisico elimina solo un archivo exacto bajo releases y rechaza esca
     assert.equal(fs.existsSync(apkPath), false);
     assert.equal(fs.existsSync(outsidePath), true);
     assert.match(removed.stdout, /artifactc106t01/);
+
+    const backendManaged = run('pocketbase_managed');
+    assert.equal(backendManaged.status, 0, `${backendManaged.stdout}\n${backendManaged.stderr}`);
+    assert.match(backendManaged.stdout, /artifactc106t01/);
+    assert.equal(fs.existsSync(outsidePath), true);
 
     const rejected = run(outsidePath);
     assert.notEqual(rejected.status, 0);

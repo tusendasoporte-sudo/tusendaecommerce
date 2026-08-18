@@ -24,6 +24,20 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+function Get-Sha256Lower {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    $stream = $null
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        if ($stream) { $stream.Dispose() }
+        $algorithm.Dispose()
+    }
+}
+
 $mobileRoot = Split-Path -Parent $PSScriptRoot
 $repositoryRoot = Split-Path -Parent $mobileRoot
 $validator = Join-Path $mobileRoot 'scripts\validate-store-config.ps1'
@@ -225,7 +239,7 @@ try {
         $artifactNames += $aabName
     }
     $checksums = foreach ($name in $artifactNames) {
-        $hash = (Get-FileHash -LiteralPath (Join-Path $releaseDirectory $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash = Get-Sha256Lower (Join-Path $releaseDirectory $name)
         "$hash  $name"
     }
     $checksums | Set-Content -LiteralPath (Join-Path $releaseDirectory 'SHA256SUMS.txt') -Encoding UTF8
