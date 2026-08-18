@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10.7 EN CURSO — implementación local, volumen y backup integrado de staging verificados; despliegue pendiente |
-| Versión del documento | 1.40 |
+| Estado general | PZ-APP-C10.7 COMPLETADO — primera instalación y actualización validadas en staging con custodia privada, enlaces permanentes y limpieza total |
+| Versión del documento | 1.41 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-18 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Con autorización separada, desplegar C10.7 únicamente en staging y ejecutar QA aislado con limpieza total posterior |
+| Próximo prompt | Ejecutar PZ-APP-C11: pruebas integrales en staging con emulador y teléfono Android físico, sin tocar producción |
 
 ### Convención de estados
 
@@ -890,7 +890,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] Migración, rollback seguro, runner, backend, frontend y descarga física están cubiertos por pruebas locales aisladas con limpieza total.
 - [x] Coolify confirma que `/app/pb_data` está montado en el volumen Docker persistente nombrado de PocketBase staging.
 - [x] Existe un backup integrado actual previo a C10.7 que incluye `data.db`, `auxiliary.db` y `pb_data/storage` como una unidad coherente.
-- [ ] C10.7 se despliega y prueba en staging con registros QA aislados y eliminación completa posterior, previa autorización separada.
+- [x] C10.7 se despliega y prueba en staging con registros QA aislados y eliminación completa posterior, previa autorización separada.
 
 **Límites de C10.7:** no enviar WhatsApp, publicar en Google Play, crear Firebase, generar firmas reales, configurar volúmenes o ejecutar otra acción externa sin autorización separada. Las pruebas deben usar PocketBase y directorios temporales aislados y eliminar todo lo creado aun si fallan.
 
@@ -2385,7 +2385,7 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Suite backend completa: 707 pruebas, 700 aprobadas, 7 omitidas declaradas y 0 fallidas. Suite frontend completa: 534/534 aprobadas. El build Astro terminó correctamente con las tres advertencias históricas de rutas dinámicas.
 - La migración `1787011200_settings_authenticated_tenant_isolation.js` se validó con PocketBase real mediante subida, reversión exacta y nueva subida sobre una base temporal desechable.
 
-### 2026-08-18 — PZ-APP-C10.7 EN CURSO: primera instalación, custodia y enlace permanente
+### 2026-08-18 — PZ-APP-C10.7 COMPLETADO: primera instalación, custodia y enlace permanente
 
 - Se formalizó que el APK no puede quedar únicamente en la ruta local del runner: antes de completar el build debe subirse como archivo protegido al `pb_data` persistente del backend.
 - Se eligió un enlace de capacidad HMAC permanente e inmutable por artefacto y versión. Esta decisión mantiene unidos enlace, nombre, tamaño y SHA-256 y evita que una URL de un mensaje anterior entregue silenciosamente una versión distinta.
@@ -2405,4 +2405,9 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Con autorización expresa se creó mediante la función integrada de PocketBase `c10_7_predeploy_20260818_1415.zip`, de 31,34 MB. Se conservaron intactas las dos copias C04.
 - El ZIP verificó sin errores con `unzip -t`. Contiene `auxiliary.db` de 192.634.880 bytes, `data.db` de 4.366.336 bytes y los 116 archivos actuales de `storage`, que suman 9.580.569 bytes. Su SHA-256 es `a59294cbf3fe70e6f5b543193ff4ecc9e6791c8a8fdef345a52df5250cfc2ab5`.
 - Los tres backups ocupan 68,9 MiB en total; el filesystem conserva 58,3 GiB disponibles y PocketBase respondió salud interna HTTP 200 después de la operación.
-- Fuera de esta copia autorizada no se modificaron archivos ni configuración, no se reinició ni desplegó ningún recurso y no se ejecutaron WhatsApp, Google Play, Firebase, firmas reales o cambios de volumen. C10.7 permanece `EN CURSO` hasta autorizar y probar staging.
+- Con autorización separada se desplegó staging y se ejecutó una QA aislada sobre la tienda temporal `QA C10.7 Aislada 20260818-1940`. La primera publicación `1.0.0 (1)` y la actualización `1.0.1 (2)` terminaron `succeeded` con el mismo paquete `com.tusenda84.qac107202608181940`, app key, proyecto Firebase simulado y huella de firma ficticia.
+- El APK ficticio inicial quedó fijado al SHA-256 `7def33361228e63387de94c40f16fad559f43992bf53e1018500b29849a37dbb`; la actualización produjo un artefacto y enlace distintos con SHA-256 `3d7cef42069c24f3fc293f7c1e64fcdb6340ae6b75192f27977c54bac4d42257`. Ambos enlaces devolvieron el archivo físico exacto, versión, checksum, descarga forzada, `nosniff` y `noindex`, y el enlace anterior continuó sirviendo la versión anterior después de publicar la actualización.
+- Las vistas previas de WhatsApp diferenciaron primera instalación y actualización e incluyeron enlace, checksum e instrucciones. WhatsApp no se abrió y ningún trabajo fue marcado como enviado.
+- La QA detectó en staging un `ReferenceError` del panel al iniciar una actualización. El arreglo serializó explícitamente `buildActionsAllowed` para el script cliente, añadió cobertura de regresión y quedó desplegado en el commit `7bcbcb56cd14137d2dedb7b1754d961e4dd8cc39`; la suite frontend terminó 534/534 y el build Astro fue correcto con las tres advertencias históricas.
+- La limpieza final eliminó 8 artefactos, 2 trabajos, 1 perfil, 2 recursos de marca, 3 auditorías de usuario, 2 auditorías de plan, la configuración pública, el usuario y la tienda temporales, los 18 registros del inventario oficial y la auditoría final de eliminación. También eliminó `/tmp/pzqa_c107_20260818` (15 archivos, 76 KiB). Todos los filtros posteriores quedaron en cero, no permanecieron archivos físicos y ambos enlaces QA pasaron a HTTP 404.
+- La tienda conservada `QA C10.6 Manual` (`z8mnp5t985zz3ba`) siguió presente y sin registros C10.7. No se enviaron WhatsApp, no se publicó en Google Play, no se creó Firebase, no se generaron firmas reales y no se modificaron volúmenes ni datos ajenos a la prueba.
