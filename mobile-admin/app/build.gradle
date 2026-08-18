@@ -12,8 +12,10 @@ def configuredAdminUrl = (project.findProperty('PZ_ADMIN_URL') ?: 'https://tusen
 def configuredApplicationId = (project.findProperty('PZ_APPLICATION_ID') ?: 'com.tusenda84.admin').toString()
 def configuredVersionCode = Integer.parseInt((project.findProperty('PZ_ADMIN_VERSION_CODE') ?: '3').toString())
 def configuredVersionName = (project.findProperty('PZ_ADMIN_VERSION_NAME') ?: '1.0.2').toString()
+def configuredSplashBackground = (project.findProperty('PZ_SPLASH_BACKGROUND') ?: '#FFFFFF').toString().toUpperCase()
 if (configuredVersionCode < 1) throw new GradleException('PZ_ADMIN_VERSION_CODE debe ser mayor que cero.')
 if (!(configuredVersionName ==~ /[0-9]+\.[0-9]+\.[0-9]+/)) throw new GradleException('PZ_ADMIN_VERSION_NAME debe usar formato X.Y.Z.')
+if (!(configuredSplashBackground ==~ /#[A-F0-9]{6}/)) throw new GradleException('PZ_SPLASH_BACKGROUND debe usar formato #RRGGBB.')
 def configuredSigningProperties = (project.findProperty('PZ_ADMIN_SIGNING_PROPERTIES') ?: '').toString().trim()
 def releaseKeystorePropertiesFile = configuredSigningProperties
     ? rootProject.file(configuredSigningProperties)
@@ -61,6 +63,7 @@ android {
         versionName configuredVersionName
 
         manifestPlaceholders = [appName: configuredAppName]
+        resValue 'color', 'pz_splash_background', configuredSplashBackground
         buildConfigField 'String', 'ADMIN_URL', javaStringLiteral(configuredAdminUrl)
         buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(configuredAppName)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
@@ -68,6 +71,7 @@ android {
 
     buildFeatures {
         buildConfig true
+        resValues true
     }
 
     signingConfigs {

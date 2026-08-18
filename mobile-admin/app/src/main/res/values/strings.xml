@@ -2,7 +2,7 @@
 <resources>
     <string name="brand_badge">84</string>
     <string name="offline_title">Sin conexión</string>
-    <string name="offline_message">Comprueba tu conexión a internet para continuar administrando la tienda.</string>
+    <string name="offline_message">Comprueba tu conexión a internet para continuar administrando tu proyecto.</string>
     <string name="retry">Reintentar</string>
     <string name="push_channel_orders">Pedidos</string>
     <string name="push_channel_orders_description">Pedidos nuevos y pedidos pendientes.</string>

@@ -8,8 +8,8 @@
         <item name="android:navigationBarColor">@color/app_white</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowBackground">@color/app_white</item>
-        <item name="android:windowSplashScreenBackground">@color/app_white</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_brand_foreground</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/pz_splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
     </style>
 </resources>

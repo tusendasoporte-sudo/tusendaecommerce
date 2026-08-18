@@ -9,6 +9,11 @@ param(
     [string]$DisplayName = 'Tu Senda 84 Admin',
     [string]$AdminUrl = 'https://tusenda84.com/admin',
     [ValidatePattern('^$|^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$')][string]$ExpectedSigningCertSha256 = '',
+    [ValidatePattern('^$|^[a-f0-9]{64}$')][string]$IconSha256 = '',
+    [ValidatePattern('^$|^[a-f0-9]{64}$')][string]$SplashSha256 = '',
+    [ValidatePattern('^#[A-F0-9]{6}$')][string]$SplashBackgroundColor = '#FFFFFF',
+    [string]$IconPath,
+    [string]$SplashPath,
     [ValidateSet('Debug', 'Release')][string]$BuildType = 'Release',
     [string]$SigningPropertiesPath,
     [string]$ConfirmedPreviewPath,
@@ -19,6 +24,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $mobileRoot = Join-Path $repositoryRoot 'mobile-admin'
+$engineManifestPath = Join-Path $mobileRoot 'engine.json'
+if (-not (Test-Path -LiteralPath $engineManifestPath -PathType Leaf)) { throw 'Falta el contrato del motor Mobile Admin.' }
+$engineManifest = Get-Content -LiteralPath $engineManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$engineManifest.name -ne 'Tu Senda 84 Admin Engine' -or [string]$engineManifest.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' `
+    -or [int]$engineManifest.contract_version -lt 1) { throw 'El contrato del motor Mobile Admin es inválido.' }
 
 function ConvertTo-CanonicalJson {
     param([Parameter(Mandatory = $true)]$Value)
@@ -85,9 +95,10 @@ function Get-SigningFingerprint {
 
 if ($AdminUrl -notmatch '^https://') { throw 'AdminUrl debe usar HTTPS.' }
 $preview = [ordered]@{
-    schema_version = 1
+    schema_version = 2
     app = 'mobile-admin'
     channel = $Channel
+    engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version }
     operation = $ReleaseOperation
     identity = [ordered]@{
         display_name = $DisplayName
@@ -96,13 +107,14 @@ $preview = [ordered]@{
         signing_cert_sha256 = $ExpectedSigningCertSha256
     }
     build = [ordered]@{ version_code = $VersionCode; version_name = $VersionName; apk = $true; build_type = 'release' }
+    appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
     delivery = [ordered]@{ authenticated_only = $true; pilot_required = $true; gradual_rollout = $true; mandatory_after_general = $true }
 }
 $canonical = ConvertTo-CanonicalJson $preview
-$previewHash = Get-Sha256Text "pz_admin_app_preview:v1|$canonical"
+$previewHash = Get-Sha256Text "pz_admin_app_preview:v2|$canonical"
 
 if ($Operation -eq 'Preview') {
-    if ($ExecuteBuild -or $SigningPropertiesPath) { throw 'Preview no admite compilación ni acceso a firma.' }
+    if ($ExecuteBuild -or $SigningPropertiesPath -or $IconPath -or $SplashPath) { throw 'Preview no admite compilación, firma ni archivos físicos.' }
     $previewDirectory = Join-Path $mobileRoot 'build\previews'
     New-Item -ItemType Directory -Path $previewDirectory -Force | Out-Null
     $previewPath = Join-Path $previewDirectory "mobile-admin-$VersionName-$VersionCode-$previewHash.json"
@@ -129,12 +141,36 @@ if ($BuildType -eq 'Release') {
     if ($ExpectedSigningCertSha256 -and $ExpectedSigningCertSha256 -ne $signingCert) { throw 'La firma no coincide con la identidad congelada.' }
 }
 
+foreach ($brand in @(
+    @{ Label = 'icono'; Hash = $IconSha256; Path = $IconPath },
+    @{ Label = 'splash'; Hash = $SplashSha256; Path = $SplashPath }
+)) {
+    if ($brand.Hash) {
+        if (-not $brand.Path -or -not (Test-Path -LiteralPath $brand.Path -PathType Leaf)) { throw "Falta el archivo físico de $($brand.Label)." }
+        if ((Get-Sha256File $brand.Path) -ne $brand.Hash) { throw "El checksum de $($brand.Label) no coincide con la vista previa." }
+    } elseif ($brand.Path) { throw "No se admite un archivo de $($brand.Label) sin checksum confirmado." }
+}
+
 $releaseDirectory = Join-Path $mobileRoot "releases\$Channel\$VersionName-$VersionCode"
 if (Test-Path -LiteralPath $releaseDirectory) { throw 'La salida ya existe y no se sobrescribirá.' }
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
 $gradle = Join-Path $mobileRoot 'gradlew.bat'
+$brandBackupDirectory = Join-Path ([IO.Path]::GetTempPath()) ("pz-admin-brand-" + [Guid]::NewGuid().ToString('N'))
+$iconTarget = Join-Path $mobileRoot 'app\src\main\res\drawable-nodpi\ic_launcher_brand_foreground.png'
+$splashXmlTarget = Join-Path $mobileRoot 'app\src\main\res\drawable\splash_icon.xml'
+$splashPngTarget = Join-Path $mobileRoot 'app\src\main\res\drawable-nodpi\splash_icon.png'
 try {
-    $gradleArgs = @("-PPZ_ADMIN_VERSION_CODE=$VersionCode", "-PPZ_ADMIN_VERSION_NAME=$VersionName", "-PPZ_APPLICATION_ID=$PackageName", "-PPZ_APP_NAME=$DisplayName", "-PPZ_ADMIN_URL=$AdminUrl", '--no-daemon')
+    New-Item -ItemType Directory -Path $brandBackupDirectory | Out-Null
+    if ($IconSha256) {
+        Copy-Item -LiteralPath $iconTarget -Destination (Join-Path $brandBackupDirectory 'ic_launcher_brand_foreground.png')
+        Copy-Item -LiteralPath $IconPath -Destination $iconTarget -Force
+    }
+    if ($SplashSha256) {
+        Copy-Item -LiteralPath $splashXmlTarget -Destination (Join-Path $brandBackupDirectory 'splash_icon.xml')
+        Remove-Item -LiteralPath $splashXmlTarget -Force
+        Copy-Item -LiteralPath $SplashPath -Destination $splashPngTarget
+    }
+    $gradleArgs = @("-PPZ_ADMIN_VERSION_CODE=$VersionCode", "-PPZ_ADMIN_VERSION_NAME=$VersionName", "-PPZ_APPLICATION_ID=$PackageName", "-PPZ_APP_NAME=$DisplayName", "-PPZ_ADMIN_URL=$AdminUrl", "-PPZ_SPLASH_BACKGROUND=$SplashBackgroundColor", '--no-daemon')
     if ($BuildType -eq 'Debug') {
         & $gradle 'clean' 'testDebugUnitTest' 'lintDebug' 'assembleDebug' @gradleArgs
         $sourceApk = Join-Path $mobileRoot 'app\build\outputs\apk\debug\app-debug.apk'
@@ -148,10 +184,28 @@ try {
     Copy-Item -LiteralPath $sourceApk -Destination (Join-Path $releaseDirectory $apkName)
     $apkHash = Get-Sha256File (Join-Path $releaseDirectory $apkName)
     "$apkHash  $apkName" | Set-Content -LiteralPath (Join-Path $releaseDirectory 'SHA256SUMS.txt') -Encoding UTF8
-    @("Aplicación: $DisplayName", "Paquete: $PackageName", "Versión: $VersionName ($VersionCode)", "SHA-256: $apkHash", 'Instalar sin desinstalar la versión anterior.') | Set-Content -LiteralPath (Join-Path $releaseDirectory 'INSTRUCCIONES.txt') -Encoding UTF8
-    [ordered]@{ schema_version = 1; app = 'mobile-admin'; channel = $Channel; version_code = $VersionCode; version_name = $VersionName; package_name = $PackageName; signing_cert_sha256 = $signingCert; git_commit = $gitRevision.Trim(); apk = $apkName; sha256 = $apkHash } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $releaseDirectory 'build-manifest.json') -Encoding UTF8
+    @("Aplicación: $DisplayName", "Paquete: $PackageName", "Versión: $VersionName ($VersionCode)", "Motor: $($engineManifest.name) $($engineManifest.version)", "SHA-256: $apkHash", 'Instalar sin desinstalar la versión anterior.') | Set-Content -LiteralPath (Join-Path $releaseDirectory 'INSTRUCCIONES.txt') -Encoding UTF8
+    [ordered]@{
+        schema_version = 2; app = 'mobile-admin'; channel = $Channel
+        engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; git_commit = $gitRevision.Trim() }
+        version_code = $VersionCode; version_name = $VersionName; package_name = $PackageName; signing_cert_sha256 = $signingCert
+        appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
+        apk = $apkName; sha256 = $apkHash
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $releaseDirectory 'build-manifest.json') -Encoding UTF8
     return [pscustomobject]@{ OutputDirectory = $releaseDirectory; ApkName = $apkName; ApkSha256 = $apkHash; SigningCertSha256 = $signingCert; PreviewHash = $previewHash }
 } catch {
     if (Test-Path -LiteralPath $releaseDirectory) { Remove-Item -LiteralPath $releaseDirectory -Recurse -Force }
     throw
+} finally {
+    if ($IconSha256 -and (Test-Path -LiteralPath (Join-Path $brandBackupDirectory 'ic_launcher_brand_foreground.png'))) {
+        Copy-Item -LiteralPath (Join-Path $brandBackupDirectory 'ic_launcher_brand_foreground.png') -Destination $iconTarget -Force
+    }
+    if ($SplashSha256) {
+        if (Test-Path -LiteralPath $splashPngTarget) { Remove-Item -LiteralPath $splashPngTarget -Force }
+        if (Test-Path -LiteralPath (Join-Path $brandBackupDirectory 'splash_icon.xml')) {
+            Copy-Item -LiteralPath (Join-Path $brandBackupDirectory 'splash_icon.xml') -Destination $splashXmlTarget -Force
+        }
+    }
+    Get-ChildItem -LiteralPath $brandBackupDirectory -File -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+    if (Test-Path -LiteralPath $brandBackupDirectory) { Remove-Item -LiteralPath $brandBackupDirectory -Force }
 }

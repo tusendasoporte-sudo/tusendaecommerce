@@ -58,7 +58,7 @@ La app admite avisos de pedidos nuevos o pendientes, reseñas pendientes, stock 
 
 ## APK de produccion
 
-La variante `release` requiere una clave privada de firma del propietario. No se guarda ninguna clave ni contrasena en el repositorio. Antes de publicar en Google Play se debe configurar la firma de produccion, incrementar `versionCode` y validar la ficha y las politicas vigentes de la tienda.
+La variante `release` requiere una clave privada de firma del propietario. No se guarda ninguna clave ni contrasena en el repositorio. En el flujo controlado, el backend reserva el siguiente `versionCode` y el runner lo entrega a Gradle; el panel no permite escribirlo. Antes de publicar en Google Play se debe configurar la firma de produccion y validar la ficha y las politicas vigentes de la tienda.
 
 Para generar el Android App Bundle firmado que acepta Google Play, crea localmente
 `.secrets/mobile-admin-upload.properties` con `storeFile`, `storePassword`, `keyAlias`
@@ -91,17 +91,25 @@ universal firmada por Play después de subir el AAB.
 
 C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públicas:
 
+- el constructor se identifica como `Tu Senda 84 Admin Engine 1.0.0`; su nombre, versión y contrato están en `engine.json` y quedan registrados en cada trabajo y manifiesto;
+- `versionCode` es una secuencia reservada por el backend al confirmar el build: una app nueva parte de base 0 y recibe 1; una compilación confirmada consume su número aunque falle;
+- canal, paquete y firma son la identidad Android; la versión base solo se puede corregir antes del primer build confirmado;
+- nombre visible, URL administrativa, color, Firebase, icono y splash son configuración editable y cada build inmoviliza la revisión exacta usada;
+- icono y splash se guardan como PNG protegidos y versionados en PocketBase, se comprueban por dimensiones, bytes y SHA-256 y nunca se incorporan al repositorio;
 - el APK queda como archivo protegido en PocketBase;
 - el enlace abre un portal y no concede acceso por sí mismo;
 - cada descarga exige sesión de `store_admin`, tienda, dispositivo autorizado y asignación exactos;
 - el archivo usa un ticket de dos minutos y un solo uso;
-- el rollout avanza por piloto, oleadas explícitas y publicación general;
+- el panel muestra acciones simples: enviar al dispositivo de prueba, aprobar la prueba, añadir administrador y publicar para todos; el backend conserva internamente piloto, publicación limitada y publicación general;
 - `minimum_supported_version_code` solo puede activarse después de validar el piloto y una asignación general.
+
+Mobile Admin pertenece a Tu Senda 84 y no a PowerZona. La misma app sirve para administrar tiendas, páginas promocionales o futuros tipos de proyecto siempre que todos entren por la URL administrativa central y el backend autorice las funciones disponibles para cada proyecto.
 
 El runner está en `runner/run-admin-app-job-queue.ps1`. Requiere el secreto exclusivo
 `PZ_ADMIN_APP_RUNNER_SECRET` y una ruta externa a la firma ya existente. Nunca crea
 una firma, Firebase o una publicación. La vista previa reproducible puede generarse
-sin compilar ni acceder a secretos:
+sin compilar ni acceder a secretos. El siguiente comando es una verificación técnica
+local; en operación normal el backend decide el código y el runner lo recibe:
 
 ```powershell
 ../scripts/build-admin-app.ps1 -Operation Preview `

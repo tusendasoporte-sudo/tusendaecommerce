@@ -19,11 +19,17 @@ const android = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/t
 const verifier = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminApkVerifier.java', import.meta.url), 'utf8');
 const runner = readFileSync(new URL('../../mobile-admin/runner/run-admin-app-job-queue.ps1', import.meta.url), 'utf8');
 const gradle = readFileSync(new URL('../../mobile-admin/app/build.gradle', import.meta.url), 'utf8');
+const launchBackground = readFileSync(new URL('../../mobile-admin/app/src/main/res/drawable/launch_background.xml', import.meta.url), 'utf8');
+const theme = readFileSync(new URL('../../mobile-admin/app/src/main/res/values/themes.xml', import.meta.url), 'utf8');
+const theme31 = readFileSync(new URL('../../mobile-admin/app/src/main/res/values-v31/themes.xml', import.meta.url), 'utf8');
 
 test('User-Agent distingue browser, APK histórica y versión reproducible nueva', () => {
   assert.equal(parseNativeAdminAppUserAgent('Mozilla/5.0 Chrome/140'), null);
   assert.deepEqual(parseNativeAdminAppUserAgent('Mozilla/5.0 TuSenda84Admin/1.0'), {
     package_name: 'com.tusenda84.admin', version_code: 3, version_name: '1.0.2',
+  });
+  assert.deepEqual(parseNativeAdminAppUserAgent('Mozilla/5.0 TuSenda84Admin/1.0.3 (4; com.tusenda84.admin.staging)'), {
+    package_name: 'com.tusenda84.admin.staging', version_code: 4, version_name: '1.0.3',
   });
   assert.deepEqual(parseNativeAdminAppUserAgent('Mozilla/5.0 TuSenda84Admin/1.0.3 (4)'), {
     package_name: 'com.tusenda84.admin', version_code: 4, version_name: '1.0.3',
@@ -70,15 +76,24 @@ test('backend no expone capacidad anónima y revalida identidad al descargar', (
   assert.match(backendLib, /expires_at/);
   assert.match(backendLib, /Content-Disposition/);
   assert.match(backendLib, /X-PZ-APK-SHA256/);
+  assert.match(backendLib, /profileSnapshot\(resolved\.profile, app, "admin"\)/);
 });
 
-test('panel Master separa identidad, build, piloto, oleadas y mínimo obligatorio', () => {
+test('panel Master simplifica configuración, apariencia, creación, prueba y publicación', () => {
   assert.match(masterPage, /requireMasterAdmin/);
   assert.match(masterPage, /private, no-store/);
-  assert.match(masterView, /Identidad inmutable/);
-  assert.match(masterView, /Build reproducible/);
-  assert.match(masterView, /Piloto y oleadas/);
-  assert.match(masterView, /Actualización obligatoria/);
+  assert.match(masterView, /Configurar la aplicación/);
+  assert.match(masterView, /Elegir la apariencia/);
+  assert.match(masterView, /Crear una nueva versión/);
+  assert.match(masterView, /Probar y publicar/);
+  assert.match(masterView, /Solicitar la actualización/);
+  assert.match(masterView, /data\.engine\.name/);
+  assert.match(masterView, /automático/);
+  assert.match(masterView, /Cambiar icono/);
+  assert.match(masterView, /Cambiar pantalla/);
+  assert.doesNotMatch(masterView, /name="stage"|name="wave"|name="version_code"/);
+  assert.match(masterView, /action: 'assign_next'/);
+  assert.match(masterView, /action: 'publish_general'/);
   assert.match(masterView, /VALIDAR PILOTO MOBILE ADMIN/);
   assert.match(masterView, /REVOCAR ENTREGA MOBILE ADMIN/);
   assert.match(masterView, /pb\.authStore\.loadFromCookie\(document\.cookie, 'pb_auth'\)/);
@@ -119,6 +134,10 @@ test('Android verifica checksum, paquete, código y firma antes del instalador',
   assert.match(verifier, /update_package_mismatch/);
   assert.match(verifier, /update_version_mismatch/);
   assert.match(verifier, /update_signature_mismatch/);
+  assert.match(launchBackground, /@color\/pz_splash_background/);
+  assert.match(launchBackground, /@drawable\/splash_icon/);
+  assert.match(theme, /@drawable\/launch_background/);
+  assert.match(theme31, /windowSplashScreenAnimatedIcon">@drawable\/splash_icon/);
 });
 
 test('runner solo acepta firma existente y usa un secreto exclusivo', () => {
@@ -127,5 +146,8 @@ test('runner solo acepta firma existente y usa un secreto exclusivo', () => {
   assert.doesNotMatch(runner, /generate.*sign|keytool -genkey|Firebase/i);
   assert.match(runner, /admin-app-builds\/artifacts\/upload/);
   assert.match(runner, /admin-app-builds\/complete/);
+  assert.match(runner, /engine_manifest|engineManifest/i);
+  assert.match(runner, /admin-app-brand-assets/);
+  assert.match(runner, /runner_brand_checksum_mismatch/);
   assert.match(gradle, /releaseKeystorePropertiesFile\.parentFile/);
 });

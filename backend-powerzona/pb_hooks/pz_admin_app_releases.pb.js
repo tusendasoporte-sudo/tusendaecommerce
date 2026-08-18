@@ -15,6 +15,20 @@ routerAdd(
 );
 
 routerAdd(
+  "POST", "/api/pz/master/admin-app-releases/brand/upload",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterBrandUpload(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(), $apis.bodyLimit(2200000), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET", "/api/pz/master/admin-app-brand-assets/{asset}/{filename}",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterBrandDownload(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(), $apis.bodyLimit(0), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "POST", "/api/pz/master/admin-app-releases/preview",
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterPreview(e),
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
@@ -75,6 +89,13 @@ routerAdd(
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleRunnerClaim(e),
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireRunner(e),
   $apis.bodyLimit(1024), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET", "/api/pz/internal/admin-app-brand-assets/{asset}/{filename}",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleRunnerBrandDownload(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireRunner(e),
+  $apis.bodyLimit(0), $apis.skipSuccessActivityLog()
 );
 
 routerAdd(

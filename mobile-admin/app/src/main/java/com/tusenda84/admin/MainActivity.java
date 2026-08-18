@@ -243,8 +243,8 @@ public final class MainActivity extends Activity {
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setUserAgentString(
                 settings.getUserAgentString()
-                        + " TuSenda84Admin/" + BuildConfig.VERSION_NAME
-                        + " (" + BuildConfig.VERSION_CODE + ")"
+                        + " TuSenda84Admin/" + BuildConfig.VERSION_NAME.replace("-debug", "")
+                        + " (" + BuildConfig.VERSION_CODE + "; " + BuildConfig.APPLICATION_ID + ")"
         );
 
         webView.setWebViewClient(new AdminWebViewClient());

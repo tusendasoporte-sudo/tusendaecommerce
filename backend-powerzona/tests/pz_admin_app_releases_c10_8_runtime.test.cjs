@@ -8,6 +8,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const zlib = require('node:zlib');
 
 const BACKEND_DIR = path.resolve(__dirname, '..');
 const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
@@ -20,6 +21,29 @@ const DEVICE_HEADER = 'X-PZ-Admin-Device';
 
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+function crc32(value) {
+  let crc = 0xffffffff;
+  for (const byte of value) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const name = Buffer.from(type, 'ascii');
+  const length = Buffer.alloc(4); length.writeUInt32BE(data.length);
+  const checksum = Buffer.alloc(4); checksum.writeUInt32BE(crc32(Buffer.concat([name, data])));
+  return Buffer.concat([length, name, data, checksum]);
+}
+
+function squarePng(size) {
+  const header = Buffer.alloc(13); header.writeUInt32BE(size, 0); header.writeUInt32BE(size, 4); header[8] = 8; header[9] = 6;
+  const stride = size * 4 + 1; const pixels = Buffer.alloc(stride * size);
+  for (let row = 0; row < size; row += 1) pixels.fill(0xff, row * stride + 1, (row + 1) * stride);
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk('IHDR', header), pngChunk('IDAT', zlib.deflateSync(pixels)), pngChunk('IEND', Buffer.alloc(0))]);
+}
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -186,13 +210,24 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
         channel: 'staging', display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
         admin_url: 'https://tusenda84.com/admin', firebase_project_id: '', firebase_app_id: '',
         signing_cert_sha256: SIGNING_CERT, current_version_code: 3, current_version_name: '1.0.2',
+        splash_background_color: '#FFFFFF',
         confirmation: 'CONFIGURAR MOBILE ADMIN',
       },
     });
     assertStatus(configured, 200, 'configurar identidad C10.8');
 
+    const iconBytes = squarePng(512);
+    const iconForm = new FormData();
+    iconForm.append('channel', 'staging'); iconForm.append('kind', 'icon'); iconForm.append('sha256', sha256(iconBytes));
+    iconForm.append('bytes', String(iconBytes.length)); iconForm.append('width', '512'); iconForm.append('height', '512');
+    iconForm.append('confirmation', 'CAMBIAR IMAGEN MOBILE ADMIN');
+    iconForm.append('file', new Blob([iconBytes], { type: 'image/png' }), 'icon.png');
+    const uploadedIcon = await request('/api/pz/master/admin-app-releases/brand/upload', { token: masterToken, body: iconForm });
+    assertStatus(uploadedIcon, 201, 'guardar icono protegido');
+    assert.equal(uploadedIcon.data.asset.sha256, sha256(iconBytes));
+
     const preview = await request('/api/pz/master/admin-app-releases/preview', {
-      token: masterToken, body: { channel: 'staging', version_code: 4, version_name: '1.0.3' },
+      token: masterToken, body: { channel: 'staging', version_name: '1.0.3' },
     });
     assertStatus(preview, 201, 'crear preview C10.8');
     const confirmed = await request('/api/pz/master/admin-app-releases/confirm', {
@@ -206,16 +241,23 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
       'x-pz-admin-app-runner-id': 'runtime-c108',
     };
     const claimed = await request('/api/pz/internal/admin-app-builds/claim', {
-      headers: runnerHeaders, body: { runner_id: 'runtime-c108' },
+      headers: runnerHeaders, body: {
+        runner_id: 'runtime-c108', engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.0',
+        engine_contract_version: 1, engine_revision: 'b'.repeat(40),
+      },
     });
     assertStatus(claimed, 200, 'reclamar build C10.8');
     assert.equal(claimed.data.job.id, preview.data.job.id);
+    assert.equal(claimed.data.job.profile.icon.sha256, sha256(iconBytes));
+    const runnerIcon = await fetch(`${baseUrl}${claimed.data.job.profile.icon.download_path}`, { headers: runnerHeaders, signal: AbortSignal.timeout(20_000) });
+    assert.equal(runnerIcon.status, 200);
+    assert.deepEqual(Buffer.from(await runnerIcon.arrayBuffer()), iconBytes);
 
     const fixtures = [
       ['apk', 'mobile-admin-1.0.3-4.apk', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x43, 0x31, 0x30, 0x38])],
       ['checksums', 'SHA256SUMS.txt', Buffer.from('checksum runtime c108\n')],
       ['instructions', 'INSTRUCCIONES.txt', Buffer.from('instalar sin desinstalar\n')],
-      ['build_manifest', 'build-manifest.json', Buffer.from('{"schema_version":1}')],
+      ['build_manifest', 'build-manifest.json', Buffer.from('{"schema_version":2}')],
     ].map(([kind, fileName, bytes]) => ({ kind, fileName, bytes, sha256: sha256(bytes) }));
 
     for (const fixture of fixtures) {
@@ -236,12 +278,20 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
       body: {
         job_id: preview.data.job.id, runner_id: 'runtime-c108', status: 'succeeded', failure_code: '',
         signing_cert_sha256: SIGNING_CERT,
+        engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.0', engine_contract_version: 1,
+        engine_revision: 'b'.repeat(40),
         artifacts: fixtures.map((fixture) => ({
           kind: fixture.kind, file_name: fixture.fileName, sha256: fixture.sha256, bytes: fixture.bytes.length,
         })),
       },
     });
     assertStatus(completed, 200, 'completar build C10.8');
+
+    for (const [collection, field] of [['admin_app_brand_assets', 'file'], ['admin_app_release_profiles', 'last_allocated_version_code'], ['admin_app_build_jobs', 'engine_version']]) {
+      const schema = await request(`/api/collections/${collection}`, { token: superToken, method: 'GET' });
+      assertStatus(schema, 200, `consultar esquema ${collection}`);
+      assert.ok(schema.data.fields.some((item) => item.name === field), `${collection} no contiene ${field}: ${schema.raw}`);
+    }
 
     const detail = await request('/api/pz/master/admin-app-releases/detail', {
       token: masterToken, body: { channel: 'staging' },
@@ -250,11 +300,11 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
     const apk = detail.data.artifacts.find((item) => item.kind === 'apk');
     assert.ok(apk?.stored && apk.lifecycle_status === 'available');
 
-    const assign = async (deviceId, stage, wave) => request('/api/pz/master/admin-app-releases/action', {
+    const assign = async (deviceId) => request('/api/pz/master/admin-app-releases/action', {
       token: masterToken,
-      body: { action: 'assign', artifact_id: apk.id, user_id: admin.id, device_id: deviceId, stage, wave },
+      body: { action: 'assign_next', artifact_id: apk.id, user_id: admin.id, device_id: deviceId },
     });
-    const pilot = await assign(deviceIds[0], 'pilot', 0);
+    const pilot = await assign(deviceIds[0]);
     assert.equal(pilot.status, 200, `asignar piloto: ${pilot.raw}\n${runtime.output()}`);
     assert.match(pilot.data.grant, /^[A-Za-z0-9_-]{43}$/);
 
@@ -293,8 +343,13 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
     });
     assertStatus(validatePilot, 200, 'validar piloto');
 
-    assertStatus(await assign(deviceIds[1], 'gradual', 1), 200, 'abrir oleada gradual');
-    assertStatus(await assign(deviceIds[2], 'general', 2), 200, 'abrir publicación general');
+    assertStatus(await assign(deviceIds[1]), 200, 'añadir administrador después del piloto');
+    const publish = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'publish_general', artifact_id: apk.id, confirmation: 'PUBLICAR MOBILE ADMIN PARA TODOS' },
+    });
+    assertStatus(publish, 200, 'publicar para todos');
+    assert.equal(publish.data.total, 3);
     const minimum = await request('/api/pz/master/admin-app-releases/action', {
       token: masterToken,
       body: { action: 'set_minimum', profile_id: configured.data.profile.id, version_code: 4, confirmation: 'EXIGIR VERSION 4' },
