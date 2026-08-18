@@ -153,6 +153,8 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /CANCELAR TRABAJO/);
   assert.match(view, /data-engine-release-ready/);
   assert.match(view, /data-preview-engine-ready/);
+  assert.match(view, /data-build-actions-allowed=\{String\(buildActionsAllowed\)\}/);
+  assert.match(view, /const buildActionsAllowed = root\.dataset\.buildActionsAllowed === 'true';/);
   assert.match(view, /Falta fijar la revisión exacta del motor aprobado/);
   assert.match(view, /Esta vista previa pertenece a otra release del motor/);
   assert.match(view, /disabled=\{!brandAssets\.ready \|\| !!queueNoticeJob \|\| !engineReleaseReady \|\| !buildActionsAllowed\}/);

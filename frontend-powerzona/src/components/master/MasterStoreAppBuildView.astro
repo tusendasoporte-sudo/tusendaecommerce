@@ -81,7 +81,7 @@ function dateTime(value: string) {
 }
 ---
 
-<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)}>
+<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)}>
   <MasterStoreContextHeader
     store={{
       id: store.id,
@@ -540,6 +540,7 @@ function dateTime(value: string) {
     const storeId = String(root.dataset.storeId || '');
     const storeSlug = String(root.dataset.storeSlug || '');
     const profileId = String(root.dataset.profileId || '');
+    const buildActionsAllowed = root.dataset.buildActionsAllowed === 'true';
     const engineReleaseReady = root.dataset.engineReleaseReady === 'true';
     let previewEngineReady = root.dataset.previewEngineReady === 'true';
     const previewCard = root.querySelector<HTMLElement>('[data-app-preview-card]');
