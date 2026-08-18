@@ -7,7 +7,8 @@ const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf
 test('BLOCK-HISTORY: Clientes bloqueados ofrece historial contextual en menu de tres puntos', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
   const start = view.indexOf("params.section === 'blocked'");
-  const end = view.indexOf('</section>\n\n<dialog id="security-manual-ip-block-dialog"', start);
+  const end = view.indexOf('<dialog id="security-manual-ip-block-dialog"', start);
+  assert.ok(start > -1 && end > start);
   const blocked = view.slice(start, end);
 
   assert.match(blocked, /data-inline-row-menu/);
@@ -25,7 +26,8 @@ test('BLOCK-HISTORY: Clientes bloqueados ofrece historial contextual en menu de 
 test('BLOCKED-UI: resumen usa la lista compacta compartida con Productos', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
   const start = view.indexOf("params.section === 'blocked'");
-  const end = view.indexOf('</section>\n\n<dialog id="security-manual-ip-block-dialog"', start);
+  const end = view.indexOf('<dialog id="security-manual-ip-block-dialog"', start);
+  assert.ok(start > -1 && end > start);
   const blocked = view.slice(start, end);
 
   assert.match(blocked, /class="admin-compact-summary security-compact-summary security-inline-summary blocked-metrics-summary"/);

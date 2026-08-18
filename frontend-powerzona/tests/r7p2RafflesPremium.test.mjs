@@ -157,6 +157,7 @@ test('R7P2: rutas públicas bloquean por capacidad antes de ajustes o rifas', ()
     assert.ok(capabilityIndex > -1, relative);
     assert.ok(settingsIndex > capabilityIndex, relative);
     assert.ok(raffleIndex > capabilityIndex, relative);
+    assert.match(source, /getCurrentStore\(Astro, \{ fresh: true \}\)/);
     assert.match(source, /if \(!resolveRafflesCapability\(currentStore\)\.allowed\)[\s\S]*?rafflesUnavailableRedirectResponse\(currentStore\)/);
   }
 });

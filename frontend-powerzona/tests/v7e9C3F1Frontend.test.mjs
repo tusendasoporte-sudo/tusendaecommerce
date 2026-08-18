@@ -248,7 +248,8 @@ test('V7E9-C3F1: editor respeta el switch, valida unidades y conserva al padre',
   assert.match(editor, /title: 'Dejar de usar variaciones'/);
   assert.match(editor, /No serán eliminadas y podrás restaurarlas más adelante/);
   assert.match(editor, /if \(!confirmed\) \{[\s\S]*?productHasVariationsInput\.checked = true/);
-  assert.match(editor, /const parentCostUsd = Math\.max\(0, Number\(productCostInput\.value \|\| 0\)\)/);
+  assert.match(editor, /const parentCostAmount = Math\.max\(0, Number\(productCostInput\.value \|\| 0\)\)/);
+  assert.match(editor, /const parentCostUsd = amountToUsd\(parentCostAmount, priceCurrency\)/);
   assert.match(editor, /const finalStock = Math\.max\(0, Math\.floor\(Number\(productStockInput\.value \|\| 0\)\)\)/);
   const postSave = editor.slice(editor.indexOf('async function confirmPostSaveVariationChoice()'), editor.indexOf('async function declinePostSaveVariationChoice()'));
   assert.equal(postSave.includes("set('has_variations', 'true')"), false);

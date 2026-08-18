@@ -12,6 +12,9 @@ const storeTeam = typeof __hooks === "undefined"
 const storeActivity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const storefrontAppAdmin = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_admin_lib.js")
+  : require(`${__hooks}/pz_storefront_app_admin_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const AUDIT_COLLECTION = "store_plan_audit";
@@ -471,9 +474,17 @@ function handlePlanChange(e) {
         previousTeamLimit,
         actor
       );
+      const androidDistributionTransition = storefrontAppAdmin.withdrawForPlanDowngrade(
+        txApp,
+        store,
+        actor,
+        previous.plan,
+        next.plan
+      );
       response = buildPlanResponse(txApp, store);
       if (expirationCleanupResult) response.expiration_cleanup_result = expirationCleanupResult;
       response.team_access_transition = teamAccessTransition;
+      response.android_distribution_transition = androidDistributionTransition;
     });
     return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {

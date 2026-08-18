@@ -194,11 +194,18 @@ export function getPublicPath(path: string, store?: PublicStore | string | null,
   return `${prefix}${rawPath.startsWith('/') ? rawPath : `/${rawPath}`}`;
 }
 
-export async function getStoreBySlug(slug: string): Promise<PublicStore | null> {
+type PublicStoreReadOptions = {
+  fresh?: boolean;
+};
+
+export async function getStoreBySlug(
+  slug: string,
+  options: PublicStoreReadOptions = {},
+): Promise<PublicStore | null> {
   const normalizedSlug = String(slug || '').trim().toLowerCase();
   if (!normalizedSlug) return null;
 
-  return getCachedPublicData(`store:${normalizedSlug}`, async () => {
+  const loadStore = async () => {
     try {
       const store = await pb.collection('stores').getFirstListItem(
         `slug="${escapePocketBaseValue(normalizedSlug)}" && status="${ACTIVE_STORE_STATUS}"`
@@ -208,7 +215,10 @@ export async function getStoreBySlug(slug: string): Promise<PublicStore | null> 
       if (error?.status === 404) return null;
       throw error;
     }
-  });
+  };
+
+  if (options.fresh === true) return loadStore();
+  return getCachedPublicData(`store:${normalizedSlug}`, loadStore);
 }
 
 export async function getStoreBySlugAnyStatus(slug: string): Promise<PublicStore | null> {
@@ -226,8 +236,8 @@ export async function getStoreBySlugAnyStatus(slug: string): Promise<PublicStore
   }
 }
 
-export async function getDefaultStore(): Promise<PublicStore> {
-  const store = await getStoreBySlug(DEFAULT_STORE_SLUG);
+export async function getDefaultStore(options: PublicStoreReadOptions = {}): Promise<PublicStore> {
+  const store = await getStoreBySlug(DEFAULT_STORE_SLUG, options);
 
   if (!store) {
     throw new StoreResolutionError('No se encontró el store público base PowerZona.');
@@ -407,16 +417,19 @@ export async function setStoreFeaturedFromMaster(storeId: string, featured: bool
   });
 }
 
-export async function getCurrentStore(context?: unknown): Promise<PublicStore> {
+export async function getCurrentStore(
+  context?: unknown,
+  options: PublicStoreReadOptions = {},
+): Promise<PublicStore> {
   const storeSlug = getStoreSlugFromPath(getPathnameFromContext(context));
 
   if (storeSlug) {
-    const store = await getStoreBySlug(storeSlug);
+    const store = await getStoreBySlug(storeSlug, options);
     if (!store) {
       throw new StoreResolutionError(`No se encontró el store público activo "${storeSlug}".`);
     }
     return store;
   }
 
-  return getDefaultStore();
+  return getDefaultStore(options);
 }

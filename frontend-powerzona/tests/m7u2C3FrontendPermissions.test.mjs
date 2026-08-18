@@ -35,7 +35,7 @@ test('M7U2-C3: Marketing y analytics no heredan catálogo o pedidos y read_only 
 test('M7U2-C3: rutas de analytics usan pageviews agregado y profits exige pedidos', () => {
   const middleware = read('../src/middleware.ts');
   assert.match(middleware, /if \(!normalized\) return \{ all: \['analytics\.view', 'orders\.view', 'catalog\.view'\] \}/);
-  assert.match(middleware, /if \(normalized === 'pageviews'\) return \{ any: \['analytics\.view'\] \}/);
+  assert.match(middleware, /if \(normalized === 'pageviews' \|\| normalized === 'app-installations' \|\| normalized === 'app-installation-details'\) \{[\s\S]*?return \{ any: \['analytics\.view'\] \};[\s\S]*?\}/);
   assert.match(middleware, /if \(normalized === 'profits'\) return \{ all: \['orders\.view', 'catalog\.view'\] \}/);
   assert.match(middleware, /\['analytics\.view', 'pageviews'\]/);
   assert.match(middleware, /\['catalog\.expirations\.manage', 'expirations'\]/);
@@ -96,7 +96,8 @@ test('M7U2-C3: dashboard redirige perfiles incompletos y oculta Landing QR sin p
   assert.match(source, /const canViewDashboardCatalog = hasStorePermission/);
   assert.match(source, /if \(!canViewDashboardOrders \|\| !canViewDashboardCatalog\) \{[\s\S]*?return Astro\.redirect\(adminPageviewsPath\)/);
   assert.match(source, /const landingQrAnalyticsVisible = hasStorePermission\(dashboardPermissionContext, 'landing_qr\.manage'\)/);
-  assert.match(source, /\{landingQrAnalyticsVisible && <button[^>]+data-analytics-tab="landingqr"/);
+  assert.match(source, /\{landingQrAnalyticsVisible && <option value="landingqr">Landing QR<\/option>\}/);
+  assert.match(source, /\{landingQrAnalyticsVisible && <div class="visit-analytics-panel" data-analytics-panel="landingqr">/);
   assert.match(source, /apiRequest\('\/api\/pz\/store\/analytics\/summary', \{/);
   assert.match(source, /top_viewed_products/);
   assert.match(source, /landing\?\.top_buttons/);

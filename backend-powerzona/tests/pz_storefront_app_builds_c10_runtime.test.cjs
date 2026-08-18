@@ -381,6 +381,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       brand_key: 'tienda-c10-runtime',
       distribution: 'direct',
       status: 'provisioned',
+      distribution_status: 'active',
+      lifecycle_status: 'active',
       firebase_project_id: 'tienda-c10-runtime',
       firebase_project_number: '123456789012',
       firebase_app_id: '1:123456789012:android:abcdef0123456789',
@@ -420,6 +422,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       bytes: 12345678,
       version_code: 7,
       version_name: '1.4.0',
+      lifecycle_status: 'available',
     });
 
     const detailBlocked = await request('/api/pz/master/storefront-app-builds', {
@@ -430,6 +433,12 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(detailBlocked.data.manual_whatsapp_delivery.recipient.phone_state, 'invalid');
     assert.equal(detailBlocked.data.manual_whatsapp_delivery.recipient.status, 'missing_whatsapp');
     assert.equal(detailBlocked.data.profile.engine_update.available, true);
+    assert.equal(detailBlocked.data.profile.distribution_status, 'active');
+    assert.equal(detailBlocked.data.profile.lifecycle_status, 'active');
+    assert.equal(detailBlocked.data.profile.downloads_allowed, true);
+    assert.equal(detailBlocked.data.store.status, 'active');
+    assert.equal(detailBlocked.data.policy.web_store_independent, true);
+    assert.deepEqual(detailBlocked.data.admin_actions, []);
     assert.equal(detailBlocked.data.artifacts[0].storage_locator, undefined);
 
     const noSender = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
@@ -549,6 +558,191 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assertStatus(updatesDone, 200, 'confirmar alerta resuelta');
     assert.equal(updatesDone.data.delivery_pending_count, 0);
 
+    const withdraw = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'withdraw', confirmation: '', reason: 'Pausa manual C10.6' },
+    });
+    assertStatus(withdraw, 200, 'retirar distribucion Android');
+    assert.equal(withdraw.data.profile.distribution_status, 'withdrawn');
+    assert.equal(withdraw.data.profile.downloads_allowed, false);
+    assert.equal(withdraw.data.store_status, 'active');
+    const storeAfterWithdraw = await request(`/api/collections/stores/records/${store.id}`, { token: superToken });
+    assertStatus(storeAfterWithdraw, 200, 'comprobar tienda web tras retirar Android');
+    assert.equal(storeAfterWithdraw.data.status, 'active');
+    const blockedAfterWithdraw = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
+      token: masterToken, body: { store_id: store.id, artifact_id: artifact.id },
+    });
+    assertStatus(blockedAfterWithdraw, 409, 'bloquear descarga tras retirar distribucion');
+    assert.equal(blockedAfterWithdraw.data.error, 'app_distribution_withdrawn');
+
+    const reactivate = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'reactivate', confirmation: '', reason: 'Reactivar C10.6' },
+    });
+    assertStatus(reactivate, 200, 'reactivar distribucion Android');
+    assert.equal(reactivate.data.profile.distribution_status, 'active');
+
+    const downgrade = await request('/api/pz/master/store-plan/change', {
+      token: masterToken,
+      body: {
+        store_id: store.id,
+        plan: 'basic',
+        is_permanent: false,
+        duration_months: 1,
+        reason: 'Validar bajada C10.6',
+        confirm_expiration_cleanup: true,
+      },
+    });
+    assertStatus(downgrade, 200, 'bajar Premium a Basico');
+    assert.equal(downgrade.data.android_distribution_transition.distribution_status, 'withdrawn');
+    const detailOnBasic = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: store.id },
+    });
+    assertStatus(detailOnBasic, 200, 'administrar Android retirado en Basico');
+    assert.equal(detailOnBasic.data.profile.distribution_reason, 'plan_downgrade');
+    assert.equal(detailOnBasic.data.store.status, 'active');
+    const reactivateOnBasic = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'reactivate', confirmation: '', reason: 'No debe reactivar' },
+    });
+    assertStatus(reactivateOnBasic, 409, 'impedir reactivar sin Premium');
+    assert.equal(reactivateOnBasic.data.error, 'premium_required');
+
+    const restorePremium = await request('/api/pz/master/store-plan/change', {
+      token: masterToken,
+      body: {
+        store_id: store.id,
+        plan: 'premium',
+        is_permanent: true,
+        duration_months: 0,
+        reason: 'Restaurar Premium para C10.6',
+        confirm_expiration_cleanup: false,
+      },
+    });
+    assertStatus(restorePremium, 200, 'restaurar Premium');
+    const reactivateAfterPremium = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'reactivate', confirmation: '', reason: 'Reactivar tras Premium' },
+    });
+    assertStatus(reactivateAfterPremium, 200, 'reactivar tras restaurar Premium');
+
+    const wrongArtifactConfirmation = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'delete_artifacts', confirmation: 'ELIMINAR', reason: 'Prueba cerrada' },
+    });
+    assertStatus(wrongArtifactConfirmation, 409, 'exigir confirmacion de artefactos exacta');
+    assert.equal(wrongArtifactConfirmation.data.error, 'delete_confirmation_mismatch');
+    const queuedArtifactDeletion = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: {
+        store_id: store.id,
+        action: 'delete_artifacts',
+        confirmation: 'ELIMINAR ARTEFACTOS',
+        reason: 'Eliminar binarios C10.6',
+      },
+    });
+    assertStatus(queuedArtifactDeletion, 200, 'encolar borrado de APK AAB');
+    assert.equal(queuedArtifactDeletion.data.action.type, 'delete_artifacts');
+    assert.equal(queuedArtifactDeletion.data.action.status, 'queued');
+    assert.equal(queuedArtifactDeletion.data.profile.distribution_status, 'withdrawn');
+    assert.equal(queuedArtifactDeletion.data.store_status, 'active');
+    const runnerHeaders = { 'x-pz-store-app-runner': runtimeEnvironment.PZ_STORE_APP_RUNNER_SECRET };
+    const artifactDeletionClaim = await request('/api/pz/internal/storefront-app-admin-actions/claim', {
+      headers: runnerHeaders, body: { runner_id: 'runtime-c10-admin' },
+    });
+    assert.equal(artifactDeletionClaim.status, 200,
+      `reclamar borrado de artefactos: ${artifactDeletionClaim.raw}\n${runtime.output()}`);
+    assert.equal(artifactDeletionClaim.data.action.id, queuedArtifactDeletion.data.action.id);
+    assert.equal(artifactDeletionClaim.data.action.target.artifacts.length, 1);
+    assert.equal(artifactDeletionClaim.data.action.target.artifacts[0].id, artifact.id);
+    const artifactDeletionComplete = await request('/api/pz/internal/storefront-app-admin-actions/complete', {
+      headers: runnerHeaders,
+      body: {
+        action_id: queuedArtifactDeletion.data.action.id,
+        runner_id: 'runtime-c10-admin',
+        status: 'succeeded',
+        failure_code: '',
+        deleted_artifact_ids: [artifact.id],
+      },
+    });
+    assertStatus(artifactDeletionComplete, 200, 'completar borrado de artefactos');
+    const afterArtifactDeletion = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: store.id },
+    });
+    assertStatus(afterArtifactDeletion, 200, 'consultar tras borrar artefactos');
+    assert.equal(afterArtifactDeletion.data.artifacts[0].lifecycle_status, 'deleted');
+    assert.equal(afterArtifactDeletion.data.profile.firebase_project_id, 'tienda-c10-runtime');
+    assert.equal(afterArtifactDeletion.data.profile.package_name, 'com.tusenda84.tiendac10runtime');
+    assert.equal(afterArtifactDeletion.data.profile.lifecycle_status, 'active');
+    assert.equal(afterArtifactDeletion.data.store.status, 'active');
+
+    const deleteAppConfirmation = `ELIMINAR APP ${profile.package_name}`;
+    const scheduledAppDeletion = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: {
+        store_id: store.id,
+        action: 'delete_app',
+        confirmation: deleteAppConfirmation,
+        reason: 'Validar recuperacion C10.6',
+      },
+    });
+    assertStatus(scheduledAppDeletion, 200, 'programar eliminacion de app');
+    assert.equal(scheduledAppDeletion.data.profile.lifecycle_status, 'deletion_scheduled');
+    assert.equal(scheduledAppDeletion.data.profile.can_recover, true);
+    const recoveryWindow = Date.parse(scheduledAppDeletion.data.profile.deletion_recover_until)
+      - Date.parse(scheduledAppDeletion.data.profile.deletion_requested_at);
+    assert.ok(recoveryWindow >= (30 * 24 * 60 * 60 * 1000) - 2000);
+    assert.ok(recoveryWindow <= (30 * 24 * 60 * 60 * 1000) + 2000);
+    const recoverApp = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: { store_id: store.id, action: 'recover_app', confirmation: 'RECUPERAR APP', reason: 'Recuperar C10.6' },
+    });
+    assertStatus(recoverApp, 200, 'recuperar app dentro de 30 dias');
+    assert.equal(recoverApp.data.profile.lifecycle_status, 'active');
+    assert.equal(recoverApp.data.profile.distribution_status, 'withdrawn');
+    assert.equal(recoverApp.data.store_status, 'active');
+
+    const scheduledFinalDeletion = await request('/api/pz/master/storefront-app-builds/admin-action', {
+      token: masterToken,
+      body: {
+        store_id: store.id,
+        action: 'delete_app',
+        confirmation: deleteAppConfirmation,
+        reason: 'Finalizar ciclo C10.6',
+      },
+    });
+    assertStatus(scheduledFinalDeletion, 200, 'reprogramar eliminacion de app');
+    await update('storefront_app_admin_actions', scheduledFinalDeletion.data.action.id, {
+      not_before: new Date(Date.now() - 1000).toISOString(),
+    });
+    const appDeletionClaim = await request('/api/pz/internal/storefront-app-admin-actions/claim', {
+      headers: runnerHeaders, body: { runner_id: 'runtime-c10-admin' },
+    });
+    assertStatus(appDeletionClaim, 200, 'reclamar eliminacion vencida de app');
+    assert.equal(appDeletionClaim.data.action.id, scheduledFinalDeletion.data.action.id);
+    assert.deepEqual(appDeletionClaim.data.action.target.artifacts, []);
+    const appDeletionComplete = await request('/api/pz/internal/storefront-app-admin-actions/complete', {
+      headers: runnerHeaders,
+      body: {
+        action_id: scheduledFinalDeletion.data.action.id,
+        runner_id: 'runtime-c10-admin',
+        status: 'succeeded',
+        failure_code: '',
+        deleted_artifact_ids: [],
+      },
+    });
+    assertStatus(appDeletionComplete, 200, 'completar eliminacion de app');
+    assert.equal(appDeletionComplete.data.profile.lifecycle_status, 'deleted');
+    assert.equal(appDeletionComplete.data.profile.downloads_allowed, false);
+    const detailDeletedApp = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: store.id },
+    });
+    assertStatus(detailDeletedApp, 200, 'conservar tumba de identidad auditable');
+    assert.equal(detailDeletedApp.data.profile.status, 'retired');
+    assert.equal(detailDeletedApp.data.profile.package_name, 'com.tusenda84.tiendac10runtime');
+    assert.equal(detailDeletedApp.data.profile.firebase_project_id, 'tienda-c10-runtime');
+    assert.equal(detailDeletedApp.data.store.status, 'active');
+
     const storeWithoutPrimary = await create('stores', {
       name: 'Tienda C10 Sin Principal',
       slug: 'tienda-c10-sin-principal',
@@ -580,6 +774,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       brand_key: 'c10-sin-principal',
       distribution: 'direct',
       status: 'provisioned',
+      distribution_status: 'active',
+      lifecycle_status: 'active',
       firebase_project_id: 'c10-sin-principal',
       current_version_code: 1,
       current_version_name: '1.0.0',
@@ -615,6 +811,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       bytes: 7654321,
       version_code: 1,
       version_name: '1.0.0',
+      lifecycle_status: 'available',
     });
     const missingPrimary = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
       token: masterToken,

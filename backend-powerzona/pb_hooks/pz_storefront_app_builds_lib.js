@@ -6,6 +6,9 @@ const plans = typeof __hooks === "undefined"
 const storeActivity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const appAdmin = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_admin_lib.js")
+  : require(`${__hooks}/pz_storefront_app_admin_lib.js`);
 
 const PROFILES = "storefront_app_build_profiles";
 const JOBS = "storefront_app_build_jobs";
@@ -424,6 +427,7 @@ function profileSnapshot(profile) {
     current_engine_revision: recordString(profile, "current_engine_revision", 40),
     icon_asset_id: relationId(profile, "icon_asset"),
     splash_asset_id: relationId(profile, "splash_asset"),
+    ...appAdmin.profileAdminSnapshot(profile),
     engine_update: engineUpdateState(profile, release),
     created: isoDate(recordValue(profile, "created")),
     updated: isoDate(recordValue(profile, "updated")),
@@ -469,6 +473,7 @@ function artifactSnapshot(artifact) {
     bytes: recordNumber(artifact, "bytes"),
     version_code: recordNumber(artifact, "version_code"),
     version_name: recordString(artifact, "version_name", 40),
+    ...appAdmin.artifactAdminSnapshot(artifact),
     created: isoDate(recordValue(artifact, "created")),
   };
 }
@@ -594,6 +599,7 @@ function assertPreviewBrandingCurrent(app, store, preview) {
 
 function buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256) {
   if (!store || !profile || !job || !artifact || !sender || !recipient) throw new Error("delivery_not_ready");
+  appAdmin.assertDistributionAvailable(profile, artifact);
   const senderPhone = normalizeWhatsappNumber(recordString(sender, "phone", 60));
   const recipientPhone = normalizeWhatsappNumber(recordString(recipient, "phone", 60));
   if (!senderPhone) throw new Error("master_whatsapp_required");
@@ -767,6 +773,7 @@ function buildPreview(store, parsed, profile, now, branding) {
     };
   }
   if (!profile || relationId(profile, "store") !== parsed.storeId) throw new Error("profile_not_found");
+  appAdmin.assertBuildAllowed(profile);
   if (recordString(profile, "status", 30) !== "provisioned") throw new Error("profile_not_provisioned");
   if (parsed.versionCode <= recordNumber(profile, "current_version_code")) throw new Error("version_code_must_increase");
   const current = profileSnapshot(profile);
@@ -821,6 +828,10 @@ function managementReady(app) {
       && !!profiles.fields.getByName("current_engine_revision")
       && !!profiles.fields.getByName("icon_asset")
       && !!profiles.fields.getByName("splash_asset")
+      && !!profiles.fields.getByName("distribution_status")
+      && !!profiles.fields.getByName("lifecycle_status")
+      && app.findCollectionByNameOrId(appAdmin.ACTIONS).listRule === null
+      && !!app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("lifecycle_status")
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
@@ -833,16 +844,23 @@ function detailResponse(app, store, actor) {
   const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
   const jobs = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id }).map(jobSnapshot);
   const artifacts = records(app, ARTIFACTS, "store = {:store}", "-created", 50, { store: store.id }).map(artifactSnapshot);
+  const administrative = appAdmin.adminDetail(app, profile);
   return {
     ok: true,
     generated_at: new Date().toISOString(),
-    store: { id: store.id, name: recordString(store, "name", 140), slug: recordString(store, "slug", 80) },
+    store: {
+      id: store.id,
+      name: recordString(store, "name", 140),
+      slug: recordString(store, "slug", 80),
+      status: recordString(store, "status", 30) === "active" ? "active" : "suspended",
+    },
     engine_release: engineRelease(),
     brand_assets: activeBrandingState(app, store),
     manual_whatsapp_delivery: manualDeliveryState(app, store, actor),
     profile: profileSnapshot(profile),
     jobs,
     artifacts,
+    admin_actions: administrative.actions,
     policy: {
       firebase_project_per_store: true,
       signing_custodian: "Tu Senda 84",
@@ -850,13 +868,14 @@ function detailResponse(app, store, actor) {
       powerzona_distribution: "play_and_direct",
       tenant_distribution: "direct",
       runner_isolated: true,
+      web_store_independent: true,
     },
   };
 }
 
 function engineUpdatesResponse(app, actor) {
   const release = engineRelease();
-  const profiles = records(app, PROFILES, "status != 'retired'", "-updated", 2000, {});
+  const profiles = records(app, PROFILES, "status != 'retired' && lifecycle_status = 'active'", "-updated", 2000, {});
   const apps = profiles.map((profile) => {
     const update = engineUpdateState(profile, release);
     if (!update.available) return null;
@@ -878,10 +897,11 @@ function engineUpdatesResponse(app, actor) {
     };
   }).filter(Boolean);
   const deliveries = profiles.map((profile) => {
+    if (!appAdmin.profileAdminSnapshot(profile).downloads_allowed) return null;
     const latestJobs = records(app, JOBS, "profile = {:profile} && status = 'succeeded'", "-completed_at", 1, { profile: profile.id });
     const job = latestJobs[0] || null;
     if (!job || recordString(job, "delivery_status", 30) === "marked_sent") return null;
-    const artifact = findFirst(app, ARTIFACTS, "job = {:job} && kind = 'apk' && visibility = 'store_delivery'", { job: job.id });
+    const artifact = findFirst(app, ARTIFACTS, "job = {:job} && kind = 'apk' && visibility = 'store_delivery' && lifecycle_status = 'available'", { job: job.id });
     const store = findRecord(app, "stores", relationId(profile, "store"));
     if (!artifact || !store) return null;
     return {
@@ -941,10 +961,8 @@ function handleDetail(e) {
     if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
     const store = findRecord($app, "stores", storeId);
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
-    assertPremium(store, new Date());
     return e.json(200, detailResponse($app, store, info.auth));
   } catch (error) {
-    if (String(error && error.message) === "premium_required") return e.json(409, { ok: false, error: "premium_required" });
     return e.json(500, { ok: false, error: "app_build_detail_failed" });
   }
 }
@@ -1059,6 +1077,8 @@ function handleBrandAssetUpload(e) {
     const store = findRecord($app, "stores", parsed.storeId);
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
     assertPremium(store, new Date());
+    const existingProfile = findFirst($app, PROFILES, "store = {:store}", { store: store.id });
+    if (existingProfile) appAdmin.assertBuildAllowed(existingProfile);
     const activeJob = findFirst($app, JOBS, "store = {:store} && (status = 'queued' || status = 'claimed')", { store: store.id });
     if (activeJob) throw new Error("active_job_exists");
     let created = null;
@@ -1091,7 +1111,7 @@ function handleBrandAssetUpload(e) {
     return e.json(201, { ok: true, asset: brandAssetSnapshot(created), brand_assets: activeBrandingState($app, store) });
   } catch (error) {
     const code = text(error && error.message, 80);
-    if (["active_job_exists", "premium_required"].includes(code)) return e.json(409, { ok: false, error: code });
+    if (["active_job_exists", "premium_required", "app_deletion_pending"].includes(code)) return e.json(409, { ok: false, error: code });
     if (code === "brand_asset_invalid") return e.json(400, { ok: false, error: code });
     return e.json(500, { ok: false, error: "brand_asset_upload_failed" });
   }
@@ -1245,6 +1265,7 @@ function deliveryErrorCode(error) {
     "apk_not_ready", "delivery_not_ready", "delivery_preview_hash_failed",
     "master_whatsapp_required", "primary_admin_required", "primary_admin_invalid",
     "primary_admin_whatsapp_required", "delivery_preview_mismatch", "delivery_already_marked",
+    "app_distribution_withdrawn", "artifact_not_available",
   ].includes(code) ? code : "";
 }
 
@@ -1356,7 +1377,7 @@ function knownError(error) {
     "profile_not_provisioned", "version_code_must_increase", "preview_expired",
     "preview_mismatch", "preview_not_confirmable", "active_job_exists",
     "brand_assets_required", "brand_assets_changed", "job_not_cancelable",
-    "engine_release_unconfigured", "engine_release_changed",
+    "engine_release_unconfigured", "engine_release_changed", "app_deletion_pending",
   ].includes(code) ? code : "";
 }
 
@@ -1483,6 +1504,8 @@ function createProfile(app, store, actor, parsed, brandAssetRecords) {
   profile.set("brand_key", parsed.brandKey);
   profile.set("distribution", parsed.distribution);
   profile.set("status", "queued");
+  profile.set("distribution_status", "active");
+  profile.set("lifecycle_status", "active");
   profile.set("firebase_project_id", parsed.firebaseProjectId);
   profile.set("icon_asset", brandAssetRecords && brandAssetRecords.icon ? brandAssetRecords.icon.id : "");
   profile.set("splash_asset", brandAssetRecords && brandAssetRecords.splash ? brandAssetRecords.splash.id : "");
@@ -1583,6 +1606,7 @@ function handleRetry(e) {
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!profile || !store) throw new Error("profile_not_found");
+      appAdmin.assertBuildAllowed(profile);
       assertPremium(store, new Date());
       const storedPreview = storedPreviewValue(job);
       assertPreviewEngineRelease(storedPreview);
@@ -1606,7 +1630,7 @@ function handleRetry(e) {
     const code = text(error && error.message, 80);
     if (code === "unauthorized") return e.json(403, { ok: false, error: code });
     if (["job_not_retryable", "preview_mismatch", "active_job_exists", "premium_required",
-      "engine_release_unconfigured", "engine_release_changed"].includes(code)) {
+      "engine_release_unconfigured", "engine_release_changed", "app_deletion_pending"].includes(code)) {
       return e.json(409, { ok: false, error: code });
     }
     return e.json(500, { ok: false, error: "app_build_retry_failed" });
@@ -1640,6 +1664,7 @@ function handleRunnerClaim(e) {
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!profile || !store) throw new Error("profile_not_found");
+      appAdmin.assertBuildAllowed(profile);
       try {
         assertPreviewBrandingCurrent(app, store, storedPreviewValue(job));
       } catch (_) {
@@ -1809,6 +1834,7 @@ function handleRunnerComplete(e) {
           artifact.set("bytes", item.bytes);
           artifact.set("version_code", Number(bodyValue(build, "version_code")));
           artifact.set("version_name", text(bodyValue(build, "version_name"), 40));
+          artifact.set("lifecycle_status", "available");
           app.save(artifact);
         });
         job.set("delivery_status", "pending");

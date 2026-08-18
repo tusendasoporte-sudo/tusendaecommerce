@@ -11,6 +11,9 @@ interface Props {
 
 const { data, planPresentation } = Astro.props;
 const { store, profile, jobs, artifacts, brand_assets: brandAssets } = data;
+const premiumBuildAllowed = planPresentation.code === 'premium' && planPresentation.state !== 'expired';
+const appLifecycleActive = !profile || profile.lifecycle_status === 'active';
+const buildActionsAllowed = premiumBuildAllowed && appLifecycleActive;
 const engineReleaseReady = /^[a-f0-9]{40}$/.test(data.engine_release.revision);
 const activeExecutionJob = jobs.find((job) => ['queued', 'claimed'].includes(job.status)) || null;
 const legacyBrandJob = jobs.find((job) => job.status === 'needs_attention'
@@ -29,7 +32,8 @@ const currentActionJob = jobs.find((job) => belongsToCurrentProfile(job)
     && ['failed', 'needs_attention'].includes(job.status)
     && !(job.failure_code === 'brand_assets_required' && !job.runner_id))
   || null;
-const currentPreviewEngineReady = engineReleaseReady
+const currentPreviewEngineReady = buildActionsAllowed
+  && engineReleaseReady
   && !!currentActionJob?.preview
   && currentActionJob.preview.engine.target_version === data.engine_release.version
   && currentActionJob.preview.engine.target_revision === data.engine_release.revision;
@@ -44,13 +48,24 @@ const engineSeverityLabel = engineUpdate?.severity === 'critical'
   ? 'Crítica'
   : engineUpdate?.severity === 'normal' ? 'Normal' : 'Recomendada';
 const manualDelivery = data.manual_whatsapp_delivery;
-const latestApk = artifacts.find((artifact) => artifact.kind === 'apk' && artifact.visibility === 'store_delivery') || null;
+const latestApk = artifacts.find((artifact) => artifact.kind === 'apk'
+  && artifact.visibility === 'store_delivery' && artifact.lifecycle_status === 'available') || null;
 const latestApkJob = latestApk ? jobs.find((job) => job.id === latestApk.job_id) || null : null;
 const whatsappReady = manualDelivery.sender.configured
   && manualDelivery.recipient.status === 'ready'
   && !!latestApk
-  && latestApkJob?.status === 'succeeded';
+  && latestApkJob?.status === 'succeeded'
+  && profile?.downloads_allowed === true
+  && premiumBuildAllowed;
 const latestApkMarkedSent = latestApkJob?.delivery_status === 'marked_sent';
+const pendingAdminAction = data.admin_actions.find((action) => ['queued', 'scheduled', 'claimed'].includes(action.status)) || null;
+const deletableBinaryArtifacts = artifacts.filter((artifact) => ['apk', 'aab'].includes(artifact.kind)
+  && artifact.lifecycle_status !== 'deleted');
+const retryArtifactDeletion = deletableBinaryArtifacts.some((artifact) => artifact.lifecycle_status === 'deletion_queued');
+const distributionLabel = profile?.distribution_status === 'withdrawn' ? 'Retirada' : 'Activa';
+const lifecycleLabel = profile?.lifecycle_status === 'deletion_scheduled'
+  ? 'Eliminación programada'
+  : profile?.lifecycle_status === 'deleted' ? 'Eliminada' : 'Activa';
 
 const statusLabels: Record<string, string> = {
   preview: 'Vista previa', queued: 'En cola', claimed: 'En ejecución', succeeded: 'Completado',
@@ -71,7 +86,7 @@ function dateTime(value: string) {
       id: store.id,
       name: store.name,
       slug: store.slug,
-      status: 'active',
+      status: store.status,
       featured: false,
       security_label: 'Seguridad no consultada',
     }}
@@ -94,6 +109,16 @@ function dateTime(value: string) {
       <span>El administrador de tienda recibe únicamente APK, checksum e instrucciones. El panel nunca compila ni guarda secretos.</span>
     </div>
   </div>
+
+  {!premiumBuildAllowed && (
+    <section class="master-app-build-queue-lock" role="status">
+      <MasterIcon name="alert" size={22} />
+      <div>
+        <strong>La administración Android permanece disponible, pero los builds requieren Premium</strong>
+        <span>Una bajada a Básico retira la distribución Android. No elimina la app, sus archivos o identidad y tampoco suspende la tienda web.</span>
+      </div>
+    </section>
+  )}
 
   {!engineReleaseReady && (
     <section class="master-app-build-queue-lock" role="alert">
@@ -172,9 +197,9 @@ function dateTime(value: string) {
                 <form data-app-brand-form data-kind={kind}>
                   <label class="master-app-brand-asset__file">
                     <span>{asset ? 'Elegir reemplazo' : 'Elegir imagen'}</span>
-                    <input type="file" name="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required disabled={!!activeExecutionJob} />
+                    <input type="file" name="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required disabled={!!activeExecutionJob || !buildActionsAllowed} />
                   </label>
-                  <button class="master-btn master-btn--primary" type="submit" disabled={!!activeExecutionJob}>
+                  <button class="master-btn master-btn--primary" type="submit" disabled={!!activeExecutionJob || !buildActionsAllowed}>
                     <MasterIcon name="save" size={18} /> {asset ? 'Convertir y reemplazar' : 'Convertir y guardar'}
                   </button>
                   <p class="master-form-alert" data-app-brand-alert hidden></p>
@@ -246,8 +271,80 @@ function dateTime(value: string) {
           <strong>{data.engine_release.version} · toda app nueva parte de esta versión</strong>
         </div>
         <p class="master-form-alert" data-app-form-alert hidden></p>
-        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady}><MasterIcon name="eye" size={18} /> Crear vista previa</button></div>
+        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed}><MasterIcon name="eye" size={18} /> Crear vista previa</button></div>
       </form>
+    </section>
+  )}
+
+  {profile && (
+    <section class="master-card master-app-admin" id="estados-administrativos-android">
+      <header class="master-card-header">
+        <div>
+          <h2 class="master-card-title">Estados y acciones administrativas</h2>
+          <p class="master-card-subtitle">La distribución Android y la tienda web son estados independientes.</p>
+        </div>
+        <span class:list={['master-pill', profile.downloads_allowed ? 'master-pill--success' : 'master-pill--warning']}>
+          Descargas {profile.downloads_allowed ? 'permitidas' : 'bloqueadas'}
+        </span>
+      </header>
+      <div class="master-card-body master-app-admin__body">
+        <div class="master-app-admin__states">
+          <article><span>Distribución Android</span><strong>{distributionLabel}</strong><small>{profile.distribution_reason === 'plan_downgrade' ? 'Retirada automáticamente por bajada de Premium' : 'Controlada desde este panel'}</small></article>
+          <article><span>Estado de la app</span><strong>{lifecycleLabel}</strong><small>{profile.lifecycle_status === 'deletion_scheduled' ? `Recuperable hasta ${dateTime(profile.deletion_recover_until)}` : 'Identidad y firma custodiadas por Tu Senda 84'}</small></article>
+          <article><span>Tienda web</span><strong>{store.status === 'active' ? 'Activa' : 'Suspendida'}</strong><small>No cambia con ninguna acción Android</small></article>
+        </div>
+
+        {pendingAdminAction && (
+          <div class="master-app-admin__pending" role="status">
+            <MasterIcon name="clock" size={20} />
+            <div>
+              <strong>{pendingAdminAction.type === 'delete_app' ? 'Eliminación de app pendiente' : 'Eliminación de artefactos pendiente'}</strong>
+              <span>Estado: {pendingAdminAction.status}{pendingAdminAction.not_before ? ` · no se ejecutará antes de ${dateTime(pendingAdminAction.not_before)}` : ''}</span>
+            </div>
+          </div>
+        )}
+
+        <div class="master-app-admin__actions">
+          {profile.lifecycle_status === 'active' && profile.distribution_status === 'active' && (
+            <button class="master-btn master-btn--secondary" type="button" data-app-admin-action="withdraw" disabled={!!pendingAdminAction}>
+              <MasterIcon name="close" size={18} /> Retirar distribución
+            </button>
+          )}
+          {profile.lifecycle_status === 'active' && profile.distribution_status === 'withdrawn' && (
+            <button class="master-btn master-btn--primary" type="button" data-app-admin-action="reactivate" disabled={!!pendingAdminAction || !premiumBuildAllowed || !latestApk}>
+              <MasterIcon name="check" size={18} /> Reactivar distribución
+            </button>
+          )}
+          {profile.lifecycle_status === 'active' && (
+            <button class="master-btn master-btn--secondary" type="button" data-app-admin-action="delete_artifacts" disabled={!!pendingAdminAction || !deletableBinaryArtifacts.length || !!activeExecutionJob}>
+              <MasterIcon name="trash" size={18} /> {retryArtifactDeletion ? 'Reintentar eliminación APK/AAB' : 'Eliminar APK/AAB'}
+            </button>
+          )}
+          {profile.lifecycle_status === 'active' && (
+            <button class="master-btn master-btn--danger" type="button" data-app-admin-action="delete_app" data-delete-confirmation={`ELIMINAR APP ${profile.package_name}`} disabled={!!pendingAdminAction || !!activeExecutionJob}>
+              <MasterIcon name="trash" size={18} /> Eliminar app
+            </button>
+          )}
+          {profile.lifecycle_status === 'deletion_scheduled' && profile.can_recover && (
+            <button class="master-btn master-btn--primary" type="button" data-app-admin-action="recover_app" disabled={pendingAdminAction?.status !== 'scheduled'}>
+              <MasterIcon name="unlock" size={18} /> Recuperar app
+            </button>
+          )}
+        </div>
+        <p class="master-app-admin__help">
+          Retirar es reversible y conserva archivos e identidad. Eliminar APK/AAB conserva Firebase, firma e identidad.
+          Eliminar la app exige escribir su paquete exacto y concede 30 días para recuperarla.
+        </p>
+        <p class="master-form-alert" data-app-admin-alert hidden></p>
+        {data.admin_actions.length > 0 && (
+          <div class="master-app-admin__history">
+            <h3>Historial administrativo</h3>
+            {data.admin_actions.slice(0, 8).map((action) => (
+              <article><div><strong>{action.type === 'delete_app' ? 'Eliminar app' : 'Eliminar APK/AAB'}</strong><span>{dateTime(action.created)}</span></div><span class="master-pill">{action.status}</span></article>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   )}
 
@@ -260,7 +357,7 @@ function dateTime(value: string) {
           <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" /></div>
         </div>
         <p class="master-form-alert" data-app-form-alert hidden></p>
-        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
+        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
       </form>
     </section>
   )}
@@ -409,7 +506,7 @@ function dateTime(value: string) {
     <header class="master-card-header"><div><h2 class="master-card-title">Artefactos registrados</h2><p class="master-card-subtitle">Los archivos privados no se almacenan en Git.</p></div></header>
     <div class="master-card-body master-app-build-history">
       {artifacts.length ? artifacts.map((artifact) => (
-        <article><div><strong>{artifact.file_name}</strong><span>SHA-256 {artifact.sha256}</span></div><span class="master-pill">{artifact.visibility === 'store_delivery' ? 'Entregable' : 'Solo Master'}</span></article>
+        <article><div><strong>{artifact.file_name}</strong><span>SHA-256 {artifact.sha256}</span></div><span class="master-pill">{artifact.lifecycle_status === 'deleted' ? 'Eliminado' : artifact.lifecycle_status === 'deletion_queued' ? 'Eliminación pendiente' : artifact.visibility === 'store_delivery' ? 'Entregable' : 'Solo Master'}</span></article>
       )) : <p class="master-empty">No hay artefactos generados.</p>}
     </div>
   </section>
@@ -425,6 +522,7 @@ function dateTime(value: string) {
     previewMasterStoreAppBuild,
     previewMasterStoreAppWhatsappDelivery,
     retryMasterStoreAppBuild,
+    runMasterStoreAppAdminAction,
   } from '../../lib/masterStoreAppBuilds';
 
   function initializeStoreAppBuildPanel() {
@@ -461,6 +559,7 @@ function dateTime(value: string) {
     const whatsappMarkButton = root.querySelector<HTMLButtonElement>('[data-app-whatsapp-mark-sent]');
     const cancelJobButton = root.querySelector<HTMLButtonElement>('[data-app-cancel-job]');
     const cancelJobAlert = root.querySelector<HTMLElement>('[data-app-cancel-alert]');
+    const adminAlert = root.querySelector<HTMLElement>('[data-app-admin-alert]');
     const previewDismissalKey = `pz-master-app-preview-closed:${storeId}`;
     let currentWhatsappPreview: any = null;
 
@@ -532,7 +631,7 @@ function dateTime(value: string) {
       const result = await previewMasterStoreAppBuild(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, body as any);
       if (result.data) showPreview(result.data);
       else setAlert(alert, getMasterAppBuildErrorMessage(result.error));
-      if (button) button.disabled = !engineReleaseReady;
+      if (button) button.disabled = !engineReleaseReady || !buildActionsAllowed;
     };
 
     root.querySelectorAll<HTMLFormElement>('[data-app-brand-form]').forEach((form) => {
@@ -567,6 +666,47 @@ function dateTime(value: string) {
           setAlert(alert, 'No se pudo convertir y guardar la imagen. Inténtalo nuevamente.');
           if (button) button.disabled = false;
           if (fileInput) fileInput.disabled = false;
+        }
+      });
+    });
+
+    root.querySelectorAll<HTMLButtonElement>('[data-app-admin-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = String(button.dataset.appAdminAction || '') as 'withdraw' | 'reactivate' | 'delete_artifacts' | 'delete_app' | 'recover_app';
+        let confirmation = '';
+        if (action === 'withdraw' && !window.confirm('Retirar la distribución Android bloqueará las descargas, pero conservará archivos, Firebase, firma e identidad. ¿Continuar?')) return;
+        if (action === 'reactivate' && !window.confirm('Reactivar la distribución volverá a permitir las descargas Android. La tienda web no cambiará. ¿Continuar?')) return;
+        if (action === 'delete_artifacts') {
+          confirmation = window.prompt('Esta acción eliminará físicamente los APK/AAB y conservará Firebase, firma e identidad. Escribe ELIMINAR ARTEFACTOS') || '';
+          if (confirmation !== 'ELIMINAR ARTEFACTOS') {
+            if (confirmation) setAlert(adminAlert, 'La confirmación escrita no coincide exactamente.');
+            return;
+          }
+        }
+        if (action === 'delete_app') {
+          const expected = String(button.dataset.deleteConfirmation || '');
+          confirmation = window.prompt(`La app quedará retirada y podrá recuperarse durante 30 días. Escribe exactamente: ${expected}`) || '';
+          if (!expected || confirmation !== expected) {
+            if (confirmation) setAlert(adminAlert, 'La confirmación escrita no coincide exactamente con el paquete.');
+            return;
+          }
+        }
+        if (action === 'recover_app') {
+          confirmation = window.prompt('Escribe RECUPERAR APP para cancelar la eliminación. La distribución seguirá retirada hasta reactivarla.') || '';
+          if (confirmation !== 'RECUPERAR APP') return;
+        }
+        const reason = window.prompt('Motivo administrativo (opcional):') ?? '';
+        setAlert(adminAlert);
+        const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-app-admin-action]')];
+        const enabled = buttons.filter((item) => !item.disabled);
+        buttons.forEach((item) => { item.disabled = true; });
+        const result = await runMasterStoreAppAdminAction(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
+          store_id: storeId, action, confirmation, reason,
+        });
+        if (result.data) window.location.reload();
+        else {
+          setAlert(adminAlert, getMasterAppBuildErrorMessage(result.error));
+          enabled.forEach((item) => { item.disabled = false; });
         }
       });
     });
@@ -752,6 +892,21 @@ function dateTime(value: string) {
   .master-app-build-identity strong { overflow-wrap: anywhere; color: #14264b; }
   .master-app-build-fixed-policy { display: grid; gap: .3rem; padding: .85rem 1rem; border-radius: 10px; background: #f4f7fc; }
   .master-app-build-actions { display: flex; justify-content: flex-end; margin-top: .85rem; }
+  .master-app-admin__body { display: grid; gap: 1rem; }
+  .master-app-admin__states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+  .master-app-admin__states article { display: grid; gap: .3rem; padding: 1rem; border: 1px solid #dce3ed; border-radius: 12px; background: #f8fafc; }
+  .master-app-admin__states span { color: #68748a; font-size: .72rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+  .master-app-admin__states strong { color: #14264b; }
+  .master-app-admin__states small, .master-app-admin__help { color: #68748a; line-height: 1.45; }
+  .master-app-admin__pending { display: flex; align-items: flex-start; gap: .7rem; padding: .9rem 1rem; border: 1px solid #e7b75b; border-radius: 12px; background: #fff9e9; color: #6b4d0a; }
+  .master-app-admin__pending div { display: grid; gap: .25rem; }
+  .master-app-admin__actions { display: flex; flex-wrap: wrap; gap: .7rem; }
+  .master-app-admin__help { margin: 0; }
+  .master-app-admin__history { display: grid; gap: .65rem; padding-top: 1rem; border-top: 1px solid #e6eaf1; }
+  .master-app-admin__history h3 { margin: 0; color: #14264b; font-size: 1rem; }
+  .master-app-admin__history article { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .master-app-admin__history article div { display: grid; gap: .2rem; }
+  .master-app-admin__history article span { color: #68748a; }
   .master-app-build-preview-collapsed { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border-color: #b9cffb; background: #f3f7ff; }
   .master-app-build-preview-collapsed[hidden] { display: none; }
   .master-app-build-preview-collapsed__summary { display: flex; align-items: flex-start; gap: .75rem; min-width: 0; }
@@ -794,6 +949,9 @@ function dateTime(value: string) {
   @media (max-width: 760px) {
     .master-app-build-heading { flex-direction: column; }
     .master-app-build-identity { grid-template-columns: 1fr; }
+    .master-app-admin__states { grid-template-columns: 1fr; }
+    .master-app-admin__actions { flex-direction: column; }
+    .master-app-admin__actions .master-btn { width: 100%; }
     .master-app-build-preview__header-actions { width: 100%; align-items: stretch; flex-direction: column; }
     .master-app-build-preview__header-actions .master-btn { width: 100%; }
     .master-app-build-preview-collapsed { align-items: stretch; flex-direction: column; }

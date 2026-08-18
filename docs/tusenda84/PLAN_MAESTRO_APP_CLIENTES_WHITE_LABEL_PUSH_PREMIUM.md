@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10 EN CURSO — implementación local, alertas del motor y entrega manual WhatsApp listas para revisión, sin efectos externos |
-| Versión del documento | 1.33 |
+| Estado general | PZ-APP-C10 EN CURSO — C10.6 implementado localmente con estados Android independientes, sin efectos externos |
+| Versión del documento | 1.35 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-17 |
+| Última actualización | 2026-08-18 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Revisar el diseño implementado de PZ-APP-C10 y decidir las pruebas manuales/autorizaciones externas separadas |
+| Próximo prompt | Revisar visualmente C10.6 y decidir las pruebas manuales/autorizaciones externas separadas |
 
 ### Convención de estados
 
@@ -522,7 +522,7 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 | C07 | `mobile-storefront/config/powerzona.properties`; `mobile-storefront/brands/powerzona/brand.json`; `icon.png`; `splash.png`; pruebas `app/src/test/java/com/tusenda84/storefront/PowerZonaDestinationsTest.java`; `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/tests/pz_storefront_order_targets.test.cjs`. La configuración Firebase real seguirá en un archivo local ignorado, no en Git. |
 | C08 | `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`; ajuste de retención solicitado durante C08: `backend-powerzona/pb_migrations/1786665600_push_campaign_retention_7d.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns.pb.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`, `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`, `backend-powerzona/pb_hooks/pz_store_activity_audit_lib.js`, `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`, `backend-powerzona/tests/pz_storefront_campaigns_runtime.test.cjs` y `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`. |
 | C09 | Inventario efectivo detallado en la bitácora C09. Archivos principales nuevos: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/pages/api/checkout/coupon-attribution.ts`; `frontend-powerzona/src/pages/admin/app-installations.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/app-installations.astro`; `frontend-powerzona/tests/storefrontPushAnalyticsC09.test.mjs`; `mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontEventQueue.java`; `docs/tusenda84/PZ_APP_C09_ANALYTICS_OPERATIONS.md`. |
-| C10 | `scripts/build-store-app.ps1`; `mobile-storefront/config/schema.json`; `mobile-storefront/config/demo.properties`; `mobile-storefront/brands/demo/brand.json`; `icon.png`; `splash.png`; `mobile-storefront/README.md`; `mobile-storefront/scripts/validate-store-config.ps1`; `mobile-storefront/scripts/test-store-config.ps1`. |
+| C10 | `scripts/build-store-app.ps1`; configuración y marcas bajo `mobile-storefront`; `mobile-storefront/README.md`; validadores y runner; `backend-powerzona/pb_hooks/pz_storefront_app_builds_lib.js`; `pz_storefront_app_admin_lib.js`; migraciones C10; panel y cliente Master App Android; pruebas focales y runtime C10. |
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
 | C013 | `docs/tusenda84/reportes/PZ-APP-C013-reconciliacion-instalaciones.md`; revisión focal de `pz_storefront_installations_lib.js`, `pz_storefront_analytics_lib.js`, contratos Android de registro y sus pruebas. Parte de la base App Set ID ya incorporada; no autoriza una migración destructiva ni la eliminación automática de registros legacy. |
@@ -2326,3 +2326,21 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - Se añadió cancelación explícita para trabajos todavía no reclamados, necesaria para retirar de forma segura una vista previa legacy sin marca. No revierte efectos externos ni elimina perfiles que ya tengan artefactos.
 - Las pruebas automáticas cubren normalización reproducible, migración privada, runtime PocketBase real, bloqueo durante cola, cancelación previa al runner, compatibilidad de PowerZona y build Astro. No se aprovisionó Firebase, no se registró ningún paquete, no se generaron firmas y no se ejecutó el runner real.
 - C10 permanece `EN CURSO`. Falta publicar esta revisión en dev, cancelar manualmente el trabajo legacy, cargar y revisar visualmente imágenes reales, y solo entonces generar una nueva vista previa para autorización separada.
+
+### 2026-08-17 — PZ-APP-C10.6 EN CURSO: estados y acciones administrativas
+
+- El propietario fijó tres controles independientes: estado de la tienda web, distribución Android y ciclo de vida de la app Android. Las acciones Android no modifican `stores.status`.
+- Retirar distribución es reversible y conserva archivos e identidad; reactivar exige Premium y un APK disponible. Una bajada de Premium a Básico ejecuta exclusivamente el retiro con razón `plan_downgrade` y no elimina la app ni suspende la web.
+- Eliminar APK/AAB exige la frase exacta `ELIMINAR ARTEFACTOS`, retira primero la distribución y envía al runner una lista privada e inmutable. Firebase, firma e identidad permanecen intactos.
+- Eliminar app exige `ELIMINAR APP {package_name}`, programa la acción a 30 días y admite `RECUPERAR APP` dentro de la ventana. La recuperación mantiene la distribución retirada hasta reactivarla explícitamente.
+- La migración aditiva `1786924800_storefront_app_admin_c10_6.js` añade estados al perfil/artefactos y una cola privada. El runner borra únicamente archivos exactos bajo `mobile-storefront/releases`, después de validar nombre, tamaño y SHA-256; no usa borrado recursivo ni acepta rutas externas.
+- El panel Master muestra simultáneamente distribución Android, ciclo de vida y tienda web, confirmaciones escritas, acción pendiente e historial. El detalle permanece consultable en Básico, mientras builds y reactivación siguen protegidos por Premium.
+- El runtime PocketBase real aprobó retirar/reactivar, downgrade sin suspensión web, confirmaciones cerradas, borrado de artefactos, programación de 30 días, recuperación y finalización vencida. La prueba física local eliminó solo el archivo ficticio inventariado y rechazó una ruta fuera de custodia.
+- No se modificó una tienda real, no se borró ningún APK/AAB real, no se ejecutó un runner conectado, no se tocaron Firebase, firma o keystores y no se desplegó. C10 continúa `EN CURSO` pendiente de revisión visual y prueba manual aislada en staging.
+
+### 2026-08-18 — saneamiento de los 10 fallos heredados antes de staging
+
+- Backend corrigió dos defectos funcionales reales: la lectura autenticada de `settings` ahora queda aislada por tienda y las páginas públicas de rifas consultan el plan vigente sin reutilizar una caché anterior al downgrade.
+- Frontend retiró la serialización del bearer administrativo en el HTML de Ajustes; los demás fallos heredados correspondían a pruebas que todavía describían contratos anteriores y se realinearon con el comportamiento vigente.
+- Suite backend completa: 707 pruebas, 700 aprobadas, 7 omitidas declaradas y 0 fallidas. Suite frontend completa: 534/534 aprobadas. El build Astro terminó correctamente con las tres advertencias históricas de rutas dinámicas.
+- La migración `1787011200_settings_authenticated_tenant_isolation.js` se validó con PocketBase real mediante subida, reversión exacta y nueva subida sobre una base temporal desechable.

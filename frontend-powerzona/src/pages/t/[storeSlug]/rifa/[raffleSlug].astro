@@ -11,7 +11,7 @@ import {
 let currentStore;
 
 try {
-  currentStore = await getCurrentStore(Astro);
+  currentStore = await getCurrentStore(Astro, { fresh: true });
 } catch (error) {
   if (error instanceof StoreResolutionError) {
     return Astro.redirect('/');

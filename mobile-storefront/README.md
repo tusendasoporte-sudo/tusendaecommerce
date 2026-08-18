@@ -87,6 +87,14 @@ Antes de reclamar el primer trabajo real, el checkout aislado debe ejecutar `run
 
 No se borra automáticamente un proyecto, app o firma ante un fallo parcial. El trabajo pasa a `needs_attention` y debe reanudarse tras auditoría.
 
+## Cola administrativa C10.6
+
+`runner/run-job-queue.ps1` atiende antes de los builds las acciones privadas de eliminación ya confirmadas por el Master. `runner/remove-store-app-artifacts.ps1` acepta únicamente `delete_artifacts` o `delete_app`, comprueba el inventario inmutable y valida nombre, tamaño, SHA-256 y pertenencia exacta a `mobile-storefront/releases` antes de borrar archivos individuales.
+
+No usa borrado recursivo ni sigue una ruta fuera de esa custodia. `delete_artifacts` admite solo APK/AAB; `delete_app`, después de los 30 días de recuperación controlados por PocketBase, incluye cualquier artefacto restante del perfil. Un archivo ya ausente se considera convergencia idempotente, pero un archivo alterado, una ruta externa o un directorio en lugar de archivo fallan cerrado y dejan la acción en `needs_attention`.
+
+Retirar o reactivar distribución no llega al runner y nunca elimina archivos. La suspensión de la tienda web tampoco forma parte de esta cola.
+
 ## Actualizaciones
 
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:

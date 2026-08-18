@@ -186,7 +186,10 @@ test('M7U2: Ajustes separa settings, reviews y landing y genera review token en 
   assert.doesNotMatch(source, /generateReviewToken/);
   assert.doesNotMatch(source, /patchOrder\(order\.id, \{ review_token:/);
 
-  const reviewsScript = source.slice(source.indexOf('if (canManageReviews !== true) return;'), source.indexOf('<script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings }}', source.indexOf('if (canManageReviews !== true) return;')));
+  const reviewsScriptStart = source.indexOf('if (canManageReviews !== true) return;');
+  const reviewsScriptEnd = source.indexOf('</script>', reviewsScriptStart);
+  assert.ok(reviewsScriptStart > -1 && reviewsScriptEnd > reviewsScriptStart);
+  const reviewsScript = source.slice(reviewsScriptStart, reviewsScriptEnd);
   assert.equal(reviewsScript.includes("/api/collections/currencies/records"), false);
   assert.equal(reviewsScript.includes('payload.default_currency'), false);
 });
@@ -195,7 +198,8 @@ test('M7U2: Resumen no muta analitica y no consulta reseñas sin permiso', () =>
   const source = read('../src/pages/admin/index.astro');
   assert.match(source, /hasStorePermission\(\r?\n  dashboardPermissionContext,\r?\n  'reviews\.manage',/);
   assert.match(source, /if \(!canViewDashboardOrders \|\| !canViewDashboardCatalog\) \{[\s\S]*?Astro\.redirect\(adminPageviewsPath\)/);
-  assert.match(source, /\{landingQrAnalyticsVisible && <button[^>]+data-analytics-tab="landingqr"/);
+  assert.match(source, /\{landingQrAnalyticsVisible && <option value="landingqr">Landing QR<\/option>\}/);
+  assert.match(source, /\{landingQrAnalyticsVisible && <div class="visit-analytics-panel" data-analytics-panel="landingqr">/);
   assert.doesNotMatch(source, /loadAllRecords\('settings'/);
   assert.match(source, /\{reviewsFeatureVisible && <section class="dashboard-block" aria-labelledby="dashboard-reviews-title">/);
   assert.match(source, /if \(ratingSummaryGrid\) await loadRatingSupportData\(\);/);

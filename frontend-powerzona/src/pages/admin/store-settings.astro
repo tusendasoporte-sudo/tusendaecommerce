@@ -4561,8 +4561,13 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       })();
     </script>
 
-    <script define:vars={{ adminAuthToken }}>
-      window.__pzStoreSettingsAuthToken = () => String(adminAuthToken || '');
+    <script>
+      import { readPocketBaseAuthToken } from '../../lib/storeActivity';
+
+      const storeSettingsWindow = window as typeof window & {
+        __pzStoreSettingsAuthToken?: () => string;
+      };
+      storeSettingsWindow.__pzStoreSettingsAuthToken = () => readPocketBaseAuthToken();
     </script>
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, canManageSettings, canManageReviews, canOpenLandingTab, firstAllowedSettingsTab }}>

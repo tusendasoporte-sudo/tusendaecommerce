@@ -16,6 +16,8 @@ $allowFirebase = [string]$env:PZ_STORE_APP_RUNNER_ALLOW_FIREBASE -eq 'true'
 $allowSigning = [string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -eq 'true'
 $apiBaseUrl = [string]$env:PZ_STOREFRONT_API_BASE_URL
 $readiness = Join-Path $PSScriptRoot 'test-runner-readiness.ps1'
+$artifactRemoval = Join-Path $PSScriptRoot 'remove-store-app-artifacts.ps1'
+$artifactsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'releases'
 
 function Write-Utf8NoBom {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$Content)
@@ -116,6 +118,12 @@ function Send-Completion {
         -Body ($Body | ConvertTo-Json -Depth 10 -Compress) | Out-Null
 }
 
+function Send-AdminCompletion {
+    param([hashtable]$Body)
+    Invoke-RestMethod -Method Post -Headers $headers -Uri "$baseUrl/api/pz/internal/storefront-app-admin-actions/complete" `
+        -Body ($Body | ConvertTo-Json -Depth 6 -Compress) | Out-Null
+}
+
 function Assert-PanelPreviewMatchesLocal {
     param($Panel, $Local)
     foreach ($key in @('app_key', 'brand_key', 'display_name', 'package_name', 'store_url')) {
@@ -157,6 +165,35 @@ function Assert-PanelPreviewMatchesLocal {
 }
 
 do {
+    $adminClaim = Invoke-RestMethod -Method Post -Headers $headers `
+        -Uri "$baseUrl/api/pz/internal/storefront-app-admin-actions/claim" `
+        -Body (@{ runner_id = $RunnerId } | ConvertTo-Json -Compress)
+    if ($adminClaim.action) {
+        $adminAction = $adminClaim.action
+        try {
+            $removal = & $artifactRemoval -Action $adminAction -ArtifactsRoot $artifactsRoot
+            Send-AdminCompletion -Body @{
+                action_id = [string]$adminAction.id
+                runner_id = $RunnerId
+                status = 'succeeded'
+                failure_code = ''
+                deleted_artifact_ids = @($removal.DeletedArtifactIds)
+            }
+        } catch {
+            $failureCode = ([string]$_.Exception.Message).ToLowerInvariant() -replace '[^a-z0-9_:-]', '_'
+            if ($failureCode.Length -lt 3) { $failureCode = 'artifact_removal_failed' }
+            if ($failureCode.Length -gt 80) { $failureCode = $failureCode.Substring(0, 80) }
+            Send-AdminCompletion -Body @{
+                action_id = [string]$adminAction.id
+                runner_id = $RunnerId
+                status = 'needs_attention'
+                failure_code = $failureCode
+                deleted_artifact_ids = @()
+            }
+        }
+        if ($Once) { break }
+        continue
+    }
     $claim = Invoke-RestMethod -Method Post -Headers $headers -Uri "$baseUrl/api/pz/internal/storefront-app-builds/claim" `
         -Body (@{ runner_id = $RunnerId } | ConvertTo-Json -Compress)
     if (-not $claim.job) {

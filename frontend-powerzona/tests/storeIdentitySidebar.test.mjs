@@ -51,7 +51,9 @@ test('la vista inicial de categorias usa una fila y permite cambiar a dos', () =
 });
 
 test('los ajustes nuevos detectan cambios parciales y resuelven la carga inicial', () => {
-  assert.match(settings, /window\.__pzStoreSettingsAuthToken = \(\) => String\(adminAuthToken \|\| ''\)/);
+  assert.match(settings, /import \{ readPocketBaseAuthToken \} from '\.\.\/\.\.\/lib\/storeActivity'/);
+  assert.match(settings, /storeSettingsWindow\.__pzStoreSettingsAuthToken = \(\) => readPocketBaseAuthToken\(\)/);
+  assert.doesNotMatch(settings, /<script define:vars=\{\{ adminAuthToken \}\}>/);
   assert.match(settings, /orderPrefix:\s*cleanOrderPrefix\(fields\.orderPrefix\?\.value \|\| ''\)/);
   assert.match(settings, /fields\.storeName\?\.value\?\.trim\(\) && fields\.orderPrefix\?\.value\?\.trim\(\)/);
   assert.doesNotMatch(settings, /fields\.storeName\?\.value\?\.trim\(\) && fields\.welcome\?\.value\?\.trim\(\)/);

@@ -103,6 +103,21 @@ El panel inferior nativo conversado no forma parte de C10: se implementará como
 - El estado `marked_sent` no significa que WhatsApp haya entregado o que el administrador haya leído el mensaje. Sin API externa no existe confirmación técnica de envío, entrega o lectura.
 - El resumen Master separa apps cuyo motor necesita build de APK ya generadas pendientes de entrega por WhatsApp.
 
+## C10.6 — Estados y acciones administrativas
+
+La tienda web y Android tienen máquinas de estado independientes. `stores.status` continúa representando únicamente el escaparate web; el perfil Android incorpora `distribution_status` y `lifecycle_status`. Ninguna acción administrativa Android escribe el estado de la tienda web.
+
+- **Retirar distribución** cambia Android a `withdrawn`, bloquea nuevas descargas y entregas, y conserva APK/AAB, configuración Firebase, certificados, firma e identidad. Es reversible.
+- **Reactivar** exige Premium vigente y al menos un APK disponible. Devuelve Android a `active` y permite nuevamente las descargas sin activar, suspender o modificar la tienda web.
+- **Eliminar APK/AAB** exige escribir exactamente `ELIMINAR ARTEFACTOS`. Primero retira la distribución y después crea una acción privada para que el runner borre físicamente solo los binarios inventariados. Conserva Firebase, firma, identidad y los metadatos de auditoría.
+- **Eliminar app** exige escribir `ELIMINAR APP {package_name}`. La app queda retirada y en `deletion_scheduled` durante 30 días. En ese período `RECUPERAR APP` cancela la acción y devuelve el ciclo a `active`, pero mantiene la distribución retirada hasta una reactivación explícita.
+- Tras vencer los 30 días, el runner elimina los artefactos restantes bajo su custodia, retira la configuración de app y deja el perfil `retired/deleted` como tumba auditable. No reutiliza silenciosamente paquete, Firebase o firma y no ejecuta una eliminación externa de Google Cloud o keystores sin una autorización separada.
+- **Suspender tienda web** continúa siendo una operación distinta en la administración de la tienda. No se presenta ni se ejecuta como efecto secundario de Android.
+
+Una transición de plan `premium` a cualquier plan no Premium invoca únicamente el retiro reversible con razón `plan_downgrade`. El detalle administrativo Android sigue accesible en Básico para ver el estado o solicitar una eliminación; crear builds y reactivar distribución siguen exigiendo Premium.
+
+Las eliminaciones usan `storefront_app_admin_actions`, una colección privada con confirmación almacenada solo como SHA-256, fecha mínima, actor, estado y objetivo inmutable. El runner valida ID, nombre, tamaño, SHA-256 y que cada ruta resuelva dentro de `mobile-storefront/releases` antes de usar `Remove-Item`; no hace borrados recursivos. Un fallo queda en `needs_attention` y puede reintentarse de forma idempotente.
+
 ## Pendientes de aprobación y prueba manual
 
 - Revisar esta arquitectura y la UX final del panel.
@@ -114,5 +129,6 @@ El panel inferior nativo conversado no forma parte de C10: se implementará como
 - Probar APK firmado PowerZona y APK firmado tenant en dispositivos distintos.
 - Validar el AAB PowerZona en Play Internal Testing sin publicar.
 - Confirmar almacenamiento privado/backup/recuperación de keystores y artefactos.
+- Revisar visualmente C10.6 y probar sus acciones con artefactos ficticios en staging antes de autorizar cualquier borrado real.
 
 C10 no debe marcarse `COMPLETADO` hasta cerrar esas pruebas y obtener aprobación expresa.

@@ -136,3 +136,31 @@ routerAdd(
   $apis.bodyLimit(2048),
   $apis.skipSuccessActivityLog()
 );
+
+routerAdd(
+  "POST",
+  "/api/pz/master/storefront-app-builds/admin-action",
+  (e) => require(`${__hooks}/pz_storefront_app_admin_lib.js`).handleAdminAction(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/internal/storefront-app-admin-actions/claim",
+  (e) => require(`${__hooks}/pz_storefront_app_admin_lib.js`).handleRunnerAdminClaim(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/internal/storefront-app-admin-actions/complete",
+  (e) => require(`${__hooks}/pz_storefront_app_admin_lib.js`).handleRunnerAdminComplete(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
+  $apis.bodyLimit(16384),
+  $apis.skipSuccessActivityLog()
+);

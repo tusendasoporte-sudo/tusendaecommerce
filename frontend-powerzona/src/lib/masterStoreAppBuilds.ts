@@ -1,6 +1,8 @@
 export type StorefrontAppDistribution = 'play_and_direct' | 'direct';
 export type StorefrontAppOperation = 'provision' | 'update';
 export type StorefrontEngineUpdateSeverity = 'none' | 'normal' | 'recommended' | 'critical';
+export type StorefrontAppDistributionStatus = 'active' | 'withdrawn';
+export type StorefrontAppLifecycleStatus = 'active' | 'deletion_scheduled' | 'deleted';
 
 export type StorefrontEngineRelease = {
   version: string;
@@ -39,6 +41,15 @@ export type StorefrontAppBuildProfile = {
   current_engine_revision: string;
   icon_asset_id: string;
   splash_asset_id: string;
+  distribution_status: StorefrontAppDistributionStatus;
+  distribution_reason: '' | 'manual' | 'plan_downgrade' | 'app_deletion' | 'artifacts_deleted';
+  distribution_changed_at: string;
+  lifecycle_status: StorefrontAppLifecycleStatus;
+  deletion_requested_at: string;
+  deletion_recover_until: string;
+  deleted_at: string;
+  downloads_allowed: boolean;
+  can_recover: boolean;
   engine_update: StorefrontEngineUpdate;
   created: string;
   updated: string;
@@ -148,8 +159,29 @@ export type StorefrontAppArtifact = {
   bytes: number;
   version_code: number;
   version_name: string;
+  lifecycle_status: 'available' | 'deletion_queued' | 'deleted';
+  deleted_at: string;
   created: string;
 };
+
+export type StorefrontAppAdminAction = {
+  id: string;
+  type: 'delete_artifacts' | 'delete_app';
+  status: 'queued' | 'scheduled' | 'claimed' | 'succeeded' | 'failed' | 'needs_attention' | 'canceled';
+  not_before: string;
+  reason: string;
+  failure_code: string;
+  started_at: string;
+  completed_at: string;
+  created: string;
+  updated: string;
+};
+
+export type StorefrontAppAdminActionName = 'withdraw' | 'reactivate' | 'delete_artifacts' | 'delete_app' | 'recover_app';
+
+export type StorefrontAppAdminState = Pick<StorefrontAppBuildProfile,
+  'distribution_status' | 'distribution_reason' | 'distribution_changed_at' | 'lifecycle_status'
+  | 'deletion_requested_at' | 'deletion_recover_until' | 'deleted_at' | 'downloads_allowed' | 'can_recover'>;
 
 export type ManualWhatsappContact = {
   user_id: string;
@@ -199,13 +231,14 @@ export type ManualWhatsappDeliveryPreview = {
 
 export type MasterStoreAppBuilds = {
   generated_at: string;
-  store: { id: string; name: string; slug: string };
+  store: { id: string; name: string; slug: string; status: 'active' | 'suspended' };
   engine_release: StorefrontEngineRelease;
   manual_whatsapp_delivery: ManualWhatsappDelivery;
   brand_assets: StorefrontAppBrandAssets;
   profile: StorefrontAppBuildProfile | null;
   jobs: StorefrontAppBuildJob[];
   artifacts: StorefrontAppArtifact[];
+  admin_actions: StorefrontAppAdminAction[];
   policy: {
     firebase_project_per_store: true;
     signing_custodian: string;
@@ -213,6 +246,7 @@ export type MasterStoreAppBuilds = {
     powerzona_distribution: 'play_and_direct';
     tenant_distribution: 'direct';
     runner_isolated: true;
+    web_store_independent?: true;
   };
 };
 
@@ -432,7 +466,13 @@ function profile(value: any): StorefrontAppBuildProfile | null {
   const normalizedEngineUpdate = engineUpdate(value.engine_update);
   const currentEngineVersion = text(value.current_engine_version, 40);
   const currentEngineRevision = text(value.current_engine_revision, 40).toLowerCase();
+  const distributionStatus = text(value.distribution_status || 'active', 30);
+  const distributionReason = text(value.distribution_reason, 40);
+  const lifecycleStatus = text(value.lifecycle_status || (value.status === 'retired' ? 'deleted' : 'active'), 30);
   if (!normalizedEngineUpdate
+    || !['active', 'withdrawn'].includes(distributionStatus)
+    || !['', 'manual', 'plan_downgrade', 'app_deletion', 'artifacts_deleted'].includes(distributionReason)
+    || !['active', 'deletion_scheduled', 'deleted'].includes(lifecycleStatus)
     || (currentEngineVersion && !ENGINE_VERSION_PATTERN.test(currentEngineVersion))
     || !ENGINE_REVISION_PATTERN.test(currentEngineRevision)
     || normalizedEngineUpdate.current_version !== currentEngineVersion
@@ -457,6 +497,17 @@ function profile(value: any): StorefrontAppBuildProfile | null {
     current_engine_revision: currentEngineRevision,
     icon_asset_id: text(value.icon_asset_id, 15),
     splash_asset_id: text(value.splash_asset_id, 15),
+    distribution_status: distributionStatus as StorefrontAppDistributionStatus,
+    distribution_reason: distributionReason as StorefrontAppBuildProfile['distribution_reason'],
+    distribution_changed_at: isoDate(value.distribution_changed_at),
+    lifecycle_status: lifecycleStatus as StorefrontAppLifecycleStatus,
+    deletion_requested_at: isoDate(value.deletion_requested_at),
+    deletion_recover_until: isoDate(value.deletion_recover_until),
+    deleted_at: isoDate(value.deleted_at),
+    downloads_allowed: value.downloads_allowed === undefined
+      ? distributionStatus === 'active' && lifecycleStatus === 'active'
+      : value.downloads_allowed === true,
+    can_recover: value.can_recover === true,
     engine_update: normalizedEngineUpdate,
     created: isoDate(value.created),
     updated: isoDate(value.updated),
@@ -564,10 +615,55 @@ function artifact(value: any): StorefrontAppArtifact | null {
   if (!['apk', 'aab', 'checksums', 'instructions', 'build_manifest'].includes(value.kind)
     || !['store_delivery', 'master_only'].includes(value.visibility)
     || !SHA256_PATTERN.test(text(value.sha256, 64))) return null;
+  const lifecycleStatus = text(value.lifecycle_status || 'available', 30);
+  if (!['available', 'deletion_queued', 'deleted'].includes(lifecycleStatus)) return null;
   return {
     id: text(value.id, 15), job_id: text(value.job_id, 15), kind: value.kind, visibility: value.visibility,
     file_name: text(value.file_name, 220), sha256: text(value.sha256, 64), bytes: integer(value.bytes),
-    version_code: integer(value.version_code), version_name: text(value.version_name, 40), created: isoDate(value.created),
+    version_code: integer(value.version_code), version_name: text(value.version_name, 40),
+    lifecycle_status: lifecycleStatus as StorefrontAppArtifact['lifecycle_status'],
+    deleted_at: isoDate(value.deleted_at), created: isoDate(value.created),
+  };
+}
+
+function adminAction(value: any): StorefrontAppAdminAction | null {
+  if (!value || !RECORD_ID_PATTERN.test(text(value.id, 15))) return null;
+  const type = text(value.type, 30);
+  const status = text(value.status, 30);
+  if (!['delete_artifacts', 'delete_app'].includes(type)
+    || !['queued', 'scheduled', 'claimed', 'succeeded', 'failed', 'needs_attention', 'canceled'].includes(status)) return null;
+  return {
+    id: text(value.id, 15),
+    type: type as StorefrontAppAdminAction['type'],
+    status: status as StorefrontAppAdminAction['status'],
+    not_before: isoDate(value.not_before),
+    reason: text(value.reason, 500),
+    failure_code: text(value.failure_code, 80),
+    started_at: isoDate(value.started_at),
+    completed_at: isoDate(value.completed_at),
+    created: isoDate(value.created),
+    updated: isoDate(value.updated),
+  };
+}
+
+function adminState(value: any): StorefrontAppAdminState | null {
+  if (!value) return null;
+  const distributionStatus = text(value.distribution_status, 30);
+  const distributionReason = text(value.distribution_reason, 40);
+  const lifecycleStatus = text(value.lifecycle_status, 30);
+  if (!['active', 'withdrawn'].includes(distributionStatus)
+    || !['', 'manual', 'plan_downgrade', 'app_deletion', 'artifacts_deleted'].includes(distributionReason)
+    || !['active', 'deletion_scheduled', 'deleted'].includes(lifecycleStatus)) return null;
+  return {
+    distribution_status: distributionStatus as StorefrontAppDistributionStatus,
+    distribution_reason: distributionReason as StorefrontAppBuildProfile['distribution_reason'],
+    distribution_changed_at: isoDate(value.distribution_changed_at),
+    lifecycle_status: lifecycleStatus as StorefrontAppLifecycleStatus,
+    deletion_requested_at: isoDate(value.deletion_requested_at),
+    deletion_recover_until: isoDate(value.deletion_recover_until),
+    deleted_at: isoDate(value.deleted_at),
+    downloads_allowed: value.downloads_allowed === true,
+    can_recover: value.can_recover === true,
   };
 }
 
@@ -577,19 +673,26 @@ function detail(value: any): MasterStoreAppBuilds | null {
   if (value.profile && !normalizedProfile) return null;
   const jobs = Array.isArray(value.jobs) ? value.jobs.map(job).filter(Boolean) as StorefrontAppBuildJob[] : [];
   const artifacts = Array.isArray(value.artifacts) ? value.artifacts.map(artifact).filter(Boolean) as StorefrontAppArtifact[] : [];
+  const adminActions = Array.isArray(value.admin_actions)
+    ? value.admin_actions.map(adminAction).filter(Boolean) as StorefrontAppAdminAction[]
+    : [];
   const normalizedEngineRelease = engineRelease(value.engine_release);
   const normalizedManualWhatsappDelivery = manualWhatsappDelivery(value.manual_whatsapp_delivery);
   const normalizedBrandAssets = brandAssets(value.brand_assets);
   if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets) return null;
   return {
     generated_at: isoDate(value.generated_at),
-    store: { id: text(value.store.id, 15), name: text(value.store.name, 140), slug: text(value.store.slug, 80) },
+    store: {
+      id: text(value.store.id, 15), name: text(value.store.name, 140), slug: text(value.store.slug, 80),
+      status: value.store.status === 'suspended' ? 'suspended' : 'active',
+    },
     engine_release: normalizedEngineRelease,
     manual_whatsapp_delivery: normalizedManualWhatsappDelivery,
     brand_assets: normalizedBrandAssets,
     profile: normalizedProfile,
     jobs,
     artifacts,
+    admin_actions: adminActions,
     policy: value.policy,
   };
 }
@@ -725,6 +828,17 @@ export function getMasterAppBuildErrorMessage(error: string) {
     apk_not_ready: 'Todavía no existe un APK exitoso y entregable para preparar este mensaje.',
     delivery_preview_mismatch: 'La vista previa del mensaje cambió. Revísala nuevamente antes de marcar el envío.',
     delivery_already_marked: 'Este trabajo ya tiene una entrega manual diferente registrada.',
+    app_distribution_withdrawn: 'La distribución Android está retirada. Reactívala antes de preparar descargas o entregas.',
+    artifact_not_available: 'Este artefacto fue eliminado o está pendiente de eliminación.',
+    app_deletion_pending: 'La app está eliminada o dentro de su período de recuperación.',
+    app_deleted: 'La app ya fue eliminada.',
+    app_not_recoverable: 'Esta app no tiene una eliminación recuperable.',
+    recovery_window_expired: 'El período de recuperación de 30 días ya terminó.',
+    artifacts_missing: 'No existen APK/AAB disponibles para esta acción.',
+    delete_confirmation_mismatch: 'La confirmación escrita no coincide exactamente.',
+    distribution_already_active: 'La distribución Android ya está activa.',
+    distribution_already_withdrawn: 'La distribución Android ya está retirada.',
+    admin_action_active: 'Ya existe una eliminación administrativa pendiente para esta app.',
   };
   return messages[error] || 'No se pudo completar la acción. Inténtalo nuevamente.';
 }
@@ -807,6 +921,20 @@ export function cancelMasterStoreAppBuild(
     if (value?.ok !== true) return null;
     const normalizedJob = job(value.job);
     return normalizedJob?.status === 'canceled' ? { job: normalizedJob } : null;
+  });
+}
+
+export function runMasterStoreAppAdminAction(
+  pocketbaseUrl: string,
+  token: string,
+  input: { store_id: string; action: StorefrontAppAdminActionName; confirmation: string; reason: string },
+) {
+  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/admin-action', input, (value) => {
+    if (value?.ok !== true || !['active', 'suspended'].includes(value.store_status)) return null;
+    const normalizedProfile = adminState(value.profile);
+    const normalizedAction = value.action ? adminAction(value.action) : null;
+    if (!normalizedProfile || (value.action && !normalizedAction)) return null;
+    return { profile: normalizedProfile, action: normalizedAction, store_status: value.store_status as 'active' | 'suspended' };
   });
 }
 

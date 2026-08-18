@@ -9,6 +9,7 @@ import {
   markMasterStoreAppWhatsappSent,
   previewMasterStoreAppWhatsappDelivery,
   proposeFirebaseProjectId,
+  runMasterStoreAppAdminAction,
   saveMasterWhatsappSettings,
 } from '../src/lib/masterStoreAppBuilds.ts';
 
@@ -153,7 +154,17 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /data-preview-engine-ready/);
   assert.match(view, /Falta fijar la revisión exacta del motor aprobado/);
   assert.match(view, /Esta vista previa pertenece a otra release del motor/);
-  assert.match(view, /disabled=\{!brandAssets\.ready \|\| !!queueNoticeJob \|\| !engineReleaseReady\}/);
+  assert.match(view, /disabled=\{!brandAssets\.ready \|\| !!queueNoticeJob \|\| !engineReleaseReady \|\| !buildActionsAllowed\}/);
+  assert.match(view, /Estados y acciones administrativas/);
+  assert.match(view, /data-app-admin-action="withdraw"/);
+  assert.match(view, /data-app-admin-action="reactivate"/);
+  assert.match(view, /data-app-admin-action="delete_artifacts"/);
+  assert.match(view, /data-app-admin-action="delete_app"/);
+  assert.match(view, /data-app-admin-action="recover_app"/);
+  assert.match(view, /ELIMINAR ARTEFACTOS/);
+  assert.match(view, /ELIMINAR APP \$\{profile\.package_name\}/);
+  assert.match(view, /30 días para recuperarla/);
+  assert.match(view, /No cambia con ninguna acción Android/);
   assert.match(brandApi, /requireMasterAdmin/);
   assert.match(brandApi, /storefrontAppBrandSameOriginMutation/);
   assert.match(brandApi, /normalizeStorefrontAppBrandAsset/);
@@ -303,6 +314,51 @@ test('errores de integridad tienen mensajes cerrados y accionables', () => {
   assert.match(getMasterAppBuildErrorMessage('engine_release_unconfigured'), /revisión Git exactas/i);
   assert.match(getMasterAppBuildErrorMessage('engine_release_changed'), /release aprobada.*cambió/i);
   assert.match(getMasterAppBuildErrorMessage('job_not_cancelable'), /runner/i);
+  assert.match(getMasterAppBuildErrorMessage('app_distribution_withdrawn'), /Reactívala/i);
+  assert.match(getMasterAppBuildErrorMessage('delete_confirmation_mismatch'), /exactamente/i);
+  assert.match(getMasterAppBuildErrorMessage('recovery_window_expired'), /30 días/i);
+});
+
+test('acción administrativa C10.6 conserva separado el estado de la tienda web', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), body: JSON.parse(options.body) });
+    return new Response(JSON.stringify({
+      ok: true,
+      profile: {
+        distribution_status: 'withdrawn',
+        distribution_reason: 'manual',
+        distribution_changed_at: '2026-08-18T12:00:00.000Z',
+        lifecycle_status: 'active',
+        deletion_requested_at: '',
+        deletion_recover_until: '',
+        deleted_at: '',
+        downloads_allowed: false,
+        can_recover: false,
+      },
+      action: null,
+      store_status: 'active',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const result = await runMasterStoreAppAdminAction('https://pb.example.test', 'token-c106', {
+      store_id: 'storec106test01',
+      action: 'withdraw',
+      confirmation: '',
+      reason: 'Pausa administrativa',
+    });
+    assert.equal(result.available, true);
+    assert.equal(result.data?.profile.distribution_status, 'withdrawn');
+    assert.equal(result.data?.profile.downloads_allowed, false);
+    assert.equal(result.data?.store_status, 'active');
+    assert.match(calls[0].url, /\/api\/pz\/master\/storefront-app-builds\/admin-action$/);
+    assert.deepEqual(calls[0].body, {
+      store_id: 'storec106test01', action: 'withdraw', confirmation: '', reason: 'Pausa administrativa',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('runner y documentación prohíben efectos desde Preview y secretos en Git', () => {
