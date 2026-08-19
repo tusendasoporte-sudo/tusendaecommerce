@@ -53,10 +53,11 @@ test('la tarjeta aprobada separa la marca Tu Senda 84 del canal WhatsApp', () =>
   assert.match(sidebar, /Habla con nuestro equipo por WhatsApp/);
   assert.match(sidebar, /Contactar por WhatsApp/);
   assert.match(sidebar, /Soporte no disponible/);
-  assert.match(sidebar, /tu-senda-84-admin-icon-512\.png\?url/);
+  assert.match(sidebar, /\/brand\/tu-senda-84-admin-icon-512\.png/);
+  assert.doesNotMatch(sidebar, /mobile-admin\/store-assets/);
   assert.match(sidebar, /pz-admin-sidebar__support-brandmark/);
   assert.match(sidebar, /pz-admin-sidebar__support-btn[\s\S]*?background:\s*#0f7a3d\s*!important/);
 
-  const brandAsset = new URL('../../mobile-admin/store-assets/tu-senda-84-admin-icon-512.png', import.meta.url);
+  const brandAsset = new URL('../public/brand/tu-senda-84-admin-icon-512.png', import.meta.url);
   assert.equal(existsSync(brandAsset), true);
 });
