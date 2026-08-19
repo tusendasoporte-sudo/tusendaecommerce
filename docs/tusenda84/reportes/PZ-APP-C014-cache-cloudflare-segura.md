@@ -233,6 +233,35 @@ Validación local:
 - `git diff --check` sin errores;
 - no se crearon ni modificaron datos o archivos de PocketBase.
 
+### Paso 3C — auditoría de taxonomía y optimización segura al subir — 2026-08-19
+
+La auditoría separó las tarjetas públicas de categorías y subcategorías de sus archivos almacenados. La variante solicitada `480x270` no reduce actualmente los tres archivos heredados JPEG/PNG detectados, mientras que `300x200` sí reduce bytes pero recorta las imágenes cuadradas y cambia la composición aprobada. Por ese motivo no se sustituyó la URL pública por una miniatura recortada.
+
+Una simulación aislada convirtió esos tres archivos a WebP con calidad `0.82`, conservando exactamente las dimensiones y la proporción originales:
+
+- categoría Aminos: `171.303` → `40.246` bytes, ahorro de `131.057` bytes (`76,5 %`);
+- subcategoría Mass Gainer: `620.600` → `41.292` bytes, ahorro de `579.308` bytes (`93,3 %`);
+- subcategoría Aminos especiales: `164.973` → `73.968` bytes, ahorro de `91.005` bytes (`55,2 %`);
+- total: `956.876` → `155.506` bytes, ahorro potencial de `801.370` bytes (`83,7 %`).
+
+Las sustituciones simuladas en escritorio y móvil conservaron tamaño renderizado, proporción y composición. Los archivos simulados y las capturas temporales se eliminaron; no se cargó ni modificó ningún registro de PocketBase.
+
+Con autorización se implementó localmente una única regla compartida para los tres flujos administrativos de categorías y subcategorías:
+
+- JPEG/PNG se codifican en WebP con calidad `0.82` y las mismas dimensiones del archivo original, sin recorte ni ampliación;
+- el WebP se utiliza únicamente si pesa menos; ante empate, aumento de bytes o error se conserva el archivo original;
+- un WebP que ya llega preparado no se vuelve a convertir;
+- la carga de imágenes de productos, variaciones y Regalos permanece fuera de esta regla.
+
+El cambio no altera automáticamente las fotos actuales. Solo actúa al crear una categoría/subcategoría o reemplazar su imagen después de desplegarlo. La prueba real y revisión visual en staging queda pendiente de un despliegue autorizado y utilizará registros aislados que se eliminarán por completo al terminar.
+
+Validación local:
+
+- `22/22` pruebas focales de optimización y entrega de imágenes;
+- `21/21` pruebas de regresión de navegación, permisos y shell administrativo;
+- build Astro SSR correcto;
+- no se crearon ni modificaron datos, imágenes o archivos de PocketBase y no hubo despliegue.
+
 ## Plan de trabajo propuesto
 
 ### Puerta de regresión previa a C12
@@ -302,4 +331,4 @@ La medición posterior debe repetir, desde una conexión comparable:
 - El perfil temporal de Edge y el script diagnóstico fueron eliminados.
 - No se crearon registros QA deliberados, campañas, usuarios, tiendas, APK, AAB ni artefactos permanentes.
 - No se modificaron Cloudflare, Coolify, producción, Firebase ni Google Play.
-- Las modificaciones locales actuales se limitan a la entrega condicional por formato de las tarjetas de productos, su prueba focal y este registro. Los pasos anteriores de instrumentación, prioridad LCP y banner de Regalos ya fueron confirmados en staging.
+- Las modificaciones locales actuales se limitan al optimizador compartido de cargas de categorías/subcategorías, sus pruebas y este registro. Los pasos anteriores de instrumentación, prioridad LCP, banner de Regalos y entrega directa de productos WebP ya fueron confirmados en staging.

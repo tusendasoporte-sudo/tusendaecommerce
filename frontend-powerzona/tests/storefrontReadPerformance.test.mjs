@@ -74,13 +74,12 @@ test('imagenes de taxonomia separan miniaturas y banners de alta resolucion', ()
   assert.match(subcategory, /\.subcategory-hero img \{[^}]*object-fit: cover/);
 });
 
-test('subida conserva WebP 1200x675 y recorta otras proporciones sin franjas', () => {
+test('subida de taxonomia comparte WebP sin recorte y conserva el archivo menor', () => {
   for (const source of [adminCatalog, adminCategory]) {
-    assert.match(source, /const isExactWebp = file\.type === 'image\/webp'/);
-    assert.match(source, /sourceWidth === targetWidth[\s\S]*sourceHeight === targetHeight/);
-    assert.match(source, /const scale = Math\.max\(targetWidth \/ sourceWidth, targetHeight \/ sourceHeight\)/);
-    assert.match(source, /canvas\.toBlob\(resolve, 'image\/webp', 0\.9\)/);
-    assert.doesNotMatch(source, /ctx\.fillRect\(0, 0, targetWidth, targetHeight\)/);
+    assert.match(source, /taxonomyImageOptimizationCore\.js/);
+    assert.match(source, /pzTaxonomyImageOptimizer\.optimizeTaxonomyImageFile\(file\)/);
+    assert.doesNotMatch(source, /const scale = Math\.max\(targetWidth \/ sourceWidth, targetHeight \/ sourceHeight\)/);
+    assert.doesNotMatch(source, /_categoria_1200x675\.webp/);
   }
 });
 

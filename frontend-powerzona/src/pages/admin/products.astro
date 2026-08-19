@@ -3773,6 +3773,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         buildProductImageDropFeedback,
         classifyProductImageDrop,
       } from '../../lib/productImageLimitsCore.js';
+      import { optimizeTaxonomyImageFile } from '../../lib/taxonomyImageOptimizationCore.js';
       import {
         formatCivilDate,
         getEffectiveProductStatus,
@@ -3787,6 +3788,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       Object.defineProperty(globalThis, 'pzProductImageDropCore', {
         value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
         configurable: false,
+        enumerable: false,
+        writable: false,
+      });
+      Object.defineProperty(globalThis, 'pzTaxonomyImageOptimizer', {
+        value: Object.freeze({ optimizeTaxonomyImageFile }),
+        configurable: true,
         enumerable: false,
         writable: false,
       });
@@ -6569,7 +6576,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           formData.append('order', String(nextOrder(categories)));
           formData.append('store', CURRENT_STORE_ID);
           if (quickCategoryImage.files?.[0]) {
-            formData.append('image', await optimizeCatalogLikeImageFile(quickCategoryImage.files[0]));
+            formData.append('image', await globalThis.pzTaxonomyImageOptimizer.optimizeTaxonomyImageFile(quickCategoryImage.files[0]));
           }
           const created = await apiRequest('/api/collections/categories/records', { method: 'POST', body: formData });
           categories = sortByOrderAndName([...categories, created]);
@@ -6616,7 +6623,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           formData.append('order', String(nextOrder(sameCategoryItems)));
           formData.append('store', CURRENT_STORE_ID);
           if (quickSubcategoryImage.files?.[0]) {
-            formData.append('image', await optimizeCatalogLikeImageFile(quickSubcategoryImage.files[0]));
+            formData.append('image', await globalThis.pzTaxonomyImageOptimizer.optimizeTaxonomyImageFile(quickSubcategoryImage.files[0]));
           }
           const created = await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
           subcategories = sortByOrderAndName([...subcategories, created]);
