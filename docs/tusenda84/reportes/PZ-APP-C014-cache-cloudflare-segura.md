@@ -262,6 +262,42 @@ Validación local:
 - build Astro SSR correcto;
 - no se crearon ni modificaron datos, imágenes o archivos de PocketBase y no hubo despliegue.
 
+### Validación real y limpieza del paso 3C — 2026-08-19
+
+Después del despliegue autorizado se validó el flujo completo en la tienda PowerZona de staging con datos aislados. Se creó una categoría `Productos de PC` (`3493nhjj2lzu2g4`), una subcategoría `Memorias Ram` (`5lwu1buclf3x46e`) y un producto de prueba (`v3fq9lbrogc6p1f`) con tres fotos. La categoría y las tres fotos del producto quedaron almacenadas como WebP y conservaron visualmente su proporción, composición y calidad; la subcategoría se cargó intencionalmente como JPEG y conservó la miniatura heredada más pequeña.
+
+Las tres fotos WebP del producto sumaron `80.660` bytes frente a `135.287` bytes de sus miniaturas PNG equivalentes. La categoría WebP pesó `96.074` bytes frente a `118.398` bytes de su miniatura PNG, mientras la subcategoría JPEG bajó de `144.472` a `47.665` bytes mediante su miniatura. Esto confirmó en datos reales que la selección por formato evita recomprimir WebP y conserva el beneficio de las miniaturas para JPEG/PNG heredados.
+
+Al finalizar se eliminó, en orden de dependencia, exclusivamente el producto QA, sus tres archivos, la subcategoría con su archivo y la categoría con su archivo. PocketBase devolvió cero coincidencias para los tres identificadores, las cinco URLs de archivos respondieron `404` y tanto el panel como la tienda pública dejaron de mostrar los nombres QA. No se eliminó ni modificó ningún otro registro.
+
+### Paso 3D — Accesos rápidos y promociones visuales — 2026-08-19
+
+La auditoría de solo lectura identificó dos imágenes reales en `store_visual_items`:
+
+- PNG de `1024x1024`: `1.318.575` bytes original y `317.500` bytes con la miniatura pública actual;
+- JPEG de `750x728`: `164.782` bytes original y `92.585` bytes con la miniatura pública actual;
+- transferencia combinada actual: `410.085` bytes.
+
+Una simulación local en memoria, sin escribir ni reemplazar archivos, produjo WebP que respetan el límite existente de `1200x675`, sin recorte ni ampliación: `41.438` y `50.884` bytes respectivamente. El total previsto sería `92.322` bytes, una reducción aproximada de `77,5 %` frente a las miniaturas actuales, una vez que las imágenes reales sean reemplazadas mediante un flujo autorizado.
+
+Se implementó una regla compartida para los tres paneles que administran estos visuales (`Organización`, `Promociones` y `Configuración`):
+
+- solo JPEG y PNG son candidatos a conversión;
+- se conserva proporción, se limita a `1200x675`, no se recorta y no se amplía;
+- el WebP se usa únicamente si pesa estrictamente menos;
+- WebP, GIF y SVG permanecen intactos;
+- ante un fallo de decodificación o conversión se conserva el archivo original;
+- la tienda pública entrega el WebP almacenado directamente y conserva `700x420` para formatos heredados.
+
+El cambio no modifica los dos registros reales actuales, por lo que desplegar el código por sí solo no altera su imagen ni su peso. Actuará en cargas y reemplazos futuros; la migración de los dos archivos existentes exige una acción posterior y separada.
+
+Validación local:
+
+- `25/25` pruebas focales aprobadas;
+- `568/568` pruebas de la suite completa del frontend aprobadas;
+- build Astro SSR/Node correcto;
+- no se crearon datos QA ni se modificaron PocketBase, Cloudflare, Coolify, staging o producción.
+
 ## Plan de trabajo propuesto
 
 ### Puerta de regresión previa a C12
@@ -340,6 +376,7 @@ Se aplicó el mismo selector seguro ya probado en productos: las tarjetas entreg
 ## Limpieza y efectos
 
 - El perfil temporal de Edge y el script diagnóstico fueron eliminados.
-- No se crearon registros QA deliberados, campañas, usuarios, tiendas, APK, AAB ni artefactos permanentes.
+- Los registros y cinco archivos QA creados para validar categoría, subcategoría y producto fueron eliminados por completo y se verificó su ausencia.
+- No permanecen campañas, usuarios, tiendas, APK, AAB ni artefactos QA.
 - No se modificaron Cloudflare, Coolify, producción, Firebase ni Google Play.
-- Las modificaciones locales actuales se limitan al optimizador compartido de cargas de categorías/subcategorías, sus pruebas y este registro. Los pasos anteriores de instrumentación, prioridad LCP, banner de Regalos y entrega directa de productos WebP ya fueron confirmados en staging.
+- Las modificaciones locales actuales se limitan al optimizador compartido de accesos/promociones, su selección pública por formato, sus pruebas y este registro. Los pasos anteriores de instrumentación, prioridad LCP, banner de Regalos, productos WebP y taxonomía ya fueron confirmados en staging.

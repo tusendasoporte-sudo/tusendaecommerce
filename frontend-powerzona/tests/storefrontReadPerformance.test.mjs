@@ -112,7 +112,10 @@ test('regalos entrega el WebP optimizado sin una segunda conversion a miniatura 
   assert.match(adminGifts, /canvas\.toBlob\(resolve, 'image\/webp', 0\.82\)/);
   assert.match(home, /\.public-gift-banner \{[^}]*aspect-ratio: 16 \/ 9/);
   assert.match(home, /\.public-gift-banner img \{[^}]*object-fit: contain/);
-  assert.match(api, /imageUrl: image \? getPocketBaseFileUrl\('store_visual_items', item\.id, image, \{ thumb: '700x420' \}\) : null/);
+});
+
+test('accesos y promos entregan WebP directo sin perder miniaturas heredadas', () => {
+  assert.match(api, /getPublicImageDeliveryOptions\(image, '700x420'\)/);
 });
 
 test('portada descubre y prioriza solamente la primera imagen visible', () => {

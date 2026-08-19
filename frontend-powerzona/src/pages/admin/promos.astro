@@ -3830,6 +3830,17 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       </main>
     </div>
 
+    <script>
+      import { optimizeStoreVisualImageFile } from '../../lib/storeVisualImageOptimizationCore.js';
+
+      Object.defineProperty(globalThis, 'pzStoreVisualImageOptimizer', {
+        value: Object.freeze({ optimizeStoreVisualImageFile }),
+        configurable: true,
+        enumerable: false,
+        writable: false,
+      });
+    </script>
+
     <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -5499,19 +5510,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         await loadData();
       }
       async function optimizeVisualImageFile(file) {
-        if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
-        const source = await createImageBitmap(file);
-        const ratio = Math.min(1, 1200 / source.width, 675 / source.height);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(source.width * ratio));
-        canvas.height = Math.max(1, Math.round(source.height * ratio));
-        const context = canvas.getContext('2d');
-        context.drawImage(source, 0, 0, canvas.width, canvas.height);
-        source.close?.();
-        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
-        if (!blob) return file;
-        const baseName = String(file.name || 'promo-visual').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'promo-visual';
-        return new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+        return globalThis.pzStoreVisualImageOptimizer.optimizeStoreVisualImageFile(file);
       }
       async function optimizeVisualAttachmentFileIfImage(file) {
         if (!file || !file.type || !file.type.startsWith('image/')) return file;

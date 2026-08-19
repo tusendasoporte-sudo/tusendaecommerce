@@ -446,7 +446,14 @@ function addVisualItemFiles(item: any) {
 
   return {
     ...item,
-    imageUrl: image ? getPocketBaseFileUrl('store_visual_items', item.id, image, { thumb: '700x420' }) : null,
+    imageUrl: image
+      ? getPocketBaseFileUrl(
+          'store_visual_items',
+          item.id,
+          image,
+          getPublicImageDeliveryOptions(image, '700x420')
+        )
+      : null,
     attachmentUrl: attachment ? getPocketBaseFileUrl('store_visual_items', item.id, attachment) : null,
   };
 }

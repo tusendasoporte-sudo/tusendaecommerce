@@ -40,3 +40,10 @@ test('tarjetas de taxonomia evitan miniaturas PNG para WebP optimizado', () => {
     /getPocketBaseFileUrl\(\s*'subcategories',\s*subcategory\.id,\s*image,\s*getPublicImageDeliveryOptions\(image, PUBLIC_TAXONOMY_CARD_THUMB\)/
   );
 });
+
+test('visuales públicos deciden entre WebP directo y miniatura heredada', () => {
+  assert.match(
+    api,
+    /getPocketBaseFileUrl\(\s*'store_visual_items',\s*item\.id,\s*image,\s*getPublicImageDeliveryOptions\(image, '700x420'\)/
+  );
+});

@@ -4562,12 +4562,20 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
     </script>
 
     <script>
+      import { optimizeStoreVisualImageFile } from '../../lib/storeVisualImageOptimizationCore.js';
       import { readPocketBaseAuthToken } from '../../lib/storeActivity';
 
       const storeSettingsWindow = window as typeof window & {
         __pzStoreSettingsAuthToken?: () => string;
       };
       storeSettingsWindow.__pzStoreSettingsAuthToken = () => readPocketBaseAuthToken();
+
+      Object.defineProperty(globalThis, 'pzStoreVisualImageOptimizer', {
+        value: Object.freeze({ optimizeStoreVisualImageFile }),
+        configurable: true,
+        enumerable: false,
+        writable: false,
+      });
     </script>
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, canManageSettings, canManageReviews, canOpenLandingTab, firstAllowedSettingsTab }}>
@@ -5884,43 +5892,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           }
         }
         async function optimizeVisualImageFile(file) {
-          if (!file || !file.type || !file.type.startsWith('image/')) return file;
-          if (file.type === 'image/svg+xml') return file;
-          if (file.type === 'image/gif') return file;
-
-          try {
-            const bitmap = await createImageBitmap(file);
-            const maxWidth = 1200;
-            const maxHeight = 675;
-            const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
-            const width = Math.max(1, Math.round(bitmap.width * ratio));
-            const height = Math.max(1, Math.round(bitmap.height * ratio));
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(bitmap, 0, 0, width, height);
-
-            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
-            if (typeof bitmap.close === 'function') bitmap.close();
-            if (!blob) return file;
-
-            const safeName = (file.name || 'visual')
-              .replace(/\.[^.]+$/, '')
-              .replace(/[^a-zA-Z0-9_-]+/g, '_')
-              .slice(0, 42) || 'visual';
-
-            return new File([blob], `${safeName}_visual.webp`, {
-              type: 'image/webp',
-              lastModified: Date.now(),
-            });
-          } catch (error) {
-            return file;
-          }
+          return globalThis.pzStoreVisualImageOptimizer.optimizeStoreVisualImageFile(file);
         }
         async function optimizeAttachmentFileIfImage(file) {
           if (!file || !file.type || !file.type.startsWith('image/')) return file;
