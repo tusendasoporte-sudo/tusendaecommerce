@@ -199,6 +199,40 @@ Validación local de la corrección:
 - `git diff --check` sin errores;
 - ahorro previsto en la portada de staging: `245.726` bytes, cerca del `17 %` del peso de sus imágenes.
 
+### Paso 3B — auditoría de Regalos y productos; entrega WebP por formato — 2026-08-19
+
+Después de desplegar `644c780`, la página pública de Regalos respondió `200` y confirmó que su banner ya se entrega como el WebP almacenado de `78.222` bytes, sin `thumb`. La revisión separó ese banner de las fotos individuales de cada regalo.
+
+Las dos fotos individuales actuales son JPEG heredados y sus miniaturas `700x700` sí aportan ahorro:
+
+- Vitamina E: `69.757` bytes de miniatura frente a `83.932` bytes del original;
+- Vitamina C: `63.054` bytes de miniatura frente a `94.620` bytes del original;
+- ahorro combinado: `45.741` bytes.
+
+Por tanto, esas imágenes existentes no deben cambiar. La página se revisó en Edge aislado a `1440x1000` y `390x844`: CLS `0`, cero imágenes rotas, sin desbordamiento horizontal y con `object-fit: contain` correcto. Todas las solicitudes que no fueran `GET` o `HEAD` se bloquearon y las capturas temporales se eliminaron.
+
+La auditoría de productos recorrió la portada, cinco páginas de categoría y dos de subcategoría, todas con estado `200`. Los tres productos públicos con imagen utilizan WebP almacenado, pero sus tarjetas solicitan `300x300` y PocketBase los entrega como PNG:
+
+- miniaturas actuales combinadas: `209.699` bytes;
+- WebP almacenados combinados: `150.008` bytes;
+- ahorro previsto: `59.691` bytes, aproximadamente `28,5 %`;
+- resolución almacenada: `800x800` o `1000x1000`, frente a `300x300` de las miniaturas.
+
+Una simulación de solo lectura sustituyó temporalmente las URLs en el DOM de Edge por los WebP almacenados. Las seis combinaciones —tres productos en escritorio y móvil— conservaron exactamente las dimensiones renderizadas, `object-fit: contain`, cero imágenes rotas y ausencia de desbordamiento horizontal.
+
+Con autorización se implementó localmente una regla por formato exclusivamente para los listados públicos de productos:
+
+- WebP se entrega directamente;
+- JPEG, PNG y otros formatos heredados conservan la miniatura solicitada;
+- el detalle del producto, las variaciones, Regalos, las imágenes almacenadas y el proceso de subida no cambian.
+
+Validación local:
+
+- `15/15` pruebas focales;
+- build Astro SSR correcto;
+- `git diff --check` sin errores;
+- no se crearon ni modificaron datos o archivos de PocketBase.
+
 ## Plan de trabajo propuesto
 
 ### Puerta de regresión previa a C12
@@ -268,4 +302,4 @@ La medición posterior debe repetir, desde una conexión comparable:
 - El perfil temporal de Edge y el script diagnóstico fueron eliminados.
 - No se crearon registros QA deliberados, campañas, usuarios, tiendas, APK, AAB ni artefactos permanentes.
 - No se modificaron Cloudflare, Coolify, producción, Firebase ni Google Play.
-- Las modificaciones locales comprenden la formalización documental de C14 y la instrumentación `Server-Timing` del paso 1 con sus pruebas; no existe commit ni despliegue todavía.
+- Las modificaciones locales actuales se limitan a la entrega condicional por formato de las tarjetas de productos, su prueba focal y este registro. Los pasos anteriores de instrumentación, prioridad LCP y banner de Regalos ya fueron confirmados en staging.

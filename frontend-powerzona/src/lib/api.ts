@@ -3,6 +3,7 @@ import { getCurrentStore } from './stores';
 import { getPublicProductImageNames } from './productImageLimits';
 import { addVariationPriceSummary } from './publicProductAvailability';
 import { getCachedPublicData } from './publicDataCache';
+import { getPublicImageDeliveryOptions } from './publicImageDeliveryCore.js';
 
 type StoreQueryOptions = {
   storeId?: string;
@@ -305,7 +306,7 @@ function addProductImages(product: any, options?: StoreQueryInput, thumb = '') {
   return {
     ...publicProductRecord(product),
     imageUrls: getPublicProductImageNames(product, store).map((filename: string) =>
-      getPocketBaseFileUrl('products', product.id, filename, thumb ? { thumb } : {})
+      getPocketBaseFileUrl('products', product.id, filename, getPublicImageDeliveryOptions(filename, thumb))
     ),
   };
 }
