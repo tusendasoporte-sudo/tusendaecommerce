@@ -7,6 +7,7 @@ const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf
 const api = read('../src/lib/api.ts');
 const pocketbase = read('../src/lib/pocketbase.ts');
 const stores = read('../src/lib/stores.ts');
+const layout = read('../src/layouts/Layout.astro');
 const home = read('../src/components/public-store/PublicStoreHome.astro');
 const category = read('../src/pages/categoria/[slug].astro');
 const subcategory = read('../src/pages/subcategoria/[slug].astro');
@@ -92,6 +93,17 @@ test('portada usa el WebP optimizado original y conserva miniaturas para otros c
   assert.match(home, /settings\?\.coverGalleryHeroUrls/);
   assert.match(home, /\.public-hero-cover img \{[^}]*object-fit: cover/);
   assert.match(home, /\.public-hero-slide img \{[^}]*object-fit: cover/);
+});
+
+test('portada descubre y prioriza solamente la primera imagen visible', () => {
+  assert.match(layout, /rel="preconnect" href=\{pocketbaseOrigin\}/);
+  assert.match(layout, /rel="dns-prefetch" href=\{pocketbaseOrigin\}/);
+  assert.match(layout, /rel="preload" as="image" href=\{preloadImageUrl\} fetchpriority="high"/);
+  assert.match(home, /heroPreloadImageUrl = isTemporarilyClosed \? '' : \(heroImages\[0\] \|\| ''\)/);
+  assert.match(home, /preloadImage=\{heroPreloadImageUrl\}/);
+  assert.match(home, /loading=\{index === 0 \? 'eager' : 'lazy'\}/);
+  assert.match(home, /fetchpriority=\{index === 0 \? 'high' : undefined\}/);
+  assert.match(home, /width="1600"[\s\S]*height="900"[\s\S]*decoding="async"/);
 });
 
 test('subida de portada respeta 1600x900 y no recomprime WebP ya optimizado', () => {

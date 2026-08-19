@@ -104,6 +104,7 @@ const coverGalleryUrls = Array.isArray(settings?.coverGalleryHeroUrls)
 const heroCarouselEnabled = settings?.cover_mode === 'carousel' && coverGalleryUrls.length > 0;
 const heroCarouselImages = heroCarouselEnabled && coverGalleryUrls.length >= 2 ? coverGalleryUrls : [];
 const heroImages = heroCarouselEnabled ? coverGalleryUrls : (coverImageUrl ? [coverImageUrl] : []);
+const heroPreloadImageUrl = isTemporarilyClosed ? '' : (heroImages[0] || '');
 const storeSeoImage =
   heroImages[0]
   || coverImageUrl
@@ -255,6 +256,7 @@ function getProductOfferView(product: any) {
 
 <Layout
   hideStoreFloatingUi={isTemporarilyClosed}
+  preloadImage={heroPreloadImageUrl}
   seo={{
     title: storeSeoTitle,
     description: storeSeoDescription,
@@ -2166,7 +2168,15 @@ function getProductOfferView(product: any) {
     <div class="public-hero-cover" data-hero-carousel={heroCarouselImages.length >= 2 ? 'true' : 'false'}>
       {heroImages.map((imageUrl, index) => (
         <div class={`public-hero-slide ${index === 0 ? 'active' : ''}`}>
-          <img src={imageUrl} alt={`Portada de ${storeName}`} loading={index === 0 ? 'eager' : 'lazy'} />
+          <img
+            src={imageUrl}
+            alt={`Portada de ${storeName}`}
+            width="1600"
+            height="900"
+            loading={index === 0 ? 'eager' : 'lazy'}
+            fetchpriority={index === 0 ? 'high' : undefined}
+            decoding="async"
+          />
         </div>
       ))}
     </div>

@@ -112,6 +112,46 @@ Validación local:
 - `git diff --check` sin errores.
 - No se crearon datos QA ni se modificaron imágenes, caché, consultas, Cloudflare, Coolify, staging o producción.
 
+### Validación del despliegue en staging — 2026-08-19
+
+El propietario confirmó el despliegue de `38e6a20` en ambos servicios de staging. El frontend devolvió `200` con las tres métricas nuevas y el backend respondió `200` en `/api/health`.
+
+La primera solicitud observada después del despliegue registró `pz-public-security=75,6 ms`, `pz-public-render=767,8 ms` y `pz-public-total=849,8 ms`. Es compatible con un arranque o estado frío, pero una única muestra no permite atribuir la causa.
+
+Siete solicitudes posteriores y espaciadas a la portada produjeron:
+
+| Métrica | Mediana | Rango |
+|---|---:|---:|
+| `pz-public-security` | 8,9 ms | 4,8–11,4 ms |
+| `pz-public-render` | 5,1 ms | 2,1–10,1 ms |
+| `pz-public-total` | 15,0 ms | 7,2–22,5 ms |
+| TTFB externo de curl | 735 ms | 633–907 ms |
+| Tiempo HTTP externo total | 1.142 ms | 1.031–1.322 ms |
+
+La búsqueda pública también devolvió `200`: seguridad `7,7 ms`, render `1,2 ms`, total interno `9,6 ms` y TTFB externo `648 ms`.
+
+La diferencia entre el tiempo interno y el TTFB externo no debe atribuirse automáticamente a PocketBase. Puede incluir resolución, conexión/TLS del dominio `sslip.io`, proxy inverso, preparación/compresión posterior al middleware y transporte. La evidencia sí muestra que, en el estado estable observado, seguridad y SSR/datos no encabezan por sí solos el TTFB de staging; el caso frío debe repetirse antes de proponer cambios de consultas o TTL.
+
+No se crearon datos QA ni se modificaron configuración, caché, imágenes o servicios durante estas solicitudes de solo lectura.
+
+## Paso 2 — Descubrimiento temprano de la imagen LCP
+
+Implementado en código local el 2026-08-19, sin despliegue:
+
+- El layout público emite `preconnect` y `dns-prefetch` hacia el origen público configurado de PocketBase; las vistas Master quedan excluidas.
+- La portada pasa al `<head>` la URL exacta de su primera imagen y la declara con `rel=preload`, `as=image` y prioridad alta.
+- La misma primera imagen conserva `loading=eager` y añade `fetchpriority=high`; las demás imágenes del carrusel conservan `loading=lazy` y no reciben prioridad alta.
+- Todas las imágenes del banner conservan la URL original aprobada, `object-fit: cover`, el carrusel y el recorte vigente. Solo se añaden dimensiones intrínsecas `1600x900` y decodificación asíncrona; no se recomprime ni sustituye ningún WebP.
+- Una tienda temporalmente cerrada no precarga el banner oculto.
+
+Validación local:
+
+- `48/48` pruebas focales aprobadas, incluidas seguridad pública, SSR, fallbacks visuales, WebP original y prioridad exclusiva de la primera imagen.
+- `npm run build` aprobado con Astro SSR/Node.
+- La salida compilada conserva la precarga y `fetchpriority`.
+- `git diff --check` sin errores.
+- No se crearon datos QA ni se modificaron imágenes, caché, consultas, Cloudflare, Coolify, staging o producción.
+
 ## Plan de trabajo propuesto
 
 ### Puerta de regresión previa a C12
