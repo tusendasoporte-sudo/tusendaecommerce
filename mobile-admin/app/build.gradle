@@ -116,3 +116,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging'
     testImplementation 'junit:junit:4.13.2'
 }
+if (releasePackagingRequested && !firebaseConfigFile.exists()) {
+    throw new GradleException(
+        'Firebase es obligatorio para Mobile Admin. Falta app/google-services.json.'
+    )
+}

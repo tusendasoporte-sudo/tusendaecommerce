@@ -207,8 +207,8 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     const configured = await request('/api/pz/master/admin-app-releases/configure', {
       token: masterToken,
       body: {
-        channel: 'staging', display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
-        admin_url: 'https://tusenda84.com/admin', firebase_project_id: '', firebase_app_id: '',
+        display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
+        admin_url: 'https://tusenda84.com/admin',
         signing_cert_sha256: SIGNING_CERT, current_version_code: 3, current_version_name: '1.0.2',
         splash_background_color: '#FFFFFF',
         confirmation: 'CONFIGURAR MOBILE ADMIN',
@@ -218,7 +218,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
 
     const iconBytes = squarePng(512);
     const iconForm = new FormData();
-    iconForm.append('channel', 'staging'); iconForm.append('kind', 'icon'); iconForm.append('sha256', sha256(iconBytes));
+    iconForm.append('kind', 'icon'); iconForm.append('sha256', sha256(iconBytes));
     iconForm.append('bytes', String(iconBytes.length)); iconForm.append('width', '512'); iconForm.append('height', '512');
     iconForm.append('confirmation', 'CAMBIAR IMAGEN MOBILE ADMIN');
     iconForm.append('file', new Blob([iconBytes], { type: 'image/png' }), 'icon.png');
@@ -227,7 +227,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assert.equal(uploadedIcon.data.asset.sha256, sha256(iconBytes));
 
     const preview = await request('/api/pz/master/admin-app-releases/preview', {
-      token: masterToken, body: { channel: 'staging', version_name: '1.0.3' },
+      token: masterToken, body: { version_name: '1.0.3' },
     });
     assertStatus(preview, 201, 'crear preview C10.8');
     const confirmed = await request('/api/pz/master/admin-app-releases/confirm', {
@@ -242,7 +242,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     };
     const claimed = await request('/api/pz/internal/admin-app-builds/claim', {
       headers: runnerHeaders, body: {
-        runner_id: 'runtime-c108', engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.0',
+        runner_id: 'runtime-c108', engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1',
         engine_contract_version: 1, engine_revision: 'b'.repeat(40),
       },
     });
@@ -278,7 +278,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       body: {
         job_id: preview.data.job.id, runner_id: 'runtime-c108', status: 'succeeded', failure_code: '',
         signing_cert_sha256: SIGNING_CERT,
-        engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.0', engine_contract_version: 1,
+        engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1', engine_contract_version: 1,
         engine_revision: 'b'.repeat(40),
         artifacts: fixtures.map((fixture) => ({
           kind: fixture.kind, file_name: fixture.fileName, sha256: fixture.sha256, bytes: fixture.bytes.length,
@@ -297,6 +297,8 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       token: masterToken, body: { channel: 'staging' },
     });
     assertStatus(detail, 200, 'consultar inventario C10.8');
+    assert.equal(detail.data.profile.latest_version_code, 3, 'una candidata no sustituye la versión publicada');
+    assert.equal(detail.data.profile.latest_version_name, '1.0.2');
     const apk = detail.data.artifacts.find((item) => item.kind === 'apk');
     assert.ok(apk?.stored && apk.lifecycle_status === 'available');
 
@@ -310,7 +312,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     const adminHeaders = { [DEVICE_HEADER]: deviceTokens[0] };
     const unpublishedPortal = await request('/api/pz/admin-app/releases/portal', {
       token: adminLogins[0], headers: adminHeaders,
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(unpublishedPortal, 404, 'no entregar una APK sin publicar');
 
@@ -332,6 +334,12 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     });
     assertStatus(publish, 200, 'publicar para todos los administradores autorizados');
     assert.equal(publish.data.created, 0);
+    const publishedDetail = await request('/api/pz/master/admin-app-releases/detail', {
+      token: masterToken, body: { channel: 'production' },
+    });
+    assertStatus(publishedDetail, 200, 'actualizar la versión vigente solo al publicar');
+    assert.equal(publishedDetail.data.profile.latest_version_code, 4);
+    assert.equal(publishedDetail.data.profile.latest_version_name, '1.0.3');
 
     const assignments = await request('/api/collections/admin_app_release_assignments/records?page=1&perPage=20', { token: superToken });
     assertStatus(assignments, 200, 'verificar ausencia de asignaciones individuales');
@@ -339,20 +347,20 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
 
     const portal = await request('/api/pz/admin-app/releases/portal', {
       token: adminLogins[0], headers: adminHeaders,
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(portal, 200, 'abrir portal autenticado');
     assert.equal(portal.data.access.recipient.device.id, deviceIds[0]);
 
     const secondDevicePortal = await request('/api/pz/admin-app/releases/portal', {
       token: adminLogins[1], headers: { [DEVICE_HEADER]: deviceTokens[1] },
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(secondDevicePortal, 200, 'dar acceso automático a otro dispositivo autorizado');
 
     const ticket = await request('/api/pz/admin-app/releases/ticket', {
       token: adminLogins[0], headers: adminHeaders,
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(ticket, 201, 'crear ticket de un uso');
     const storedTicketQuery = new URLSearchParams({ page: '1', perPage: '20', filter: `artifact = "${apk.id}"` });
@@ -393,7 +401,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assertStatus(futureLogin, 200, 'autorizar administrador creado después de publicar');
     const futurePortal = await request('/api/pz/admin-app/releases/portal', {
       token: futureLogin.data.token, headers: { [DEVICE_HEADER]: futureDeviceToken },
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(futurePortal, 200, 'entregar automáticamente al administrador futuro');
 
@@ -411,9 +419,52 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assert.equal(policy.data.policy.update_required, true);
     assert.equal(policy.data.policy.minimum_supported_version_code, 4);
 
+    const paused = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'pause_release', artifact_id: apk.id, confirmation: 'PAUSAR PUBLICACION MOBILE ADMIN' },
+    });
+    assertStatus(paused, 200, 'pausar temporalmente la publicación exacta');
+    const pausedPortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
+    });
+    assertStatus(pausedPortal, 404, 'detener nuevas entregas mientras está pausada');
+    const masterWhilePaused = await fetch(`${baseUrl}/api/pz/master/admin-app-artifacts/${apk.id}/${apk.file_name}`, {
+      headers: { Authorization: `Bearer ${masterToken}` }, signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(masterWhilePaused.status, 200, 'conservar descarga de auditoría para el Master');
+
+    const resumed = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'resume_release', artifact_id: apk.id, confirmation: 'REANUDAR PUBLICACION MOBILE ADMIN' },
+    });
+    assertStatus(resumed, 200, 'reanudar el mismo APK sin reconstruir');
+    const resumedPortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
+    });
+    assertStatus(resumedPortal, 200, 'volver a entregar el mismo checksum');
+    assert.equal(resumedPortal.data.access.artifact.sha256, apk.sha256);
+
+    const withdrawn = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'withdraw_release', artifact_id: apk.id, confirmation: 'RETIRAR PUBLICACION MOBILE ADMIN' },
+    });
+    assertStatus(withdrawn, 200, 'retirar definitivamente la publicación');
+    const withdrawnPortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
+    });
+    assertStatus(withdrawnPortal, 404, 'no entregar una publicación retirada');
+    const withdrawnDetail = await request('/api/pz/master/admin-app-releases/detail', {
+      token: masterToken, body: { channel: 'production' },
+    });
+    assertStatus(withdrawnDetail, 200, 'auditar publicación retirada');
+    assert.equal(withdrawnDetail.data.profile.minimum_supported_version_code, 0, 'retirar elimina la obligatoriedad');
+
     const unknownDevicePortal = await request('/api/pz/admin-app/releases/portal', {
       token: adminLogins[0], headers: { [DEVICE_HEADER]: 'Z'.repeat(43) },
-      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },
     });
     assertStatus(unknownDevicePortal, 409, 'rechazar un dispositivo no autorizado');
 

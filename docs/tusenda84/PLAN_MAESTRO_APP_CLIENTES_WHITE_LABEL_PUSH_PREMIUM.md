@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10.8 IMPLEMENTADO LOCALMENTE — base y Tu Senda 84 Admin Engine 1.0.0 desplegados en `8ed0f371`; entrega global privada simplificada verificada localmente y pendiente de versionar/desplegar |
-| Versión del documento | 1.45 |
+| Estado general | PZ-APP-C10.8 EN REFINAMIENTO LOCAL — entrega privada global versionada en `e1d5ff3`; identidad única, publicación sin reconstrucción y Tu Senda 84 Admin Engine 1.0.1 verificados localmente |
+| Versión del documento | 1.46 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-18 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Revisar la entrega global privada local de C10.8 y, solo con autorización separada, hacer commit/push y desplegarla antes del piloto físico; no firmar, enviar ni publicar APK sin aprobación específica |
+| Próximo prompt | Completar regresiones del refinamiento C10.8 y, solo con autorización separada, hacer commit/push y desplegar; no construir release, firmar, enviar ni publicar APK sin aprobación específica |
 
 ### Convención de estados
 
@@ -2533,3 +2533,15 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - La migración `1787191200_admin_app_global_private_delivery.js` hace opcional la asignación del ticket, añade la relación de perfil, incorpora el evento explícito `test_approved` y migra tickets heredados. Su rollback falla cerrado mientras exista un ticket global o una aprobación nueva.
 - Las pruebas focales de backend, migraciones y frontend terminaron 21/21; el runtime PocketBase real terminó 1/1 y confirmó descarga Master antes de publicar, denegación previa, aprobación, publicación sin asignaciones, acceso desde dos dispositivos, acceso de un administrador creado después, ticket de un uso, check-in, obligatoriedad y rechazo de dispositivo desconocido. El directorio PocketBase temporal y todos sus datos y archivos fueron eliminados en `finally`.
 - La regresión frontend completa terminó 543/543. La regresión backend completa terminó con 725 pruebas totales, 718 aprobadas, 7 omitidas declaradas y 0 fallos. El build SSR terminó correctamente con las tres advertencias históricas de `getStaticPaths()` en rutas dinámicas. No se usó firma real, no se generó ni publicó un APK, no se modificó Firebase, no se envió WhatsApp, no se tocó staging/producción y no se realizó ninguna acción externa.
+
+### 2026-08-18 — PZ-APP-C10.8 EN REFINAMIENTO LOCAL: identidad única y publicación sin reconstrucción
+
+- El propietario confirmó que `staging` no representa otra aplicación. El backend conserva una única identidad canónica de Mobile Admin y usa las vistas **Preparar y probar** y **Publicación** únicamente como estados del mismo flujo.
+- **Preparar y probar** contiene identidad, apariencia, revisión, construcción, descarga y aprobación. **Publicación** es de solo lectura para identidad y muestra la versión actual, el candidato aprobado y el checksum que demuestra que se promueve el mismo APK sin reconstruirlo.
+- La acción principal cambia entre **Publicar primera versión** y **Publicar actualización**. Toda publicación nueva comienza opcional; después puede hacerse obligatoria. Pausa, reanudación y retirada se registran por artefacto, no alteran el APK y no hacen downgrade ni eliminan instalaciones existentes.
+- Construir una candidata no cambia la versión vigente registrada. `latest_version_name` y `latest_version_code` avanzan únicamente al publicar el artefacto aprobado; así la vista de Publicación nunca presenta como instalada una APK que todavía está en prueba. Los detalles técnicos leen el motor fotografiado por el trabajo que produjo ese archivo, no el motor más reciente disponible.
+- Icono y splash son opcionales mediante un solo control de personalización. Desactivarlo conserva como recursos oficiales los incluidos en la versión exacta del motor; las imágenes personalizadas permanecen privadas y versionadas.
+- Firebase dejó de ser editable u opcional en el panel. `Tu Senda 84 Admin Engine 1.0.1` lo declara obligatorio, fija esa garantía en vista previa y manifiesto, y bloquea cualquier construcción `release` si no está disponible el `google-services.json` externo ya configurado. No crea ni modifica proyectos Firebase.
+- La migración aditiva `1787194800_admin_app_publication_controls.js` incorpora el evento `release_resumed`; su rollback falla cerrado si ya fue usado. No elimina perfiles, artefactos ni archivos.
+- Las pruebas focales terminaron 24/24 y el runtime PocketBase real 1/1 confirmó candidata sin alterar la versión vigente, publicación, obligatoriedad, pausa sin nuevas entregas, descarga Master durante la pausa, reanudación del mismo checksum, retirada y eliminación automática del entorno temporal. La regresión completa terminó en frontend 543/543 y en backend con 728 pruebas totales, 721 aprobadas, 7 omitidas declaradas y 0 fallos. El build SSR terminó correctamente con las tres advertencias históricas; Android `testDebugUnitTest` y `lintDebug` finalizaron correctamente sin construir APK. La vista previa PowerShell y el backend produjeron el mismo SHA-256 `39fc3fc6e604bece60d4ae6842ab859656fa6752f5bb6eaaa0f9bae6355f8e23`.
+- No se construyó una APK, no se accedió a firma o keystore, no se creó ni modificó Firebase, no se desplegó, no se envió enlace o WhatsApp y no se publicó en Google Play.

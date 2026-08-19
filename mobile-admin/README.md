@@ -52,7 +52,7 @@ La app admite avisos de pedidos nuevos o pendientes, reseñas pendientes, stock 
 1. Crea o selecciona el proyecto en Firebase y registra la aplicacion Android.
 2. Descarga `google-services.json` y guardalo localmente como `app/google-services.json`.
 3. Configura Firebase Admin y `PZ_PUSH_RELAY_SECRET` solamente como secretos del servidor; consulta los archivos `.env.example` del frontend y backend.
-4. Compila nuevamente la APK. Si `google-services.json` no existe, la app sigue funcionando, pero el boton del panel informa que los avisos Android aun no estan disponibles.
+4. Compila nuevamente la APK. Toda construcción `release` exige `google-services.json` y falla cerrada si falta; Firebase no se puede desactivar desde el panel. Una variante `debug` puede omitirlo únicamente para trabajo local que no se distribuirá.
 
 `google-services.json`, cuentas de servicio, claves de firma y contrasenas estan excluidos de Git. No deben enviarse al repositorio ni incluirse en capturas.
 
@@ -91,16 +91,18 @@ universal firmada por Play después de subir el AAB.
 
 C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públicas:
 
-- el constructor se identifica como `Tu Senda 84 Admin Engine 1.0.0`; su nombre, versión y contrato están en `engine.json` y quedan registrados en cada trabajo y manifiesto;
+- el constructor se identifica como `Tu Senda 84 Admin Engine 1.0.1`; su nombre, versión y contrato están en `engine.json` y quedan registrados en cada trabajo y manifiesto;
 - `versionCode` es una secuencia reservada por el backend al confirmar el build: una app nueva parte de base 0 y recibe 1; una compilación confirmada consume su número aunque falle;
-- canal, paquete y firma son la identidad Android; la versión base solo se puede corregir antes del primer build confirmado;
-- nombre visible, URL administrativa, color, Firebase, icono y splash son configuración editable y cada build inmoviliza la revisión exacta usada;
+- existe una sola identidad Android; paquete y firma se conservan entre preparación y publicación, y la versión base solo se puede corregir antes del primer build confirmado;
+- Firebase es obligatorio y administrado por el motor: no es una opción por versión, el runner reutiliza la configuración externa existente y cada manifiesto confirma su inclusión;
+- nombre visible, URL administrativa y color son editables; icono y splash son opcionales y, al desactivar la personalización, se usan los recursos incluidos en la versión del motor;
 - icono y splash se guardan como PNG protegidos y versionados en PocketBase, se comprueban por dimensiones, bytes y SHA-256 y nunca se incorporan al repositorio;
 - el APK queda como archivo protegido en PocketBase;
 - el portal no concede acceso por sí mismo;
 - cada descarga exige sesión de `store_admin`, tienda, dispositivo autorizado y una versión publicada para el paquete o canal exacto;
 - el archivo usa un ticket de dos minutos y un solo uso;
-- el panel muestra tres acciones simples: descargar APK de prueba, aprobar APK y publicar actualización;
+- **Preparar y probar** concentra configuración, construcción, descarga de prueba y aprobación; **Publicación** no permite reconstruir ni editar identidad;
+- el panel publica exactamente el APK aprobado, inicialmente como actualización opcional, y después permite hacerla obligatoria, pausarla, reanudarla o retirarla;
 - una publicación queda disponible automáticamente para administradores activos y dispositivos autorizados actuales o futuros, sin crear asignaciones individuales;
 - la app instalada consulta al abrir, muestra el aviso de nueva versión y reutiliza el mismo portal privado y verificación nativa;
 - `minimum_supported_version_code` solo puede activarse después de aprobar y publicar la versión.
@@ -108,8 +110,8 @@ C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públ
 Mobile Admin pertenece a Tu Senda 84 y no a PowerZona. La misma app sirve para administrar tiendas, páginas promocionales o futuros tipos de proyecto siempre que todos entren por la URL administrativa central y el backend autorice las funciones disponibles para cada proyecto.
 
 El runner está en `runner/run-admin-app-job-queue.ps1`. Requiere el secreto exclusivo
-`PZ_ADMIN_APP_RUNNER_SECRET` y una ruta externa a la firma ya existente. Nunca crea
-una firma, Firebase o una publicación. La vista previa reproducible puede generarse
+`PZ_ADMIN_APP_RUNNER_SECRET`, una ruta externa a la firma ya existente y la configuración
+Firebase existente. Nunca crea una firma, un proyecto Firebase o una publicación. La vista previa reproducible puede generarse
 sin compilar ni acceder a secretos. El siguiente comando es una verificación técnica
 local; en operación normal el backend decide el código y el runner lo recibe:
 

@@ -25,14 +25,14 @@ test('grant y ticket usan dominios separados y tokens de 256 bits', () => {
 
 test('configuración acepta app nueva o baseline existente y exige color y confirmación', () => {
   const valid = {
-    admin_url: 'https://tusenda84.com/admin', channel: 'staging', confirmation: 'CONFIGURAR MOBILE ADMIN',
+    admin_url: 'https://tusenda84.com/admin', confirmation: 'CONFIGURAR MOBILE ADMIN',
     current_version_code: 3, current_version_name: '1.0.2', display_name: 'Tu Senda 84 Admin',
-    firebase_app_id: '', firebase_project_id: '', package_name: 'com.tusenda84.admin', signing_cert_sha256: '', splash_background_color: '#FFFFFF',
+    package_name: 'com.tusenda84.admin', signing_cert_sha256: '', splash_background_color: '#FFFFFF',
   };
   assert.equal(releases.parseConfigure(valid).currentVersionCode, 3);
   assert.equal(releases.parseConfigure({ ...valid, confirmation: 'sí' }), null);
   assert.equal(releases.parseConfigure({ ...valid, package_name: 'admin-bad' }), null);
-  assert.equal(releases.parseConfigure({ ...valid, firebase_project_id: 'project-ok', firebase_app_id: '' }), null);
+  assert.equal(releases.parseConfigure({ ...valid, firebase_project_id: 'project-ok' }), null);
   assert.equal(releases.parseConfigure({ ...valid, current_version_code: 0, current_version_name: '' }).currentVersionCode, 0);
   assert.equal(releases.parseConfigure({ ...valid, splash_background_color: 'white' }), null);
   const app = { findRecordsByFilter: () => [{ confirmed_at: '' }] };
@@ -50,7 +50,8 @@ test('preview fija entrega autenticada, aprobación Master y publicación autom�
   };
   const preview = releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' });
   assert.equal(preview.operation, 'update');
-  assert.deepEqual(preview.engine, { name: 'Tu Senda 84 Admin Engine', version: '1.0.0', contract_version: 1 });
+  assert.deepEqual(preview.engine, { name: 'Tu Senda 84 Admin Engine', version: '1.0.1', contract_version: 1, firebase_required: true });
+  assert.deepEqual(preview.notifications, { firebase_required: true, managed_by_engine: true });
   assert.equal(preview.identity.package_name, 'com.tusenda84.admin');
   assert.equal(preview.delivery.authenticated_only, true);
   assert.equal(preview.delivery.master_test_approval_required, true);
@@ -65,7 +66,7 @@ test('preview fija entrega autenticada, aprobación Master y publicación autom�
 test('política y check-in usan la última APK publicada sin asignaciones individuales', () => {
   assert.match(source, /resolveAdminRelease\(\$app, context, \{ grant: "", packageName, channel: "" \}\)/);
   assert.match(source, /publishedArtifactForProfile/);
-  assert.match(source, /action = 'release_published'/);
+  assert.match(source, /releaseState\(app, artifactId\) === "published"/);
   assert.match(source, /availableVersion >= minimumVersion/);
   assert.match(source, /assignment: resolved\.assignment \? resolved\.assignment\.id : ""/);
 });
@@ -76,8 +77,8 @@ test('una compilación nueva sin publicar no reemplaza la versión anunciada', (
   const app = {
     findRecordsByFilter(collection, filter, _sort, _limit, _offset, params) {
       if (collection === releases.ARTIFACTS) return [newest, published];
-      if (collection === releases.EVENTS && filter.includes("action = 'release_published'")) {
-        return params.artifact === published.id ? [{ id: 'eventpublished01' }] : [];
+      if (collection === releases.EVENTS) {
+        return params.artifact === published.id ? [{ id: 'eventpublished01', action: 'release_published' }] : [];
       }
       return [];
     },
@@ -95,7 +96,7 @@ test('asignaciones y completion rechazan formas laxas o artefactos incompletos',
   const complete = {
     job_id: 'jobc10800000001', runner_id: 'runner-c108', status: 'succeeded', failure_code: '',
     signing_cert_sha256: '11:'.repeat(31) + '11',
-    engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.0', engine_contract_version: 1,
+    engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1', engine_contract_version: 1,
     engine_revision: 'b'.repeat(40),
     artifacts: ['apk', 'checksums', 'instructions', 'build_manifest'].map((kind) => ({
       kind,
@@ -110,14 +111,25 @@ test('asignaciones y completion rechazan formas laxas o artefactos incompletos',
 
 test('activos visuales son PNG cuadrados acotados y el navegador no decide secuencia', () => {
   const valid = {
-    channel: 'staging', kind: 'icon', sha256: 'a'.repeat(64), bytes: 1024, width: 1024, height: 1024,
+    kind: 'icon', sha256: 'a'.repeat(64), bytes: 1024, width: 1024, height: 1024,
     confirmation: 'CAMBIAR IMAGEN MOBILE ADMIN',
   };
   assert.equal(releases.parseBrandUpload(valid).kind, 'icon');
   assert.equal(releases.parseBrandUpload({ ...valid, width: 511, height: 511 }), null);
   assert.equal(releases.parseBrandUpload({ ...valid, height: 512 }), null);
-  assert.equal(releases.parseBuildPreview({ channel: 'staging', version_name: '1.0.3' }).versionName, '1.0.3');
-  assert.equal(releases.parseBuildPreview({ channel: 'staging', version_name: '1.0.3', version_code: 999 }), null);
+  assert.equal(releases.parseBuildPreview({ version_name: '1.0.3' }).versionName, '1.0.3');
+  assert.equal(releases.parseBuildPreview({ version_name: '1.0.3', version_code: 999 }), null);
+});
+
+test('una identidad global prepara en staging y controla la publicación por artefacto', () => {
+  assert.match(source, /CANONICAL_PROFILE_CHANNEL = "production"/);
+  assert.match(source, /const profile = masterProfile\(\$app\)/);
+  assert.match(source, /\["pause_release", "resume_release", "withdraw_release"\]/);
+  assert.match(source, /release_resumed/);
+  assert.match(source, /new_release_optional/);
+  assert.match(source, /use_engine_brand/);
+  assert.match(source, /profile\.set\("latest_version_code", artifactVersionCode\)/);
+  assert.doesNotMatch(source, /profile\.set\("latest_version_code", recordNumber\(job, "version_code"\)\)/);
 });
 
 test('secreto del runner compara hashes y rechaza valores cortos', () => {

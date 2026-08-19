@@ -20,7 +20,7 @@ export type AdminAppProfile = {
   status: 'active' | 'paused' | 'withdrawn';
 };
 
-export type AdminAppEngine = { name: string; version: string; contract_version: number; revision?: string };
+export type AdminAppEngine = { name: string; version: string; contract_version: number; firebase_required: boolean; revision?: string };
 
 export type AdminAppBrandAsset = {
   id: string;
@@ -187,7 +187,7 @@ function normalizeEngine(value: any): AdminAppEngine | null {
   const version = text(value?.version, 20);
   const contract = integer(value?.contract_version);
   return text(value?.name, 80) === 'Tu Senda 84 Admin Engine' && /^[0-9]+\.[0-9]+\.[0-9]+$/.test(version) && contract > 0
-    ? { name: 'Tu Senda 84 Admin Engine', version, contract_version: contract, revision: text(value?.revision, 40) }
+    ? { name: 'Tu Senda 84 Admin Engine', version, contract_version: contract, firebase_required: value?.firebase_required === true, revision: text(value?.revision, 40) }
     : null;
 }
 
@@ -279,7 +279,6 @@ async function post<T>(baseUrl: string, token: string, path: string, body: Recor
 export async function uploadMasterAdminAppBrandAsset(
   baseUrl: string,
   token: string,
-  channel: 'staging' | 'production',
   kind: 'icon' | 'splash',
   file: File,
 ): Promise<AdminAppResult<AdminAppBrandAsset>> {
@@ -296,7 +295,7 @@ export async function uploadMasterAdminAppBrandAsset(
     const digest = await crypto.subtle.digest('SHA-256', bytes);
     const sha256 = Array.from(new Uint8Array(digest)).map((value) => value.toString(16).padStart(2, '0')).join('');
     const form = new FormData();
-    form.set('channel', channel); form.set('kind', kind); form.set('sha256', sha256); form.set('bytes', String(file.size));
+    form.set('kind', kind); form.set('sha256', sha256); form.set('bytes', String(file.size));
     form.set('width', String(bitmap.width)); form.set('height', String(bitmap.height));
     form.set('confirmation', 'CAMBIAR IMAGEN MOBILE ADMIN'); form.set('file', file, `${kind}.png`);
     const origin = text(baseUrl, 500).replace(/\/+$/, '');
@@ -336,7 +335,7 @@ export function configureMasterAdminApp(baseUrl: string, token: string, input: R
   return post(baseUrl, token, '/api/pz/master/admin-app-releases/configure', input, (value) => value?.ok === true ? normalizeProfile(value.profile) : null);
 }
 
-export function previewMasterAdminAppBuild(baseUrl: string, token: string, input: { channel: string; version_name: string }) {
+export function previewMasterAdminAppBuild(baseUrl: string, token: string, input: { version_name: string }) {
   return post(baseUrl, token, '/api/pz/master/admin-app-releases/preview', input, (value) => value?.ok === true ? normalizeJob(value.job) : null);
 }
 

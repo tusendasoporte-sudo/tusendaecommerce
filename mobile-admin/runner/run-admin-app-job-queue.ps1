@@ -68,7 +68,7 @@ do {
         $splashPath = Receive-BrandAsset -Asset $profile.splash -Destination (Join-Path $brandDirectory 'splash.png')
         $preview = & $buildScript -Operation Preview -ReleaseOperation ([string]$job.operation) `
             -VersionCode ([int]$job.version_code) -VersionName ([string]$job.version_name) `
-            -Channel ([string]$profile.channel) -PackageName ([string]$profile.package_name) `
+            -Channel ([string]$job.preview.channel) -PackageName ([string]$profile.package_name) `
             -DisplayName ([string]$profile.display_name) -AdminUrl ([string]$profile.admin_url) `
             -ExpectedSigningCertSha256 ([string]$profile.signing_cert_sha256) `
             -IconSha256 ([string]$profile.icon.sha256) -SplashSha256 ([string]$profile.splash.sha256) `
@@ -76,7 +76,7 @@ do {
         if ([string]$preview.PreviewHash -ne [string]$job.preview_hash) { throw 'runner_preview_mismatch' }
         $build = & $buildScript -Operation Build -ReleaseOperation ([string]$job.operation) `
             -VersionCode ([int]$job.version_code) -VersionName ([string]$job.version_name) `
-            -Channel ([string]$profile.channel) -PackageName ([string]$profile.package_name) `
+            -Channel ([string]$job.preview.channel) -PackageName ([string]$profile.package_name) `
             -DisplayName ([string]$profile.display_name) -AdminUrl ([string]$profile.admin_url) `
             -ExpectedSigningCertSha256 ([string]$profile.signing_cert_sha256) `
             -IconSha256 ([string]$profile.icon.sha256) -SplashSha256 ([string]$profile.splash.sha256) `

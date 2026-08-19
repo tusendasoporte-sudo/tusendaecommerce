@@ -28,7 +28,7 @@ $engineManifestPath = Join-Path $mobileRoot 'engine.json'
 if (-not (Test-Path -LiteralPath $engineManifestPath -PathType Leaf)) { throw 'Falta el contrato del motor Mobile Admin.' }
 $engineManifest = Get-Content -LiteralPath $engineManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ([string]$engineManifest.name -ne 'Tu Senda 84 Admin Engine' -or [string]$engineManifest.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' `
-    -or [int]$engineManifest.contract_version -lt 1) { throw 'El contrato del motor Mobile Admin es inválido.' }
+    -or [int]$engineManifest.contract_version -lt 1 -or $engineManifest.firebase_required -ne $true) { throw 'El contrato del motor Mobile Admin es inválido.' }
 
 function ConvertTo-CanonicalJson {
     param([Parameter(Mandatory = $true)]$Value)
@@ -98,7 +98,7 @@ $preview = [ordered]@{
     schema_version = 2
     app = 'mobile-admin'
     channel = $Channel
-    engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version }
+    engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; firebase_required = $true }
     operation = $ReleaseOperation
     identity = [ordered]@{
         display_name = $DisplayName
@@ -108,6 +108,7 @@ $preview = [ordered]@{
     }
     build = [ordered]@{ version_code = $VersionCode; version_name = $VersionName; apk = $true; build_type = 'release' }
     appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
+    notifications = [ordered]@{ firebase_required = $true; managed_by_engine = $true }
     delivery = [ordered]@{ authenticated_only = $true; master_test_approval_required = $true; automatic_authorized_admin_delivery = $true; mandatory_after_publication = $true }
 }
 $canonical = ConvertTo-CanonicalJson $preview
@@ -123,6 +124,8 @@ if ($Operation -eq 'Preview') {
 }
 
 if (-not $ExecuteBuild) { throw 'Build requiere -ExecuteBuild y una vista previa confirmada.' }
+$firebaseConfigPath = Join-Path $mobileRoot 'app\google-services.json'
+if (-not (Test-Path -LiteralPath $firebaseConfigPath -PathType Leaf)) { throw 'La configuración Firebase obligatoria no está disponible para construir.' }
 if (-not $ConfirmedPreviewPath -or -not (Test-Path -LiteralPath $ConfirmedPreviewPath -PathType Leaf)) { throw 'Falta la vista previa confirmada.' }
 $confirmed = Get-Content -LiteralPath $ConfirmedPreviewPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($confirmed.preview_hash -ne $ConfirmedPreviewHash -or $ConfirmedPreviewHash -ne $previewHash) { throw 'La vista previa confirmada no coincide.' }
@@ -190,6 +193,7 @@ try {
         engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; git_commit = $gitRevision.Trim() }
         version_code = $VersionCode; version_name = $VersionName; package_name = $PackageName; signing_cert_sha256 = $signingCert
         appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
+        notifications = [ordered]@{ firebase_required = $true; included = $true }
         apk = $apkName; sha256 = $apkHash
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $releaseDirectory 'build-manifest.json') -Encoding UTF8
     return [pscustomobject]@{ OutputDirectory = $releaseDirectory; ApkName = $apkName; ApkSha256 = $apkHash; SigningCertSha256 = $signingCert; PreviewHash = $previewHash }

@@ -128,18 +128,21 @@ test('backend no expone capacidad anónima y revalida identidad al descargar', (
   assert.match(backendRoutes, /master\/admin-app-artifacts/);
 });
 
-test('panel Master simplifica configuración, apariencia, creación, prueba y publicación', () => {
+test('panel Master separa preparación de publicación y reutiliza la APK aprobada', () => {
   assert.match(masterPage, /requireMasterAdmin/);
   assert.match(masterPage, /private, no-store/);
   assert.match(masterView, /Configurar la aplicación/);
   assert.match(masterView, /Elegir la apariencia/);
-  assert.match(masterView, /Crear una nueva versión/);
-  assert.match(masterView, /Probar y publicar/);
-  assert.match(masterView, /Solicitar la actualización/);
+  assert.match(masterView, /Preparar una nueva versión/);
+  assert.match(masterView, /Probar y aprobar/);
+  assert.match(masterView, /Aplicación publicada/);
+  assert.match(masterView, /Lista para publicar/);
   assert.match(masterView, /data\.engine\.name/);
   assert.match(masterView, /automático/);
   assert.match(masterView, /Cambiar icono/);
   assert.match(masterView, /Cambiar pantalla/);
+  assert.match(masterView, /Personalizar icono y pantalla de inicio/);
+  assert.match(masterView, /use_engine_brand/);
   assert.doesNotMatch(masterView, /name="stage"|name="wave"|name="version_code"/);
   assert.doesNotMatch(masterView, /action: 'assign_next'/);
   assert.match(masterView, /action: 'publish_general'/);
@@ -147,6 +150,12 @@ test('panel Master simplifica configuración, apariencia, creación, prueba y pu
   assert.match(masterView, /Descargar APK de prueba/);
   assert.match(masterView, /Aprobar APK/);
   assert.match(masterView, /Publicar actualización/);
+  assert.match(masterView, /Publicar primera versión/);
+  assert.match(masterView, /Pausar temporalmente/);
+  assert.match(masterView, /Retirar publicación/);
+  assert.match(masterView, /resume_release/);
+  assert.match(masterView, /Notificaciones Firebase incluidas/);
+  assert.doesNotMatch(masterView, /Firebase project ID|Firebase app ID|Firebase \(opcional\)/);
   assert.doesNotMatch(masterView, /Administrador y dispositivo|Oleada|data-assignment-form/);
   assert.match(masterView, /pb\.authStore\.loadFromCookie\(document\.cookie, 'pb_auth'\)/);
   assert.match(masterPage, /channel.*production.*staging|production.*staging/s);
@@ -207,4 +216,6 @@ test('runner solo acepta firma existente y usa un secreto exclusivo', () => {
   assert.match(runner, /admin-app-brand-assets/);
   assert.match(runner, /runner_brand_checksum_mismatch/);
   assert.match(gradle, /releaseKeystorePropertiesFile\.parentFile/);
+  assert.match(gradle, /Firebase es obligatorio/);
+  assert.match(gradle, /releasePackagingRequested && !firebaseConfigFile\.exists/);
 });

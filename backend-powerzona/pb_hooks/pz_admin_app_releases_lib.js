@@ -12,8 +12,9 @@ const TICKETS = "admin_app_download_tickets";
 const EVENTS = "admin_app_release_events";
 const BRAND_ASSETS = "admin_app_brand_assets";
 const ENGINE_NAME = "Tu Senda 84 Admin Engine";
-const ENGINE_VERSION = "1.0.0";
+const ENGINE_VERSION = "1.0.1";
 const ENGINE_CONTRACT_VERSION = 1;
+const CANONICAL_PROFILE_CHANNEL = "production";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -203,7 +204,12 @@ function managementReady(app) {
 }
 
 function engineDescriptor() {
-  return { name: ENGINE_NAME, version: ENGINE_VERSION, contract_version: ENGINE_CONTRACT_VERSION };
+  return { name: ENGINE_NAME, version: ENGINE_VERSION, contract_version: ENGINE_CONTRACT_VERSION, firebase_required: true };
+}
+
+function masterProfile(app) {
+  return first(app, PROFILES, "channel = {:channel}", { channel: CANONICAL_PROFILE_CHANNEL })
+    || first(app, PROFILES, "channel = 'staging'", {});
 }
 
 function profileIdentityLocked(app, profileId) {
@@ -299,6 +305,7 @@ function jobSnapshot(job) {
       name: recordString(job, "engine_name", 80),
       version: recordString(job, "engine_version", 20),
       contract_version: recordNumber(job, "engine_contract_version"),
+      firebase_required: true,
       revision: recordString(job, "engine_revision", 40),
     },
     failure_code: recordString(job, "failure_code", 80),
@@ -436,23 +443,33 @@ function testApproved(app, artifactId) {
   return records(app, ASSIGNMENTS, "artifact = {:artifact} && stage = 'pilot' && status = 'active' && validated_at != ''", "", 1, { artifact: artifactId }).length > 0;
 }
 
+function releaseState(app, artifactId) {
+  const event = records(app, EVENTS, "artifact = {:artifact}", "-created", 100, { artifact: artifactId })
+    .find((item) => ["release_published", "release_resumed", "release_paused", "release_withdrawn"].includes(recordString(item, "action", 40)));
+  if (!event) return "draft";
+  const action = recordString(event, "action", 40);
+  if (action === "release_paused") return "paused";
+  if (action === "release_withdrawn") return "withdrawn";
+  return "published";
+}
+
 function publishedArtifactForProfile(app, profileId) {
   const candidates = records(app, ARTIFACTS,
     "profile = {:profile} && kind = 'apk' && lifecycle_status = 'available' && file != ''",
     "-version_code", 100, { profile: profileId });
-  return candidates.find((artifact) => generalPublished(app, artifact.id)) || null;
+  const controlled = candidates.find((artifact) => releaseState(app, artifact.id) !== "draft") || null;
+  return controlled && releaseState(app, controlled.id) === "published" ? controlled : null;
 }
 
 function publishedRelease(app, packageName, channel) {
   let profile = null;
   if (packageName) {
-    const matching = records(app, PROFILES, "package_name = {:package} && status = 'active'", "", 2, { package: packageName });
-    if (matching.length !== 1) throw new Error("profile_not_found");
-    profile = matching[0];
+    const matching = records(app, PROFILES, "package_name = {:package} && status = 'active'", "+channel", 10, { package: packageName });
+    profile = matching.find((item) => recordString(item, "channel", 20) === CANONICAL_PROFILE_CHANNEL) || matching[0] || null;
   } else {
-    profile = first(app, PROFILES, "channel = {:channel} && status = 'active'", { channel });
+    profile = channel === CANONICAL_PROFILE_CHANNEL ? masterProfile(app) : null;
   }
-  if (!profile) throw new Error("profile_not_found");
+  if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("profile_not_found");
   const artifact = publishedArtifactForProfile(app, profile.id);
   if (!artifact) throw new Error("release_not_available");
   return { assignment: null, profile, artifact };
@@ -464,7 +481,7 @@ function resolveAdminRelease(app, context, input) {
   const channel = text(input && input.channel, 20);
   const resolved = grant ? activeAssignment(app, context, grant) : publishedRelease(app, packageName, channel);
   if (packageName && recordString(resolved.profile, "package_name", 190) !== packageName) throw new Error("profile_not_found");
-  if (!packageName && channel && recordString(resolved.profile, "channel", 20) !== channel) throw new Error("profile_not_found");
+  if (!packageName && channel && channel !== CANONICAL_PROFILE_CHANNEL) throw new Error("profile_not_found");
   return resolved;
 }
 
@@ -489,7 +506,7 @@ function safeErrorCode(error) {
     "version_code_must_increase", "version_identity_mismatch", "job_not_claimed", "artifacts_not_stored",
     "ticket_not_found", "ticket_expired", "ticket_used", "ticket_identity_mismatch", "profile_identity_locked",
     "signing_identity_required", "assignment_revoked", "engine_incompatible", "version_sequence_changed",
-    "brand_asset_required", "brand_asset_invalid", "brand_asset_too_large",
+    "brand_asset_required", "brand_asset_invalid", "brand_asset_too_large", "release_withdrawn",
   ].includes(code) ? code : "";
 }
 
@@ -515,7 +532,7 @@ function handleMasterDetail(e) {
   if (!["staging", "production"].includes(channel)) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
     if (!managementReady($app)) return e.json(503, { ok: false, error: "admin_app_unavailable" });
-    const profile = first($app, PROFILES, "channel = {:channel}", { channel });
+    const profile = masterProfile($app);
     const profileId = profile ? profile.id : "";
     const jobs = profile ? records($app, JOBS, "profile = {:profile}", "-created", 25, { profile: profileId }) : [];
     const artifacts = profile ? records($app, ARTIFACTS, "profile = {:profile}", "-created", 50, { profile: profileId }) : [];
@@ -549,22 +566,19 @@ function handleMasterDetail(e) {
 }
 
 function parseConfigure(body) {
-  const keys = ["admin_url", "channel", "confirmation", "current_version_code", "current_version_name", "display_name", "firebase_app_id", "firebase_project_id", "package_name", "signing_cert_sha256", "splash_background_color"];
+  const keys = ["admin_url", "confirmation", "current_version_code", "current_version_name", "display_name", "package_name", "signing_cert_sha256", "splash_background_color"];
   if (!exactPayload(body, keys)) return null;
   const parsed = {
-    channel: text(bodyValue(body, "channel"), 20), displayName: text(bodyValue(body, "display_name"), 120),
+    displayName: text(bodyValue(body, "display_name"), 120),
     packageName: text(bodyValue(body, "package_name"), 190), adminUrl: text(bodyValue(body, "admin_url"), 500),
-    firebaseProjectId: text(bodyValue(body, "firebase_project_id"), 128), firebaseAppId: text(bodyValue(body, "firebase_app_id"), 255),
     signingCert: text(bodyValue(body, "signing_cert_sha256"), 95).toUpperCase(),
     splashBackgroundColor: text(bodyValue(body, "splash_background_color"), 7).toUpperCase(),
     currentVersionCode: integer(bodyValue(body, "current_version_code")),
     currentVersionName: text(bodyValue(body, "current_version_name"), 40),
     confirmation: text(bodyValue(body, "confirmation"), 80),
   };
-  if (!["staging", "production"].includes(parsed.channel) || !parsed.displayName || !PACKAGE_PATTERN.test(parsed.packageName)
+  if (!parsed.displayName || !PACKAGE_PATTERN.test(parsed.packageName)
     || !/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:\/.*)?$/.test(parsed.adminUrl)
-    || (parsed.firebaseProjectId && !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(parsed.firebaseProjectId))
-    || (!!parsed.firebaseProjectId !== !!parsed.firebaseAppId)
     || (parsed.signingCert && !CERT_PATTERN.test(parsed.signingCert))
     || !COLOR_PATTERN.test(parsed.splashBackgroundColor)
     || parsed.currentVersionCode < 0
@@ -581,7 +595,7 @@ function handleMasterConfigure(e) {
   try {
     let response = null;
     $app.runInTransaction((app) => {
-      let profile = first(app, PROFILES, "channel = {:channel}", { channel: parsed.channel });
+      let profile = masterProfile(app);
       if (profile) {
         const identityLocked = profileIdentityLocked(app, profile.id);
         if (identityLocked && (recordString(profile, "package_name", 190) !== parsed.packageName
@@ -593,11 +607,6 @@ function handleMasterConfigure(e) {
         profile.set("splash_background_color", parsed.splashBackgroundColor);
         if (!identityLocked) profile.set("package_name", parsed.packageName);
         if (!identityLocked || !recordString(profile, "signing_cert_sha256", 95)) profile.set("signing_cert_sha256", parsed.signingCert);
-        // Los valores vacíos preservan una configuración Firebase existente que el panel no expone.
-        if (parsed.firebaseProjectId && parsed.firebaseAppId) {
-          profile.set("firebase_project_id", parsed.firebaseProjectId);
-          profile.set("firebase_app_id", parsed.firebaseAppId);
-        }
         if (!identityLocked) {
           profile.set("latest_version_code", parsed.currentVersionCode);
           profile.set("latest_version_name", parsed.currentVersionName);
@@ -612,13 +621,13 @@ function handleMasterConfigure(e) {
         });
       } else {
         profile = createRecord(app, PROFILES, {
-          channel: parsed.channel, display_name: parsed.displayName, package_name: parsed.packageName,
-          admin_url: parsed.adminUrl, firebase_project_id: parsed.firebaseProjectId, firebase_app_id: parsed.firebaseAppId,
+          channel: CANONICAL_PROFILE_CHANNEL, display_name: parsed.displayName, package_name: parsed.packageName,
+          admin_url: parsed.adminUrl,
           signing_cert_sha256: parsed.signingCert, latest_version_code: parsed.currentVersionCode, latest_version_name: parsed.currentVersionName,
           last_allocated_version_code: parsed.currentVersionCode, splash_background_color: parsed.splashBackgroundColor,
           minimum_supported_version_code: 0, status: "active", created_by: e.auth.id, updated_by: e.auth.id,
         });
-        writeEvent(app, "profile_created", "succeeded", { profileId: profile.id, actorId: e.auth.id, snapshot: { channel: parsed.channel, package_name: parsed.packageName } });
+        writeEvent(app, "profile_created", "succeeded", { profileId: profile.id, actorId: e.auth.id, snapshot: { channel: CANONICAL_PROFILE_CHANNEL, package_name: parsed.packageName } });
       }
       response = { ok: true, profile: profileSnapshot(profile, app, "master") };
     });
@@ -627,16 +636,16 @@ function handleMasterConfigure(e) {
 }
 
 function parseBuildPreview(body) {
-  if (!exactPayload(body, ["channel", "version_name"])) return null;
-  const parsed = { channel: text(bodyValue(body, "channel"), 20), versionName: text(bodyValue(body, "version_name"), 40) };
-  return ["staging", "production"].includes(parsed.channel) && VERSION_PATTERN.test(parsed.versionName) ? parsed : null;
+  if (!exactPayload(body, ["version_name"])) return null;
+  const parsed = { versionName: text(bodyValue(body, "version_name"), 40) };
+  return VERSION_PATTERN.test(parsed.versionName) ? parsed : null;
 }
 
 function buildPreview(profile, parsed, app) {
   const icon = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "icon_asset")) : null;
   const splash = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "splash_asset")) : null;
   return {
-    schema_version: 2, app: "mobile-admin", channel: recordString(profile, "channel", 20),
+    schema_version: 2, app: "mobile-admin", channel: "staging",
     engine: engineDescriptor(),
     operation: recordNumber(profile, "latest_version_code") > 0 ? "update" : "provision",
     identity: {
@@ -648,6 +657,7 @@ function buildPreview(profile, parsed, app) {
       icon_sha256: recordString(icon, "sha256", 64), splash_sha256: recordString(splash, "sha256", 64),
       splash_background_color: recordString(profile, "splash_background_color", 7) || "#FFFFFF",
     },
+    notifications: { firebase_required: true, managed_by_engine: true },
     delivery: {
       authenticated_only: true,
       master_test_approval_required: true,
@@ -663,7 +673,7 @@ function handleMasterPreview(e) {
   const parsed = parseBuildPreview(e.requestInfo().body || {});
   if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
-    const profile = first($app, PROFILES, "channel = {:channel}", { channel: parsed.channel });
+    const profile = masterProfile($app);
     if (!profile) throw new Error("profile_not_found");
     if (recordString(profile, "status", 20) !== "active") throw new Error("release_not_available");
     if (!CERT_PATTERN.test(recordString(profile, "signing_cert_sha256", 95))) throw new Error("signing_identity_required");
@@ -743,7 +753,7 @@ function validatedPilotExists(app, artifactId) {
 }
 
 function generalPublished(app, artifactId) {
-  return records(app, EVENTS, "artifact = {:artifact} && action = 'release_published' && outcome = 'succeeded'", "-created", 1, { artifact: artifactId }).length > 0;
+  return releaseState(app, artifactId) === "published";
 }
 
 function eligibleAdminTargets(app) {
@@ -797,6 +807,22 @@ function publishGeneral(app, e, artifactId) {
     || !recordString(artifact, "file", 220)) throw new Error("artifact_not_found");
   if (!testApproved(app, artifact.id)) throw new Error("pilot_required");
   if (generalPublished(app, artifact.id)) return { idempotent: true, created: 0, total: 0 };
+  if (releaseState(app, artifact.id) === "withdrawn") throw new Error("release_withdrawn");
+  const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+  if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("release_not_available");
+  const artifactVersionCode = recordNumber(artifact, "version_code");
+  if (artifactVersionCode < recordNumber(profile, "latest_version_code")) throw new Error("version_identity_mismatch");
+  const previousMinimum = recordNumber(profile, "minimum_supported_version_code");
+  if (previousMinimum) {
+    profile.set("minimum_supported_version_code", 0);
+    writeEvent(app, "minimum_version_changed", "succeeded", {
+      profileId: profile.id, actorId: e.auth.id, snapshot: { previous: previousMinimum, current: 0, reason: "new_release_optional" },
+    });
+  }
+  profile.set("latest_version_code", artifactVersionCode);
+  profile.set("latest_version_name", recordString(artifact, "version_name", 40));
+  profile.set("updated_by", e.auth.id);
+  app.save(profile);
   writeEvent(app, "release_published", "succeeded", {
     profileId: relationId(artifact, "profile"), artifactId: artifact.id, actorId: e.auth.id,
     snapshot: { access: "all_active_store_admins_on_authorized_devices" },
@@ -858,6 +884,44 @@ function handleMasterAction(e) {
         if (!RECORD_ID_PATTERN.test(artifactId)) throw new Error("invalid_payload");
         const result = publishGeneral(app, e, artifactId);
         response = { ok: true, idempotent: result.idempotent, created: result.created, total: result.total };
+        return;
+      }
+      if (["pause_release", "resume_release", "withdraw_release"].includes(action)) {
+        if (!exactPayload(body, ["action", "artifact_id", "confirmation"])) throw new Error("invalid_payload");
+        const artifact = findRecord(app, ARTIFACTS, text(bodyValue(body, "artifact_id"), 15));
+        if (!artifact || recordString(artifact, "kind", 20) !== "apk" || recordString(artifact, "lifecycle_status", 20) !== "available") throw new Error("artifact_not_found");
+        const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+        if (!profile) throw new Error("profile_not_found");
+        const current = releaseState(app, artifact.id);
+        const expected = action === "pause_release" ? "PAUSAR PUBLICACION MOBILE ADMIN"
+          : action === "resume_release" ? "REANUDAR PUBLICACION MOBILE ADMIN" : "RETIRAR PUBLICACION MOBILE ADMIN";
+        if (text(bodyValue(body, "confirmation"), 80) !== expected) throw new Error("invalid_payload");
+        if ((action === "pause_release" && current !== "published")
+          || (action === "resume_release" && current !== "paused")
+          || (action === "withdraw_release" && !["published", "paused"].includes(current))) throw new Error("release_not_available");
+        const eventAction = action === "pause_release" ? "release_paused" : action === "resume_release" ? "release_resumed" : "release_withdrawn";
+        writeEvent(app, eventAction, "succeeded", { profileId: profile.id, artifactId: artifact.id, actorId: e.auth.id, snapshot: { previous: current } });
+        if (action === "withdraw_release" && recordNumber(profile, "minimum_supported_version_code")) {
+          const previous = recordNumber(profile, "minimum_supported_version_code");
+          profile.set("minimum_supported_version_code", 0); profile.set("updated_by", e.auth.id); app.save(profile);
+          writeEvent(app, "minimum_version_changed", "succeeded", { profileId: profile.id, actorId: e.auth.id, snapshot: { previous, current: 0, reason: "release_withdrawn" } });
+        }
+        response = { ok: true, artifact: artifactSnapshot(artifact), release_state: releaseState(app, artifact.id) };
+        return;
+      }
+      if (action === "use_engine_brand") {
+        if (!exactPayload(body, ["action", "confirmation", "profile_id"])
+          || text(bodyValue(body, "confirmation"), 80) !== "USAR IMAGENES DEL MOTOR") throw new Error("invalid_payload");
+        const profile = findRecord(app, PROFILES, text(bodyValue(body, "profile_id"), 15));
+        if (!profile || profile.id !== (masterProfile(app) || {}).id) throw new Error("profile_not_found");
+        ["icon_asset", "splash_asset"].forEach((field) => {
+          const asset = findRecord(app, BRAND_ASSETS, relationId(profile, field));
+          if (asset && recordString(asset, "status", 20) === "active") { asset.set("status", "superseded"); app.save(asset); }
+          profile.set(field, "");
+        });
+        profile.set("updated_by", e.auth.id); app.save(profile);
+        writeEvent(app, "brand_asset_updated", "succeeded", { profileId: profile.id, actorId: e.auth.id, snapshot: { mode: "engine_default" } });
+        response = { ok: true, profile: profileSnapshot(profile, app, "master") };
         return;
       }
       if (action === "set_minimum") {
@@ -1036,14 +1100,14 @@ function uploadedPrefix(file, length) {
 }
 
 function parseBrandUpload(body) {
-  if (!exactPayload(body, ["bytes", "channel", "confirmation", "height", "kind", "sha256", "width"])) return null;
+  if (!exactPayload(body, ["bytes", "confirmation", "height", "kind", "sha256", "width"])) return null;
   const parsed = {
-    channel: text(bodyValue(body, "channel"), 20), kind: text(bodyValue(body, "kind"), 20),
+    kind: text(bodyValue(body, "kind"), 20),
     sha256: text(bodyValue(body, "sha256"), 64).toLowerCase(), bytes: integer(bodyValue(body, "bytes")),
     width: integer(bodyValue(body, "width")), height: integer(bodyValue(body, "height")),
     confirmation: text(bodyValue(body, "confirmation"), 80),
   };
-  return ["staging", "production"].includes(parsed.channel) && ["icon", "splash"].includes(parsed.kind)
+  return ["icon", "splash"].includes(parsed.kind)
     && SHA256_PATTERN.test(parsed.sha256) && parsed.bytes > 0 && parsed.bytes <= MAX_BRAND_BYTES
     && parsed.width >= 512 && parsed.width <= 2048 && parsed.height === parsed.width
     && parsed.confirmation === "CAMBIAR IMAGEN MOBILE ADMIN" ? parsed : null;
@@ -1070,7 +1134,7 @@ function handleMasterBrandUpload(e) {
     validateBrandPng(files[0], parsed);
     let response = null;
     $app.runInTransaction((app) => {
-      const profile = first(app, PROFILES, "channel = {:channel}", { channel: parsed.channel });
+      const profile = masterProfile(app);
       if (!profile) throw new Error("profile_not_found");
       const previous = first(app, BRAND_ASSETS, "profile = {:profile} && kind = {:kind} && status = 'active'", { profile: profile.id, kind: parsed.kind }, "-revision");
       if (previous && recordString(previous, "sha256", 64) === parsed.sha256 && recordNumber(previous, "bytes") === parsed.bytes) {
@@ -1257,8 +1321,8 @@ function handleRunnerComplete(e) {
             || recordNumber(artifact, "version_code") !== recordNumber(job, "version_code")) throw new Error("artifacts_not_stored");
           artifact.set("lifecycle_status", "available"); app.save(artifact);
         });
-        profile.set("signing_cert_sha256", parsed.signingCert); profile.set("latest_version_code", recordNumber(job, "version_code"));
-        profile.set("latest_version_name", recordString(job, "version_name", 40)); profile.set("updated_by", relationId(job, "confirmed_by") || relationId(job, "created_by")); app.save(profile);
+        profile.set("signing_cert_sha256", parsed.signingCert);
+        profile.set("updated_by", relationId(job, "confirmed_by") || relationId(job, "created_by")); app.save(profile);
         writeEvent(app, "build_completed", "succeeded", { profileId: profile.id, artifactId: (staged.find((item) => recordString(item, "kind", 20) === "apk") || {}).id || "", actorId: relationId(job, "confirmed_by"), snapshot: { job_id: job.id, version_code: recordNumber(job, "version_code") } });
       }
       app.save(job); response = { ok: true, job: jobSnapshot(job), profile: profileSnapshot(profile, app, "runner") };
@@ -1294,7 +1358,7 @@ function handleMasterArtifactDownload(e) {
     if (!RECORD_ID_PATTERN.test(artifactId) || !FILE_PATTERN.test(filename)) return notFound();
     const artifact = findRecord(app, ARTIFACTS, artifactId);
     const profile = artifact ? findRecord(app, PROFILES, relationId(artifact, "profile")) : null;
-    if (!artifact || !profile || recordString(profile, "status", 20) !== "active"
+    if (!artifact || !profile
       || recordString(artifact, "kind", 20) !== "apk" || recordString(artifact, "lifecycle_status", 20) !== "available"
       || recordString(artifact, "file_name", 220) !== filename) return notFound();
     return serveApkFile(e, app, artifact, filename);
@@ -1359,7 +1423,7 @@ module.exports = {
   brandAssetSnapshot, canonical, engineDescriptor, exactPayload, generalPublished, grantDigest, handleAdminCheckIn, handleAdminDownload, handleAdminPolicy,
   handleAdminPortal, handleAdminTicket, handleMasterAction, handleMasterArtifactDownload, handleMasterConfigure, handleMasterConfirm,
   handleMasterBrandDownload, handleMasterBrandUpload, handleMasterDetail, handleMasterPreview, handleRunnerBrandDownload, handleRunnerClaim, handleRunnerComplete, handleRunnerUpload,
-  isMaster, isStoreAdmin, jobSnapshot, managementReady, nextVersionCode, parseAssignment, parseBrandUpload, parseBuildPreview,
+  isMaster, isStoreAdmin, jobSnapshot, managementReady, masterProfile, nextVersionCode, parseAssignment, parseBrandUpload, parseBuildPreview,
   parseCompletion, parseConfigure, parseUpload, portalResponse, profileIdentityLocked, profileSnapshot, randomToken,
-  publishedArtifactForProfile, recipientSnapshot, requireAuthenticatedUser, requireRunner, resolveAdminRelease, secretEqual, testApproved, ticketDigest, validatedPilotExists,
+  publishedArtifactForProfile, recipientSnapshot, releaseState, requireAuthenticatedUser, requireRunner, resolveAdminRelease, secretEqual, testApproved, ticketDigest, validatedPilotExists,
 };
