@@ -94,7 +94,7 @@ export async function getSettings(options?: StoreQueryInput) {
       coverGalleryUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename, { thumb: '1200x420' })),
       coverHeroImageUrl: cover ? getPocketBaseFileUrl('settings', settings.id, cover) : null,
       coverGalleryHeroUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename)),
-      giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage, { thumb: '700x420' }) : null,
+      giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage) : null,
       landingQrHeroImageUrl: landingQrHeroImage ? getPocketBaseFileUrl('settings', settings.id, landingQrHeroImage, { thumb: '1200x675' }) : null,
     };
   });

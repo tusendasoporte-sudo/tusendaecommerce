@@ -14,6 +14,7 @@ const subcategory = read('../src/pages/subcategoria/[slug].astro');
 const product = read('../src/pages/producto/[slug].astro');
 const adminCatalog = read('../src/pages/admin/catalog.astro');
 const adminCategory = read('../src/pages/admin/catalog/category/[id].astro');
+const adminGifts = read('../src/pages/admin/gifts.astro');
 const adminStoreSettings = read('../src/pages/admin/store-settings.astro');
 
 test('storefront SSR usa la red interna sin publicar URLs internas en imagenes', () => {
@@ -93,6 +94,16 @@ test('portada usa el WebP optimizado original y conserva miniaturas para otros c
   assert.match(home, /settings\?\.coverGalleryHeroUrls/);
   assert.match(home, /\.public-hero-cover img \{[^}]*object-fit: cover/);
   assert.match(home, /\.public-hero-slide img \{[^}]*object-fit: cover/);
+});
+
+test('regalos entrega el WebP optimizado sin una segunda conversion a miniatura PNG', () => {
+  assert.match(api, /giftsPublicImageUrl: giftsPublicImage \? getPocketBaseFileUrl\('settings', settings\.id, giftsPublicImage\) : null/);
+  assert.doesNotMatch(api, /giftsPublicImageUrl:[^\n]*thumb/);
+  assert.match(adminGifts, /const targetWidth = 1200;[\s\S]*const targetHeight = 675;/);
+  assert.match(adminGifts, /canvas\.toBlob\(resolve, 'image\/webp', 0\.82\)/);
+  assert.match(home, /\.public-gift-banner \{[^}]*aspect-ratio: 16 \/ 9/);
+  assert.match(home, /\.public-gift-banner img \{[^}]*object-fit: contain/);
+  assert.match(api, /imageUrl: image \? getPocketBaseFileUrl\('store_visual_items', item\.id, image, \{ thumb: '700x420' \}\) : null/);
 });
 
 test('portada descubre y prioriza solamente la primera imagen visible', () => {

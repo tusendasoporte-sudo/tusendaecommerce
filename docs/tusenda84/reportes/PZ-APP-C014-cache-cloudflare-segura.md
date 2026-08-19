@@ -152,6 +152,53 @@ Validación local:
 - `git diff --check` sin errores.
 - No se crearon datos QA ni se modificaron imágenes, caché, consultas, Cloudflare, Coolify, staging o producción.
 
+### Validación del paso 2 desplegado — 2026-08-19
+
+Después de que el propietario confirmara el despliegue de `e4fcf94` en ambos servicios de staging, se ejecutaron tres cargas de escritorio y tres móviles por entorno, alternando staging y producción en Microsoft Edge aislado, con caché y service workers desactivados y sin limitación artificial de red.
+
+| Mediana | Staging escritorio | Producción escritorio | Staging móvil | Producción móvil |
+|---|---:|---:|---:|---:|
+| TTFB | 638 ms | 1.344 ms | 499 ms | 1.030 ms |
+| DOMContentLoaded | 998 ms | 1.658 ms | 963 ms | 1.291 ms |
+| Carga completa | 1.363 ms | 2.651 ms | 1.232 ms | 2.298 ms |
+| FCP | 1.008 ms | 1.656 ms | 1.020 ms | 1.276 ms |
+| LCP | 1.408 ms | 2.708 ms | 1.256 ms | 2.168 ms |
+| CLS | 0 | 0 | 0 | 0 |
+
+La mejora mecánica sí quedó demostrada en las seis cargas de staging:
+
+- la portada fue la solicitud de recurso número `2`, siempre con prioridad de red `High`;
+- producción, que aún no incluye el paso 2, descubrió la portada como solicitud número `7`;
+- `preconnect`, `dns-prefetch` y el `preload` exacto aparecieron en el `<head>`;
+- la imagen LCP conservó `loading=eager`, `fetchpriority=high`, `decoding=async` y dimensiones `1600x900`;
+- la captura móvil mostró banner, recorte, carrusel y composición visual correctos, sin movimiento acumulado.
+
+Los porcentajes de diferencia no se atribuyen íntegramente al paso 2 porque ambos entornos tienen datos e imágenes distintos. En particular, la portada de staging transfirió aproximadamente 54 KB frente a 159 KB en producción, mientras la página completa de staging transfirió cerca de 1,49 MB frente a 1,05 MB en producción. Esto confirma simultáneamente que el LCP quedó mejor priorizado y que el peso del resto de imágenes de staging sigue siendo la próxima deuda; no autoriza promover las miniaturas actuales.
+
+Las llamadas analíticas y de seguridad no dejaron registros persistentes durante la ventana de prueba: se verificó un total de `0` elementos nuevos desde `2026-08-19 12:05:00Z` en `store_analytics_events`, `store_visitor_sessions` y `store_visitor_pageviews`, tanto en staging como en producción. El perfil, script y captura temporales fueron eliminados.
+
+### Paso 3A — auditoría de imágenes y corrección local de Regalos — 2026-08-19
+
+La portada pública de staging contiene 22 etiquetas `img` y 10 archivos únicos de PocketBase. La lectura HTTP directa, que no ejecuta JavaScript ni crea analítica, midió `1.451.810` bytes en esas imágenes. El inventario confirmó que la portada principal debe permanecer intacta y que las miniaturas de logo y elementos visuales sí reducen el peso.
+
+El caso inseguro quedó aislado en `gifts_public_image`: el archivo almacenado ya era un WebP optimizado de `1200x675` y `78.222` bytes, pero `?thumb=700x420` hacía que PocketBase entregara un PNG de `323.948` bytes. La segunda conversión agregaba `245.726` bytes y cambiaba la proporción de `16:9` a `5:3`, aunque el contenedor público aprobado es `16:9` con `object-fit: contain`.
+
+Se implementó localmente el cambio mínimo: `giftsPublicImageUrl` entrega directamente el archivo WebP almacenado. No se modificaron archivos subidos, datos, esquema, portada, categorías, productos, promociones ni infraestructura. El flujo de carga existente continúa preparando la imagen de Regalos como WebP `1200x675` con calidad `0.82` antes de enviarla a PocketBase.
+
+La decisión sobre el resto del inventario fue conservadora:
+
+- las cuatro categorías conservan sus archivos actuales; `480x270` no está configurado como miniatura y hoy devuelve el original, mientras `300x200` altera la proporción visual aprobada;
+- las dos miniaturas de `store_visual_items` se mantienen porque reducen de aproximadamente `1,48 MB` originales a `410 KB` combinados;
+- la miniatura del producto se evaluará en un paso separado después de medir esta corrección desplegada;
+- logo y portada permanecen sin cambios.
+
+Validación local de la corrección:
+
+- `11/11` pruebas en `storefrontReadPerformance.test.mjs`;
+- build Astro SSR correcto;
+- `git diff --check` sin errores;
+- ahorro previsto en la portada de staging: `245.726` bytes, cerca del `17 %` del peso de sus imágenes.
+
 ## Plan de trabajo propuesto
 
 ### Puerta de regresión previa a C12
