@@ -16,6 +16,7 @@ const adminCatalog = read('../src/pages/admin/catalog.astro');
 const adminCategory = read('../src/pages/admin/catalog/category/[id].astro');
 const adminGifts = read('../src/pages/admin/gifts.astro');
 const adminStoreSettings = read('../src/pages/admin/store-settings.astro');
+const taxonomyCardThumbMigration = read('../../backend-powerzona/pb_migrations/1787292000_taxonomy_card_thumbnails.js');
 
 test('storefront SSR usa la red interna sin publicar URLs internas en imagenes', () => {
   assert.match(pocketbase, /import\.meta\.env\.SSR\s*\?\s*serverPocketBaseUrl\(\)/);
@@ -72,6 +73,14 @@ test('imagenes de taxonomia separan miniaturas y banners de alta resolucion', ()
   assert.match(subcategory, /subcategoryHeroImageUrl \? <img src=\{subcategoryHeroImageUrl\}/);
   assert.match(category, /\.category-hero img \{[^}]*object-fit: cover/);
   assert.match(subcategory, /\.subcategory-hero img \{[^}]*object-fit: cover/);
+});
+
+test('PocketBase admite la miniatura de taxonomia solicitada sin reemplazar otros tamanos', () => {
+  assert.match(taxonomyCardThumbMigration, /const TAXONOMY_CARD_THUMB = "480x270"/);
+  assert.match(taxonomyCardThumbMigration, /\["categories", "image"\]/);
+  assert.match(taxonomyCardThumbMigration, /\["subcategories", "image"\]/);
+  assert.match(taxonomyCardThumbMigration, /\[\.\.\.currentThumbs, TAXONOMY_CARD_THUMB\]/);
+  assert.match(taxonomyCardThumbMigration, /currentThumbs\.filter\(\(thumb\) => thumb !== TAXONOMY_CARD_THUMB\)/);
 });
 
 test('subida de taxonomia comparte WebP sin recorte y conserva el archivo menor', () => {
