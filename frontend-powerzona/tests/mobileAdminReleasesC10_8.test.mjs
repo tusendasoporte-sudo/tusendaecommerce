@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   createAdminAppDownloadTicket,
+  getAdminAppPortal,
   parseNativeAdminAppUserAgent,
 } from '../src/lib/mobileAdminReleases.ts';
 
@@ -15,6 +16,7 @@ const portal = readFileSync(new URL('../src/pages/admin/mobile-app.astro', impor
 const ticketApi = readFileSync(new URL('../src/pages/api/admin/mobile-app/ticket.ts', import.meta.url), 'utf8');
 const downloadApi = readFileSync(new URL('../src/pages/api/admin/mobile-app/download/[artifact]/[ticket]/[filename].ts', import.meta.url), 'utf8');
 const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
+const sidebar = readFileSync(new URL('../src/components/admin/AdminSidebar.astro', import.meta.url), 'utf8');
 const android = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/MainActivity.java', import.meta.url), 'utf8');
 const verifier = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminApkVerifier.java', import.meta.url), 'utf8');
 const runner = readFileSync(new URL('../../mobile-admin/runner/run-admin-app-job-queue.ps1', import.meta.url), 'utf8');
@@ -55,14 +57,59 @@ test('ticket cliente usa autenticación y dispositivo y normaliza una descarga p
   };
   try {
     const result = await createAdminAppDownloadTicket(
-      'https://pb.example.test', 'auth-token', 'D'.repeat(43), 'G'.repeat(43),
+      'https://pb.example.test', 'auth-token', 'D'.repeat(43), {
+        grant: 'G'.repeat(43), package_name: 'com.tusenda84.admin.staging', channel: 'staging',
+      },
     );
     assert.equal(result.available, true);
     assert.equal(result.data?.artifact.version_code, 4);
     assert.match(request.url, /\/api\/pz\/admin-app\/releases\/ticket$/);
     assert.equal(request.options.headers.Authorization, 'Bearer auth-token');
     assert.equal(request.options.headers['X-PZ-Admin-Device'], 'D'.repeat(43));
-    assert.deepEqual(JSON.parse(request.options.body), { grant: 'G'.repeat(43) });
+    assert.deepEqual(JSON.parse(request.options.body), {
+      grant: 'G'.repeat(43), package_name: 'com.tusenda84.admin.staging', channel: 'staging',
+    });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('portal normaliza el destinatario en tiempo real sin exigir asignación', async () => {
+  const originalFetch = globalThis.fetch;
+  let body;
+  globalThis.fetch = async (_url, options) => {
+    body = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      ok: true,
+      access: {
+        grant_present: false,
+        recipient: {
+          store: { id: 'storec108000001', name: 'QA', slug: 'qa' },
+          user: { id: 'userc1080000001', name: 'Admin', email: 'admin@example.test' },
+          device: { id: 'devicec10800001', label: 'Teléfono', status: 'authorized' },
+        },
+        profile: {
+          id: 'profilec1080001', channel: 'production', display_name: 'Tu Senda 84 Admin',
+          package_name: 'com.tusenda84.admin', admin_url: 'https://tusenda84.com/admin',
+          firebase_configured: false, signing_configured: true, signing_cert_sha256: '',
+          latest_version_code: 4, latest_version_name: '1.0.3', next_version_code: 5,
+          identity_locked: true, icon: null, splash: null, splash_background_color: '#FFFFFF',
+          minimum_supported_version_code: 0, status: 'active',
+        },
+        artifact: {
+          id: 'artifactc108001', profile_id: 'profilec1080001', job_id: 'jobc10800000001', kind: 'apk',
+          file_name: 'mobile-admin-1.0.3-4.apk', sha256: 'a'.repeat(64), bytes: 22,
+          version_code: 4, version_name: '1.0.3', lifecycle_status: 'available', stored: true,
+        },
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const result = await getAdminAppPortal('https://pb.example.test', 'auth-token', 'D'.repeat(43), {
+      grant: '', package_name: 'com.tusenda84.admin', channel: 'production',
+    });
+    assert.equal(result.available, true);
+    assert.equal(result.data?.recipient.device.label, 'Teléfono');
+    assert.equal(Object.hasOwn(result.data || {}, 'assignment'), false);
+    assert.deepEqual(body, { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' });
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -77,6 +124,8 @@ test('backend no expone capacidad anónima y revalida identidad al descargar', (
   assert.match(backendLib, /Content-Disposition/);
   assert.match(backendLib, /X-PZ-APK-SHA256/);
   assert.match(backendLib, /profileSnapshot\(resolved\.profile, app, "admin"\)/);
+  assert.match(backendLib, /generalPublished\(app, artifact\.id\)/);
+  assert.match(backendRoutes, /master\/admin-app-artifacts/);
 });
 
 test('panel Master simplifica configuración, apariencia, creación, prueba y publicación', () => {
@@ -92,10 +141,13 @@ test('panel Master simplifica configuración, apariencia, creación, prueba y pu
   assert.match(masterView, /Cambiar icono/);
   assert.match(masterView, /Cambiar pantalla/);
   assert.doesNotMatch(masterView, /name="stage"|name="wave"|name="version_code"/);
-  assert.match(masterView, /action: 'assign_next'/);
+  assert.doesNotMatch(masterView, /action: 'assign_next'/);
   assert.match(masterView, /action: 'publish_general'/);
-  assert.match(masterView, /VALIDAR PILOTO MOBILE ADMIN/);
-  assert.match(masterView, /REVOCAR ENTREGA MOBILE ADMIN/);
+  assert.match(masterView, /action: 'approve_test'/);
+  assert.match(masterView, /Descargar APK de prueba/);
+  assert.match(masterView, /Aprobar APK/);
+  assert.match(masterView, /Publicar actualización/);
+  assert.doesNotMatch(masterView, /Administrador y dispositivo|Oleada|data-assignment-form/);
   assert.match(masterView, /pb\.authStore\.loadFromCookie\(document\.cookie, 'pb_auth'\)/);
   assert.match(masterPage, /channel.*production.*staging|production.*staging/s);
   assert.match(masterView, /\?channel=staging/);
@@ -103,9 +155,11 @@ test('panel Master simplifica configuración, apariencia, creación, prueba y pu
   assert.doesNotMatch(masterView, /wa\.me|WhatsApp|Google Play|generate.*sign/i);
 });
 
-test('portal y proxy conservan sesión y nunca convierten el APK en URL pública', () => {
+test('portal y proxy conservan sesión, dispositivo y APK privada sin asignación individual', () => {
   assert.match(portal, /isStoreAdmin/);
-  assert.match(portal, /asociado al administrador[\s\S]*al dispositivo/i);
+  assert.match(portal, /únicamente con su sesión[\s\S]*dispositivo autorizado/i);
+  assert.match(portal, /access\.recipient\.user/);
+  assert.doesNotMatch(portal, /access\.assignment|Oleada/);
   assert.match(portal, /\/api\/admin\/mobile-app\/ticket/);
   assert.match(portal, /PZAndroidUpdate/);
   assert.match(ticketApi, /refreshAuthFromCookie/);
@@ -121,6 +175,9 @@ test('enforcement afecta la app antigua y deja navegadores normales fuera del ga
   assert.match(middleware, /policy\.data\?\.update_required/);
   assert.match(middleware, /status: 426/);
   assert.match(middleware, /requestedSection !== 'mobile-app'/);
+  assert.match(middleware, /context\.locals\.adminAppPolicy = policy\.data/);
+  assert.match(sidebar, /Actualizar aplicación/);
+  assert.match(sidebar, /adminAppPolicy\?\.update_available/);
   assert.match(middleware, /change-temporary-password/);
 });
 

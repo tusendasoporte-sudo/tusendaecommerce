@@ -29,6 +29,13 @@ routerAdd(
 );
 
 routerAdd(
+  "GET", "/api/pz/master/admin-app-artifacts/{artifact}/{filename}",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterArtifactDownload(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(), $apis.bodyLimit(0), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "POST", "/api/pz/master/admin-app-releases/preview",
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterPreview(e),
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),

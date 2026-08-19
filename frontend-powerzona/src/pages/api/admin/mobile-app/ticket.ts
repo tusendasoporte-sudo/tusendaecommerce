@@ -6,6 +6,7 @@ import { createAdminAppDownloadTicket } from '../../../../lib/mobileAdminRelease
 import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const PACKAGE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -34,14 +35,21 @@ export const POST: APIRoute = async ({ request }) => {
   const deviceToken = readAdminDeviceToken(cookie);
   if (!deviceToken) return json({ ok: false, error: 'device_not_authorized' }, 403);
   const body = await request.json().catch(() => null);
-  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1 || !Object.hasOwn(body, 'grant')) {
+  const expectedKeys = ['channel', 'grant', 'package_name'];
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || Object.keys(body).sort().join('|') !== expectedKeys.join('|')) {
     return json({ ok: false, error: 'invalid_payload' }, 400);
   }
   const grant = String((body as any).grant || '').trim();
-  if (grant && !TOKEN_PATTERN.test(grant)) return json({ ok: false, error: 'invalid_payload' }, 400);
+  const packageName = String((body as any).package_name || '').trim();
+  const channel = String((body as any).channel || '').trim();
+  if ((grant && !TOKEN_PATTERN.test(grant)) || (packageName && !PACKAGE_PATTERN.test(packageName))
+    || !['staging', 'production'].includes(channel)) return json({ ok: false, error: 'invalid_payload' }, 400);
   const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) return json({ ok: false, error: 'unavailable' }, 503);
-  const result = await createAdminAppDownloadTicket(baseUrl, authPb.authStore.token, deviceToken, grant);
+  const result = await createAdminAppDownloadTicket(baseUrl, authPb.authStore.token, deviceToken, {
+    grant, package_name: packageName, channel: channel as 'staging' | 'production',
+  });
   if (!result.available || !result.data) return json({ ok: false, error: result.error }, result.status || 503);
   const artifact = result.data.artifact;
   return json({

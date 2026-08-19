@@ -197,7 +197,8 @@ function managementReady(app) {
     }) && app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("file").protected === true
       && app.findCollectionByNameOrId(BRAND_ASSETS).fields.getByName("file").protected === true
       && !!app.findCollectionByNameOrId(PROFILES).fields.getByName("last_allocated_version_code")
-      && !!app.findCollectionByNameOrId(JOBS).fields.getByName("engine_version");
+      && !!app.findCollectionByNameOrId(JOBS).fields.getByName("engine_version")
+      && !!app.findCollectionByNameOrId(TICKETS).fields.getByName("profile");
   } catch (_) { return false; }
 }
 
@@ -388,6 +389,22 @@ function authorizedAdminContext(app, auth, rawToken) {
   return { user: auth, device, storeId: relationId(auth, "store") };
 }
 
+function recipientSnapshot(app, context) {
+  const store = findRecord(app, "stores", context.storeId);
+  return {
+    store: { id: context.storeId, name: recordString(store, "name", 140), slug: recordString(store, "slug", 80) },
+    user: {
+      id: text(context.user.id || recordString(context.user, "id", 15), 15),
+      name: recordString(context.user, "display_name", 140) || recordString(context.user, "name", 140),
+      email: recordString(context.user, "email", 254),
+    },
+    device: {
+      id: text(context.device.id || recordString(context.device, "id", 15), 15),
+      label: recordString(context.device, "label", 120), status: recordString(context.device, "status", 20),
+    },
+  };
+}
+
 function activeAssignment(app, context, rawGrant) {
   const params = { user: context.user.id, device: context.device.id, store: context.storeId };
   let assignment = null;
@@ -412,20 +429,53 @@ function activeAssignment(app, context, rawGrant) {
   return { assignment, profile, artifact };
 }
 
+function testApproved(app, artifactId) {
+  if (records(app, EVENTS, "artifact = {:artifact} && action = 'test_approved' && outcome = 'succeeded'", "-created", 1, { artifact: artifactId }).length > 0) return true;
+  if (records(app, EVENTS, "artifact = {:artifact} && action = 'pilot_validated' && outcome = 'succeeded'", "-created", 1, { artifact: artifactId }).length > 0) return true;
+  // Compatibilidad con pilotos creados antes del flujo simplificado.
+  return records(app, ASSIGNMENTS, "artifact = {:artifact} && stage = 'pilot' && status = 'active' && validated_at != ''", "", 1, { artifact: artifactId }).length > 0;
+}
+
+function publishedArtifactForProfile(app, profileId) {
+  const candidates = records(app, ARTIFACTS,
+    "profile = {:profile} && kind = 'apk' && lifecycle_status = 'available' && file != ''",
+    "-version_code", 100, { profile: profileId });
+  return candidates.find((artifact) => generalPublished(app, artifact.id)) || null;
+}
+
+function publishedRelease(app, packageName, channel) {
+  let profile = null;
+  if (packageName) {
+    const matching = records(app, PROFILES, "package_name = {:package} && status = 'active'", "", 2, { package: packageName });
+    if (matching.length !== 1) throw new Error("profile_not_found");
+    profile = matching[0];
+  } else {
+    profile = first(app, PROFILES, "channel = {:channel} && status = 'active'", { channel });
+  }
+  if (!profile) throw new Error("profile_not_found");
+  const artifact = publishedArtifactForProfile(app, profile.id);
+  if (!artifact) throw new Error("release_not_available");
+  return { assignment: null, profile, artifact };
+}
+
+function resolveAdminRelease(app, context, input) {
+  const grant = text(input && input.grant, 43);
+  const packageName = text(input && input.packageName, 190);
+  const channel = text(input && input.channel, 20);
+  const resolved = grant ? activeAssignment(app, context, grant) : publishedRelease(app, packageName, channel);
+  if (packageName && recordString(resolved.profile, "package_name", 190) !== packageName) throw new Error("profile_not_found");
+  if (!packageName && channel && recordString(resolved.profile, "channel", 20) !== channel) throw new Error("profile_not_found");
+  return resolved;
+}
+
 function portalResponse(app, context, resolved, grant) {
-  const assignment = assignmentSnapshot(resolved.assignment, app);
   const artifact = artifactSnapshot(resolved.artifact);
   const profile = profileSnapshot(resolved.profile, app, "admin");
   return {
     ok: true,
     access: {
-      assignment, artifact, profile,
+      recipient: recipientSnapshot(app, context), artifact, profile,
       grant_present: !!grant,
-      update_required: assignment.installed_version_code > 0
-        && assignment.installed_version_code < profile.minimum_supported_version_code,
-      can_validate_pilot: assignment.stage === "pilot"
-        && assignment.installed_version_code === artifact.version_code
-        && !assignment.validated_at,
     },
   };
 }
@@ -598,7 +648,12 @@ function buildPreview(profile, parsed, app) {
       icon_sha256: recordString(icon, "sha256", 64), splash_sha256: recordString(splash, "sha256", 64),
       splash_background_color: recordString(profile, "splash_background_color", 7) || "#FFFFFF",
     },
-    delivery: { authenticated_only: true, pilot_required: true, gradual_rollout: true, mandatory_after_general: true },
+    delivery: {
+      authenticated_only: true,
+      master_test_approval_required: true,
+      automatic_authorized_admin_delivery: true,
+      mandatory_after_publication: true,
+    },
   };
 }
 
@@ -684,7 +739,7 @@ function parseAssignment(body) {
 }
 
 function validatedPilotExists(app, artifactId) {
-  return records(app, ASSIGNMENTS, "artifact = {:artifact} && stage = 'pilot' && status = 'active' && validated_at != ''", "", 1, { artifact: artifactId }).length > 0;
+  return testApproved(app, artifactId);
 }
 
 function generalPublished(app, artifactId) {
@@ -738,37 +793,15 @@ function handleAssign(app, e, parsed) {
 
 function publishGeneral(app, e, artifactId) {
   const artifact = findRecord(app, ARTIFACTS, artifactId);
-  if (!artifact || recordString(artifact, "kind", 20) !== "apk" || recordString(artifact, "lifecycle_status", 20) !== "available") throw new Error("artifact_not_found");
-  if (!validatedPilotExists(app, artifact.id)) throw new Error("pilot_required");
-  const gradual = records(app, ASSIGNMENTS, "artifact = {:artifact} && stage = 'gradual' && status = 'active'", "-wave", 500, { artifact: artifact.id });
-  if (!gradual.length) throw new Error("pilot_required");
-  if (generalPublished(app, artifact.id)) return { idempotent: true, created: 0, total: eligibleAdminTargets(app).length };
-  const wave = Math.max(0, ...gradual.map((item) => recordNumber(item, "wave"))) + 1;
-  const targets = eligibleAdminTargets(app);
-  let created = 0;
-  targets.forEach(({ user, device }) => {
-    const existing = first(app, ASSIGNMENTS, "artifact = {:artifact} && user = {:user} && device = {:device}", {
-      artifact: artifact.id, user: user.id, device: device.id,
-    });
-    if (existing) return;
-    const grant = randomToken();
-    const assignment = createRecord(app, ASSIGNMENTS, {
-      profile: relationId(artifact, "profile"), artifact: artifact.id, store: relationId(user, "store"), user: user.id, device: device.id,
-      stage: "general", wave, status: "active", grant_digest: grantDigest(grant), download_count: 0,
-      installed_version_code: 0, created_by: e.auth.id,
-    });
-    writeEvent(app, "release_promoted", "succeeded", {
-      profileId: relationId(artifact, "profile"), artifactId: artifact.id, assignmentId: assignment.id,
-      storeId: relationId(user, "store"), targetUserId: user.id, deviceId: device.id, actorId: e.auth.id,
-      snapshot: { stage: "general", wave },
-    });
-    created += 1;
-  });
+  if (!artifact || recordString(artifact, "kind", 20) !== "apk" || recordString(artifact, "lifecycle_status", 20) !== "available"
+    || !recordString(artifact, "file", 220)) throw new Error("artifact_not_found");
+  if (!testApproved(app, artifact.id)) throw new Error("pilot_required");
+  if (generalPublished(app, artifact.id)) return { idempotent: true, created: 0, total: 0 };
   writeEvent(app, "release_published", "succeeded", {
     profileId: relationId(artifact, "profile"), artifactId: artifact.id, actorId: e.auth.id,
-    snapshot: { eligible_devices: targets.length, new_assignments: created, wave },
+    snapshot: { access: "all_active_store_admins_on_authorized_devices" },
   });
-  return { idempotent: false, created, total: targets.length };
+  return { idempotent: false, created: 0, total: 0 };
 }
 
 function handleMasterAction(e) {
@@ -798,6 +831,25 @@ function handleMasterAction(e) {
           writeEvent(app, "pilot_validated", "succeeded", { profileId: relationId(assignment, "profile"), artifactId: artifact.id, assignmentId: assignment.id, storeId: relationId(assignment, "store"), targetUserId: relationId(assignment, "user"), deviceId: relationId(assignment, "device"), actorId: e.auth.id });
         }
         response = { ok: true, assignment: assignmentSnapshot(assignment, app) };
+        return;
+      }
+      if (action === "approve_test") {
+        if (!exactPayload(body, ["action", "artifact_id", "confirmation"])
+          || text(bodyValue(body, "confirmation"), 80) !== "APROBAR APK MOBILE ADMIN") throw new Error("invalid_payload");
+        const artifactId = text(bodyValue(body, "artifact_id"), 15);
+        const artifact = findRecord(app, ARTIFACTS, artifactId);
+        if (!artifact || recordString(artifact, "kind", 20) !== "apk"
+          || recordString(artifact, "lifecycle_status", 20) !== "available" || !recordString(artifact, "file", 220)) throw new Error("artifact_not_found");
+        const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+        if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("release_not_available");
+        const idempotent = testApproved(app, artifact.id);
+        if (!idempotent) {
+          writeEvent(app, "test_approved", "succeeded", {
+            profileId: profile.id, artifactId: artifact.id, actorId: e.auth.id,
+            snapshot: { mode: "master_manual_test" },
+          });
+        }
+        response = { ok: true, idempotent, artifact: artifactSnapshot(artifact) };
         return;
       }
       if (action === "publish_general") {
@@ -859,12 +911,16 @@ function handleMasterAction(e) {
 function handleAdminPortal(e) {
   setPrivateHeaders(e);
   const body = e.requestInfo().body || {};
-  if (!exactPayload(body, ["grant"])) return e.json(400, { ok: false, error: "invalid_payload" });
+  if (!exactPayload(body, ["channel", "grant", "package_name"])) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
     const context = authorizedAdminContext($app, e.auth, requestHeader(e, deviceLib.DEVICE_HEADER));
     const grant = text(bodyValue(body, "grant"), 43);
-    if (grant && !TOKEN_PATTERN.test(grant)) throw new Error("assignment_not_found");
-    const resolved = activeAssignment($app, context, grant);
+    const packageName = text(bodyValue(body, "package_name"), 190);
+    const channel = text(bodyValue(body, "channel"), 20);
+    if ((grant && !TOKEN_PATTERN.test(grant)) || (packageName && !PACKAGE_PATTERN.test(packageName))
+      || !["staging", "production"].includes(channel)
+      || (!grant && !packageName && channel !== "production")) throw new Error("invalid_payload");
+    const resolved = resolveAdminRelease($app, context, { grant, packageName, channel });
     return e.json(200, portalResponse($app, context, resolved, grant));
   } catch (error) { return sendError(e, error, "assignment_not_found"); }
 }
@@ -872,20 +928,26 @@ function handleAdminPortal(e) {
 function handleAdminTicket(e) {
   setPrivateHeaders(e);
   const body = e.requestInfo().body || {};
-  if (!exactPayload(body, ["grant"])) return e.json(400, { ok: false, error: "invalid_payload" });
+  if (!exactPayload(body, ["channel", "grant", "package_name"])) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
     const context = authorizedAdminContext($app, e.auth, requestHeader(e, deviceLib.DEVICE_HEADER));
     const grant = text(bodyValue(body, "grant"), 43);
-    if (grant && !TOKEN_PATTERN.test(grant)) throw new Error("assignment_not_found");
-    const resolved = activeAssignment($app, context, grant);
+    const packageName = text(bodyValue(body, "package_name"), 190);
+    const channel = text(bodyValue(body, "channel"), 20);
+    if ((grant && !TOKEN_PATTERN.test(grant)) || (packageName && !PACKAGE_PATTERN.test(packageName))
+      || !["staging", "production"].includes(channel)
+      || (!grant && !packageName && channel !== "production")) throw new Error("invalid_payload");
+    const resolved = resolveAdminRelease($app, context, { grant, packageName, channel });
     const rawTicket = randomToken();
     const expires = new Date(Date.now() + TICKET_TTL_MS).toISOString();
     createRecord($app, TICKETS, {
-      assignment: resolved.assignment.id, artifact: resolved.artifact.id, user: context.user.id, device: context.device.id,
+      assignment: resolved.assignment ? resolved.assignment.id : "", profile: resolved.profile.id,
+      artifact: resolved.artifact.id, user: context.user.id, device: context.device.id,
       token_digest: ticketDigest(rawTicket), expires_at: expires,
     });
     writeEvent($app, "download_ticket_created", "allowed", {
-      profileId: resolved.profile.id, artifactId: resolved.artifact.id, assignmentId: resolved.assignment.id,
+      profileId: resolved.profile.id, artifactId: resolved.artifact.id,
+      assignmentId: resolved.assignment ? resolved.assignment.id : "",
       storeId: context.storeId, targetUserId: context.user.id, deviceId: context.device.id, actorId: context.user.id,
     });
     return e.json(201, {
@@ -905,15 +967,14 @@ function handleAdminPolicy(e) {
     const versionCode = integer(bodyValue(body, "version_code"));
     const versionName = text(bodyValue(body, "version_name"), 40);
     if (!PACKAGE_PATTERN.test(packageName) || versionCode < 1 || !VERSION_PATTERN.test(versionName)) throw new Error("invalid_payload");
-    const access = activeAssignment($app, context, "");
+    const access = resolveAdminRelease($app, context, { grant: "", packageName, channel: "" });
     const profile = access.profile;
-    if (recordString(profile, "package_name", 190) !== packageName) throw new Error("profile_not_found");
     const availableVersion = recordNumber(access.artifact, "version_code");
     const minimumVersion = recordNumber(profile, "minimum_supported_version_code");
     return e.json(200, {
       ok: true, policy: {
         package_name: packageName, current_version_code: versionCode, current_version_name: versionName,
-        latest_version_code: recordNumber(profile, "latest_version_code"), latest_version_name: recordString(profile, "latest_version_name", 40),
+        latest_version_code: availableVersion, latest_version_name: recordString(access.artifact, "version_name", 40),
         minimum_supported_version_code: minimumVersion,
         update_available: availableVersion > versionCode,
         update_required: minimumVersion > versionCode && availableVersion >= minimumVersion,
@@ -933,14 +994,28 @@ function handleAdminCheckIn(e) {
     const versionCode = integer(bodyValue(body, "version_code"));
     const versionName = text(bodyValue(body, "version_name"), 40);
     if (!PACKAGE_PATTERN.test(packageName) || versionCode < 1 || !VERSION_PATTERN.test(versionName)) throw new Error("invalid_payload");
-    const resolved = activeAssignment($app, context, "");
+    const resolved = resolveAdminRelease($app, context, { grant: "", packageName, channel: "" });
     const profile = resolved.profile;
     const assignment = resolved.assignment;
-    if (recordString(profile, "package_name", 190) !== packageName) throw new Error("profile_not_found");
-    assignment.set("installed_version_code", versionCode); assignment.set("installed_version_name", versionName);
-    assignment.set("installed_at", new Date().toISOString()); $app.save(assignment);
-    writeEvent($app, "check_in", "succeeded", { profileId: profile.id, artifactId: relationId(assignment, "artifact"), assignmentId: assignment.id, storeId: context.storeId, targetUserId: context.user.id, deviceId: context.device.id, actorId: context.user.id, snapshot: { package_name: packageName, version_code: versionCode, version_name: versionName } });
-    return e.json(200, { ok: true, assignment: assignmentSnapshot(assignment, $app), policy: { minimum_supported_version_code: recordNumber(profile, "minimum_supported_version_code"), update_required: versionCode < recordNumber(profile, "minimum_supported_version_code") } });
+    if (assignment) {
+      assignment.set("installed_version_code", versionCode); assignment.set("installed_version_name", versionName);
+      assignment.set("installed_at", new Date().toISOString()); $app.save(assignment);
+    }
+    writeEvent($app, "check_in", "succeeded", {
+      profileId: profile.id, artifactId: resolved.artifact.id, assignmentId: assignment ? assignment.id : "",
+      storeId: context.storeId, targetUserId: context.user.id, deviceId: context.device.id, actorId: context.user.id,
+      snapshot: { package_name: packageName, version_code: versionCode, version_name: versionName },
+    });
+    const availableVersion = recordNumber(resolved.artifact, "version_code");
+    const minimumVersion = recordNumber(profile, "minimum_supported_version_code");
+    return e.json(200, {
+      ok: true, recipient: recipientSnapshot($app, context),
+      policy: {
+        latest_version_code: availableVersion, minimum_supported_version_code: minimumVersion,
+        update_available: availableVersion > versionCode,
+        update_required: minimumVersion > versionCode && availableVersion >= minimumVersion,
+      },
+    });
   } catch (error) { return sendError(e, error, "admin_app_check_in_failed"); }
 }
 
@@ -1192,6 +1267,40 @@ function handleRunnerComplete(e) {
   } catch (error) { return sendError(e, error, "runner_completion_failed"); }
 }
 
+function serveApkFile(e, app, artifact, filename) {
+  const storedName = recordString(artifact, "file", 220);
+  const base = typeof artifact.baseFilesPath === "function" ? text(artifact.baseFilesPath(), 1000) : "";
+  if (!storedName || !FILE_PATTERN.test(storedName) || !base || base.includes("..")) throw new Error("artifact_not_found");
+  const headers = e.response.header();
+  headers.set("Content-Type", "application/vnd.android.package-archive");
+  headers.set("Content-Disposition", `attachment; filename=\"${filename}\"`);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256", 64));
+  headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
+  headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name", 40));
+  let filesystem = null;
+  try { filesystem = app.newFilesystem(); return filesystem.serve(e.response, e.request, `${base}/${storedName}`, filename); }
+  finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+}
+
+function handleMasterArtifactDownload(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
+  if (!isMaster(e.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+  try {
+    const app = e.app || $app;
+    const artifactId = text(e.request.pathValue("artifact"), 15);
+    const filename = text(e.request.pathValue("filename"), 220);
+    if (!RECORD_ID_PATTERN.test(artifactId) || !FILE_PATTERN.test(filename)) return notFound();
+    const artifact = findRecord(app, ARTIFACTS, artifactId);
+    const profile = artifact ? findRecord(app, PROFILES, relationId(artifact, "profile")) : null;
+    if (!artifact || !profile || recordString(profile, "status", 20) !== "active"
+      || recordString(artifact, "kind", 20) !== "apk" || recordString(artifact, "lifecycle_status", 20) !== "available"
+      || recordString(artifact, "file_name", 220) !== filename) return notFound();
+    return serveApkFile(e, app, artifact, filename);
+  } catch (_) { return notFound(); }
+}
+
 function handleAdminDownload(e) {
   setPrivateHeaders(e);
   const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
@@ -1208,37 +1317,39 @@ function handleAdminDownload(e) {
     if (iso(recordValue(ticket, "used_at"))) return notFound();
     if (new Date(iso(recordValue(ticket, "expires_at"))).getTime() <= Date.now()) return notFound();
     if (relationId(ticket, "artifact") !== artifactId || relationId(ticket, "user") !== context.user.id || relationId(ticket, "device") !== context.device.id) return notFound();
-    const assignment = findRecord(app, ASSIGNMENTS, relationId(ticket, "assignment"));
-    if (!assignment || relationId(assignment, "artifact") !== artifactId || recordString(assignment, "status", 20) !== "active"
-      || relationId(assignment, "user") !== context.user.id || relationId(assignment, "device") !== context.device.id || relationId(assignment, "store") !== context.storeId) return notFound();
     const artifact = findRecord(app, ARTIFACTS, artifactId);
     const profile = artifact ? findRecord(app, PROFILES, relationId(artifact, "profile")) : null;
     if (!artifact || !profile || recordString(profile, "status", 20) !== "active" || recordString(artifact, "kind", 20) !== "apk"
       || recordString(artifact, "lifecycle_status", 20) !== "available" || recordString(artifact, "file_name", 220) !== filename) return notFound();
+    const assignmentId = relationId(ticket, "assignment");
+    const assignment = assignmentId ? findRecord(app, ASSIGNMENTS, assignmentId) : null;
+    if (assignmentId) {
+      if (!assignment || relationId(assignment, "artifact") !== artifactId || recordString(assignment, "status", 20) !== "active"
+        || relationId(assignment, "user") !== context.user.id || relationId(assignment, "device") !== context.device.id
+        || relationId(assignment, "store") !== context.storeId) return notFound();
+    } else if (relationId(ticket, "profile") !== profile.id || !generalPublished(app, artifact.id)) return notFound();
     app.runInTransaction((tx) => {
       const lockedTicket = findRecord(tx, TICKETS, ticket.id);
-      const lockedAssignment = findRecord(tx, ASSIGNMENTS, assignment.id);
       if (!lockedTicket || iso(recordValue(lockedTicket, "used_at"))) throw new Error("ticket_used");
       if (new Date(iso(recordValue(lockedTicket, "expires_at"))).getTime() <= Date.now()) throw new Error("ticket_expired");
-      if (!lockedAssignment || recordString(lockedAssignment, "status", 20) !== "active") throw new Error("assignment_not_found");
+      const lockedArtifact = findRecord(tx, ARTIFACTS, artifact.id);
+      const lockedProfile = lockedArtifact ? findRecord(tx, PROFILES, relationId(lockedArtifact, "profile")) : null;
+      if (!lockedArtifact || !lockedProfile || recordString(lockedProfile, "status", 20) !== "active"
+        || recordString(lockedArtifact, "lifecycle_status", 20) !== "available") throw new Error("release_not_available");
+      const lockedAssignment = assignmentId ? findRecord(tx, ASSIGNMENTS, assignmentId) : null;
+      if (assignmentId && (!lockedAssignment || recordString(lockedAssignment, "status", 20) !== "active")) throw new Error("assignment_not_found");
+      if (!assignmentId && (relationId(lockedTicket, "profile") !== lockedProfile.id || !generalPublished(tx, lockedArtifact.id))) throw new Error("release_not_available");
       lockedTicket.set("used_at", new Date().toISOString()); tx.save(lockedTicket);
-      lockedAssignment.set("download_count", recordNumber(lockedAssignment, "download_count") + 1);
-      lockedAssignment.set("last_downloaded_at", new Date().toISOString()); tx.save(lockedAssignment);
-      writeEvent(tx, "download_succeeded", "succeeded", { profileId: profile.id, artifactId: artifact.id, assignmentId: assignment.id, storeId: context.storeId, targetUserId: context.user.id, deviceId: context.device.id, actorId: context.user.id });
+      if (lockedAssignment) {
+        lockedAssignment.set("download_count", recordNumber(lockedAssignment, "download_count") + 1);
+        lockedAssignment.set("last_downloaded_at", new Date().toISOString()); tx.save(lockedAssignment);
+      }
+      writeEvent(tx, "download_succeeded", "succeeded", {
+        profileId: lockedProfile.id, artifactId: lockedArtifact.id, assignmentId: lockedAssignment ? lockedAssignment.id : "",
+        storeId: context.storeId, targetUserId: context.user.id, deviceId: context.device.id, actorId: context.user.id,
+      });
     });
-    const storedName = recordString(artifact, "file", 220);
-    const base = typeof artifact.baseFilesPath === "function" ? text(artifact.baseFilesPath(), 1000) : "";
-    if (!storedName || !FILE_PATTERN.test(storedName) || !base || base.includes("..")) return notFound();
-    const headers = e.response.header();
-    headers.set("Content-Type", "application/vnd.android.package-archive");
-    headers.set("Content-Disposition", `attachment; filename=\"${filename}\"`);
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256", 64));
-    headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
-    headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name", 40));
-    let filesystem = null;
-    try { filesystem = app.newFilesystem(); return filesystem.serve(e.response, e.request, `${base}/${storedName}`, filename); }
-    finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+    return serveApkFile(e, app, artifact, filename);
   } catch (_) { return notFound(); }
 }
 
@@ -1246,9 +1357,9 @@ module.exports = {
   ARTIFACTS, ASSIGNMENTS, BRAND_ASSETS, ENGINE_CONTRACT_VERSION, ENGINE_NAME, ENGINE_VERSION, EVENTS, JOBS, PREVIEW_TTL_MS, PROFILES, TICKETS, TICKET_TTL_MS,
   activeAssignment, artifactSnapshot, assignmentSnapshot, authorizedAdminContext, buildPreview,
   brandAssetSnapshot, canonical, engineDescriptor, exactPayload, generalPublished, grantDigest, handleAdminCheckIn, handleAdminDownload, handleAdminPolicy,
-  handleAdminPortal, handleAdminTicket, handleMasterAction, handleMasterConfigure, handleMasterConfirm,
+  handleAdminPortal, handleAdminTicket, handleMasterAction, handleMasterArtifactDownload, handleMasterConfigure, handleMasterConfirm,
   handleMasterBrandDownload, handleMasterBrandUpload, handleMasterDetail, handleMasterPreview, handleRunnerBrandDownload, handleRunnerClaim, handleRunnerComplete, handleRunnerUpload,
   isMaster, isStoreAdmin, jobSnapshot, managementReady, nextVersionCode, parseAssignment, parseBrandUpload, parseBuildPreview,
   parseCompletion, parseConfigure, parseUpload, portalResponse, profileIdentityLocked, profileSnapshot, randomToken,
-  requireAuthenticatedUser, requireRunner, secretEqual, ticketDigest, validatedPilotExists,
+  publishedArtifactForProfile, recipientSnapshot, requireAuthenticatedUser, requireRunner, resolveAdminRelease, secretEqual, testApproved, ticketDigest, validatedPilotExists,
 };

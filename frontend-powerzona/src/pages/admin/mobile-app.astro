@@ -5,7 +5,7 @@ import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../lib/auth';
 import { readAdminDeviceToken } from '../../lib/adminDevice';
-import { getAdminAppErrorMessage, getAdminAppPortal } from '../../lib/mobileAdminReleases';
+import { getAdminAppErrorMessage, getAdminAppPortal, parseNativeAdminAppUserAgent } from '../../lib/mobileAdminReleases';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import '../../styles/global.css';
 
@@ -30,12 +30,17 @@ const pathSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
 if (pathSlug && pathSlug !== storeSlug) return Astro.redirect(canonicalPath);
 
 const grant = String(Astro.url.searchParams.get('grant') || '').trim();
+const nativeIdentity = parseNativeAdminAppUserAgent(Astro.request.headers.get('user-agent') || '');
+const packageName = nativeIdentity?.package_name || '';
+// Una primera instalación desde navegador recibe siempre producción. Staging solo
+// se resuelve cuando la propia APK se identifica con su package_name exacto.
+const channel = 'production';
 const deviceToken = readAdminDeviceToken(cookie);
 const result = await getAdminAppPortal(
   import.meta.env.PUBLIC_POCKETBASE_URL,
   authPb.authStore.token,
   deviceToken,
-  grant,
+  { grant, package_name: packageName, channel },
 );
 const access = result.data;
 const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
@@ -60,13 +65,13 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
       activeSection="account"
       mobileTitle="Mobile Admin"
     />
-    <main class="release-shell" data-admin-mobile-portal data-grant={grant}>
+    <main class="release-shell" data-admin-mobile-portal data-grant={grant} data-package={packageName} data-channel={channel}>
       {access ? (
         <>
           <header class="release-hero">
-            <span>ENTREGA PRIVADA · {access.assignment.stage.toUpperCase()}</span>
+            <span>ACTUALIZACIÓN PRIVADA</span>
             <h1>{access.profile.display_name}</h1>
-            <p>Este APK está asociado al administrador <strong>{access.assignment.user.name || access.assignment.user.email}</strong> y al dispositivo <strong>{access.assignment.device.label}</strong>.</p>
+            <p>Disponible para <strong>{access.recipient.user.name || access.recipient.user.email}</strong> únicamente con su sesión y el dispositivo autorizado <strong>{access.recipient.device.label}</strong>.</p>
           </header>
           <section class="release-card">
             <dl>
@@ -74,8 +79,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
               <div><dt>Paquete</dt><dd>{access.profile.package_name}</dd></div>
               <div><dt>Archivo</dt><dd>{access.artifact.file_name}</dd></div>
               <div><dt>SHA-256</dt><dd class="checksum">{access.artifact.sha256}</dd></div>
-              <div><dt>Oleada</dt><dd>{access.assignment.stage} · {access.assignment.wave}</dd></div>
-              <div><dt>Descargas</dt><dd>{access.assignment.download_count}</dd></div>
+              <div><dt>Canal</dt><dd>{access.profile.channel === 'staging' ? 'Pruebas' : 'Producción'}</dd></div>
             </dl>
             <div class="release-warning">
               <strong>Comprueba antes de instalar</strong>
@@ -88,7 +92,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
               data-package={access.profile.package_name}
               data-version-code={String(access.artifact.version_code)}
               data-sha256={access.artifact.sha256}
-            >Preparar descarga autenticada</button>
+            >{nativeIdentity ? 'Descargar actualización' : 'Descargar APK'}</button>
             <p class="release-status" data-admin-mobile-status aria-live="polite"></p>
           </section>
         </>
@@ -107,6 +111,8 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
         const button = root?.querySelector<HTMLButtonElement>('[data-admin-mobile-download]');
         const status = root?.querySelector<HTMLElement>('[data-admin-mobile-status]');
         const grant = root?.dataset.grant || '';
+        const packageName = root?.dataset.package || '';
+        const channel = root?.dataset.channel === 'staging' ? 'staging' : 'production';
         function show(message: string, error = false) {
           if (!status) return;
           status.textContent = message;
@@ -128,7 +134,8 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
           show('Creando un ticket privado de un solo uso…');
           try {
             const response = await fetch('/api/admin/mobile-app/ticket', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grant }),
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ grant, package_name: packageName, channel }),
             });
             const payload = await response.json();
             if (!response.ok || payload?.ok !== true) throw new Error(String(payload?.error || 'ticket_failed'));

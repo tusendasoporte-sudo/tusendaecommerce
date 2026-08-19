@@ -248,6 +248,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
           deviceToken,
           nativeAdminApp,
         );
+        if (policy.data) context.locals.adminAppPolicy = policy.data;
         if (policy.data?.update_required) return context.redirect(getStoreAdminPath(currentStoreSlug, 'mobile-app'));
       }
     }

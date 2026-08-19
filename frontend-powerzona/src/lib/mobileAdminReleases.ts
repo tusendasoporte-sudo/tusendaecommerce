@@ -99,16 +99,26 @@ export type MasterAdminAppDetail = {
   artifacts: AdminAppArtifact[];
   assignments: AdminAppAssignment[];
   eligible_devices: AdminAppEligibleDevice[];
-  events: Array<{ id: string; action: string; outcome: string; reason: string; created: string }>;
+  events: Array<{ id: string; action: string; outcome: string; reason: string; artifact_id: string; created: string }>;
+};
+
+export type AdminAppRecipient = {
+  store: { id: string; name: string; slug: string };
+  user: { id: string; name: string; email: string };
+  device: { id: string; label: string; status: string };
 };
 
 export type AdminAppPortalAccess = {
-  assignment: AdminAppAssignment;
+  recipient: AdminAppRecipient;
   artifact: AdminAppArtifact;
   profile: AdminAppProfile;
   grant_present: boolean;
-  update_required: boolean;
-  can_validate_pilot: boolean;
+};
+
+export type AdminAppPortalOptions = {
+  grant?: string;
+  package_name?: string;
+  channel: 'staging' | 'production';
 };
 
 export type AdminAppPolicy = {
@@ -221,6 +231,15 @@ function normalizeAssignment(value: any): AdminAppAssignment | null {
   };
 }
 
+function normalizeRecipient(value: any): AdminAppRecipient | null {
+  if (![value?.store?.id, value?.user?.id, value?.device?.id].every((id) => RECORD_ID_PATTERN.test(text(id, 15)))) return null;
+  return {
+    store: { id: text(value.store.id, 15), name: text(value.store.name, 140), slug: text(value.store.slug, 80) },
+    user: { id: text(value.user.id, 15), name: text(value.user.name, 140), email: text(value.user.email, 254) },
+    device: { id: text(value.device.id, 15), label: text(value.device.label, 120), status: text(value.device.status, 20) },
+  };
+}
+
 function normalizeJob(value: any): AdminAppJob | null {
   if (!value || ![value.id, value.profile_id].every((id) => RECORD_ID_PATTERN.test(text(id, 15)))
     || !['provision', 'update'].includes(value.operation)
@@ -329,19 +348,29 @@ export function runMasterAdminAppAction(baseUrl: string, token: string, input: R
   return post(baseUrl, token, '/api/pz/master/admin-app-releases/action', input, (value) => value?.ok === true ? value : null);
 }
 
-export function getAdminAppPortal(baseUrl: string, token: string, deviceToken: string, grant = '') {
+export function getAdminAppPortal(baseUrl: string, token: string, deviceToken: string, options: AdminAppPortalOptions) {
+  const grant = text(options?.grant, 43);
+  const packageName = text(options?.package_name, 190);
+  const channel = options?.channel;
   if (grant && !TOKEN_PATTERN.test(grant)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
-  return post(baseUrl, token, '/api/pz/admin-app/releases/portal', { grant }, (value) => {
+  if (packageName && !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
+  if (!['staging', 'production'].includes(channel)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
+  return post(baseUrl, token, '/api/pz/admin-app/releases/portal', { grant, package_name: packageName, channel }, (value) => {
     if (value?.ok !== true) return null;
-    const assignment = normalizeAssignment(value.access?.assignment);
+    const recipient = normalizeRecipient(value.access?.recipient);
     const artifact = normalizeArtifact(value.access?.artifact);
     const profile = normalizeProfile(value.access?.profile);
-    return assignment && artifact && profile ? { ...value.access, assignment, artifact, profile } as AdminAppPortalAccess : null;
+    return recipient && artifact && profile ? { ...value.access, recipient, artifact, profile } as AdminAppPortalAccess : null;
   }, deviceToken);
 }
 
-export function createAdminAppDownloadTicket(baseUrl: string, token: string, deviceToken: string, grant = '') {
-  return post(baseUrl, token, '/api/pz/admin-app/releases/ticket', { grant }, (value) => {
+export function createAdminAppDownloadTicket(baseUrl: string, token: string, deviceToken: string, options: AdminAppPortalOptions) {
+  const grant = text(options?.grant, 43);
+  const packageName = text(options?.package_name, 190);
+  const channel = options?.channel;
+  if ((grant && !TOKEN_PATTERN.test(grant)) || (packageName && !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(packageName))
+    || !['staging', 'production'].includes(channel)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
+  return post(baseUrl, token, '/api/pz/admin-app/releases/ticket', { grant, package_name: packageName, channel }, (value) => {
     const ticket = text(value?.ticket, 43);
     const artifact = normalizeArtifact(value?.artifact);
     return value?.ok === true && TOKEN_PATTERN.test(ticket) && artifact && text(value.download_path, 500).includes(`/admin-app-downloads/${artifact.id}/${ticket}/`)
@@ -351,7 +380,16 @@ export function createAdminAppDownloadTicket(baseUrl: string, token: string, dev
 }
 
 export function checkInAdminApp(baseUrl: string, token: string, deviceToken: string, input: { package_name: string; version_code: number; version_name: string }) {
-  return post(baseUrl, token, '/api/pz/admin-app/releases/check-in', input, (value) => value?.ok === true && normalizeAssignment(value.assignment) ? value : null, deviceToken);
+  return post(baseUrl, token, '/api/pz/admin-app/releases/check-in', input, (value) => {
+    const recipient = normalizeRecipient(value?.recipient);
+    const policy = value?.policy;
+    return value?.ok === true && recipient && policy
+      && Number.isSafeInteger(Number(policy.latest_version_code))
+      && Number.isSafeInteger(Number(policy.minimum_supported_version_code))
+      && typeof policy.update_available === 'boolean' && typeof policy.update_required === 'boolean'
+      ? { ...value, recipient }
+      : null;
+  }, deviceToken);
 }
 
 export function getAdminAppPolicy(baseUrl: string, token: string, deviceToken: string, input: { package_name: string; version_code: number; version_name: string }) {
@@ -376,12 +414,12 @@ export function getAdminAppErrorMessage(code: string) {
   const messages: Record<string, string> = {
     unauthorized: 'Debes iniciar sesión nuevamente.',
     device_not_authorized: 'Este dispositivo no está autorizado para recibir Mobile Admin.',
-    assignment_not_found: 'No existe una entrega activa para este administrador y dispositivo.',
+    assignment_not_found: 'La versión no está disponible para esta sesión y dispositivo.',
     release_not_available: 'La publicación está pausada o retirada.',
-    pilot_required: 'Valida primero el piloto antes de abrir otra oleada.',
+    pilot_required: 'Descarga, prueba y aprueba primero esta APK.',
     pilot_not_installed: 'El piloto aún no ha confirmado la instalación de esta versión.',
     pilot_already_exists: 'Este release ya tiene un dispositivo piloto activo.',
-    general_release_required: 'La versión debe tener piloto, oleada gradual y asignación general antes de ser obligatoria.',
+    general_release_required: 'La versión debe estar aprobada y publicada antes de hacerla obligatoria.',
     version_code_must_increase: 'El versionCode debe ser mayor que el último publicado.',
     version_sequence_changed: 'Otra compilación reservó ese número. Crea una vista previa nueva.',
     engine_incompatible: 'El runner y Tu Senda 84 Admin Engine no tienen la misma versión.',

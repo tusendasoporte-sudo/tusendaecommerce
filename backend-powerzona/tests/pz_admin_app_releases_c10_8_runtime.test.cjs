@@ -125,7 +125,7 @@ function assertStatus(result, expected, action) {
   assert.equal(result.status, expected, `${action}: ${result.raw}`);
 }
 
-test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad sin servicios externos', {
+test('runtime C10.8 completa custodia, prueba Master, publicación global y obligatoriedad sin servicios externos', {
   skip: !fs.existsSync(POCKETBASE_EXE),
   timeout: 90_000,
 }, async () => {
@@ -287,7 +287,7 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
     });
     assertStatus(completed, 200, 'completar build C10.8');
 
-    for (const [collection, field] of [['admin_app_brand_assets', 'file'], ['admin_app_release_profiles', 'last_allocated_version_code'], ['admin_app_build_jobs', 'engine_version']]) {
+    for (const [collection, field] of [['admin_app_brand_assets', 'file'], ['admin_app_release_profiles', 'last_allocated_version_code'], ['admin_app_build_jobs', 'engine_version'], ['admin_app_download_tickets', 'profile']]) {
       const schema = await request(`/api/collections/${collection}`, { token: superToken, method: 'GET' });
       assertStatus(schema, 200, `consultar esquema ${collection}`);
       assert.ok(schema.data.fields.some((item) => item.name === field), `${collection} no contiene ${field}: ${schema.raw}`);
@@ -300,25 +300,66 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
     const apk = detail.data.artifacts.find((item) => item.kind === 'apk');
     assert.ok(apk?.stored && apk.lifecycle_status === 'available');
 
-    const assign = async (deviceId) => request('/api/pz/master/admin-app-releases/action', {
-      token: masterToken,
-      body: { action: 'assign_next', artifact_id: apk.id, user_id: admin.id, device_id: deviceId },
+    const masterPhysical = await fetch(`${baseUrl}/api/pz/master/admin-app-artifacts/${apk.id}/${apk.file_name}`, {
+      headers: { Authorization: `Bearer ${masterToken}` }, signal: AbortSignal.timeout(20_000),
     });
-    const pilot = await assign(deviceIds[0]);
-    assert.equal(pilot.status, 200, `asignar piloto: ${pilot.raw}\n${runtime.output()}`);
-    assert.match(pilot.data.grant, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(masterPhysical.status, 200, 'Master descarga la APK antes de publicarla');
+    assert.equal(masterPhysical.headers.get('x-pz-apk-sha256'), fixtures[0].sha256);
+    assert.deepEqual(Buffer.from(await masterPhysical.arrayBuffer()), fixtures[0].bytes);
 
     const adminHeaders = { [DEVICE_HEADER]: deviceTokens[0] };
+    const unpublishedPortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+    });
+    assertStatus(unpublishedPortal, 404, 'no entregar una APK sin publicar');
+
+    const prematurePublish = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'publish_general', artifact_id: apk.id, confirmation: 'PUBLICAR MOBILE ADMIN PARA TODOS' },
+    });
+    assertStatus(prematurePublish, 409, 'impedir publicación antes de aprobar la prueba');
+
+    const approved = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'approve_test', artifact_id: apk.id, confirmation: 'APROBAR APK MOBILE ADMIN' },
+    });
+    assertStatus(approved, 200, 'aprobar prueba manual del Master');
+
+    const publish = await request('/api/pz/master/admin-app-releases/action', {
+      token: masterToken,
+      body: { action: 'publish_general', artifact_id: apk.id, confirmation: 'PUBLICAR MOBILE ADMIN PARA TODOS' },
+    });
+    assertStatus(publish, 200, 'publicar para todos los administradores autorizados');
+    assert.equal(publish.data.created, 0);
+
+    const assignments = await request('/api/collections/admin_app_release_assignments/records?page=1&perPage=20', { token: superToken });
+    assertStatus(assignments, 200, 'verificar ausencia de asignaciones individuales');
+    assert.equal(assignments.data.totalItems, 0);
+
     const portal = await request('/api/pz/admin-app/releases/portal', {
-      token: adminLogins[0], headers: adminHeaders, body: { grant: pilot.data.grant },
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
     });
     assertStatus(portal, 200, 'abrir portal autenticado');
-    assert.equal(portal.data.access.assignment.device.id, deviceIds[0]);
+    assert.equal(portal.data.access.recipient.device.id, deviceIds[0]);
+
+    const secondDevicePortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[1], headers: { [DEVICE_HEADER]: deviceTokens[1] },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+    });
+    assertStatus(secondDevicePortal, 200, 'dar acceso automático a otro dispositivo autorizado');
 
     const ticket = await request('/api/pz/admin-app/releases/ticket', {
-      token: adminLogins[0], headers: adminHeaders, body: { grant: pilot.data.grant },
+      token: adminLogins[0], headers: adminHeaders,
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
     });
     assertStatus(ticket, 201, 'crear ticket de un uso');
+    const storedTicketQuery = new URLSearchParams({ page: '1', perPage: '20', filter: `artifact = "${apk.id}"` });
+    const storedTickets = await request(`/api/collections/admin_app_download_tickets/records?${storedTicketQuery}`, { token: superToken });
+    assertStatus(storedTickets, 200, 'verificar ticket global');
+    assert.equal(storedTickets.data.items[0].assignment || '', '');
+    assert.equal(storedTickets.data.items[0].profile, configured.data.profile.id);
     const physical = await fetch(`${baseUrl}${ticket.data.download_path}`, {
       headers: { Authorization: `Bearer ${adminLogins[0]}`, ...adminHeaders },
       signal: AbortSignal.timeout(20_000),
@@ -336,20 +377,26 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
       token: adminLogins[0], headers: adminHeaders,
       body: { package_name: 'com.tusenda84.admin', version_code: 4, version_name: '1.0.3' },
     });
-    assertStatus(checkIn, 200, 'registrar instalación piloto');
-    const validatePilot = await request('/api/pz/master/admin-app-releases/action', {
-      token: masterToken,
-      body: { action: 'validate_pilot', assignment_id: pilot.data.assignment.id, confirmation: 'VALIDAR PILOTO MOBILE ADMIN' },
-    });
-    assertStatus(validatePilot, 200, 'validar piloto');
+    assertStatus(checkIn, 200, 'registrar instalación global');
+    assert.equal(checkIn.data.recipient.device.id, deviceIds[0]);
 
-    assertStatus(await assign(deviceIds[1]), 200, 'añadir administrador después del piloto');
-    const publish = await request('/api/pz/master/admin-app-releases/action', {
-      token: masterToken,
-      body: { action: 'publish_general', artifact_id: apk.id, confirmation: 'PUBLICAR MOBILE ADMIN PARA TODOS' },
+    const futureAdmin = await create('users', {
+      email: 'future-admin-c108-runtime@example.test', password: PASSWORD, passwordConfirm: PASSWORD,
+      display_name: 'Admin futuro C10.8 Runtime', role: 'store_admin', status: 'active', store: store.id,
+      phone: '', emailVisibility: true,
     });
-    assertStatus(publish, 200, 'publicar para todos');
-    assert.equal(publish.data.total, 3);
+    const futureDeviceToken = 'F'.repeat(43);
+    const futureLogin = await request('/api/collections/users/auth-with-password', {
+      headers: { [DEVICE_HEADER]: futureDeviceToken, 'User-Agent': 'Mozilla/5.0 FutureC108Device' },
+      body: { identity: futureAdmin.email, password: PASSWORD },
+    });
+    assertStatus(futureLogin, 200, 'autorizar administrador creado después de publicar');
+    const futurePortal = await request('/api/pz/admin-app/releases/portal', {
+      token: futureLogin.data.token, headers: { [DEVICE_HEADER]: futureDeviceToken },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
+    });
+    assertStatus(futurePortal, 200, 'entregar automáticamente al administrador futuro');
+
     const minimum = await request('/api/pz/master/admin-app-releases/action', {
       token: masterToken,
       body: { action: 'set_minimum', profile_id: configured.data.profile.id, version_code: 4, confirmation: 'EXIGIR VERSION 4' },
@@ -364,18 +411,11 @@ test('runtime C10.8 completa custodia, piloto, oleadas, ticket y obligatoriedad 
     assert.equal(policy.data.policy.update_required, true);
     assert.equal(policy.data.policy.minimum_supported_version_code, 4);
 
-    const revoke = await request('/api/pz/master/admin-app-releases/action', {
-      token: masterToken,
-      body: {
-        action: 'revoke_assignment', assignment_id: pilot.data.assignment.id,
-        reason: 'Fin de fixture runtime C10.8', confirmation: 'REVOCAR ENTREGA MOBILE ADMIN',
-      },
+    const unknownDevicePortal = await request('/api/pz/admin-app/releases/portal', {
+      token: adminLogins[0], headers: { [DEVICE_HEADER]: 'Z'.repeat(43) },
+      body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'staging' },
     });
-    assertStatus(revoke, 200, 'revocar piloto temporal');
-    const revokedPortal = await request('/api/pz/admin-app/releases/portal', {
-      token: adminLogins[0], headers: adminHeaders, body: { grant: pilot.data.grant },
-    });
-    assertStatus(revokedPortal, 404, 'cerrar grant revocado');
+    assertStatus(unknownDevicePortal, 409, 'rechazar un dispositivo no autorizado');
 
     const privateRecords = await request('/api/collections/admin_app_artifacts/records', { token: adminLogins[0] });
     assertStatus(privateRecords, 403, 'mantener colecciones privadas');

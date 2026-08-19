@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10.8 IMPLEMENTADO LOCALMENTE — base protegida desplegada; refinamiento Tu Senda 84 Admin Engine 1.0.0, secuencia automática y panel simplificado verificados, pendientes de versionar/desplegar |
-| Versión del documento | 1.44 |
+| Estado general | PZ-APP-C10.8 IMPLEMENTADO LOCALMENTE — base y Tu Senda 84 Admin Engine 1.0.0 desplegados en `8ed0f371`; entrega global privada simplificada verificada localmente y pendiente de versionar/desplegar |
+| Versión del documento | 1.45 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-18 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Revisar el refinamiento local de C10.8 y, solo con autorización separada, hacer commit/push y desplegarlo antes del piloto físico; no firmar, enviar ni publicar sin aprobación específica |
+| Próximo prompt | Revisar la entrega global privada local de C10.8 y, solo con autorización separada, hacer commit/push y desplegarla antes del piloto físico; no firmar, enviar ni publicar APK sin aprobación específica |
 
 ### Convención de estados
 
@@ -522,7 +522,7 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 | C07 | `mobile-storefront/config/powerzona.properties`; `mobile-storefront/brands/powerzona/brand.json`; `icon.png`; `splash.png`; pruebas `app/src/test/java/com/tusenda84/storefront/PowerZonaDestinationsTest.java`; `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/tests/pz_storefront_order_targets.test.cjs`. La configuración Firebase real seguirá en un archivo local ignorado, no en Git. |
 | C08 | `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`; ajuste de retención solicitado durante C08: `backend-powerzona/pb_migrations/1786665600_push_campaign_retention_7d.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns.pb.js`, `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`, `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`, `backend-powerzona/pb_hooks/pz_store_activity_audit_lib.js`, `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`, `backend-powerzona/tests/pz_storefront_campaigns_runtime.test.cjs` y `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`. |
 | C09 | Inventario efectivo detallado en la bitácora C09. Archivos principales nuevos: `backend-powerzona/pb_migrations/1786665800_storefront_push_analytics_c09.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_analytics_lib.js`; `backend-powerzona/tests/pz_storefront_analytics_c09.test.cjs`; `backend-powerzona/tests/pz_storefront_analytics_migration_c09.test.cjs`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/pages/api/checkout/coupon-attribution.ts`; `frontend-powerzona/src/pages/admin/app-installations.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/app-installations.astro`; `frontend-powerzona/tests/storefrontPushAnalyticsC09.test.mjs`; `mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontEventQueue.java`; `docs/tusenda84/PZ_APP_C09_ANALYTICS_OPERATIONS.md`. |
-| C10 | `scripts/build-store-app.ps1`; configuración y marcas bajo `mobile-storefront`; `mobile-storefront/README.md`; validadores y runner; `backend-powerzona/pb_hooks/pz_storefront_app_builds_lib.js`; `pz_storefront_app_admin_lib.js`; migraciones C10; panel y cliente Master App Android; pruebas focales y runtime C10. C10.8 incorpora el dominio separado `admin_app_*`, runner de `mobile-admin`, asignaciones usuario/dispositivo, ticket autenticado de un uso, portal administrador, check-in nativo, verificación del APK y enforcement selectivo. |
+| C10 | `scripts/build-store-app.ps1`; configuración y marcas bajo `mobile-storefront`; `mobile-storefront/README.md`; validadores y runner; `backend-powerzona/pb_hooks/pz_storefront_app_builds_lib.js`; `pz_storefront_app_admin_lib.js`; migraciones C10; panel y cliente Master App Android; pruebas focales y runtime C10. C10.8 incorpora el dominio separado `admin_app_*`, runner de `mobile-admin`, publicación global para administradores/dispositivos autorizados, ticket autenticado de un uso, portal administrador, check-in nativo, verificación del APK y enforcement selectivo. |
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
 | C013 | `docs/tusenda84/reportes/PZ-APP-C013-reconciliacion-instalaciones.md`; revisión focal de `pz_storefront_installations_lib.js`, `pz_storefront_analytics_lib.js`, contratos Android de registro y sus pruebas. Parte de la base App Set ID ya incorporada; no autoriza una migración destructiva ni la eliminación automática de registros legacy. |
@@ -896,7 +896,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 #### C10.8 — Mobile Admin: entrega autenticada y actualización controlada
 
-**Estado:** `IMPLEMENTADO LOCALMENTE`. La implementación y sus pruebas aisladas están completas; el despliegue, la firma real, el piloto físico y la activación de una versión mínima requieren autorizaciones posteriores separadas.
+**Estado:** `IMPLEMENTADO LOCALMENTE`. La base y el refinamiento del motor 1.0.0 están desplegados en `8ed0f371`; la simplificación de entrega global privada y sus pruebas aisladas están completas localmente. Su commit/push/despliegue, la firma real, el piloto físico y la activación de una versión mínima requieren autorizaciones posteriores separadas.
 
 **Base existente confirmada:**
 
@@ -907,32 +907,32 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 **Separación del motor y del dominio administrativo:**
 
 - C10.8 reutiliza las primitivas probadas de runner, checksum, transferencia, estados `staged`/`available`, custodia PocketBase y limpieza; no reutiliza la ruta pública `/api/pz/storefront-app-downloads/...` ni convierte una capacidad C10.7 en acceso administrativo.
-- `mobile-admin` es una aplicación administrativa compartida, no una app white-label perteneciente a una sola tienda. Sus perfiles, trabajos, artefactos, asignaciones, tickets y eventos se guardan en colecciones administrativas separadas de `storefront_app_*`; las asignaciones son las únicas que relacionan release, tienda, usuario y dispositivo autorizado.
+- `mobile-admin` es una aplicación administrativa compartida, no una app white-label perteneciente a una sola tienda. Sus perfiles, trabajos, artefactos, tickets y eventos se guardan en colecciones administrativas separadas de `storefront_app_*`. Las asignaciones permanecen únicamente como compatibilidad cerrada con entregas anteriores; una publicación nueva no crea una fila por administrador o dispositivo.
 - La identidad Android congela canal, `package_name` y certificado SHA-256 de firma al confirmar el primer build. Nombre visible, URL administrativa, Firebase y apariencia se pueden actualizar; cada vista previa inmoviliza exactamente esos valores para que un cambio posterior invalide la confirmación. Cada release recibe el siguiente `versionCode` reservado por el servidor y produce un APK inmutable con nombre, bytes y SHA-256. Ni keystore, contraseñas, `google-services.json` ni rutas del runner se guardan en PocketBase, Git o respuestas públicas.
 - El archivo APK seguirá en un campo PocketBase protegido dentro del volumen persistente `/app/pb_data`. Un build no podrá completarse si el archivo físico no existe o no coincide con los metadatos declarados.
 
-**Descarga autenticada y enlace asociado al administrador:**
+**Descarga autenticada para administradores autorizados:**
 
-- El Master crea una asignación para un `store_admin` activo y un `store_user_devices` exacto en estado `authorized`. La asignación guarda snapshots mínimos de usuario, tienda, release y oleada, además de estado y auditoría; nunca guarda contraseña, token de sesión o token crudo de dispositivo.
-- El administrador recibe un enlace opaco a un portal, no al archivo. El servidor conserva solo el hash del grant. Compartir el enlace no concede acceso: en cada apertura se exige sesión vigente, mismo `user.id`, misma tienda, mismo digest de dispositivo autorizado, asignación activa y release disponible.
-- Después de validar el portal, el servidor emite un ticket de descarga corto, de un solo uso y ligado a usuario, dispositivo, asignación, artefacto y sesión. La descarga vuelve a comprobar todas las condiciones antes de transmitir el APK; usuario incorrecto, dispositivo distinto, sesión cerrada, usuario suspendido, dispositivo revocado, asignación retirada o release detenido fallan cerrado sin revelar el archivo.
+- El Master no elige administradores ni dispositivos. Al publicar una versión, el servidor la hace elegible automáticamente para cualquier `store_admin` activo que tenga sesión vigente y un `store_user_devices` exacto en estado `authorized`, incluidos administradores creados después de la publicación.
+- El administrador abre su portal autenticado, no una URL al archivo. Compartir esa dirección no concede acceso: en cada apertura se exigen nuevamente usuario activo, tienda válida, sesión y digest del dispositivo autorizado, perfil activo y APK publicada.
+- Después de validar el portal, el servidor emite un ticket de descarga de dos minutos, un solo uso y ligado a perfil, usuario, dispositivo, artefacto y sesión. La descarga vuelve a comprobar todas las condiciones antes de transmitir el APK; usuario incorrecto, dispositivo distinto, sesión cerrada, usuario suspendido, dispositivo revocado o release detenido fallan cerrado sin revelar el archivo.
 - La respuesta fuerza adjunto APK, desactiva caché, indexación y sniffing e incluye versión y SHA-256. No expone listados, rutas físicas, AAB, manifests, grants almacenados ni secretos. Cada intento aceptado o rechazado genera un evento administrativo sanitizado y sujeto a retención.
 - La página autenticada permanente del administrador puede resolver su release vigente, pero cada descarga física usa un ticket nuevo. No existe un enlace permanente anónimo al APK de Mobile Admin.
 
-**Piloto y publicación gradual:**
+**Prueba Master y publicación:**
 
-1. Un release comienza `draft` y no tiene destinatarios.
-2. El Master lo pasa a `pilot` seleccionando un único administrador y dispositivo ya autorizado. Solo esa asignación puede descargar; los demás administradores continúan en la versión anterior.
-3. El piloto instala sobre la app existente, inicia sesión y registra un check-in autenticado con `packageName`, `versionCode`, versión, instalación administrativa y dispositivo. El Master valida explícitamente instalación, apertura, login, notificaciones y funciones críticas; descargar por sí solo no cuenta como validación.
-4. Tras validar, el Master usa **Añadir administrador** para destinatarios explícitos. El backend conserva internamente una secuencia de publicación limitada, pero el panel no exige entender ni escribir “etapa”, “oleada” o su número.
-5. **Publicar para todos** toma un snapshot de los administradores y dispositivos autorizados en ese momento y exige confirmación. El release pasa a `general` solo después del piloto y al menos una entrega limitada. `pause` impide nuevas descargas sin borrar evidencia ni artefactos; `withdrawn` revoca asignaciones del release.
+1. La compilación terminada queda disponible únicamente para el Master y no aparece a los administradores.
+2. El Master pulsa **Descargar APK de prueba**, la instala manualmente en su teléfono y comprueba apertura, login y funciones críticas. Esa descarga no aprueba ni publica nada.
+3. El Master pulsa **Aprobar APK** con confirmación explícita. El backend registra la aprobación sobre el artefacto exacto.
+4. El Master pulsa **Publicar actualización**. Desde ese momento el release queda disponible en tiempo real para todos los administradores activos con dispositivo autorizado, sin asignaciones, etapas, oleadas ni snapshots de destinatarios.
+5. `pause` o `withdrawn` impiden nuevas descargas sin borrar evidencia ni artefactos. Una publicación anterior sigue siendo la versión anunciada mientras una compilación nueva permanezca sin aprobar o publicar.
 
 **Actualización obligatoria después de validar:**
 
-- El perfil conserva `latest_version_code` y `minimum_supported_version_code`. Aumentar el mínimo solo se permite para un release validado, disponible y ya promovido a `general`; nunca desde `draft`, `pilot` o una oleada parcial.
+- El perfil conserva `latest_version_code` y `minimum_supported_version_code`. Aumentar el mínimo solo se permite para un release probado, aprobado, disponible y publicado; nunca para una compilación pendiente.
 - El enforcement se aplica únicamente a sesiones reconocidas de `mobile-admin`, no a navegadores administrativos normales. Una versión inferior al mínimo conserva login, cierre de sesión, recuperación de acceso, check-in y portal de actualización, pero queda bloqueada para el resto del panel y API administrativas con una pantalla inequívoca de actualización obligatoria.
-- El bloqueo ofrece exclusivamente el release asignado al mismo administrador/dispositivo. La app verifica paquete, SHA-256 y `versionCode` antes de entregar el instalador a Android; la instalación solo puede actualizar sin borrar datos si paquete y firma coinciden y el código es mayor.
-- Activar el mínimo requiere confirmación Master con resumen de piloto, oleadas, cobertura, checksum y versión. Desactivarlo es un rollback server-side inmediato. Si el APK ya instalado presenta un defecto, Android no permite bajar `versionCode`; la recuperación correcta es retirar la obligación y publicar un hotfix firmado con código superior, conservando los artefactos anteriores como evidencia.
+- El bloqueo ofrece exclusivamente la última versión publicada del paquete instalado. La app verifica paquete, SHA-256 y `versionCode` antes de entregar el instalador a Android; la instalación solo puede actualizar sin borrar datos si paquete y firma coinciden y el código es mayor.
+- Activar el mínimo requiere confirmación Master con aprobación, publicación, checksum y versión. Desactivarlo es un rollback server-side inmediato. Si el APK ya instalado presenta un defecto, Android no permite bajar `versionCode`; la recuperación correcta es retirar la obligación y publicar un hotfix firmado con código superior, conservando los artefactos anteriores como evidencia.
 
 **Modelo mínimo previsto:**
 
@@ -942,8 +942,8 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 | `admin_app_build_jobs` | Contrato idempotente entre Master y runner con motor, contrato, revisión, versión automática y apariencia congelados. |
 | `admin_app_brand_assets` | Icono y splash PNG protegidos, versionados y verificados por dimensiones, bytes y SHA-256. |
 | `admin_app_artifacts` | APK protegido, metadatos inmutables, checksum y ciclo de vida. |
-| `admin_app_release_assignments` | Release concedido a usuario, tienda, dispositivo y oleada exactos; grant hasheado y estado. |
-| `admin_app_download_tickets` | Capacidad efímera de dos minutos y un solo uso, ligada a sesión, asignación, usuario, dispositivo y artefacto. |
+| `admin_app_release_assignments` | Compatibilidad histórica con grants C10.8 anteriores; el flujo nuevo no crea asignaciones. |
+| `admin_app_download_tickets` | Capacidad efímera de dos minutos y un solo uso, ligada a sesión, perfil publicado, usuario, dispositivo y artefacto. |
 | `admin_app_release_events` | Auditoría append-only de asignación, descarga, check-in, validación, promoción, pausa, retiro y enforcement. |
 
 **Criterios de aceptación C10.8:**
@@ -951,14 +951,15 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] El motor compila `mobile-admin` sin cambiar manualmente el código y conserva exactamente paquete y certificado mientras incrementa `versionCode`; el contrato local y el APK debug fueron verificados, mientras que una compilación release firmada queda pendiente de autorización.
 - [x] El APK físico queda protegido en `pb_data` y un trabajo incompleto o con checksum distinto no puede terminar `succeeded`.
 - [x] No existe descarga anónima: sin sesión, con otro usuario, otra tienda, otro dispositivo, grant copiado, ticket vencido/reutilizado o dispositivo revocado, el servidor no entrega bytes.
-- [x] El enlace permanece asociado a un administrador y su dispositivo; revocar usuario, dispositivo, asignación o release invalida el acceso inmediatamente.
-- [x] El piloto solo alcanza el dispositivo autorizado seleccionado y requiere check-in más validación explícita; una descarga aislada no habilita el rollout.
-- [x] El panel oculta etapas y números internos: permite prueba inicial, destinatarios limitados exactos y una publicación general confirmada que fotografía los dispositivos autorizados del momento.
-- [x] La actualización obligatoria solo puede activarse después de piloto y publicación general validados y mantiene accesibles login, logout y descarga del update.
+- [x] La descarga permanece asociada a la sesión y el dispositivo; revocar usuario, dispositivo o release invalida el acceso inmediatamente.
+- [x] Solo el Master descarga el APK pendiente y debe aprobar explícitamente el artefacto exacto; una descarga aislada no habilita la publicación.
+- [x] El panel no muestra destinatarios, etapas ni oleadas: ofrece descargar prueba, aprobar APK y publicar actualización.
+- [x] Una publicación llega automáticamente a administradores y dispositivos autorizados actuales y futuros sin crear asignaciones individuales.
+- [x] La actualización obligatoria solo puede activarse después de aprobación y publicación y mantiene accesibles login, logout y descarga del update.
 - [x] Navegadores administrativos normales no quedan bloqueados por la versión de la APK; las sesiones de la app por debajo del mínimo sí.
 - [x] La respuesta descarga el APK con adjunto, SHA-256, versión, `no-store`, `nosniff` y `noindex`, sin exponer ruta, secreto, AAB o manifiesto interno.
 - [x] Migración, endpoints, runner, UI Master, portal del administrador, app y enforcement tienen pruebas positivas, negativas, concurrencia, rollback y aislamiento a nivel local.
-- [x] Toda QA usa tienda, usuarios, dispositivos, asignaciones, archivos y directorios temporales identificables y elimina absolutamente todo al finalizar; si una limpieza afectara al proyecto o a la app real, se detiene y se consulta antes.
+- [x] Toda QA usa tienda, usuarios, dispositivos, tickets, archivos y directorios temporales identificables y elimina absolutamente todo al finalizar; si una limpieza afectara al proyecto o a la app real, se detiene y se consulta antes.
 
 **Límites de C10.8:** la autorización local no incluye generar o usar la firma real de `mobile-admin`, compilar un APK de producción, crear o modificar Firebase, enviar enlaces o WhatsApp, desplegar staging/producción, instalar en un teléfono, activar el mínimo obligatorio, publicar en Google Play ni modificar datos reales. Cada acción externa o uso de credenciales requiere autorización separada.
 
@@ -969,7 +970,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - Una instalación realmente nueva usa baseline `0` y recibe código `1`. Una aplicación ya instalada puede declarar su baseline antes del primer build confirmado; después el sistema protege paquete, firma y baseline y actualiza la versión publicada exclusivamente a partir de artefactos verificados.
 - La pantalla separa **Identidad Android** de **Nombre y dirección**. Paquete, firma y canal definen compatibilidad de actualización. Nombre, URL administrativa, Firebase, color, icono y splash se pueden cambiar sin presentar falsamente esos datos como identidad inmutable.
 - Icono y splash se cargan como PNG cuadrado de 512–2048 px y máximo 2 MiB, quedan en archivos PocketBase protegidos y versionados y cada build fija sus IDs, revisiones y SHA-256. El runner descarga exactamente los recursos congelados, vuelve a comprobar sus hashes, los aplica temporalmente y restaura el árbol fuente incluso si Gradle falla.
-- El flujo visible queda reducido a **Guardar configuración → Elegir apariencia → Crear versión → Enviar al dispositivo de prueba → Aprobar prueba → Añadir administrador → Publicar para todos → Solicitar actualización**. Piloto, publicación limitada, publicación general y numeración siguen auditados internamente.
+- El flujo visible queda reducido a **Guardar configuración → Elegir apariencia → Crear versión → Descargar APK de prueba → Aprobar APK → Publicar actualización → Hacer actualización obligatoria**. La publicación se autoriza globalmente en tiempo real para administradores activos y dispositivos autorizados; no existen etapas u oleadas en el flujo nuevo.
 - Mobile Admin es una aplicación de plataforma Tu Senda 84, no una aplicación PowerZona. La URL central y los permisos del backend permiten reutilizarla en ecommerce, páginas promocionales, servicios u otros proyectos futuros sin crear otro APK por tipo de web.
 - Al migrar, los trabajos históricos quedan identificados como motor previo `0.0.0`; las vistas previas antiguas se cancelan y los trabajos antiguos todavía activos pasan a atención para impedir que el runner 1.0.0 ejecute un contrato incompatible. Los números de trabajos previamente confirmados se conservan como consumidos.
 
@@ -2522,3 +2523,13 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - La verificación focal pasó para backend, migración y runtime PocketBase real, frontend y hash reproducible PowerShell/backend. La regresión completa terminó en backend con 722 pruebas totales, 715 aprobadas, 7 omitidas declaradas y 0 fallos; frontend terminó 542/542. El build SSR y Android `testDebugUnitTest`, `lintDebug` y `assembleDebug` también finalizaron correctamente.
 - El PocketBase y sus registros, usuarios, dispositivos, archivos y directorio temporal se eliminaron en `finally`; la vista previa técnica y las salidas derivadas de Astro/Gradle también fueron eliminadas. No se tocaron los APK/AAB históricos existentes bajo `mobile-admin/releases`.
 - No se utilizó firma real, no se generó release, no se creó ni modificó Firebase, no se tocó staging o producción, no se envió WhatsApp/enlace, no se instaló en un dispositivo y no se publicó en Google Play. Commit, push y despliegue de este refinamiento requieren autorización posterior.
+
+### 2026-08-18 — PZ-APP-C10.8 IMPLEMENTADO LOCALMENTE: entrega global privada simplificada
+
+- El propietario confirmó que solo él usa el panel Master y sustituyó el piloto por destinatario y las oleadas por un control directo: **Descargar APK de prueba → Aprobar APK → Publicar actualización → Hacer actualización obligatoria**.
+- La publicación ya no crea asignaciones ni fotografías de los administradores existentes. El backend resuelve la última APK realmente publicada por paquete o canal y permite el portal a cualquier `store_admin` activo con sesión y dispositivo autorizado, incluidos usuarios creados después. Las asignaciones y grants anteriores se conservan únicamente como compatibilidad cerrada.
+- El APK continúa en un campo PocketBase protegido. El Master tiene una descarga autenticada previa a la publicación; el administrador obtiene un ticket de dos minutos y un solo uso ligado a perfil, artefacto, usuario y dispositivo. Al consumirlo se vuelven a comprobar publicación, sesión, rol y dispositivo antes de transmitir bytes.
+- Mobile Admin consulta la política al abrir. Una actualización opcional muestra **Actualizar aplicación** y dirige al portal privado; al activar la versión mínima, el middleware conserva el bloqueo 426/redirección solo para la app nativa. El puente Android sigue verificando SHA-256, paquete, código y firma antes del instalador.
+- La migración `1787191200_admin_app_global_private_delivery.js` hace opcional la asignación del ticket, añade la relación de perfil, incorpora el evento explícito `test_approved` y migra tickets heredados. Su rollback falla cerrado mientras exista un ticket global o una aprobación nueva.
+- Las pruebas focales de backend, migraciones y frontend terminaron 21/21; el runtime PocketBase real terminó 1/1 y confirmó descarga Master antes de publicar, denegación previa, aprobación, publicación sin asignaciones, acceso desde dos dispositivos, acceso de un administrador creado después, ticket de un uso, check-in, obligatoriedad y rechazo de dispositivo desconocido. El directorio PocketBase temporal y todos sus datos y archivos fueron eliminados en `finally`.
+- La regresión frontend completa terminó 543/543. La regresión backend completa terminó con 725 pruebas totales, 718 aprobadas, 7 omitidas declaradas y 0 fallos. El build SSR terminó correctamente con las tres advertencias históricas de `getStaticPaths()` en rutas dinámicas. No se usó firma real, no se generó ni publicó un APK, no se modificó Firebase, no se envió WhatsApp, no se tocó staging/producción y no se realizó ninguna acción externa.

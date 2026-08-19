@@ -75,11 +75,14 @@ const adminPushCampaignsPath = getStoreAdminPath(storeSlug, 'push-campaigns');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
 const adminAccountPath = getStoreAdminPath(storeSlug, 'account');
+const adminMobileAppPath = getStoreAdminPath(storeSlug, 'mobile-app');
 const adminTeamPath = getStoreAdminPath(storeSlug, 'team');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
 const currentAdminPath = Astro.url.pathname.replace(/\/+$/, '');
+const adminAppPolicy = Astro.locals.adminAppPolicy;
+const showAdminAppUpdate = !isMasterSupportMode && adminAppPolicy?.update_available === true;
 const isMarketingRafflesPath = /\/admin\/promos\/raffles$/.test(currentAdminPath);
 const isMarketingPushCampaignsPath = /\/admin\/push-campaigns$/.test(currentAdminPath);
 
@@ -377,6 +380,16 @@ const marketingVisualSubClass = (subsection: string) => {
   return `pz-admin-sidebar__settings-subitem${isActive ? ' is-active' : ''}`;
 };
 ---
+
+{showAdminAppUpdate && (
+  <aside class="pz-admin-app-update-banner" role="status" aria-label="Actualización de Mobile Admin disponible">
+    <span>
+      <strong>Nueva versión {adminAppPolicy?.latest_version_name}</strong>
+      <small>Actualiza Mobile Admin para recibir las mejoras más recientes.</small>
+    </span>
+    <a href={adminMobileAppPath}>Actualizar aplicación</a>
+  </aside>
+)}
 
 {isMasterSupportMode && (
   <section class="pz-master-support-bar" role="status" aria-label={`Modo soporte Master para ${resolvedStoreName}`}>
@@ -2639,6 +2652,56 @@ const marketingVisualSubClass = (subsection: string) => {
 </script>
 
 <style is:global>
+  .pz-admin-app-update-banner {
+    position: fixed;
+    z-index: 10040;
+    top: 18px;
+    right: 22px;
+    left: calc(var(--pz-admin-sidebar-left, 16px) + var(--pz-admin-sidebar-width, 248px) + 28px);
+    width: min(720px, calc(100% - var(--pz-admin-sidebar-width, 248px) - 90px));
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: 16px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    padding: 12px 14px;
+    box-shadow: 0 16px 38px rgba(30, 64, 175, .18);
+  }
+
+  .pz-admin-app-update-banner > span { display: grid; gap: 3px; }
+  .pz-admin-app-update-banner strong { font-size: 14px; font-weight: 1000; }
+  .pz-admin-app-update-banner small { font-size: 12px; font-weight: 700; }
+  .pz-admin-app-update-banner a {
+    flex: none;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 11px;
+    background: #1d4ed8;
+    color: #fff;
+    padding: 0 14px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 1000;
+  }
+
+  @media (max-width: 1023px) {
+    .pz-admin-app-update-banner {
+      top: calc(82px + env(safe-area-inset-top, 0px));
+      right: 10px;
+      left: 10px;
+      width: auto;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .pz-admin-app-update-banner { align-items: stretch; flex-direction: column; }
+    .pz-admin-app-update-banner a { justify-content: center; }
+  }
   #pz-admin-sidebar,
   #pz-admin-sidebar *,
   #pz-admin-sidebar::before,

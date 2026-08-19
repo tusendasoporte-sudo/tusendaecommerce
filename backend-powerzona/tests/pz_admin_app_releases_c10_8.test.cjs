@@ -41,7 +41,7 @@ test('configuración acepta app nueva o baseline existente y exige color y confi
   assert.equal(releases.profileIdentityLocked(app, 'profilec1080001'), true);
 });
 
-test('preview fija entrega autenticada, piloto, rollout y obligatoriedad posterior', () => {
+test('preview fija entrega autenticada, aprobación Master y publicación automática', () => {
   const profile = {
     channel: 'staging', display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
     admin_url: 'https://tusenda84.com/admin', signing_cert_sha256: '11:'.repeat(31) + '11',
@@ -53,20 +53,36 @@ test('preview fija entrega autenticada, piloto, rollout y obligatoriedad posteri
   assert.deepEqual(preview.engine, { name: 'Tu Senda 84 Admin Engine', version: '1.0.0', contract_version: 1 });
   assert.equal(preview.identity.package_name, 'com.tusenda84.admin');
   assert.equal(preview.delivery.authenticated_only, true);
-  assert.equal(preview.delivery.pilot_required, true);
-  assert.equal(preview.delivery.gradual_rollout, true);
-  assert.equal(preview.delivery.mandatory_after_general, true);
+  assert.equal(preview.delivery.master_test_approval_required, true);
+  assert.equal(preview.delivery.automatic_authorized_admin_delivery, true);
+  assert.equal(preview.delivery.mandatory_after_publication, true);
   assert.equal(releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' }).identity.signing_cert_sha256, preview.identity.signing_cert_sha256);
   assert.match(source, /signing_identity_required/);
   assert.match(source, /sha256Domain\("pz_admin_app_preview:v2", canonical\(currentPreview\)\) !== hash/);
   assert.equal(releases.nextVersionCode({ latest_version_code: 4, last_allocated_version_code: 7 }), 8);
 });
 
-test('política y check-in se resuelven desde la asignación exacta, no por un perfil global', () => {
-  assert.match(source, /const access = activeAssignment\(\$app, context, ""\)/);
-  assert.match(source, /const resolved = activeAssignment\(\$app, context, ""\)/);
+test('política y check-in usan la última APK publicada sin asignaciones individuales', () => {
+  assert.match(source, /resolveAdminRelease\(\$app, context, \{ grant: "", packageName, channel: "" \}\)/);
+  assert.match(source, /publishedArtifactForProfile/);
+  assert.match(source, /action = 'release_published'/);
   assert.match(source, /availableVersion >= minimumVersion/);
-  assert.doesNotMatch(source, /first\(\$app, PROFILES, "package_name = \{:package\}/);
+  assert.match(source, /assignment: resolved\.assignment \? resolved\.assignment\.id : ""/);
+});
+
+test('una compilación nueva sin publicar no reemplaza la versión anunciada', () => {
+  const newest = { id: 'artifactnew0001' };
+  const published = { id: 'artifactold0001' };
+  const app = {
+    findRecordsByFilter(collection, filter, _sort, _limit, _offset, params) {
+      if (collection === releases.ARTIFACTS) return [newest, published];
+      if (collection === releases.EVENTS && filter.includes("action = 'release_published'")) {
+        return params.artifact === published.id ? [{ id: 'eventpublished01' }] : [];
+      }
+      return [];
+    },
+  };
+  assert.equal(releases.publishedArtifactForProfile(app, 'profilec1080001'), published);
 });
 
 test('asignaciones y completion rechazan formas laxas o artefactos incompletos', () => {

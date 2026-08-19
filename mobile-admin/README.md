@@ -97,11 +97,13 @@ C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públ
 - nombre visible, URL administrativa, color, Firebase, icono y splash son configuración editable y cada build inmoviliza la revisión exacta usada;
 - icono y splash se guardan como PNG protegidos y versionados en PocketBase, se comprueban por dimensiones, bytes y SHA-256 y nunca se incorporan al repositorio;
 - el APK queda como archivo protegido en PocketBase;
-- el enlace abre un portal y no concede acceso por sí mismo;
-- cada descarga exige sesión de `store_admin`, tienda, dispositivo autorizado y asignación exactos;
+- el portal no concede acceso por sí mismo;
+- cada descarga exige sesión de `store_admin`, tienda, dispositivo autorizado y una versión publicada para el paquete o canal exacto;
 - el archivo usa un ticket de dos minutos y un solo uso;
-- el panel muestra acciones simples: enviar al dispositivo de prueba, aprobar la prueba, añadir administrador y publicar para todos; el backend conserva internamente piloto, publicación limitada y publicación general;
-- `minimum_supported_version_code` solo puede activarse después de validar el piloto y una asignación general.
+- el panel muestra tres acciones simples: descargar APK de prueba, aprobar APK y publicar actualización;
+- una publicación queda disponible automáticamente para administradores activos y dispositivos autorizados actuales o futuros, sin crear asignaciones individuales;
+- la app instalada consulta al abrir, muestra el aviso de nueva versión y reutiliza el mismo portal privado y verificación nativa;
+- `minimum_supported_version_code` solo puede activarse después de aprobar y publicar la versión.
 
 Mobile Admin pertenece a Tu Senda 84 y no a PowerZona. La misma app sirve para administrar tiendas, páginas promocionales o futuros tipos de proyecto siempre que todos entren por la URL administrativa central y el backend autorice las funciones disponibles para cada proyecto.
 

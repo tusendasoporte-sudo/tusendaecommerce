@@ -108,7 +108,7 @@ $preview = [ordered]@{
     }
     build = [ordered]@{ version_code = $VersionCode; version_name = $VersionName; apk = $true; build_type = 'release' }
     appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
-    delivery = [ordered]@{ authenticated_only = $true; pilot_required = $true; gradual_rollout = $true; mandatory_after_general = $true }
+    delivery = [ordered]@{ authenticated_only = $true; master_test_approval_required = $true; automatic_authorized_admin_delivery = $true; mandatory_after_publication = $true }
 }
 $canonical = ConvertTo-CanonicalJson $preview
 $previewHash = Get-Sha256Text "pz_admin_app_preview:v2|$canonical"
