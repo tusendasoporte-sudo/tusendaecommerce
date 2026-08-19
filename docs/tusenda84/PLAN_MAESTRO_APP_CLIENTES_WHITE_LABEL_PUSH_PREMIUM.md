@@ -572,11 +572,11 @@ Estado vigente:
 | PZ-APP-C07 | Variante PowerZona y deep links | COMPLETADO | C05, C06 | Completada: matriz real FCM y visual en Fold5 | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | COMPLETADO | C04, C05 | Completada parcialmente en staging; pendientes humanos transferidos a C11 | Sol — High |
 | PZ-APP-C09 | Analítica de instalaciones y campañas | COMPLETADO | C03, C05, C07, C08 | Completada: embudo, atribución, aislamiento y auditoría Master en staging | Sol — Extra High |
-| PZ-APP-C10 | Generador reproducible y entrega controlada de apps Android | EN CURSO | C06, C07 | Pendiente: piloto físico C10.8, APK firmados y AAB Play sin publicar | Terra — High |
+| PZ-APP-C10 | Generador reproducible y entrega controlada de apps Android | PENDIENTE | C06, C07 | Implementación versionada; pendiente de APK real y validación física C10.8, sin APK/AAB Play publicados | Terra — High |
 | PZ-APP-C11 | Pruebas integrales en staging | PENDIENTE | C03-C10 | Sí, obligatoria y extensa | Sol — Max |
 | PZ-APP-C12 | Publicación controlada en producción | PENDIENTE | C11 | Sí, obligatoria con aprobación | Sol — Max |
 | PZ-APP-C013 | Reconciliación de instalaciones legacy y validación física de App Set ID | PENDIENTE | C12 | Sí: APK nueva y teléfono físico conocido | Sol — Extra High |
-| PZ-APP-C014 | Caché Cloudflare segura y optimización final del catálogo público | PENDIENTE | C013 | Sí: matriz HIT/MISS/BYPASS, seguridad y benchmark producción | Sol — Max |
+| PZ-APP-C014 | Caché Cloudflare segura y optimización final del catálogo público | EN CURSO | Excepción local/staging aprobada; promoción de producción conserva puerta separada | Sí: matriz HIT/MISS/BYPASS, seguridad y benchmark producción | Sol — Max |
 
 ## 8. Prompts de ejecución
 
@@ -1061,7 +1061,9 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 ### [ ] PZ-APP-C014 — Caché Cloudflare segura y optimización final del catálogo público
 
-**Orden aprobado:** ejecutar únicamente al final del proyecto, después de cerrar C013. Esta reserva documenta la mejora para realizarla más adelante; no autoriza activar ahora `Cache Everything`, modificar reglas Cloudflare de producción, omitir el control VPN/IP/dispositivo ni cachear rutas privadas.
+**Estado:** `EN CURSO`.
+
+**Excepción secuencial aprobada por el propietario — 2026-08-19:** C014 comienza ahora como trabajo independiente de rendimiento web mientras C10 queda pendiente de validación física y C11, C12 y C013 permanecen `PENDIENTE`. La fase autorizada cubre auditoría, línea base pública de solo lectura, documentación, código local, pruebas automáticas y preparación de staging. No autoriza desplegar staging, activar `Cache Everything`, modificar Cloudflare/DNS/producción, omitir el control VPN/IP/dispositivo ni cachear rutas privadas; cada acción externa conserva su autorización separada. La promoción final de producción no implica ni cierra C11, C12 o C013.
 
 **Objetivo:** reducir de forma medible el tiempo del primer HTML y la carga completa del catálogo público combinando la compilación/configuración más eficiente de staging con Cloudflare, sin permitir que una respuesta cacheada evite `publicAccessDecision`, mezcle tiendas, exponga sesiones o conserve contenido privado.
 
@@ -2570,3 +2572,13 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - La entrega manual por WhatsApp permanece activa tanto para la primera instalación como para actualizaciones, siempre después de publicar. El mensaje conserva enlace permanente, SHA-256 e instrucciones, y abrir WhatsApp o marcar el envío continúan siendo actos manuales separados.
 - Se añadió una migración aditiva para estado `candidate`/`approved`/`published`, responsables y fechas de aprobación/publicación, además del último código reservado. Los APK C10.7 históricos disponibles se migran como publicados para conservar sus enlaces existentes; el rollback falla cerrado si ya existe estado nuevo que pudiera perderse.
 - No se construyó APK/AAB, no se usaron firmas, no se creó o modificó Firebase, no se abrió ni envió WhatsApp, no se publicó en Google Play y no se ejecutó ningún despliegue o acción externa.
+
+### 2026-08-19 — PZ-APP-C014 EN CURSO: excepción secuencial y línea base previa
+
+- El propietario autorizó iniciar C014 ahora como trabajo independiente de rendimiento web. C10 pasa a `PENDIENTE` de APK real/validación física; C11, C12 y C013 permanecen `PENDIENTE` y no se reinterpretan como ejecutados o cerrados.
+- La fase inicial queda limitada a auditoría, documentación, código local, pruebas automáticas y preparación de staging. Despliegues, Cloudflare, DNS y producción conservan autorización separada; `Cache Everything`, caché de rutas privadas y cualquier bypass del control VPN/IP/dispositivo siguen prohibidos.
+- La línea base de producción de `https://tusenda84.com/t/powerzona` registró TTFB HTTP mediano de 0,930 s en siete muestras, carga Edge mediana de 2,189 s en escritorio y 1,560 s en móvil, LCP mediano de 1,236 s/1,472 s, CLS 0, unas 30 solicitudes y cerca de 1 MB transferido. El HTML permaneció `CF-Cache-Status: DYNAMIC`.
+- El desglose móvil atribuyó aproximadamente 93,4 % de los bytes a imágenes. CSS versionado ya respondió `HIT` e inmutable; el HTML comprimido fue cercano a 32 KB, por lo que no encabezan el trabajo.
+- Staging ya entrega 12,4 % menos HTML y `Cache-Control: private, max-age=15, stale-while-revalidate=30`, ausente en producción. Sus URLs de miniatura no se consideran todavía una ganancia: con archivos WebP reales de producción, pruebas GET mostraron un producto de 23.568 a 78.827 bytes y un acceso visual de 47.922 a 180.608 bytes. C12 no deberá promover esa conducta sin corrección o desactivación segura.
+- Los perfiles y scripts temporales de medición fueron eliminados. No se crearon datos QA deliberados y no se modificaron Cloudflare, Coolify, DNS, Firebase, Google Play, APK/AAB ni producción. La evidencia detallada queda en `docs/tusenda84/reportes/PZ-APP-C014-cache-cloudflare-segura.md`.
+- Con aprobación del propietario se implementó localmente el paso 1 de C14: `Server-Timing` público sanitizado separa `pz-public-security`, `pz-public-render` —datos, caché interna y SSR agrupados— y `pz-public-total`. También mide respuestas bloqueadas sin exponer la razón ni identificadores. Pasaron `34/34` pruebas focales, el build Astro SSR y `git diff --check`; no hubo despliegue ni cambio funcional, de caché, imágenes o infraestructura.

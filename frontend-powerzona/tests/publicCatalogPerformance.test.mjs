@@ -13,6 +13,7 @@ import {
   isPublicCatalogPath,
   optimizePublicCatalogResponse,
 } from '../src/lib/publicCatalogResponse.ts';
+import { appendPublicRequestTiming } from '../src/lib/publicRequestTiming.ts';
 
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
 
@@ -102,12 +103,50 @@ test('respuesta respeta no-store previo y no comprime rutas privadas', async () 
   assert.match(optimized.headers.get('Cache-Control') || '', /no-store/);
 });
 
+test('medicion publica agrega seguridad, SSR y total sin modificar la respuesta', async () => {
+  const response = new Response('<html>PowerZona</html>', {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Server-Timing': 'origin;dur=7.0',
+    },
+  });
+
+  const measured = appendPublicRequestTiming(response, {
+    securityDurationMs: 12.34,
+    renderDurationMs: 56.78,
+    totalDurationMs: 70.01,
+  });
+
+  assert.equal(measured, response);
+  assert.equal(await measured.text(), '<html>PowerZona</html>');
+  assert.equal(
+    measured.headers.get('Server-Timing'),
+    'origin;dur=7.0, pz-public-security;dur=12.3, pz-public-render;dur=56.8, pz-public-total;dur=70.0',
+  );
+});
+
+test('medicion publica normaliza duraciones invalidas sin fallar', () => {
+  const response = appendPublicRequestTiming(new Response(null, { status: 404 }), {
+    securityDurationMs: Number.NaN,
+    renderDurationMs: -20,
+    totalDurationMs: Number.POSITIVE_INFINITY,
+  });
+
+  assert.equal(
+    response.headers.get('Server-Timing'),
+    'pz-public-security;dur=0.0, pz-public-render;dur=0.0, pz-public-total;dur=0.0',
+  );
+});
+
 test('integracion conserva seguridad por solicitud y no cachea inventario', () => {
   const middleware = read('../src/middleware.ts');
   const api = read('../src/lib/api.ts');
   const stores = read('../src/lib/stores.ts');
 
   assert.match(middleware, /publicAccessDecision[\s\S]*const response = await next\(\);[\s\S]*optimizePublicCatalogResponse/);
+  assert.match(middleware, /appendPublicRequestTiming\(blockedResponse/);
+  assert.match(middleware, /pz-public-security|appendPublicRequestTiming\(optimizedResponse/);
   assert.match(stores, /getCachedPublicData\(`store:\$\{normalizedSlug\}`/);
   assert.match(api, /getCachedPublicData\(`settings:\$\{storeId\}`/);
   assert.match(api, /getCachedPublicData\(`categories:\$\{storeId\}`/);

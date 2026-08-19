@@ -17,6 +17,7 @@ import {
   renderVpnUnavailable,
 } from './lib/publicSecurity';
 import { optimizePublicCatalogResponse } from './lib/publicCatalogResponse';
+import { appendPublicRequestTiming } from './lib/publicRequestTiming';
 import { readAdminDeviceToken } from './lib/adminDevice';
 import { getAdminAppPolicy, parseNativeAdminAppUserAgent } from './lib/mobileAdminReleases';
 
@@ -176,18 +177,35 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!isAdminRoute && !isMasterRoute && !isProfessionalAdminRoute) {
     const resolver = publicSecurityResolverForPath(pathname);
+    let securityDurationMs = 0;
     if (resolver) {
       let clientAddress = '';
       try { clientAddress = context.clientAddress; } catch (_) {}
+      const securityStartedAt = performance.now();
       const decision = await publicAccessDecision(context.request, clientAddress, resolver);
+      securityDurationMs = performance.now() - securityStartedAt;
       if (!decision.allowed) {
-        return decision.reason === 'vpn_or_proxy_detected'
+        const blockedResponse = decision.reason === 'vpn_or_proxy_detected'
           ? renderVpnUnavailable(context.request.url)
           : renderPublicUnavailable();
+        return appendPublicRequestTiming(blockedResponse, {
+          securityDurationMs,
+          renderDurationMs: 0,
+          totalDurationMs: performance.now() - requestStartedAt,
+        });
       }
     }
+    const renderStartedAt = performance.now();
     const response = await next();
-    return optimizePublicCatalogResponse(context.request, response, pathname);
+    const renderDurationMs = performance.now() - renderStartedAt;
+    const optimizedResponse = optimizePublicCatalogResponse(context.request, response, pathname);
+    return resolver
+      ? appendPublicRequestTiming(optimizedResponse, {
+          securityDurationMs,
+          renderDurationMs,
+          totalDurationMs: performance.now() - requestStartedAt,
+        })
+      : optimizedResponse;
   }
 
   const authStartedAt = performance.now();
