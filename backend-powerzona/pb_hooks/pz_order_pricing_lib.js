@@ -21,12 +21,14 @@ const storefrontInstallations = typeof __hooks === "undefined"
 const storefrontAnalytics = typeof __hooks === "undefined"
   ? require("./pz_storefront_analytics_lib.js")
   : require(`${__hooks}/pz_storefront_analytics_lib.js`);
+const manualCoupons = typeof __hooks === "undefined"
+  ? require("./pz_manual_coupons_lib.js")
+  : require(`${__hooks}/pz_manual_coupons_lib.js`);
 
 const CHECKOUT_PATH = "/api/pz/checkout/orders";
 const STOREFRONT_SESSION_COOKIE = "pz_storefront_session";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const IDEMPOTENCY_PATTERN = /^[A-Za-z0-9_-]{24,80}$/;
-const COUPON_PATTERN = /^[A-Za-z0-9_-]{2,40}$/;
 const DELIVERY_METHODS = Object.freeze(["delivery", "pickup", "coordinate"]);
 const ONE_TO_ONE_RATE_TOLERANCE = 0.000001;
 const MAX_ITEMS = 100;
@@ -254,7 +256,7 @@ function parseCheckoutPayload(body) {
   const currencyId = bounded(bodyValue(body, "currency_id"), 15);
   const shippingZoneId = bounded(bodyValue(body, "shipping_zone_id"), 15);
   const deliveryMethod = bounded(bodyValue(body, "delivery_method"), 20);
-  const couponCode = bounded(bodyValue(body, "coupon_code"), 40).toUpperCase();
+  const couponCode = manualCoupons.normalizeCouponCode(bodyValue(body, "coupon_code"));
   const customerName = bounded(bodyValue(body, "customer_name"), 160);
   const customerPhone = bounded(bodyValue(body, "customer_phone"), 40);
   const customerAddress = bounded(bodyValue(body, "customer_address"), 500);
@@ -268,7 +270,7 @@ function parseCheckoutPayload(body) {
   if (!customerName || customerName.length < 2 || !customerPhone || customerPhone.length < 6) return null;
   if (!/^[+0-9()\-\s.]+$/.test(customerPhone)) return null;
   if (deliveryMethod === "delivery" && (!shippingZoneId || !customerAddress)) return null;
-  if (couponCode && !COUPON_PATTERN.test(couponCode)) return null;
+  if (couponCode && !manualCoupons.validCouponCode(couponCode)) return null;
   if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_ITEMS) return null;
   const items = rawItems.map(parseCheckoutItem);
   if (items.some((item) => !item) || !items.some((item) => item && !item.isGift)) return null;
@@ -1430,11 +1432,11 @@ function parseCouponAttributionPayload(body) {
   const keys = Object.keys(body).filter((key) => typeof body[key] !== "function").sort();
   if (keys.join(",") !== "coupon_code,delivery_method,items,shipping_zone_id,store_id") return null;
   const storeId = bounded(bodyValue(body, "store_id"), 15);
-  const couponCode = bounded(bodyValue(body, "coupon_code"), 40).toUpperCase();
+  const couponCode = manualCoupons.normalizeCouponCode(bodyValue(body, "coupon_code"));
   const deliveryMethod = bounded(bodyValue(body, "delivery_method"), 20);
   const shippingZoneId = bounded(bodyValue(body, "shipping_zone_id"), 15);
   const rawItems = bodyValue(body, "items");
-  if (!RECORD_ID_PATTERN.test(storeId) || !COUPON_PATTERN.test(couponCode)
+  if (!RECORD_ID_PATTERN.test(storeId) || !manualCoupons.validCouponCode(couponCode)
     || !DELIVERY_METHODS.includes(deliveryMethod)
     || (deliveryMethod === "delivery" && !RECORD_ID_PATTERN.test(shippingZoneId))
     || (deliveryMethod !== "delivery" && shippingZoneId)
@@ -1458,8 +1460,8 @@ function parseCouponAttributionPayload(body) {
 }
 
 function couponRecordByCode(app, storeId, codeValue) {
-  const code = bounded(codeValue, 40).toUpperCase();
-  if (!code) return null;
+  const code = manualCoupons.normalizeCouponCode(codeValue);
+  if (!manualCoupons.validCouponCode(code)) return null;
   try {
     return app.findFirstRecordByFilter(
       "manual_coupons",

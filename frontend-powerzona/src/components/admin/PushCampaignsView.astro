@@ -222,13 +222,13 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
               <span>Código del cupón</span>
               <input
                 type="text"
-                maxlength="40"
-                pattern="[A-Za-z0-9_-]{2,40}"
+                maxlength="8"
+                pattern="[\x20-\x7E]{2,8}"
                 autocomplete="off"
                 placeholder="Ej. VERANO20"
                 data-target-coupon-code
               />
-              <small>Escribe el código de un cupón activo y vigente de esta tienda.</small>
+              <small>Escribe un código vigente de hasta 8 caracteres, sin acentos, ñ ni emojis.</small>
             </label>
             <label class="push-field hidden" data-target-reference-field>
               <span>ID del pedido</span>

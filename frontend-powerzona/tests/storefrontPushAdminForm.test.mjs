@@ -108,13 +108,21 @@ test('normaliza y carga únicamente opciones seguras para los selectores de dest
     categories: [{ id: 'category0000001', label: 'Proteínas' }, { id: 'bad', label: 'Inválida' }],
     products: [{ id: 'product00000001', label: 'Creatina', detail: 'SKU-01' }],
     raffles: [{ id: 'raffle000000001', label: 'Rifa agosto', detail: '2026-08-20T12:00:00Z' }],
-    coupons: [{ id: 'coupon000000001', code: 'verano20' }, { id: 'bad', code: 'NO' }],
+    coupons: [
+      { id: 'coupon000000001', code: 'verano20' },
+      { id: 'coupon000000002', code: 'save!50%' },
+      { id: 'coupon000000003', code: 'CAFÉ' },
+      { id: 'bad', code: 'NO' },
+    ],
   };
   const normalized = normalizeStorefrontPushTargetOptions(payload);
   assert.deepEqual(normalized.categories, [{ id: 'category0000001', label: 'Proteínas', detail: '' }]);
   assert.deepEqual(normalized.products, [{ id: 'product00000001', label: 'Creatina', detail: 'SKU-01' }]);
   assert.deepEqual(normalized.raffles, [{ id: 'raffle000000001', label: 'Rifa agosto', detail: '2026-08-20T12:00:00Z' }]);
-  assert.deepEqual(normalized.coupons, [{ id: 'coupon000000001', code: 'VERANO20' }]);
+  assert.deepEqual(normalized.coupons, [
+    { id: 'coupon000000001', code: 'VERANO20' },
+    { id: 'coupon000000002', code: 'SAVE!50%' },
+  ]);
 
   const calls = [];
   const result = await readStorefrontPushTargetOptions(client, async (url, init) => {

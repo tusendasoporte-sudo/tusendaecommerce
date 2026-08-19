@@ -292,6 +292,10 @@ test('atribucion de cupon exige carrito canonico y reutiliza la validacion ofici
   const parsedAttribution = pricing.parseCouponAttributionPayload(payload);
   assert.ok(parsedAttribution);
   assert.equal(parsedAttribution.couponCode, 'QA20');
+  assert.equal(pricing.parseCouponAttributionPayload({ ...payload, coupon_code: 'save!50%' }).couponCode, 'SAVE!50%');
+  assert.equal(pricing.parseCouponAttributionPayload({ ...payload, coupon_code: 'CAFÉ' }), null);
+  assert.equal(pricing.parseCouponAttributionPayload({ ...payload, coupon_code: 'SAVE🔥' }), null);
+  assert.equal(pricing.parseCouponAttributionPayload({ ...payload, coupon_code: '123456789' }), null);
   assert.deepEqual(parsedAttribution.items, [
     { giftId: '', productId: IDS.product, variationId: '', quantity: 1, isGift: false },
   ]);

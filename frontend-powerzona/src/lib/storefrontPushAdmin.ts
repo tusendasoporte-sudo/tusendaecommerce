@@ -526,8 +526,8 @@ export function normalizeStorefrontPushTargetOptions(value: unknown): Storefront
     .map((item) => {
       const option = recordObject(item);
       const id = text(option.id, 15);
-      const code = text(option.code, 40).toUpperCase();
-      if (!RECORD_ID_PATTERN.test(id) || !/^[A-Z0-9_-]{2,40}$/.test(code)) return null;
+      const code = text(option.code, 100).toUpperCase();
+      if (!RECORD_ID_PATTERN.test(id) || !/^[\x20-\x7E]{2,8}$/.test(code)) return null;
       return Object.freeze({ id, code });
     })
     .filter((item): item is StorefrontPushCouponOption => item !== null));

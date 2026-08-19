@@ -9,6 +9,9 @@ const commerce = typeof __hooks === "undefined"
 const capabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const manualCoupons = typeof __hooks === "undefined"
+  ? require("./pz_manual_coupons_lib.js")
+  : require(`${__hooks}/pz_manual_coupons_lib.js`);
 
 const READ_PERMISSIONS = Object.freeze({
   products: "catalog.view",
@@ -1632,6 +1635,10 @@ function enforceEnrich(e, collection) {
 
 function enforceMutation(e, collection, operation) {
   const name = collectionName(e, collection);
+  if (name === "manual_coupons" && ["create", "update"].includes(operation)) {
+    const safe = manualCoupons.normalizeCouponRecord(e && e.record);
+    if (safe) manualCoupons.raiseCouponRequestError(safe);
+  }
   if (STOREFRONT_PUSH_PRIVATE_COLLECTIONS.includes(name) && !superuserRequest(e)) {
     denyPermission("marketing.push.manage");
   }

@@ -14,6 +14,9 @@ const schema = typeof __hooks === "undefined"
 const dispatch = typeof __hooks === "undefined"
   ? require("./pz_storefront_push_dispatch_lib.js")
   : require(`${__hooks}/pz_storefront_push_dispatch_lib.js`);
+const manualCoupons = typeof __hooks === "undefined"
+  ? require("./pz_manual_coupons_lib.js")
+  : require(`${__hooks}/pz_manual_coupons_lib.js`);
 
 const CAMPAIGNS_COLLECTION = "push_campaigns";
 const DELIVERIES_COLLECTION = "push_campaign_deliveries";
@@ -709,10 +712,10 @@ function listTargetOptions(app, context, nowValue) {
       recordString(item, "closes_at"),
     ));
   const coupons = recordsForStore("manual_coupons", "code,id")
-    .filter((item) => couponAvailable(item, now) && /^[A-Za-z0-9_-]{2,40}$/.test(recordString(item, "code")))
+    .filter((item) => couponAvailable(item, now) && manualCoupons.validCouponCode(recordString(item, "code")))
     .map((item) => ({
       id: bounded(recordId(item), 15),
-      code: bounded(recordString(item, "code"), 40).toUpperCase(),
+      code: manualCoupons.normalizeCouponCode(recordString(item, "code")),
     }));
   return {
     categories: sortTargetOptions(categories),
@@ -779,8 +782,8 @@ function resolveTarget(app, store, targetType, targetRef, targetSection, audienc
   }
   if (targetType === "coupon") {
     const coupon = validateStoreRelation(app, "manual_coupons", targetRef, storeId);
-    const code = bounded(recordString(coupon, "code"), 40);
-    if (!couponAvailable(coupon, now) || !/^[A-Za-z0-9_-]{2,40}$/.test(code)) {
+    const code = manualCoupons.normalizeCouponCode(recordString(coupon, "code"));
+    if (!couponAvailable(coupon, now) || !manualCoupons.validCouponCode(code)) {
       throw codedError("target_unavailable");
     }
     result.target_coupon = targetRef;

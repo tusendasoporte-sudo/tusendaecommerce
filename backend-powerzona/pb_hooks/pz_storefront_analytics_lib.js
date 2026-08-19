@@ -20,6 +20,9 @@ const activity = typeof __hooks === "undefined"
 const installationSecurity = typeof __hooks === "undefined"
   ? require("./pz_storefront_installations_lib.js")
   : require(`${__hooks}/pz_storefront_installations_lib.js`);
+const manualCoupons = typeof __hooks === "undefined"
+  ? require("./pz_manual_coupons_lib.js")
+  : require(`${__hooks}/pz_manual_coupons_lib.js`);
 
 const EVENTS_COLLECTION = "push_events";
 const DELIVERIES_COLLECTION = "push_campaign_deliveries";
@@ -286,8 +289,8 @@ function latestEvent(app, filter, params, now) {
 }
 
 function activeCouponByCode(app, storeId, codeValue, now) {
-  const code = safeText(codeValue, 40).toUpperCase();
-  if (!/^[A-Za-z0-9_-]{2,40}$/.test(code)) return null;
+  const code = manualCoupons.normalizeCouponCode(codeValue);
+  if (!manualCoupons.validCouponCode(code)) return null;
   const coupon = findFirst(
     app,
     "manual_coupons",
