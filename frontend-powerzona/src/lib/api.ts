@@ -108,7 +108,12 @@ function addCategoryImage(category: any) {
   return {
     ...category,
     imageUrl: image
-      ? getPocketBaseFileUrl('categories', category.id, image, { thumb: PUBLIC_TAXONOMY_CARD_THUMB })
+      ? getPocketBaseFileUrl(
+          'categories',
+          category.id,
+          image,
+          getPublicImageDeliveryOptions(image, PUBLIC_TAXONOMY_CARD_THUMB)
+        )
       : null,
     heroImageUrl: image
       ? getPocketBaseFileUrl('categories', category.id, image)
@@ -151,7 +156,12 @@ function addSubcategoryImage(subcategory: any) {
   return {
     ...subcategory,
     imageUrl: image
-      ? getPocketBaseFileUrl('subcategories', subcategory.id, image, { thumb: PUBLIC_TAXONOMY_CARD_THUMB })
+      ? getPocketBaseFileUrl(
+          'subcategories',
+          subcategory.id,
+          image,
+          getPublicImageDeliveryOptions(image, PUBLIC_TAXONOMY_CARD_THUMB)
+        )
       : null,
     heroImageUrl: image
       ? getPocketBaseFileUrl('subcategories', subcategory.id, image)

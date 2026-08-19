@@ -326,6 +326,17 @@ La medición posterior debe repetir, desde una conexión comparable:
 4. Revisión separada de caché fría, `MISS`, `HIT` y `BYPASS` cuando existan reglas nuevas.
 5. Pruebas negativas de rutas privadas, sesiones, seguridad pública y aislamiento entre tiendas antes de aceptar cualquier mejora.
 
+## Verificación real de miniaturas de taxonomía — 2026-08-19
+
+Después de desplegar `dd2a4b9`, PocketBase confirmó `300x200, 700x420, 480x270` en los campos de imagen de `categories` y `subcategories`. Las solicitudes HTTP reales verificaron que `480x270` ya genera una variante física en ambas colecciones.
+
+La medición detectó dos comportamientos según el formato almacenado:
+
+- JPEG heredado: `164.973` bytes original y `43.043` bytes la miniatura `480x270`; ahorro de `121.930` bytes, aproximadamente `73,9 %`.
+- WebP optimizado: `118.412` bytes original y `211.634` bytes la miniatura, que PocketBase recodificó como PNG; aumento de `93.222` bytes, aproximadamente `78,7 %`.
+
+Se aplicó el mismo selector seguro ya probado en productos: las tarjetas entregan directamente un WebP optimizado y solicitan `480x270` únicamente para JPEG/PNG heredados. El banner de categoría o subcategoría continúa usando el archivo original para preservar resolución y aspecto. No se modificaron archivos ni registros existentes.
+
 ## Limpieza y efectos
 
 - El perfil temporal de Edge y el script diagnóstico fueron eliminados.

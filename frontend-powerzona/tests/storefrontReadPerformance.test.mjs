@@ -65,6 +65,7 @@ test('detalle obtiene solamente los productos relacionados solicitados', () => {
 
 test('imagenes de taxonomia separan miniaturas y banners de alta resolucion', () => {
   assert.match(api, /const PUBLIC_TAXONOMY_CARD_THUMB = '480x270'/);
+  assert.match(api, /getPublicImageDeliveryOptions\(image, PUBLIC_TAXONOMY_CARD_THUMB\)/);
   assert.match(api, /heroImageUrl:[\s\S]*getPocketBaseFileUrl\('categories', category\.id, image\)/);
   assert.match(api, /heroImageUrl:[\s\S]*getPocketBaseFileUrl\('subcategories', subcategory\.id, image\)/);
   assert.match(category, /categoryHeroImageUrl = category\.heroImageUrl \|\| category\.imageUrl/);

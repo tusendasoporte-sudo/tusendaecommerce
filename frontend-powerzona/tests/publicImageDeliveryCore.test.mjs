@@ -29,3 +29,14 @@ test('listados publicos de productos aplican la decision por archivo', () => {
   assert.match(api, /\.map\(\(product\) => addProductImages\(product, options, PUBLIC_PRODUCT_THUMB\)\)/);
   assert.match(api, /const PUBLIC_PRODUCT_THUMB = '300x300'/);
 });
+
+test('tarjetas de taxonomia evitan miniaturas PNG para WebP optimizado', () => {
+  assert.match(
+    api,
+    /getPocketBaseFileUrl\(\s*'categories',\s*category\.id,\s*image,\s*getPublicImageDeliveryOptions\(image, PUBLIC_TAXONOMY_CARD_THUMB\)/
+  );
+  assert.match(
+    api,
+    /getPocketBaseFileUrl\(\s*'subcategories',\s*subcategory\.id,\s*image,\s*getPublicImageDeliveryOptions\(image, PUBLIC_TAXONOMY_CARD_THUMB\)/
+  );
+});
