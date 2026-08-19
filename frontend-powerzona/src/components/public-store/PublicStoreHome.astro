@@ -1053,15 +1053,18 @@ function getProductOfferView(product: any) {
       color: #08133f;
       text-decoration: none;
       display: grid;
+      grid-template-columns: minmax(0, 58%) minmax(0, 42%);
       align-items: center;
-      padding: 26px;
+      padding: 0;
     }
-    .promo-visual-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: .74; background: linear-gradient(135deg, #f8fbff, #eef4ff); }
-    .promo-visual-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(248,251,255,.96), rgba(248,251,255,.36)); }
-    .promo-visual-copy { position: relative; z-index: 1; max-width: 310px; }
+    .promo-visual-card.has-image img { position: relative; inset: auto; grid-column: 1; grid-row: 1; width: 100%; height: 100%; min-width: 0; object-fit: contain; object-position: center; background: linear-gradient(135deg, #f8fbff, #eef4ff); }
+    .promo-visual-card::after { content: none; display: none; }
+    .promo-visual-copy { position: relative; grid-column: 2; grid-row: 1; min-width: 0; max-width: none; padding: clamp(20px, 3vw, 30px); }
+    .promo-visual-card.no-image { grid-template-columns: 1fr; }
+    .promo-visual-card.no-image .promo-visual-copy { grid-column: 1; }
     .promo-visual-copy h3 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 1000; }
     .promo-visual-copy p { margin: 10px 0 0; color: #33446f; font-size: 14px; line-height: 1.45; font-weight: 800; }
-    .promo-visual-copy span { display: inline-flex; margin-top: 16px; border-radius: 8px; background: #0b63f6; color: #fff; padding: 11px 15px; font-size: 13px; font-weight: 1000; }
+    .promo-visual-copy span { display: inline-flex; justify-content: center; max-width: 100%; box-sizing: border-box; margin-top: 16px; border-radius: 8px; background: #0b63f6; color: #fff; padding: 11px 15px; overflow-wrap: anywhere; text-align: center; font-size: 13px; font-weight: 1000; }
     .section-head { align-items: center; margin-bottom: 14px; }
     .section-title { color: #08133f; font-size: 21px; letter-spacing: 0; }
     .featured-strip, .homepage-products-grid {
@@ -1204,6 +1207,10 @@ function getProductOfferView(product: any) {
       .quick-access-card { min-height: 96px; grid-template-columns: 68px fit-content(240px); padding: 13px; }
       .quick-access-card > span { max-width: 240px; }
       .quick-access-card img, .quick-access-icon { width: 68px; height: 68px; border-radius: 9px; font-size: 25px; }
+      .promo-visual-card.has-image { aspect-ratio: auto; grid-template-columns: 1fr; align-items: stretch; }
+      .promo-visual-card.has-image img { grid-column: 1; grid-row: 1; height: auto; aspect-ratio: 16 / 9; }
+      .promo-visual-card.has-image .promo-visual-copy { grid-column: 1; grid-row: 2; padding: 18px; }
+      .promo-visual-copy h3 { font-size: 21px; }
     }
 
     /* Imagenes nitidas: neutraliza reglas anteriores que lavaban fotos reales. */
@@ -1232,7 +1239,8 @@ function getProductOfferView(product: any) {
       background: linear-gradient(90deg, rgba(245,249,255,.76) 0%, rgba(245,249,255,.42) 34%, rgba(245,249,255,.08) 62%, rgba(245,249,255,0) 100%) !important;
     }
     .promo-visual-card::after {
-      background: linear-gradient(90deg, rgba(248,251,255,.72) 0%, rgba(248,251,255,.22) 48%, rgba(248,251,255,0) 100%) !important;
+      content: none !important;
+      display: none !important;
     }
     .public-category-card::after {
       background: linear-gradient(90deg, rgba(248,251,255,.78) 0%, rgba(248,251,255,.28) 46%, rgba(248,251,255,0) 100%) !important;
@@ -2384,7 +2392,7 @@ function getProductOfferView(product: any) {
       <div class="section-head"><div><h2 class="section-title">Promo</h2></div></div>
       <div class="promo-visual-grid">
         {promoVisualItems.map((item) => (
-          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="promo-visual-card">
+          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class:list={['promo-visual-card', item.imageUrl ? 'has-image' : 'no-image']}>
             {item.imageUrl && <img src={item.imageUrl} alt={item.title} loading="lazy" />}
             <div class="promo-visual-copy">
               <h3>{item.title}</h3>
