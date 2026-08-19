@@ -679,7 +679,7 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
     });
     fixtureByKey.marketing.coupon = await firstCreate('manual_coupons', {
       store: fixtureByKey.marketing.store.id,
-      code: `C3_${suffix.toUpperCase()}`,
+      code: `C3${suffix.slice(-6).toUpperCase()}`,
       name: `${prefix} Private Coupon`,
       customer_message: `${prefix} coupon message private`,
       active: true,

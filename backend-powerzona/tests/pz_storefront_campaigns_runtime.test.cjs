@@ -84,7 +84,7 @@ async function authenticate(baseUrl, collection, identity, password) {
   return result.data.token;
 }
 
-test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
+test('PocketBase 0.39.8 acepta zona IANA al crear un borrador C05', {
   skip: !fs.existsSync(POCKETBASE_EXE), timeout: 90_000,
 }, async () => {
   const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'pz-c05-runtime-'));
@@ -157,7 +157,7 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
       token: masterToken,
       headers: { 'X-PZ-Support-Store': store.id },
       json: {
-        title: 'Runtime C05', body: 'Validación IANA PocketBase 0.38.2',
+        title: 'Runtime C05', body: 'Validación IANA PocketBase 0.39.8',
         timezone: 'America/Havana', audience_type: 'all_active', audience_config: {}, target_type: 'home',
       },
     });
@@ -175,7 +175,7 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
       token: masterToken,
       headers: { 'X-PZ-Support-Store': store.id },
       json: {
-        title: 'Runtime C05 app version', body: 'Validación JSON PocketBase 0.38.2',
+        title: 'Runtime C05 app version', body: 'Validación JSON PocketBase 0.39.8',
         timezone: 'America/Havana', audience_type: 'app_version',
         audience_config: { app_version_code: 1 }, target_type: 'home',
       },

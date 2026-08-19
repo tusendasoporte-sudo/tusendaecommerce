@@ -122,7 +122,7 @@ async function authenticate(baseUrl, collection, identity, password) {
   return result.data.token;
 }
 
-test('PocketBase 0.38.2 persiste WebP público tras reinicio y restauración consistente', {
+test('PocketBase 0.39.8 persiste WebP público tras reinicio y restauración consistente', {
   skip: !fs.existsSync(POCKETBASE_EXE),
   timeout: 120_000,
 }, async () => {

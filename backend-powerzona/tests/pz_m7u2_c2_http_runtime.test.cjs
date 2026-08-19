@@ -763,7 +763,7 @@ test('M7U2-C2 HTTP runtime valida actividad privada y eliminacion segura end-to-
       product: productA.id,
       priority: 1,
     });
-    const couponCode = `QC${suffix.slice(-12).toUpperCase()}`;
+    const couponCode = `QC${suffix.slice(-6).toUpperCase()}`;
     const coupon = await createAdminRecord('manual_coupons', {
       store: storeA.id,
       code: couponCode,

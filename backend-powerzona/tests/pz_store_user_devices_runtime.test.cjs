@@ -115,7 +115,7 @@ async function countRecords(collection, filter, token) {
   return result.data.totalItems;
 }
 
-runtimeTest('PocketBase 0.38.2 aplica límites, concurrencia, aislamiento y revocación real', async () => {
+runtimeTest('PocketBase 0.39.8 aplica límites, concurrencia, aislamiento y revocación real', async () => {
   const superToken = await superAuth();
   const nonce = Date.now().toString(36).slice(-7);
   const masterEmail = `d7a6-master-${nonce}@example.test`;

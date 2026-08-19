@@ -109,11 +109,14 @@ function startAstro(port, pocketBaseUrl, env) {
   let spawnError = null;
   const child = spawn(
     process.execPath,
-    [ASTRO_CLI, 'dev', '--host', LOOPBACK, '--port', String(port)],
+    [ASTRO_CLI, 'dev', '--ignore-lock', '--host', LOOPBACK, '--port', String(port)],
     {
       cwd: FRONTEND_DIR,
       env: {
         ...env,
+        // Astro 7 auto-detecta agentes y desacopla `astro dev`; la prueba necesita
+        // conservar el proceso hijo en primer plano para poder detenerlo y limpiarlo.
+        ASTRO_DEV_BACKGROUND: '0',
         PUBLIC_POCKETBASE_URL: pocketBaseUrl,
       },
       stdio: ['ignore', 'pipe', 'pipe'],

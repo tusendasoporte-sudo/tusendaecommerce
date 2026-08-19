@@ -3,7 +3,7 @@
 routerUse(new Middleware(
   (e) => {
     require(`${__hooks}/pz_store_user_devices_lib.js`).captureAndScrubAuthUserAgent(e);
-    // PocketBase 0.38.2 requiere propagar explícitamente el ApiError de hooks posteriores.
+    // PocketBase 0.39.8 requiere propagar explícitamente el ApiError de hooks posteriores.
     try {
       return e.next();
     } catch (error) {

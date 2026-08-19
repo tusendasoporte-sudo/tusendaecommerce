@@ -25,7 +25,7 @@ function unique(prefix) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-runtimeTest('U7I7 HTTP PocketBase 0.38.2 valida temporales, sesiones, dispositivos y aislamiento', async () => {
+runtimeTest('U7I7 HTTP PocketBase 0.39.8 valida temporales, sesiones, dispositivos y aislamiento', async () => {
   const suffix = unique('u7i7');
   const password = {
     master: 'Master-U7I7-Run!42',
