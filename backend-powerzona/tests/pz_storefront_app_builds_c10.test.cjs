@@ -28,7 +28,7 @@ const provisionPayload = () => ({
   app_key: 'tenant-c10-storefront',
   brand_key: 'tenant-c10',
   display_name: 'Tenant C10',
-  distribution: 'direct',
+  include_aab: false,
   firebase_project_id: 'tusenda84-tenant-c10',
   package_name: 'com.tusenda84.tenantc10',
   store_url: 'https://tusenda84.com/t/tenant-c10',
@@ -61,7 +61,7 @@ test('separa y valida estrictamente aprovisionamiento de actualización', () => 
     appKey: 'tenant-c10-storefront',
     brandKey: 'tenant-c10',
     displayName: 'Tenant C10',
-    distribution: 'direct',
+    includeAab: false,
     firebaseProjectId: 'tusenda84-tenant-c10',
     packageName: 'com.tusenda84.tenantc10',
     storeUrl: 'https://tusenda84.com/t/tenant-c10',
@@ -71,11 +71,12 @@ test('separa y valida estrictamente aprovisionamiento de actualización', () => 
   assert.deepEqual(builds.parsePreviewPayload({
     store_id: STORE_ID,
     operation: 'update',
+    include_aab: false,
     profile_id: PROFILE_ID,
     version_code: 2,
     version_name: '1.0.1',
   }), {
-    operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 2, versionName: '1.0.1',
+    operation: 'update', includeAab: false, storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 2, versionName: '1.0.1',
   });
   assert.equal(builds.parsePreviewPayload({ ...provisionPayload(), service_account: 'forbidden' }), null);
   assert.equal(builds.parsePreviewPayload({ ...provisionPayload(), package_name: 'com.tusenda84.bad-package' }), null);
@@ -107,7 +108,7 @@ test('preview PowerZona conserva APK+AAB y puede adoptar app config existente', 
     app_key: 'powerzona-storefront-staging',
     brand_key: 'powerzona',
     display_name: 'PowerZona',
-    distribution: 'play_and_direct',
+    include_aab: true,
     firebase_project_id: 'tu-senda-84-storefront-staging',
     package_name: 'com.tusenda84.powerzona',
     store_url: 'https://tusenda84.com/t/powerzona',
@@ -135,6 +136,7 @@ test('actualización bloquea identidad, reutiliza firma y exige incrementar vers
     package_name: 'com.tusenda84.tenantc10', store_url: 'https://tusenda84.com/t/tenant-c10',
     distribution: 'direct', status: 'provisioned', firebase_project_id: 'tusenda84-tenant-c10',
     signing_cert_sha256: 'AA:'.repeat(31) + 'AA', current_version_code: 3, current_version_name: '1.0.2',
+    last_allocated_version_code: 3,
   });
   assert.throws(() => builds.buildPreview(store, {
     operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 3, versionName: '1.0.3',
@@ -148,6 +150,14 @@ test('actualización bloquea identidad, reutiliza firma y exige incrementar vers
   assert.equal(preview.build.version_code, 4);
   assert.equal(preview.engine.update_available, true);
   assert.equal(preview.engine.update_reason, 'engine_untracked');
+  const withOptionalAab = builds.buildPreview(store, {
+    operation: 'update', includeAab: true, storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 5, versionName: '1.0.4',
+  }, profile, new Date('2026-08-16T20:00:00.000Z'), branding());
+  assert.equal(withOptionalAab.build.apk, true);
+  assert.equal(withOptionalAab.build.aab, true);
+  assert.equal(withOptionalAab.signing.create_play_upload_key, true);
+  assert.deepEqual(withOptionalAab.delivery.master_only, ['aab', 'build_manifest']);
 });
 
 test('release aprobada detecta apps atrasadas y conserva severidad visual', () => {
@@ -318,6 +328,7 @@ test('entrega WhatsApp manual exige numeros internacionales y administrador prin
     store: STORE_ID, profile: PROFILE_ID, job: JOB_ID, kind: 'apk', visibility: 'store_delivery',
     file: 'tenant-c10-1.0.1-2-direct_x.apk', file_name: 'tenant-c10-1.0.1-2-direct.apk',
     sha256: 'a'.repeat(64), bytes: 2048, version_code: 2, version_name: '1.0.1',
+    lifecycle_status: 'available', release_status: 'published',
   });
   const sender = record(MASTER_ID, {
     display_name: 'Master TS84', role: 'master_admin', status: 'active', phone: '+53 5 111 2233',
@@ -326,6 +337,20 @@ test('entrega WhatsApp manual exige numeros internacionales y administrador prin
     display_name: 'Admin principal', role: 'store_admin', status: 'active', store: STORE_ID, phone: '+53 5 444 5566',
   });
   const sha256 = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
+  assert.throws(() => builds.buildManualWhatsappPreview(
+    store,
+    profile,
+    job,
+    record(ARTIFACT_ID, {
+      store: STORE_ID, profile: PROFILE_ID, job: JOB_ID, kind: 'apk', visibility: 'store_delivery',
+      file: 'tenant-c10-1.0.1-2-direct_x.apk', file_name: 'tenant-c10-1.0.1-2-direct.apk',
+      sha256: 'a'.repeat(64), bytes: 2048, version_code: 2, version_name: '1.0.1',
+      lifecycle_status: 'available', release_status: 'candidate',
+    }),
+    sender,
+    recipient,
+    sha256,
+  ), /apk_not_ready/);
   const preview = builds.buildManualWhatsappPreview(store, profile, job, artifact, sender, recipient, sha256, {
     origin: 'https://downloads.example.test',
     security: { hs256: (value, secret) => createHmac('sha256', secret).update(value).digest('hex') },
@@ -383,6 +408,7 @@ test('inventario global separa builds pendientes de APK listos para WhatsApp', (
   const artifact = record(ARTIFACT_ID, {
     store: STORE_ID, profile: PROFILE_ID, job: JOB_ID, kind: 'apk', visibility: 'store_delivery',
     file_name: 'tenant-c10-1.0.1-2-direct.apk', sha256: 'a'.repeat(64), version_code: 2, version_name: '1.0.1',
+    lifecycle_status: 'available', release_status: 'published',
   });
   const store = record(STORE_ID, { name: 'Tenant C10', slug: 'tenant-c10', primary_admin_user: PRIMARY_ID });
   const primary = record(PRIMARY_ID, {
@@ -391,11 +417,12 @@ test('inventario global separa builds pendientes de APK listos para WhatsApp', (
   const sender = record(MASTER_ID, {
     display_name: 'Master TS84', role: 'master_admin', status: 'active', phone: '5351112233',
   });
-  const byId = new Map([[STORE_ID, store], [PRIMARY_ID, primary]]);
+  const byId = new Map([[STORE_ID, store], [PRIMARY_ID, primary], [JOB_ID, job]]);
   const app = {
     findRecordsByFilter(collection) {
       if (collection === builds.PROFILES) return [profile];
       if (collection === builds.JOBS) return [job];
+      if (collection === builds.ARTIFACTS) return [artifact];
       return [];
     },
     findFirstRecordByFilter(collection) {
@@ -412,7 +439,7 @@ test('inventario global separa builds pendientes de APK listos para WhatsApp', (
   assert.equal(inventory.deliveries[0].artifact_id, ARTIFACT_ID);
   assert.equal(inventory.deliveries[0].recipient.status, 'ready');
   assert.equal(inventory.manual_whatsapp_sender.whatsapp_number, '5351112233');
-  assert.match(inventory.deliveries[0].action_url, /#entrega-whatsapp$/);
+  assert.match(inventory.deliveries[0].action_url, /\?channel=publication#entrega-whatsapp$/);
 });
 
 test('rutas Master y runner usan autenticación separada y body limits', () => {
@@ -427,6 +454,8 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/brand-assets\/upload/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/brand-assets\/file/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/cancel/);
+  assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/release-action/);
+  assert.match(routes, /\/api\/pz\/master\/storefront-app-artifacts\/\{artifact\}\/\{filename\}/);
   assert.match(routes, /\$apis\.requireAuth\(\)/);
   assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/claim/);
   assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/brand-assets/);

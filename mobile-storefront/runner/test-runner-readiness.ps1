@@ -8,6 +8,7 @@ param(
     [switch]$RequireFirebaseProvisioning,
     [switch]$RequireReleaseSigning,
     [switch]$RequireAab,
+    [switch]$ProvisionUploadSigning,
     [switch]$PassThru
 )
 
@@ -89,6 +90,7 @@ $appKeystorePath = Join-Path $storeSecretRoot 'app-signing.p12'
 $appPropertiesPath = Join-Path $storeSecretRoot 'app-signing.properties'
 $uploadKeystorePath = Join-Path $storeSecretRoot 'upload-signing.p12'
 $uploadPropertiesPath = Join-Path $storeSecretRoot 'upload-signing.properties'
+if ($RequireAab -and $ProvisionUploadSigning) { Add-Failure 'upload_signing_mode_conflict' }
 if ($RequireReleaseSigning) {
     if ($Operation -eq 'Provision') {
         if ([string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -cne 'true') { Add-Failure 'signing_generation_not_authorized' }
@@ -97,7 +99,7 @@ if ($RequireReleaseSigning) {
         if ((Test-Path -LiteralPath $appKeystorePath) -or (Test-Path -LiteralPath $appPropertiesPath)) {
             Add-Failure 'app_signing_already_exists'
         }
-        if ($RequireAab -and ((Test-Path -LiteralPath $uploadKeystorePath) -or (Test-Path -LiteralPath $uploadPropertiesPath))) {
+        if ($ProvisionUploadSigning -and ((Test-Path -LiteralPath $uploadKeystorePath) -or (Test-Path -LiteralPath $uploadPropertiesPath))) {
             Add-Failure 'upload_signing_already_exists'
         }
     } else {
@@ -105,7 +107,14 @@ if ($RequireReleaseSigning) {
             -not (Test-Path -LiteralPath $appPropertiesPath -PathType Leaf)) {
             Add-Failure 'existing_app_signing_missing'
         }
-        if ($RequireAab -and (-not (Test-Path -LiteralPath $uploadKeystorePath -PathType Leaf) -or
+        if ($ProvisionUploadSigning) {
+            if ([string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -cne 'true') { Add-Failure 'signing_generation_not_authorized' }
+            if (([string]$env:PZ_STORE_APP_KEYSTORE_PASSWORD).Length -lt 16) { Add-Failure 'keystore_password_missing' }
+            if (([string]$env:PZ_STORE_APP_KEY_PASSWORD).Length -lt 16) { Add-Failure 'key_password_missing' }
+            if ((Test-Path -LiteralPath $uploadKeystorePath) -or (Test-Path -LiteralPath $uploadPropertiesPath)) {
+                Add-Failure 'upload_signing_already_exists'
+            }
+        } elseif ($RequireAab -and (-not (Test-Path -LiteralPath $uploadKeystorePath -PathType Leaf) -or
             -not (Test-Path -LiteralPath $uploadPropertiesPath -PathType Leaf))) {
             Add-Failure 'existing_upload_signing_missing'
         }

@@ -116,7 +116,7 @@ $payload = [ordered]@{
     }
     signing = [ordered]@{
         create_app_signing_key = $effectiveOperation -eq 'Provision'
-        create_play_upload_key = $effectiveOperation -eq 'Provision' -and $config.Distribution -eq 'play_and_direct'
+        create_play_upload_key = $config.Distribution -eq 'play_and_direct' -and -not $ExistingUploadCertSha256
         custodian = 'Tu Senda 84'
     }
     build = [ordered]@{
@@ -188,12 +188,14 @@ if ($BuildType -eq 'Release') {
             -KeyPurpose app -ConfirmedPreviewPath $ConfirmedPreviewPath -ConfirmedPreviewHash $ConfirmedPreviewHash
         $SigningPropertiesPath = $signingResult.PropertiesPath
         $signingCertSha256 = $signingResult.CertificateSha256
-        if ([bool]$payload.build.aab) {
-            $uploadResult = & (Join-Path $PSScriptRoot 'generate-store-signing.ps1') -ConfigKey $ConfigKey -SecretsRoot $SecretsRoot `
-                -KeyPurpose upload -ConfirmedPreviewPath $ConfirmedPreviewPath -ConfirmedPreviewHash $ConfirmedPreviewHash
-            $UploadSigningPropertiesPath = $uploadResult.PropertiesPath
-            $uploadCertSha256 = $uploadResult.CertificateSha256
-        }
+    }
+    if ([bool]$payload.build.aab -and -not $UploadSigningPropertiesPath) {
+        if (-not [bool]$payload.signing.create_play_upload_key) { throw 'Falta la firma de subida existente requerida para el AAB.' }
+        if (-not $AllowSigningGeneration -or -not $SecretsRoot) { throw 'Generar la firma de subida requiere autorizacion y SecretsRoot externo.' }
+        $uploadResult = & (Join-Path $PSScriptRoot 'generate-store-signing.ps1') -ConfigKey $ConfigKey -SecretsRoot $SecretsRoot `
+            -KeyPurpose upload -ConfirmedPreviewPath $ConfirmedPreviewPath -ConfirmedPreviewHash $ConfirmedPreviewHash
+        $UploadSigningPropertiesPath = $uploadResult.PropertiesPath
+        $uploadCertSha256 = $uploadResult.CertificateSha256
     }
     if (-not $SigningPropertiesPath) { throw 'Release requiere la firma privada exclusiva de la tienda.' }
     & $validator -ConfigKey $ConfigKey -ExternalConfigPath $ConfigPath -ExternalBrandPath $BrandPath `
@@ -230,7 +232,7 @@ try {
     Copy-Item -LiteralPath $apkSource -Destination (Join-Path $releaseDirectory $apkName)
     $artifactNames = @($apkName)
     if ($BuildType -eq 'Release' -and [bool]$payload.build.aab) {
-        if (-not $UploadSigningPropertiesPath) { throw 'PowerZona requiere clave de subida exclusiva para el AAB.' }
+        if (-not $UploadSigningPropertiesPath) { throw 'El AAB requiere una clave de subida exclusiva de la app.' }
         $env:PZ_STOREFRONT_SIGNING_PROPERTIES = $UploadSigningPropertiesPath
         & $gradle 'bundleRelease' @gradleArgs
         if ($LASTEXITCODE -ne 0) { throw 'Gradle no completo el AAB Release.' }

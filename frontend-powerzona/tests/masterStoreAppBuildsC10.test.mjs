@@ -77,8 +77,8 @@ test('conserva visible un trabajo C10 heredado para poder cancelarlo antes de ca
     artifacts: [],
     policy: {
       firebase_project_per_store: true, signing_custodian: 'Tu Senda 84',
-      store_admin_delivery: ['apk', 'checksums', 'instructions'], powerzona_distribution: 'play_and_direct',
-      tenant_distribution: 'direct', runner_isolated: true,
+      store_admin_delivery: ['apk', 'checksums', 'instructions'], aab_optional_for_storefront: true,
+      aab_default_store_slug: 'powerzona', aab_master_only: true, runner_isolated: true,
     },
   }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   try {
@@ -295,7 +295,12 @@ test('UX separa primer aprovisionamiento de actualización y exige confirmación
   assert.match(view, /Generar actualización/);
   assert.match(view, /data-app-confirm-check/);
   assert.match(view, /Vista previa pendiente de confirmación/);
-  assert.match(view, /storeSlug === 'powerzona' \? 'play_and_direct' : 'direct'/);
+  assert.match(view, /name="include_aab" checked=\{isPowerZona\}/);
+  assert.match(view, /include_aab: values\.get\('include_aab'\) === 'on'/);
+  assert.match(view, /Publicar la misma APK probada/);
+  assert.match(view, /data-app-release-action="approve_candidate"/);
+  assert.match(view, /data-app-release-action="publish_candidate"/);
+  assert.match(view, /data-app-master-download/);
   assert.match(view, /proposeFirebaseProjectId\(store\.name, store\.id\)/);
   assert.match(view, /value=\{proposedFirebaseProjectId\}/);
   assert.match(view, /Generado desde el nombre de la tienda y un sufijo estable/);
@@ -368,6 +373,8 @@ test('acción administrativa C10.6 conserva separado el estado de la tienda web'
 
 test('runner y documentación prohíben efectos desde Preview y secretos en Git', () => {
   const runner = readFileSync(new URL('../../mobile-storefront/runner/store-app-runner.ps1', import.meta.url), 'utf8');
+  const queue = readFileSync(new URL('../../mobile-storefront/runner/run-job-queue.ps1', import.meta.url), 'utf8');
+  const readiness = readFileSync(new URL('../../mobile-storefront/runner/test-runner-readiness.ps1', import.meta.url), 'utf8');
   const validator = readFileSync(new URL('../../mobile-storefront/scripts/validate-store-config.ps1', import.meta.url), 'utf8');
   assert.match(runner, /Preview no admite efectos externos ni compilacion/);
   assert.match(runner, /AllowFirebaseProvisioning/);
@@ -378,6 +385,11 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(validator, /service-account/);
   assert.match(runner, /Release requiere un workspace Git limpio y versionado/);
   assert.match(runner, /engine_version/);
+  assert.match(runner, /create_play_upload_key = \$config\.Distribution -eq 'play_and_direct' -and -not \$ExistingUploadCertSha256/);
+  assert.match(runner, /Generar la firma de subida requiere autorizacion/);
+  assert.match(queue, /ProvisionUploadSigning/);
+  assert.match(queue, /ExistingUploadCertSha256/);
+  assert.match(readiness, /upload_signing_mode_conflict/);
 });
 
 test('inventario Master normaliza alertas de motor sin ejecutar builds', async () => {
@@ -406,7 +418,7 @@ test('inventario Master normaliza alertas de motor sin ejecutar builds', async (
         status: 'ready', user_id: 'primaryc10test1', display_name: 'Admin principal',
         whatsapp_number: '5354445566', configured: true, phone_state: 'configured',
       },
-      action_url: '/master/stores/storec10test001/app#entrega-whatsapp',
+      action_url: '/master/stores/storec10test001/app?channel=publication#entrega-whatsapp',
     }],
     apps: [{
       store: { id: 'storec10test001', name: 'Tenant C10', slug: 'tenant-c10' },

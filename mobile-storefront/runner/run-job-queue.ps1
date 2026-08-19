@@ -288,12 +288,16 @@ do {
         if ([bool]$job.preview.firebase.create_project -or [bool]$job.preview.firebase.register_android_app) {
             $readinessArguments.RequireFirebaseProvisioning = $true
         }
-        if ([bool]$job.preview.build.aab) { $readinessArguments.RequireAab = $true }
+        if ([bool]$job.preview.build.aab) {
+            if ([bool]$job.preview.signing.create_play_upload_key) { $readinessArguments.ProvisionUploadSigning = $true }
+            else { $readinessArguments.RequireAab = $true }
+        }
         & $readiness @readinessArguments
         $jobWorkspace = Materialize-ApprovedBranding -Job $job
         $localPreview = & $engine -ConfigKey $configKey -Operation Preview -PreviewFor $operation `
             -ConfigPath $jobWorkspace.ConfigPath -BrandPath $jobWorkspace.BrandPath `
-            -VersionCode $versionCode -VersionName $versionName -BuildType Release
+            -VersionCode $versionCode -VersionName $versionName -BuildType Release `
+            -ExistingUploadCertSha256 ([string]$job.profile.upload_cert_sha256)
         Assert-PanelPreviewMatchesLocal -Panel $job.preview -Local $localPreview.Payload
 
         $storeSecretRoot = Join-Path $SecretsRoot $configKey

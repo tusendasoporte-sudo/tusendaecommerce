@@ -7,9 +7,10 @@ import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 interface Props {
   data: MasterStoreAppBuilds;
   planPresentation: StorePlanPresentation;
+  channel?: 'prepare' | 'publication';
 }
 
-const { data, planPresentation } = Astro.props;
+const { data, planPresentation, channel = 'prepare' } = Astro.props;
 const { store, profile, jobs, artifacts, brand_assets: brandAssets } = data;
 const premiumBuildAllowed = planPresentation.code === 'premium' && planPresentation.state !== 'expired';
 const appLifecycleActive = !profile || profile.lifecycle_status === 'active';
@@ -42,14 +43,29 @@ const isPowerZona = store.slug === 'powerzona';
 const proposedFirebaseProjectId = isPowerZona
   ? 'tu-senda-84-storefront-staging'
   : proposeFirebaseProjectId(store.name, store.id);
+const manualDelivery = data.manual_whatsapp_delivery;
+const latestApk = artifacts.find((artifact) => artifact.kind === 'apk'
+  && artifact.visibility === 'store_delivery' && artifact.lifecycle_status === 'available'
+  && artifact.release_status === 'published') || null;
+const candidateApk = artifacts.find((artifact) => artifact.kind === 'apk'
+  && artifact.visibility === 'store_delivery' && artifact.lifecycle_status === 'available'
+  && ['candidate', 'approved'].includes(artifact.release_status)) || null;
+const candidateAab = candidateApk
+  ? artifacts.find((artifact) => artifact.job_id === candidateApk.job_id
+    && artifact.kind === 'aab' && artifact.lifecycle_status === 'available') || null
+  : null;
+const publishedAab = latestApk
+  ? artifacts.find((artifact) => artifact.job_id === latestApk.job_id
+    && artifact.kind === 'aab' && artifact.lifecycle_status === 'available') || null
+  : null;
 const engineUpdate = profile?.engine_update || null;
-const engineNeedsUpdate = engineUpdate?.available === true;
+const engineNeedsUpdate = engineUpdate?.available === true && !candidateApk;
 const engineSeverityLabel = engineUpdate?.severity === 'critical'
   ? 'Crítica'
   : engineUpdate?.severity === 'normal' ? 'Normal' : 'Recomendada';
-const manualDelivery = data.manual_whatsapp_delivery;
-const latestApk = artifacts.find((artifact) => artifact.kind === 'apk'
-  && artifact.visibility === 'store_delivery' && artifact.lifecycle_status === 'available') || null;
+const nextVersionCode = profile
+  ? Math.max(profile.current_version_code, profile.last_allocated_version_code) + 1
+  : 1;
 const latestApkJob = latestApk ? jobs.find((job) => job.id === latestApk.job_id) || null : null;
 const whatsappReady = manualDelivery.sender.configured
   && manualDelivery.recipient.status === 'ready'
@@ -81,7 +97,7 @@ function dateTime(value: string) {
 }
 ---
 
-<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)}>
+<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)} data-channel={channel}>
   <MasterStoreContextHeader
     store={{
       id: store.id,
@@ -102,6 +118,11 @@ function dateTime(value: string) {
     </div>
     <span class="master-pill master-pill--info"><MasterIcon name="lock" size={16} /> Solo Master</span>
   </header>
+
+  <nav class="master-app-build-channels" aria-label="Flujo de la app Android">
+    <a class:list={[{ 'is-active': channel === 'prepare' }]} href={`/master/stores/${store.id}/app?channel=prepare`}>1. Preparar y probar</a>
+    <a class:list={[{ 'is-active': channel === 'publication' }]} href={`/master/stores/${store.id}/app?channel=publication`}>2. Publicación</a>
+  </nav>
 
   <div class="master-app-build-policy" role="note">
     <MasterIcon name="security" size={22} />
@@ -157,7 +178,7 @@ function dateTime(value: string) {
     </section>
   )}
 
-  <section class="master-card master-app-brand-assets">
+  <section class="master-card master-app-brand-assets" data-prepare-only>
     <header class="master-card-header">
       <div>
         <h2 class="master-card-title">Icono y pantalla de inicio</h2>
@@ -215,7 +236,7 @@ function dateTime(value: string) {
   </section>
 
   {profile && engineNeedsUpdate && (
-    <section class:list={['master-app-engine-alert', { 'is-critical': engineUpdate.severity === 'critical' }]} role="alert" aria-live="polite">
+    <section class:list={['master-app-engine-alert', { 'is-critical': engineUpdate.severity === 'critical' }]} data-prepare-only role="alert" aria-live="polite">
       <span class="master-app-engine-alert__icon"><MasterIcon name="bell" size={24} /></span>
       <div>
         <strong>Actualización del motor {engineSeverityLabel.toLowerCase()} disponible</strong>
@@ -229,7 +250,7 @@ function dateTime(value: string) {
   )}
 
   {profile ? (
-    <section class="master-card">
+    <section class="master-card" data-prepare-only>
       <header class="master-card-header">
         <div><h2 class="master-card-title">Identidad aprovisionada</h2><p class="master-card-subtitle">Estos valores quedan bloqueados para todas las actualizaciones.</p></div>
         <span class:list={['master-pill', profile.status === 'provisioned' ? 'master-pill--success' : 'master-pill--warning']}>{profile.status}</span>
@@ -239,14 +260,14 @@ function dateTime(value: string) {
         <div><span>Paquete</span><strong>{profile.package_name}</strong></div>
         <div><span>App key</span><strong>{profile.app_key}</strong></div>
         <div><span>Proyecto Firebase</span><strong>{profile.firebase_project_id || 'Pendiente del runner'}</strong></div>
-        <div><span>Distribución</span><strong>{profile.distribution === 'play_and_direct' ? 'APK directo + Google Play' : 'APK directo'}</strong></div>
+        <div><span>Distribución</span><strong>{profile.distribution === 'play_and_direct' ? 'APK + AAB manual para Google Play' : 'APK directo'}</strong></div>
         <div><span>Versión actual</span><strong>{profile.current_version_name || 'Pendiente'} ({profile.current_version_code || '—'})</strong></div>
         <div><span>Motor instalado</span><strong>{profile.current_engine_version || 'Sin trazabilidad'}</strong></div>
         <div><span>Motor aprobado</span><strong>{data.engine_release.version}</strong></div>
       </div>
     </section>
   ) : (
-    <section class="master-card">
+    <section class="master-card" data-prepare-only>
       <header class="master-card-header"><div><h2 class="master-card-title">Aprovisionar por primera vez</h2><p class="master-card-subtitle">La vista previa no crea Firebase, no registra paquetes y no genera firmas.</p></div></header>
       <form class="master-card-body master-form" data-app-provision-form>
         <div class="master-field-grid">
@@ -260,13 +281,13 @@ function dateTime(value: string) {
             <input id="app-firebase-project" name="firebase_project_id" minlength="6" maxlength="30" pattern={'[a-z][a-z0-9\\-]{4,28}[a-z0-9]'} required value={proposedFirebaseProjectId} aria-describedby="app-firebase-project-help" />
             <small id="app-firebase-project-help">Generado desde el nombre de la tienda y un sufijo estable. Puedes editarlo antes de crear la vista previa; Firebase todavía no se crea.</small>
           </div>
-          <div class="master-field"><label for="app-version-code">versionCode inicial</label><input id="app-version-code" name="version_code" type="number" min="1" max="2147483647" required value={isPowerZona ? 10 : 1} /></div>
+          <div class="master-field"><label for="app-version-code">versionCode inicial</label><input id="app-version-code" name="version_code" type="number" min="1" max="2147483647" required value={isPowerZona ? 10 : 1} readonly /></div>
           <div class="master-field"><label for="app-version-name">versionName inicial</label><input id="app-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} value={isPowerZona ? '0.2.8' : '1.0.0'} /></div>
         </div>
-        <div class="master-app-build-fixed-policy">
-          <span>Canal autorizado</span>
-          <strong>{isPowerZona ? 'APK firmado directo + AAB para Google Play' : 'APK firmado para distribución directa'}</strong>
-        </div>
+        <label class="master-app-build-aab-option">
+          <input type="checkbox" name="include_aab" checked={isPowerZona} />
+          <span><strong>Incluir AAB para Google Play</strong><small>El mismo trabajo genera una sola APK final y, además, un AAB privado para descarga manual desde el Master. No se publica automáticamente.</small></span>
+        </label>
         <div class="master-app-build-fixed-policy">
           <span>Motor común aprobado</span>
           <strong>{data.engine_release.version} · toda app nueva parte de esta versión</strong>
@@ -278,7 +299,7 @@ function dateTime(value: string) {
   )}
 
   {profile && (
-    <section class="master-card master-app-admin" id="estados-administrativos-android">
+    <section class="master-card master-app-admin" id="estados-administrativos-android" data-publication-only>
       <header class="master-card-header">
         <div>
           <h2 class="master-card-title">Estados y acciones administrativas</h2>
@@ -350,20 +371,28 @@ function dateTime(value: string) {
   )}
 
   {profile && (
-    <section class="master-card" id="generar-actualizacion-motor">
+    <section class="master-card" id="generar-actualizacion-motor" data-prepare-only>
       <header class="master-card-header"><div><h2 class="master-card-title">Generar actualización</h2><p class="master-card-subtitle">Reutiliza el paquete, proyecto Firebase y certificado de firma existentes. La vista previa fijará el motor {data.engine_release.version}.</p></div>{engineNeedsUpdate && <span class:list={['master-pill', engineUpdate?.severity === 'critical' ? 'master-pill--danger' : 'master-pill--warning']}>Motor pendiente</span>}</header>
       <form class="master-card-body master-form" data-app-update-form>
         <div class="master-field-grid">
-          <div class="master-field"><label for="update-version-code">Nuevo versionCode</label><input id="update-version-code" name="version_code" type="number" min={profile.current_version_code + 1} max="2147483647" required value={profile.current_version_code + 1} /></div>
+          <div class="master-field"><label for="update-version-code">Nuevo versionCode</label><input id="update-version-code" name="version_code" type="number" min={nextVersionCode} max="2147483647" required value={nextVersionCode} readonly /></div>
           <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" /></div>
         </div>
+        <label class="master-app-build-aab-option">
+          <input type="checkbox" name="include_aab" checked={profile.distribution === 'play_and_direct'} disabled={profile.distribution === 'play_and_direct'} />
+          <span>
+            <strong>Incluir AAB para Google Play</strong>
+            <small>{profile.distribution === 'play_and_direct' ? 'Google Play ya está habilitado para esta app; sus futuras versiones conservarán APK + AAB.' : 'Opcional. Al activarlo, se crea el AAB privado junto con esta misma APK final.'}</small>
+          </span>
+        </label>
+        {candidateApk && <p class="master-app-build-candidate-warning">Primero resuelve el APK candidato {candidateApk.version_name} ({candidateApk.version_code}) en Publicación.</p>}
         <p class="master-form-alert" data-app-form-alert hidden></p>
-        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
+        <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed || !!candidateApk}><MasterIcon name="eye" size={18} /> Crear vista previa de actualización</button></div>
       </form>
     </section>
   )}
 
-  <section class="master-card master-app-build-preview-collapsed" data-app-preview-collapsed hidden>
+  <section class="master-card master-app-build-preview-collapsed" data-app-preview-collapsed data-prepare-only hidden>
     <div class="master-app-build-preview-collapsed__summary">
       <span class="master-app-build-preview-collapsed__icon"><MasterIcon name="eye" size={20} /></span>
       <div>
@@ -377,7 +406,7 @@ function dateTime(value: string) {
     </button>
   </section>
 
-  <section class="master-card master-app-build-preview" id="vista-previa-app" data-app-preview-card hidden={!currentActionJob}>
+  <section class="master-card master-app-build-preview" id="vista-previa-app" data-app-preview-card data-prepare-only hidden={!currentActionJob}>
     <header class="master-card-header">
       <div><h2 class="master-card-title">{retryMode ? 'Reanudar trabajo con la misma vista previa' : 'Vista previa pendiente de confirmación'}</h2><p class="master-card-subtitle">Verifica cada efecto antes de enviarlo al runner.</p></div>
       <div class="master-app-build-preview__header-actions">
@@ -396,7 +425,47 @@ function dateTime(value: string) {
     </div>
   </section>
 
-  <section class="master-card master-app-whatsapp" id="entrega-whatsapp">
+  <section class="master-card master-app-release" data-publication-only>
+    <header class="master-card-header">
+      <div>
+        <h2 class="master-card-title">Publicar la misma APK probada</h2>
+        <p class="master-card-subtitle">La compilación queda privada hasta que la descargues, la pruebes, la apruebes y finalmente la publiques. No se vuelve a construir.</p>
+      </div>
+      <span class="master-pill master-pill--info">Una sola APK</span>
+    </header>
+    <div class="master-card-body master-app-release__body">
+      {candidateApk ? (
+        <article class="master-app-release__candidate">
+          <div>
+            <span>APK candidata</span>
+            <strong>{candidateApk.file_name}</strong>
+            <small>Versión {candidateApk.version_name} ({candidateApk.version_code}) · SHA-256 {candidateApk.sha256}</small>
+            <small>{candidateApk.release_status === 'approved' ? 'Aprobada y lista para publicar.' : 'Privada: el administrador de tienda todavía no puede descargarla.'}</small>
+          </div>
+          <div class="master-app-release__actions">
+            <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={candidateApk.master_download_path} data-file-name={candidateApk.file_name}><MasterIcon name="download" size={18} /> Descargar APK para probar</button>
+            {candidateAab && <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={candidateAab.master_download_path} data-file-name={candidateAab.file_name}><MasterIcon name="download" size={18} /> Descargar AAB</button>}
+            {candidateApk.release_status === 'candidate' && <button class="master-btn master-btn--primary" type="button" data-app-release-action="approve_candidate" data-artifact-id={candidateApk.id}><MasterIcon name="check" size={18} /> Marcar APK como aprobada</button>}
+            {candidateApk.release_status === 'approved' && <button class="master-btn master-btn--primary" type="button" data-app-release-action="publish_candidate" data-artifact-id={candidateApk.id}><MasterIcon name="external" size={18} /> Publicar APK aprobada</button>}
+          </div>
+        </article>
+      ) : (
+        <p class="master-empty">No hay una APK candidata pendiente. Prepárala en el paso 1 cuando necesites una primera versión o actualización.</p>
+      )}
+      {latestApk && (
+        <article class="master-app-release__published">
+          <div><span>Publicación actual</span><strong>{latestApk.file_name}</strong><small>Versión {latestApk.version_name} ({latestApk.version_code}) · SHA-256 {latestApk.sha256}</small></div>
+          <div class="master-app-release__actions">
+            {latestApk.download_url && <a class="master-btn" href={latestApk.download_url} target="_blank" rel="noreferrer"><MasterIcon name="download" size={18} /> Abrir enlace publicado</a>}
+            {publishedAab && <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={publishedAab.master_download_path} data-file-name={publishedAab.file_name}><MasterIcon name="download" size={18} /> Descargar AAB para Google Play</button>}
+          </div>
+        </article>
+      )}
+      <p class="master-form-alert" data-app-release-alert hidden></p>
+    </div>
+  </section>
+
+  <section class="master-card master-app-whatsapp" id="entrega-whatsapp" data-publication-only>
     <header class="master-card-header">
       <div>
         <h2 class="master-card-title">Entrega manual por WhatsApp</h2>
@@ -461,7 +530,7 @@ function dateTime(value: string) {
           </div>
         </article>
       ) : (
-        <p class="master-empty">Cuando el runner registre un APK exitoso, aquí podrás preparar el mensaje para el administrador principal.</p>
+        <p class="master-empty">WhatsApp se habilitará después de probar, aprobar y publicar la APK candidata.</p>
       )}
 
       <p class="master-form-alert" data-app-whatsapp-alert hidden></p>
@@ -498,7 +567,7 @@ function dateTime(value: string) {
     </div>
   </section>
 
-  <section class="master-card">
+  <section class="master-card" data-publication-only>
     <header class="master-card-header"><div><h2 class="master-card-title">Historial de trabajos</h2><p class="master-card-subtitle">La cola solo puede ejecutarla el runner Android privado.</p></div></header>
     <div class="master-card-body master-app-build-history">
       {jobs.length ? jobs.map((job) => (
@@ -507,7 +576,7 @@ function dateTime(value: string) {
     </div>
   </section>
 
-  <section class="master-card">
+  <section class="master-card" data-publication-only>
     <header class="master-card-header"><div><h2 class="master-card-title">Artefactos registrados</h2><p class="master-card-subtitle">Los archivos privados no se almacenan en Git.</p></div></header>
     <div class="master-card-body master-app-build-history">
       {artifacts.length ? artifacts.map((artifact) => (
@@ -522,12 +591,14 @@ function dateTime(value: string) {
   import {
     cancelMasterStoreAppBuild,
     confirmMasterStoreAppBuild,
+    downloadMasterStoreAppArtifact,
     getMasterAppBuildErrorMessage,
     markMasterStoreAppWhatsappSent,
     previewMasterStoreAppBuild,
     previewMasterStoreAppWhatsappDelivery,
     retryMasterStoreAppBuild,
     runMasterStoreAppAdminAction,
+    runMasterStoreAppReleaseAction,
   } from '../../lib/masterStoreAppBuilds';
 
   function initializeStoreAppBuildPanel() {
@@ -538,7 +609,6 @@ function dateTime(value: string) {
     pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     pb.autoCancellation(false);
     const storeId = String(root.dataset.storeId || '');
-    const storeSlug = String(root.dataset.storeSlug || '');
     const profileId = String(root.dataset.profileId || '');
     const buildActionsAllowed = root.dataset.buildActionsAllowed === 'true';
     const engineReleaseReady = root.dataset.engineReleaseReady === 'true';
@@ -566,6 +636,7 @@ function dateTime(value: string) {
     const cancelJobButton = root.querySelector<HTMLButtonElement>('[data-app-cancel-job]');
     const cancelJobAlert = root.querySelector<HTMLElement>('[data-app-cancel-alert]');
     const adminAlert = root.querySelector<HTMLElement>('[data-app-admin-alert]');
+    const releaseAlert = root.querySelector<HTMLElement>('[data-app-release-alert]');
     const previewDismissalKey = `pz-master-app-preview-closed:${storeId}`;
     let currentWhatsappPreview: any = null;
 
@@ -733,6 +804,61 @@ function dateTime(value: string) {
       }
     });
 
+    root.querySelectorAll<HTMLButtonElement>('[data-app-master-download]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const downloadPath = String(button.dataset.downloadPath || '');
+        const fileName = String(button.dataset.fileName || '');
+        if (!downloadPath || !fileName) return;
+        const enabledButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-app-master-download]')]
+          .filter((item) => !item.disabled);
+        enabledButtons.forEach((item) => { item.disabled = true; });
+        setAlert(releaseAlert);
+        const result = await downloadMasterStoreAppArtifact(
+          import.meta.env.PUBLIC_POCKETBASE_URL,
+          pb.authStore.token,
+          { master_download_path: downloadPath, file_name: fileName },
+        );
+        if (result.data) {
+          const objectUrl = URL.createObjectURL(result.data.blob);
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = result.data.fileName;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } else {
+          setAlert(releaseAlert, getMasterAppBuildErrorMessage(result.error));
+        }
+        enabledButtons.forEach((item) => { item.disabled = false; });
+      });
+    });
+
+    root.querySelectorAll<HTMLButtonElement>('[data-app-release-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = String(button.dataset.appReleaseAction || '') as 'approve_candidate' | 'publish_candidate';
+        const artifactId = String(button.dataset.artifactId || '');
+        const confirmation = action === 'approve_candidate' ? 'APROBAR APK CLIENTES' : 'PUBLICAR APK CLIENTES';
+        const question = action === 'approve_candidate'
+          ? 'Confirma que descargaste e instalaste esta misma APK y que la prueba fue satisfactoria. ¿Marcarla como aprobada?'
+          : 'Se habilitarán el enlace permanente y WhatsApp para esta misma APK aprobada. ¿Publicarla ahora?';
+        if (!artifactId || !window.confirm(question)) return;
+        const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-app-release-action]')];
+        buttons.forEach((item) => { item.disabled = true; });
+        setAlert(releaseAlert);
+        const result = await runMasterStoreAppReleaseAction(
+          import.meta.env.PUBLIC_POCKETBASE_URL,
+          pb.authStore.token,
+          { store_id: storeId, artifact_id: artifactId, action, confirmation },
+        );
+        if (result.data) window.location.reload();
+        else {
+          setAlert(releaseAlert, getMasterAppBuildErrorMessage(result.error));
+          buttons.forEach((item) => { item.disabled = false; });
+        }
+      });
+    });
+
     root.querySelector<HTMLFormElement>('[data-app-provision-form]')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const form = event.currentTarget as HTMLFormElement;
@@ -744,7 +870,7 @@ function dateTime(value: string) {
         app_key: values.get('app_key'),
         brand_key: values.get('brand_key'),
         display_name: values.get('display_name'),
-        distribution: storeSlug === 'powerzona' ? 'play_and_direct' : 'direct',
+        include_aab: values.get('include_aab') === 'on',
         firebase_project_id: values.get('firebase_project_id'),
         package_name: values.get('package_name'),
         store_url: values.get('store_url'),
@@ -761,6 +887,7 @@ function dateTime(value: string) {
         store_id: storeId,
         operation: 'update',
         profile_id: profileId,
+        include_aab: form.querySelector<HTMLInputElement>('[name="include_aab"]')?.checked === true,
         version_code: Number(values.get('version_code')),
         version_name: values.get('version_name'),
       });
@@ -855,6 +982,23 @@ function dateTime(value: string) {
 
 <style>
   .master-app-build-page { display: grid; gap: 1.25rem; }
+  .master-app-build-page[data-channel="prepare"] [data-publication-only],
+  .master-app-build-page[data-channel="publication"] [data-prepare-only] { display: none !important; }
+  .master-app-build-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; padding: .35rem; border: 1px solid #dce3ed; border-radius: 14px; background: #fff; }
+  .master-app-build-channels a { padding: .8rem 1rem; border-radius: 10px; color: #52617a; font-weight: 800; text-align: center; text-decoration: none; }
+  .master-app-build-channels a.is-active { background: #14264b; color: #fff; }
+  .master-app-build-aab-option { display: flex; align-items: flex-start; gap: .8rem; padding: 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; color: #14264b; }
+  .master-app-build-aab-option input { margin-top: .2rem; }
+  .master-app-build-aab-option span { display: grid; gap: .25rem; }
+  .master-app-build-aab-option small { color: #5b6880; line-height: 1.45; }
+  .master-app-build-candidate-warning { margin: 0; color: #8a5a00; font-weight: 700; }
+  .master-app-release__body { display: grid; gap: 1rem; }
+  .master-app-release__candidate, .master-app-release__published { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; }
+  .master-app-release__candidate > div:first-child, .master-app-release__published > div:first-child { display: grid; gap: .3rem; min-width: 0; }
+  .master-app-release__candidate span, .master-app-release__published span { color: #68748a; font-size: .75rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .master-app-release__candidate strong, .master-app-release__published strong { color: #14264b; overflow-wrap: anywhere; }
+  .master-app-release__candidate small, .master-app-release__published small { color: #68748a; line-height: 1.45; overflow-wrap: anywhere; }
+  .master-app-release__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .65rem; }
   .master-app-build-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
   .master-app-build-heading h1 { margin: .15rem 0 .35rem; font-size: clamp(1.65rem, 3vw, 2.35rem); color: #0b1d43; }
   .master-app-build-heading p { margin: 0; color: #5b6880; }
@@ -971,6 +1115,9 @@ function dateTime(value: string) {
     .master-app-brand-asset { grid-template-columns: 1fr; }
     .master-app-brand-asset__preview.is-icon { justify-self: center; width: min(100%, 220px); }
     .master-app-engine-alert .master-btn { grid-column: 1 / -1; }
+    .master-app-release__candidate, .master-app-release__published { align-items: stretch; flex-direction: column; }
+    .master-app-release__actions { align-items: stretch; flex-direction: column; }
+    .master-app-release__actions .master-btn { width: 100%; }
     .master-app-whatsapp__contacts { grid-template-columns: 1fr; }
     .master-app-whatsapp__global-warning { grid-template-columns: auto 1fr; }
     .master-app-whatsapp__global-warning .master-btn { grid-column: 1 / -1; width: 100%; }

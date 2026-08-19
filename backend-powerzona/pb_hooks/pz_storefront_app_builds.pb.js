@@ -87,6 +87,16 @@ routerAdd(
 
 routerAdd(
   "GET",
+  "/api/pz/master/storefront-app-artifacts/{artifact}/{filename}",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleMasterArtifactDownload(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
   "/api/pz/internal/storefront-app-builds/brand-assets/{job}/{kind}",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerBrandAssetFile(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
@@ -128,6 +138,16 @@ routerAdd(
   "POST",
   "/api/pz/master/storefront-app-builds/confirm",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleConfirm(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/master/storefront-app-builds/release-action",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleReleaseAction(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
   $apis.requireAuth(),
   $apis.bodyLimit(2048),

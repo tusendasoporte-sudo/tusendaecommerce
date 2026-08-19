@@ -163,6 +163,22 @@ function artifactDownloadUrl(artifact, profile, options) {
   return `${origin}/api/pz/storefront-app-downloads/${artifactId}/${capability}/${encodeURIComponent(filename)}`;
 }
 
+function artifactReleaseStatus(artifact) {
+  const status = recordString(artifact, "release_status", 20);
+  return ["candidate", "approved", "published"].includes(status) ? status : "";
+}
+
+function artifactIsPublished(artifact) {
+  return artifactReleaseStatus(artifact) === "published";
+}
+
+function masterArtifactDownloadPath(artifact) {
+  const id = text(artifact && (artifact.id || recordString(artifact, "id", 15)), 15);
+  const filename = recordString(artifact, "file_name", 220);
+  return RECORD_ID_PATTERN.test(id) && /^[A-Za-z0-9._-]+$/.test(filename)
+    ? `/api/pz/master/storefront-app-artifacts/${id}/${encodeURIComponent(filename)}` : "";
+}
+
 function ensureProfileDownloadNonce(app, profile) {
   const current = recordString(profile, "download_nonce", 64);
   if (DOWNLOAD_NONCE_PATTERN.test(current)) return current;
@@ -366,7 +382,7 @@ function parsePreviewPayload(body) {
   const operation = bodyValue(body, "operation");
   if (operation === "provision") {
     const keys = [
-      "app_key", "brand_key", "display_name", "distribution", "firebase_project_id",
+      "app_key", "brand_key", "display_name", "firebase_project_id", "include_aab",
       "operation", "package_name", "store_id", "store_url", "version_code", "version_name",
     ];
     if (!exactPayload(body, keys)) return null;
@@ -376,7 +392,7 @@ function parsePreviewPayload(body) {
       appKey: text(bodyValue(body, "app_key"), 64),
       brandKey: text(bodyValue(body, "brand_key"), 64),
       displayName: text(bodyValue(body, "display_name"), 120),
-      distribution: text(bodyValue(body, "distribution"), 30),
+      includeAab: bodyValue(body, "include_aab"),
       firebaseProjectId: text(bodyValue(body, "firebase_project_id"), 128),
       packageName: text(bodyValue(body, "package_name"), 190),
       storeUrl: parseHttpsStoreUrl(bodyValue(body, "store_url")),
@@ -388,7 +404,7 @@ function parsePreviewPayload(body) {
       || !BRAND_KEY_PATTERN.test(parsed.brandKey)
       || !parsed.displayName
       || /[\u0000-\u001f\u007f]/.test(parsed.displayName)
-      || !["play_and_direct", "direct"].includes(parsed.distribution)
+      || typeof parsed.includeAab !== "boolean"
       || !PROJECT_ID_PATTERN.test(parsed.firebaseProjectId)
       || !PACKAGE_PATTERN.test(parsed.packageName)
       || !parsed.storeUrl
@@ -397,10 +413,11 @@ function parsePreviewPayload(body) {
     return parsed;
   }
   if (operation === "update") {
-    const keys = ["operation", "profile_id", "store_id", "version_code", "version_name"];
+    const keys = ["include_aab", "operation", "profile_id", "store_id", "version_code", "version_name"];
     if (!exactPayload(body, keys)) return null;
     const parsed = {
       operation,
+      includeAab: bodyValue(body, "include_aab"),
       storeId: text(bodyValue(body, "store_id"), 15),
       profileId: text(bodyValue(body, "profile_id"), 15),
       versionCode: positiveVersionCode(bodyValue(body, "version_code")),
@@ -408,6 +425,7 @@ function parsePreviewPayload(body) {
     };
     if (!RECORD_ID_PATTERN.test(parsed.storeId)
       || !RECORD_ID_PATTERN.test(parsed.profileId)
+      || typeof parsed.includeAab !== "boolean"
       || !parsed.versionCode
       || !VERSION_NAME_PATTERN.test(parsed.versionName)) return null;
     return parsed;
@@ -480,6 +498,7 @@ function profileSnapshot(profile) {
     upload_cert_sha256: recordString(profile, "upload_cert_sha256", 95),
     current_version_code: recordNumber(profile, "current_version_code"),
     current_version_name: recordString(profile, "current_version_name", 40),
+    last_allocated_version_code: recordNumber(profile, "last_allocated_version_code"),
     current_engine_version: recordString(profile, "current_engine_version", 40),
     current_engine_revision: recordString(profile, "current_engine_revision", 40),
     icon_asset_id: relationId(profile, "icon_asset"),
@@ -520,6 +539,9 @@ function jobSnapshot(job) {
 }
 
 function artifactSnapshot(artifact, profile) {
+  const releaseStatus = artifactReleaseStatus(artifact);
+  const available = recordString(artifact, "file", 220)
+    && recordString(artifact, "lifecycle_status", 30) === "available";
   return {
     id: text(artifact && (artifact.id || recordString(artifact, "id", 15)), 15),
     job_id: relationId(artifact, "job"),
@@ -532,10 +554,15 @@ function artifactSnapshot(artifact, profile) {
     version_name: recordString(artifact, "version_name", 40),
     download_url: recordString(artifact, "kind", 30) === "apk"
       && recordString(artifact, "visibility", 30) === "store_delivery"
-      && recordString(artifact, "file", 220)
-      && recordString(artifact, "lifecycle_status", 30) === "available"
+      && available
+      && releaseStatus === "published"
       ? artifactDownloadUrl(artifact, profile)
       : "",
+    master_download_path: available && ["apk", "aab"].includes(recordString(artifact, "kind", 30))
+      ? masterArtifactDownloadPath(artifact) : "",
+    release_status: releaseStatus,
+    approved_at: isoDate(recordValue(artifact, "approved_at")),
+    published_at: isoDate(recordValue(artifact, "published_at")),
     ...appAdmin.artifactAdminSnapshot(artifact),
     created: isoDate(recordValue(artifact, "created")),
   };
@@ -638,7 +665,7 @@ function requireActiveBranding(app, store) {
   };
 }
 
-function assertPreviewBrandingCurrent(app, store, preview) {
+function assertPreviewBrandingCurrent(app, store, preview, requireActive) {
   const branding = bodyValue(preview, "branding");
   const assets = bodyValue(branding, "assets");
   if (!preview || Number(bodyValue(preview, "schema_version")) !== 2 || !assets) throw new Error("brand_assets_required");
@@ -647,7 +674,7 @@ function assertPreviewBrandingCurrent(app, store, preview) {
     const expected = bodyValue(assets, kind);
     const id = text(bodyValue(expected, "id"), 15);
     const asset = RECORD_ID_PATTERN.test(id) ? findRecord(app, BRAND_ASSETS, id) : null;
-    const current = validateBrandAssetRecord(asset, store.id, kind, true);
+    const current = validateBrandAssetRecord(asset, store.id, kind, requireActive !== false);
     if (current.sha256 !== text(bodyValue(expected, "sha256"), 64).toLowerCase()
       || current.width !== Number(bodyValue(expected, "width"))
       || current.height !== Number(bodyValue(expected, "height"))
@@ -679,7 +706,8 @@ function buildManualWhatsappPreview(store, profile, job, artifact, sender, recip
     || relationId(artifact, "profile") !== profile.id
     || relationId(artifact, "job") !== job.id
     || recordString(artifact, "kind", 30) !== "apk"
-    || recordString(artifact, "visibility", 30) !== "store_delivery") throw new Error("apk_not_ready");
+    || recordString(artifact, "visibility", 30) !== "store_delivery"
+    || !artifactIsPublished(artifact)) throw new Error("apk_not_ready");
 
   const storeName = recordString(store, "name", 140) || recordString(store, "slug", 80) || "tu tienda";
   const appName = recordString(profile, "display_name", 120) || storeName;
@@ -774,13 +802,7 @@ function assertStoreUrlMatches(store, storeUrl) {
 }
 
 function assertDistribution(store, parsed) {
-  const slug = recordString(store, "slug", 80);
-  if (slug === "powerzona" && parsed.distribution !== "play_and_direct") {
-    throw new Error("powerzona_distribution_required");
-  }
-  if (slug !== "powerzona" && parsed.distribution !== "direct") {
-    throw new Error("tenant_distribution_must_be_direct");
-  }
+  if (!store || typeof parsed.includeAab !== "boolean") throw new Error("invalid_payload");
 }
 
 function assertUniqueIdentity(app, parsed) {
@@ -817,7 +839,7 @@ function buildPreview(store, parsed, profile, now, branding) {
   if (parsed.operation === "provision") {
     assertStoreUrlMatches(store, parsed.storeUrl);
     assertDistribution(store, parsed);
-    const createsAab = parsed.distribution === "play_and_direct";
+    const createsAab = parsed.includeAab === true;
     return {
       schema_version: 2,
       operation: "provision",
@@ -849,9 +871,14 @@ function buildPreview(store, parsed, profile, now, branding) {
   if (!profile || relationId(profile, "store") !== parsed.storeId) throw new Error("profile_not_found");
   appAdmin.assertBuildAllowed(profile);
   if (recordString(profile, "status", 30) !== "provisioned") throw new Error("profile_not_provisioned");
-  if (parsed.versionCode <= recordNumber(profile, "current_version_code")) throw new Error("version_code_must_increase");
+  const allocatedVersion = Math.max(
+    recordNumber(profile, "current_version_code"),
+    recordNumber(profile, "last_allocated_version_code"),
+  );
+  if (parsed.versionCode <= allocatedVersion) throw new Error("version_code_must_increase");
   const current = profileSnapshot(profile);
-  const createsAab = current.distribution === "play_and_direct";
+  const createsAab = current.distribution === "play_and_direct" || parsed.includeAab === true;
+  const createsUploadKey = createsAab && !current.upload_cert_sha256;
   return {
     schema_version: 2,
     operation: "update",
@@ -863,11 +890,11 @@ function buildPreview(store, parsed, profile, now, branding) {
     engine: previewEngine(profile, approvedRelease),
     branding: lockedBranding,
     firebase: { organization: "Tu Senda 84", project_id: current.firebase_project_id, create_project: false, register_android_app: false },
-    signing: { create_app_signing_key: false, create_play_upload_key: false, reuse_signing_cert_sha256: current.signing_cert_sha256, custodian: "Tu Senda 84" },
+    signing: { create_app_signing_key: false, create_play_upload_key: createsUploadKey, reuse_signing_cert_sha256: current.signing_cert_sha256, custodian: "Tu Senda 84" },
     build: { version_code: parsed.versionCode, version_name: parsed.versionName, apk: true, aab: createsAab },
     delivery: { admin_receives: ["apk", "checksums", "instructions"], master_only: createsAab ? ["aab", "build_manifest"] : ["build_manifest"] },
     immutable_identity: ["app_key", "package_name", "firebase_project_id", "firebase_app_id", "signing_cert_sha256"],
-    irreversible_or_sensitive_steps: [],
+    irreversible_or_sensitive_steps: createsUploadKey ? ["generate_play_upload_key"] : [],
     generated_at: generatedAt.toISOString(),
   };
 }
@@ -894,9 +921,10 @@ function managementReady(app) {
   try {
     const profiles = app.findCollectionByNameOrId(PROFILES);
     const jobs = app.findCollectionByNameOrId(JOBS);
+    const artifacts = app.findCollectionByNameOrId(ARTIFACTS);
     return profiles.listRule === null
       && jobs.listRule === null
-      && app.findCollectionByNameOrId(ARTIFACTS).listRule === null
+      && artifacts.listRule === null
       && app.findCollectionByNameOrId(BRAND_ASSETS).listRule === null
       && !!profiles.fields.getByName("current_engine_version")
       && !!profiles.fields.getByName("current_engine_revision")
@@ -905,9 +933,11 @@ function managementReady(app) {
       && !!profiles.fields.getByName("distribution_status")
       && !!profiles.fields.getByName("lifecycle_status")
       && !!profiles.fields.getByName("download_nonce")
+      && !!profiles.fields.getByName("last_allocated_version_code")
       && app.findCollectionByNameOrId(appAdmin.ACTIONS).listRule === null
-      && !!app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("lifecycle_status")
-      && !!app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("file")
+      && !!artifacts.fields.getByName("lifecycle_status")
+      && !!artifacts.fields.getByName("file")
+      && !!artifacts.fields.getByName("release_status")
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
@@ -942,8 +972,9 @@ function detailResponse(app, store, actor) {
       firebase_project_per_store: true,
       signing_custodian: "Tu Senda 84",
       store_admin_delivery: ["apk", "checksums", "instructions"],
-      powerzona_distribution: "play_and_direct",
-      tenant_distribution: "direct",
+      aab_optional_for_storefront: true,
+      aab_default_store_slug: "powerzona",
+      aab_master_only: true,
       runner_isolated: true,
       web_store_independent: true,
     },
@@ -954,6 +985,15 @@ function engineUpdatesResponse(app, actor) {
   const release = engineRelease();
   const profiles = records(app, PROFILES, "status != 'retired' && lifecycle_status = 'active'", "-updated", 2000, {});
   const apps = profiles.map((profile) => {
+    const publishedArtifact = records(
+      app,
+      ARTIFACTS,
+      "profile = {:profile} && kind = 'apk' && lifecycle_status = 'available'",
+      "-version_code",
+      20,
+      { profile: profile.id },
+    ).find(artifactIsPublished);
+    if (!publishedArtifact) return null;
     const update = engineUpdateState(profile, release);
     if (!update.available) return null;
     const store = findRecord(app, "stores", relationId(profile, "store"));
@@ -975,12 +1015,18 @@ function engineUpdatesResponse(app, actor) {
   }).filter(Boolean);
   const deliveries = profiles.map((profile) => {
     if (!appAdmin.profileAdminSnapshot(profile).downloads_allowed) return null;
-    const latestJobs = records(app, JOBS, "profile = {:profile} && status = 'succeeded'", "-completed_at", 1, { profile: profile.id });
-    const job = latestJobs[0] || null;
+    const artifact = records(
+      app,
+      ARTIFACTS,
+      "profile = {:profile} && kind = 'apk' && visibility = 'store_delivery' && lifecycle_status = 'available'",
+      "-version_code",
+      50,
+      { profile: profile.id },
+    ).find(artifactIsPublished) || null;
+    const job = artifact ? findRecord(app, JOBS, relationId(artifact, "job")) : null;
     if (!job || recordString(job, "delivery_status", 30) === "marked_sent") return null;
-    const artifact = findFirst(app, ARTIFACTS, "job = {:job} && kind = 'apk' && visibility = 'store_delivery' && lifecycle_status = 'available'", { job: job.id });
     const store = findRecord(app, "stores", relationId(profile, "store"));
-    if (!artifact || !store) return null;
+    if (!artifact || !artifactIsPublished(artifact) || !store) return null;
     return {
       store: { id: store.id, name: recordString(store, "name", 140), slug: recordString(store, "slug", 80) },
       profile_id: profile.id,
@@ -991,7 +1037,7 @@ function engineUpdatesResponse(app, actor) {
       version_name: recordString(artifact, "version_name", 40),
       file_name: recordString(artifact, "file_name", 220),
       recipient: primaryAdminState(app, store),
-      action_url: `/master/stores/${store.id}/app#entrega-whatsapp`,
+      action_url: `/master/stores/${store.id}/app?channel=publication#entrega-whatsapp`,
     };
   }).filter(Boolean);
   return {
@@ -1446,15 +1492,135 @@ function handleWhatsappMarkedSent(e) {
   }
 }
 
+function parseReleasePayload(body) {
+  if (!exactPayload(body, ["action", "artifact_id", "confirmation", "store_id"])) return null;
+  const parsed = {
+    action: text(bodyValue(body, "action"), 40),
+    artifactId: text(bodyValue(body, "artifact_id"), 15),
+    confirmation: text(bodyValue(body, "confirmation"), 80),
+    storeId: text(bodyValue(body, "store_id"), 15),
+  };
+  const expected = parsed.action === "approve_candidate"
+    ? "APROBAR APK CLIENTES"
+    : parsed.action === "publish_candidate" ? "PUBLICAR APK CLIENTES" : "";
+  if (!expected || parsed.confirmation !== expected
+    || !RECORD_ID_PATTERN.test(parsed.artifactId) || !RECORD_ID_PATTERN.test(parsed.storeId)) return null;
+  return parsed;
+}
+
+function handleReleaseAction(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    const parsed = parseReleasePayload(info.body || {});
+    if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
+    if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
+    let response = null;
+    $app.runInTransaction((app) => {
+      const actor = findRecord(app, "users", recordString(info.auth, "id", 15));
+      const store = findRecord(app, "stores", parsed.storeId);
+      const artifact = findRecord(app, ARTIFACTS, parsed.artifactId);
+      if (!actor || !isMaster(actor)) throw new Error("unauthorized");
+      if (!store) throw new Error("store_not_found");
+      if (!artifact || relationId(artifact, "store") !== store.id
+        || recordString(artifact, "kind", 30) !== "apk"
+        || recordString(artifact, "visibility", 30) !== "store_delivery"
+        || recordString(artifact, "lifecycle_status", 30) !== "available"
+        || !recordString(artifact, "file", 220)) throw new Error("candidate_not_ready");
+      const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+      const job = findRecord(app, JOBS, relationId(artifact, "job"));
+      if (!profile || !job || relationId(profile, "store") !== store.id
+        || relationId(job, "profile") !== profile.id
+        || recordString(job, "status", 30) !== "succeeded") throw new Error("candidate_not_ready");
+      appAdmin.assertBuildAllowed(profile);
+      if (parsed.action === "publish_candidate") assertPremium(store, new Date());
+      const previousStatus = artifactReleaseStatus(artifact);
+      let idempotent = false;
+      if (parsed.action === "approve_candidate") {
+        if (previousStatus === "approved" || previousStatus === "published") {
+          idempotent = true;
+        } else if (previousStatus === "candidate") {
+          artifact.set("release_status", "approved");
+          artifact.set("approved_at", new Date().toISOString());
+          artifact.set("approved_by", actor.id);
+          app.save(artifact);
+          createActivity(app, store, actor, "app_candidate_approved", job,
+            "El Master aprobó el mismo APK probado; todavía no se habilitó el enlace público ni WhatsApp");
+        } else {
+          throw new Error("candidate_not_ready");
+        }
+      } else {
+        if (previousStatus === "published") {
+          idempotent = true;
+        } else if (previousStatus !== "approved") {
+          throw new Error("candidate_approval_required");
+        } else {
+          const preview = storedPreviewValue(job) || {};
+          const build = bodyValue(preview, "build") || {};
+          const engine = bodyValue(preview, "engine") || {};
+          const versionCode = Number(bodyValue(build, "version_code"));
+          const versionName = text(bodyValue(build, "version_name"), 40);
+          const engineVersion = text(bodyValue(engine, "target_version"), 40);
+          const engineRevision = text(bodyValue(engine, "target_revision"), 40).toLowerCase();
+          if (!Number.isSafeInteger(versionCode) || versionCode < 1
+            || !VERSION_NAME_PATTERN.test(versionName)
+            || !ENGINE_VERSION_PATTERN.test(engineVersion)
+            || !ENGINE_REVISION_PATTERN.test(engineRevision)
+            || versionCode !== recordNumber(artifact, "version_code")
+            || versionName !== recordString(artifact, "version_name", 40)) throw new Error("candidate_not_ready");
+          const brandAssets = assertPreviewBrandingCurrent(app, store, preview, false);
+          artifact.set("release_status", "published");
+          artifact.set("published_at", new Date().toISOString());
+          artifact.set("published_by", actor.id);
+          app.save(artifact);
+          profile.set("current_version_code", versionCode);
+          profile.set("current_version_name", versionName);
+          profile.set("current_engine_version", engineVersion);
+          profile.set("current_engine_revision", engineRevision);
+          profile.set("icon_asset", brandAssets.icon.id);
+          profile.set("splash_asset", brandAssets.splash.id);
+          profile.set("updated_by", actor.id);
+          app.save(profile);
+          const appConfig = relationId(profile, "app_config")
+            ? findRecord(app, APP_CONFIGS, relationId(profile, "app_config")) : null;
+          if (!appConfig) throw new Error("candidate_not_ready");
+          appConfig.set("min_supported_version_code", versionCode);
+          appConfig.set("min_supported_version_name", versionName);
+          app.save(appConfig);
+          createActivity(app, store, actor, "app_candidate_published", job,
+            "El Master publicó exactamente el APK aprobado; se habilitaron su enlace permanente y la entrega por WhatsApp");
+        }
+      }
+      response = {
+        ok: true,
+        idempotent,
+        artifact: artifactSnapshot(artifact, profile),
+        job: jobSnapshot(job),
+        profile: profileSnapshot(profile),
+      };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (code === "unauthorized") return e.json(403, { ok: false, error: code });
+    if (code === "store_not_found") return e.json(404, { ok: false, error: code });
+    if (["candidate_not_ready", "candidate_approval_required", "premium_required", "app_distribution_withdrawn",
+      "artifact_not_available", "app_deletion_pending"].includes(code)) {
+      return e.json(409, { ok: false, error: code });
+    }
+    return e.json(500, { ok: false, error: "candidate_release_failed" });
+  }
+}
+
 function knownError(error) {
   const code = text(error && error.message, 80);
   return [
-    "premium_required", "store_url_mismatch", "powerzona_distribution_required",
-    "tenant_distribution_must_be_direct", "app_identity_already_used", "profile_not_found",
+    "premium_required", "store_url_mismatch", "app_identity_already_used", "profile_not_found",
     "profile_not_provisioned", "version_code_must_increase", "preview_expired",
     "preview_mismatch", "preview_not_confirmable", "active_job_exists",
     "brand_assets_required", "brand_assets_changed", "job_not_cancelable",
-    "engine_release_unconfigured", "engine_release_changed", "app_deletion_pending",
+    "engine_release_unconfigured", "engine_release_changed", "app_deletion_pending", "candidate_pending",
   ].includes(code) ? code : "";
 }
 
@@ -1470,6 +1636,15 @@ function handlePreview(e) {
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
     assertPremium(store, new Date());
     const profile = parsed.operation === "update" ? findRecord($app, PROFILES, parsed.profileId) : null;
+    if (profile) {
+      const candidate = findFirst(
+        $app,
+        ARTIFACTS,
+        "profile = {:profile} && kind = 'apk' && lifecycle_status = 'available' && (release_status = 'candidate' || release_status = 'approved')",
+        { profile: profile.id },
+      );
+      if (candidate) throw new Error("candidate_pending");
+    }
     if (parsed.operation === "provision") {
       const existingAppConfig = assertUniqueIdentity($app, parsed);
       parsed.existingAppConfigId = existingAppConfig ? existingAppConfig.id : "";
@@ -1490,7 +1665,7 @@ function handlePreview(e) {
 function parseStoredRequest(job) {
   const defaults = {
     operation: "", storeId: "", profileId: "", appKey: "", brandKey: "", displayName: "",
-    distribution: "", firebaseProjectId: "", packageName: "", storeUrl: "", versionCode: 0, versionName: "",
+    includeAab: false, firebaseProjectId: "", packageName: "", storeUrl: "", versionCode: 0, versionName: "",
   };
   let value = null;
   if (job && typeof job.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
@@ -1514,7 +1689,7 @@ function parseStoredRequest(job) {
       app_key: value.appKey,
       brand_key: value.brandKey,
       display_name: value.displayName,
-      distribution: value.distribution,
+      include_aab: value.includeAab === true,
       firebase_project_id: value.firebaseProjectId,
       package_name: value.packageName,
       store_url: value.storeUrl,
@@ -1525,6 +1700,7 @@ function parseStoredRequest(job) {
   if (value.operation === "update") {
     return parsePreviewPayload({
       operation: "update",
+      include_aab: value.includeAab === true,
       store_id: value.storeId,
       profile_id: value.profileId,
       version_code: value.versionCode,
@@ -1579,7 +1755,7 @@ function createProfile(app, store, actor, parsed, brandAssetRecords) {
   profile.set("package_name", parsed.packageName);
   profile.set("store_url", parsed.storeUrl);
   profile.set("brand_key", parsed.brandKey);
-  profile.set("distribution", parsed.distribution);
+  profile.set("distribution", parsed.includeAab ? "play_and_direct" : "direct");
   profile.set("status", "queued");
   profile.set("distribution_status", "active");
   profile.set("lifecycle_status", "active");
@@ -1594,8 +1770,9 @@ function createProfile(app, store, actor, parsed, brandAssetRecords) {
     profile.set("firebase_project_number", recordString(existingAppConfig, "firebase_project_number", 20)
       || (projectNumberMatch ? projectNumberMatch[1] : ""));
   }
-  profile.set("current_version_code", parsed.versionCode);
-  profile.set("current_version_name", parsed.versionName);
+  profile.set("current_version_code", 0);
+  profile.set("current_version_name", "");
+  profile.set("last_allocated_version_code", parsed.versionCode);
   profile.set("created_by", actor.id);
   profile.set("updated_by", actor.id);
   app.save(profile);
@@ -1640,6 +1817,12 @@ function handleConfirm(e) {
       } else {
         profile = findRecord(app, PROFILES, parsed.profileId);
         buildPreview(store, parsed, profile, new Date(), bodyValue(storedPreview, "branding"));
+        if (parsed.includeAab && recordString(profile, "distribution", 30) === "direct") {
+          profile.set("distribution", "play_and_direct");
+        }
+        profile.set("last_allocated_version_code", parsed.versionCode);
+        profile.set("updated_by", actor.id);
+        app.save(profile);
       }
       job.set("status", "queued");
       job.set("confirmed_by", actor.id);
@@ -1909,6 +2092,57 @@ function handleRunnerArtifactUpload(e) {
   }
 }
 
+function serveManagedArtifact(e, app, artifact, requestedName, isPublicApk) {
+  const storedName = recordString(artifact, "file", 220);
+  const baseFilesPath = typeof artifact.baseFilesPath === "function" ? text(artifact.baseFilesPath(), 1000) : "";
+  if (!storedName || !/^[A-Za-z0-9._-]+$/.test(storedName) || !baseFilesPath || baseFilesPath.includes("..")) {
+    throw new Error("artifact_file_unavailable");
+  }
+  const kind = recordString(artifact, "kind", 30);
+  try {
+    const headers = e.response.header();
+    headers.set("Content-Type", kind === "apk"
+      ? "application/vnd.android.package-archive" : "application/octet-stream");
+    headers.set("Content-Disposition", `attachment; filename=\"${requestedName}\"`);
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("X-PZ-Artifact-Kind", kind);
+    headers.set("X-PZ-Artifact-SHA256", recordString(artifact, "sha256", 64));
+    headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256", 64));
+    headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
+    headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name", 40));
+    if (!isPublicApk) headers.set("Cache-Control", "private, no-store, max-age=0");
+  } catch (_) {}
+  let filesystem = null;
+  try {
+    filesystem = app.newFilesystem();
+    return filesystem.serve(e.response, e.request, `${baseFilesPath}/${storedName}`, requestedName);
+  } finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+}
+
+function handleMasterArtifactDownload(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "artifact_not_found" });
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth) || !managementReady(e.app || $app)) return notFound();
+    const artifactId = text(e.request.pathValue("artifact"), 15);
+    const requestedName = text(e.request.pathValue("filename"), 220);
+    if (!RECORD_ID_PATTERN.test(artifactId) || !/^[A-Za-z0-9._-]+$/.test(requestedName)) return notFound();
+    const app = e.app || $app;
+    const artifact = findRecord(app, ARTIFACTS, artifactId);
+    if (!artifact || !["apk", "aab"].includes(recordString(artifact, "kind", 30))
+      || recordString(artifact, "lifecycle_status", 30) !== "available"
+      || recordString(artifact, "file_name", 220) !== requestedName) return notFound();
+    const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
+    const job = findRecord(app, JOBS, relationId(artifact, "job"));
+    if (!profile || !job || recordString(job, "status", 30) !== "succeeded"
+      || relationId(job, "profile") !== profile.id) return notFound();
+    return serveManagedArtifact(e, app, artifact, requestedName, false);
+  } catch (_) {
+    return notFound();
+  }
+}
+
 function handleArtifactDownload(e) {
   setPrivateHeaders(e);
   const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
@@ -1924,6 +2158,7 @@ function handleArtifactDownload(e) {
     if (!artifact || recordString(artifact, "kind", 30) !== "apk"
       || recordString(artifact, "visibility", 30) !== "store_delivery"
       || recordString(artifact, "lifecycle_status", 30) !== "available"
+      || !artifactIsPublished(artifact)
       || recordString(artifact, "file_name", 220) !== requestedName) return notFound();
     const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
     const job = findRecord(app, JOBS, relationId(artifact, "job"));
@@ -1932,25 +2167,7 @@ function handleArtifactDownload(e) {
     appAdmin.assertDistributionAvailable(profile, artifact);
     const expected = artifactDownloadCapability(artifact, profile);
     if (!expected || !$security.equal(expected, capability)) return notFound();
-    const storedName = recordString(artifact, "file", 220);
-    const baseFilesPath = typeof artifact.baseFilesPath === "function" ? text(artifact.baseFilesPath(), 1000) : "";
-    if (!storedName || !/^[A-Za-z0-9._-]+$/.test(storedName) || !baseFilesPath || baseFilesPath.includes("..")) {
-      return notFound();
-    }
-    try {
-      const headers = e.response.header();
-      headers.set("Content-Type", "application/vnd.android.package-archive");
-      headers.set("Content-Disposition", `attachment; filename=\"${requestedName}\"`);
-      headers.set("X-Content-Type-Options", "nosniff");
-      headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256", 64));
-      headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
-      headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name", 40));
-    } catch (_) {}
-    let filesystem = null;
-    try {
-      filesystem = app.newFilesystem();
-      return filesystem.serve(e.response, e.request, `${baseFilesPath}/${storedName}`, requestedName);
-    } finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+    return serveManagedArtifact(e, app, artifact, requestedName, true);
   } catch (_) {
     return notFound();
   }
@@ -2037,8 +2254,11 @@ function upsertAppConfig(app, profile, completion) {
   appConfig.set("public_origin", `https://${prefixMatch[1]}`);
   appConfig.set("store_path_prefix", prefixMatch[2]);
   appConfig.set("status", "active");
-  appConfig.set("min_supported_version_code", recordNumber(profile, "current_version_code"));
-  appConfig.set("min_supported_version_name", recordString(profile, "current_version_name", 40));
+  const publishedVersionCode = recordNumber(profile, "current_version_code");
+  if (publishedVersionCode > 0) {
+    appConfig.set("min_supported_version_code", publishedVersionCode);
+    appConfig.set("min_supported_version_name", recordString(profile, "current_version_name", 40));
+  }
   app.save(appConfig);
   return appConfig;
 }
@@ -2061,15 +2281,15 @@ function handleRunnerComplete(e) {
       job.set("completed_at", new Date().toISOString());
       if (parsed.status === "succeeded") {
         const preview = storedPreviewValue(job) || {};
-        const completedBrandAssets = assertPreviewBrandingCurrent(app, store, preview);
+        assertPreviewBrandingCurrent(app, store, preview);
         const build = bodyValue(preview, "build") || {};
         const targetEngine = bodyValue(preview, "engine") || {};
         const artifactKinds = parsed.artifacts.map((item) => item.kind);
-        const playDistribution = recordString(profile, "distribution", 30) === "play_and_direct";
-        if (playDistribution && (!artifactKinds.includes("aab") || !CERT_SHA256_PATTERN.test(parsed.uploadCertSha256))) {
+        const expectsAab = bodyValue(build, "aab") === true;
+        if (expectsAab && (!artifactKinds.includes("aab") || !CERT_SHA256_PATTERN.test(parsed.uploadCertSha256))) {
           throw new Error("play_artifacts_incomplete");
         }
-        if (!playDistribution && artifactKinds.includes("aab")) throw new Error("tenant_aab_forbidden");
+        if (!expectsAab && artifactKinds.includes("aab")) throw new Error("unexpected_aab");
         if (text(bodyValue(targetEngine, "target_version"), 40) !== parsed.engineVersion
           || (text(bodyValue(targetEngine, "target_revision"), 40)
             && text(bodyValue(targetEngine, "target_revision"), 40) !== parsed.engineRevision)) {
@@ -2090,18 +2310,19 @@ function handleRunnerComplete(e) {
         profile.set("firebase_app_id", parsed.firebaseAppId);
         profile.set("signing_cert_sha256", parsed.signingCertSha256);
         profile.set("upload_cert_sha256", parsed.uploadCertSha256);
-        profile.set("current_version_code", Number(bodyValue(build, "version_code")));
-        profile.set("current_version_name", text(bodyValue(build, "version_name"), 40));
-        profile.set("current_engine_version", parsed.engineVersion);
-        profile.set("current_engine_revision", parsed.engineRevision);
-        profile.set("icon_asset", completedBrandAssets.icon.id);
-        profile.set("splash_asset", completedBrandAssets.splash.id);
         profile.set("status", "provisioned");
         const appConfig = upsertAppConfig(app, profile, parsed);
         profile.set("app_config", appConfig.id);
         app.save(profile);
         stagedArtifacts.forEach((artifact) => {
           artifact.set("lifecycle_status", "available");
+          if (recordString(artifact, "kind", 30) === "apk") {
+            artifact.set("release_status", "candidate");
+            artifact.set("approved_at", "");
+            artifact.set("approved_by", "");
+            artifact.set("published_at", "");
+            artifact.set("published_by", "");
+          }
           app.save(artifact);
         });
         job.set("delivery_status", "pending");
@@ -2146,11 +2367,13 @@ module.exports = {
   handleWhatsappMarkedSent,
   handleWhatsappPreview,
   handleWhatsappSettings,
+  handleReleaseAction,
   handlePreview,
   handleRetry,
   handleBrandAssetFile,
   handleBrandAssetUpload,
   handleArtifactDownload,
+  handleMasterArtifactDownload,
   handleRunnerClaim,
   handleRunnerArtifactUpload,
   handleRunnerBrandAssetFile,

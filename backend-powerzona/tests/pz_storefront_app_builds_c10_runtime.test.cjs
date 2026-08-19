@@ -310,7 +310,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
         app_key: 'tienda-c10-runtime-provision',
         brand_key: 'tienda-c10-runtime-provision',
         display_name: 'App C10 Runtime Provision',
-        distribution: 'direct',
+        include_aab: false,
         firebase_project_id: 'tienda-c10-runtime-provision',
         package_name: 'com.tusenda84.tiendac10runtimeprovision',
         store_url: 'https://runtime.example/t/tienda-c10-provision-runtime',
@@ -375,7 +375,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
         app_key: 'tienda-c107-runtime-provision',
         brand_key: 'tienda-c107-runtime-provision',
         display_name: 'App C10.7 Runtime Provision',
-        distribution: 'direct',
+        include_aab: false,
         firebase_project_id: 'tienda-c107-runtime-provision',
         package_name: 'com.tusenda84.tiendac107runtimeprovision',
         store_url: 'https://runtime.example/t/tienda-c10-provision-runtime',
@@ -478,8 +478,51 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     const c107Apk = c107Detail.data.artifacts.find((item) => item.kind === 'apk');
     assert.ok(c107Apk);
     assert.equal(c107Apk.lifecycle_status, 'available');
-    assert.match(c107Apk.download_url, /\/api\/pz\/storefront-app-downloads\//);
-    const c107Physical = await fetch(c107Apk.download_url, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(c107Apk.release_status, 'candidate');
+    assert.equal(c107Apk.download_url, '');
+    assert.match(c107Apk.master_download_path, /\/api\/pz\/master\/storefront-app-artifacts\//);
+    const unauthenticatedCandidate = await fetch(`${baseUrl}${c107Apk.master_download_path}`, {
+      signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(unauthenticatedCandidate.status, 403);
+    const privateCandidate = await fetch(`${baseUrl}${c107Apk.master_download_path}`, {
+      headers: { Authorization: `Bearer ${masterToken}` }, signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(privateCandidate.status, 200);
+    assert.deepEqual(Buffer.from(await privateCandidate.arrayBuffer()), APK_BYTES);
+
+    const publishWithoutApproval = await request('/api/pz/master/storefront-app-builds/release-action', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id, artifact_id: c107Apk.id,
+        action: 'publish_candidate', confirmation: 'PUBLICAR APK CLIENTES',
+      },
+    });
+    assertStatus(publishWithoutApproval, 409, 'impedir publicación antes de aprobar la APK candidata');
+    assert.equal(publishWithoutApproval.data.error, 'candidate_approval_required');
+
+    const approvedCandidate = await request('/api/pz/master/storefront-app-builds/release-action', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id, artifact_id: c107Apk.id,
+        action: 'approve_candidate', confirmation: 'APROBAR APK CLIENTES',
+      },
+    });
+    assertStatus(approvedCandidate, 200, 'aprobar la misma APK candidata probada');
+    assert.equal(approvedCandidate.data.artifact.release_status, 'approved');
+    assert.equal(approvedCandidate.data.artifact.download_url, '');
+    const publishedCandidate = await request('/api/pz/master/storefront-app-builds/release-action', {
+      token: masterToken,
+      body: {
+        store_id: provisionStore.id, artifact_id: c107Apk.id,
+        action: 'publish_candidate', confirmation: 'PUBLICAR APK CLIENTES',
+      },
+    });
+    assertStatus(publishedCandidate, 200, 'publicar exactamente la APK aprobada');
+    assert.equal(publishedCandidate.data.artifact.release_status, 'published');
+    assert.match(publishedCandidate.data.artifact.download_url, /\/api\/pz\/storefront-app-downloads\//);
+    assert.equal(publishedCandidate.data.profile.current_version_code, 1);
+    const c107Physical = await fetch(publishedCandidate.data.artifact.download_url, { signal: AbortSignal.timeout(20_000) });
     assert.equal(c107Physical.status, 200);
     assert.equal(c107Physical.headers.get('x-pz-apk-sha256'), c107Files[0].sha256);
     assert.deepEqual(Buffer.from(await c107Physical.arrayBuffer()), APK_BYTES);
@@ -553,6 +596,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       version_code: 7,
       version_name: '1.4.0',
       lifecycle_status: 'available',
+      release_status: 'published',
     }, 'file', APK_BYTES, 'tienda-c10-runtime-1.4.0.apk', 'application/vnd.android.package-archive');
 
     const detailBlocked = await request('/api/pz/master/storefront-app-builds', {
@@ -958,6 +1002,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       version_code: 1,
       version_name: '1.0.0',
       lifecycle_status: 'available',
+      release_status: 'published',
     });
     const missingPrimary = await request('/api/pz/master/storefront-app-builds/whatsapp/preview', {
       token: masterToken,

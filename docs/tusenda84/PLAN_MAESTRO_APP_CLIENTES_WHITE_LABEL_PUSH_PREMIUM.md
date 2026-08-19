@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C10.8 EN REFINAMIENTO LOCAL — entrega privada global versionada en `e1d5ff3`; identidad única, publicación sin reconstrucción y Tu Senda 84 Admin Engine 1.0.1 verificados localmente |
-| Versión del documento | 1.46 |
+| Estado general | PZ-APP-C10.8 PENDIENTE DE VALIDACIÓN FÍSICA; refinamiento C10.7 de APK cliente única, aprobación previa, WhatsApp posterior y AAB opcional IMPLEMENTADO LOCALMENTE |
+| Versión del documento | 1.48 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-18 |
+| Última actualización | 2026-08-19 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Completar regresiones del refinamiento C10.8 y, solo con autorización separada, hacer commit/push y desplegar; no construir release, firmar, enviar ni publicar APK sin aprobación específica |
+| Próximo prompt | Revisar y versionar el refinamiento C10.7; su despliegue, una compilación real, firma, Firebase, WhatsApp, Google Play y la validación física C10.8 requieren autorizaciones separadas |
 
 ### Convención de estados
 
@@ -67,6 +67,9 @@ La app pública white-label y su panel de campañas serán productos exclusivos 
 11. El permiso Premium se comprobará en el backend; ocultar botones en la interfaz no será suficiente.
 12. Ninguna fase se desplegará en producción sin pasar primero por staging, emulador y teléfono físico cuando corresponda.
 13. La app pública white-label, su configuración, builds y campañas solo se provisionarán para tiendas con plan Premium activo.
+14. Cada versión de una app de clientes produce una sola APK final: el Master descarga ese candidato privado, lo prueba, lo aprueba y publica exactamente los mismos bytes y SHA-256, sin reconstruir entre prueba y publicación.
+15. El AAB es opcional únicamente para apps de clientes. PowerZona lo trae activado por defecto; otras tiendas pueden habilitarlo. El mismo trabajo genera APK + AAB, el AAB queda privado para el Master y su carga a Google Play siempre es manual.
+16. La entrega manual por WhatsApp se mantiene para primera instalación y actualizaciones, pero solo se habilita después de publicar el APK previamente probado y aprobado.
 
 ## 4. Resumen vivo del proyecto
 
@@ -896,7 +899,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 #### C10.8 — Mobile Admin: entrega autenticada y actualización controlada
 
-**Estado:** `IMPLEMENTADO LOCALMENTE`. La base y el refinamiento del motor 1.0.0 están desplegados en `8ed0f371`; la simplificación de entrega global privada y sus pruebas aisladas están completas localmente. Su commit/push/despliegue, la firma real, el piloto físico y la activación de una versión mínima requieren autorizaciones posteriores separadas.
+**Estado:** `PENDIENTE DE VALIDACIÓN FÍSICA`. El código de la simplificación y Tu Senda 84 Admin Engine 1.0.1 está terminado y versionado en `f28f394`, pero C10.8 no se considera completado. Su única prueba final válida requiere desplegar ese commit, construir una APK Admin release nueva con la firma y Firebase existentes, instalarla sobre la aplicación real y comprobar el flujo completo en un dispositivo. Cada una de esas acciones requiere autorización separada.
 
 **Base existente confirmada:**
 
@@ -908,7 +911,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 - C10.8 reutiliza las primitivas probadas de runner, checksum, transferencia, estados `staged`/`available`, custodia PocketBase y limpieza; no reutiliza la ruta pública `/api/pz/storefront-app-downloads/...` ni convierte una capacidad C10.7 en acceso administrativo.
 - `mobile-admin` es una aplicación administrativa compartida, no una app white-label perteneciente a una sola tienda. Sus perfiles, trabajos, artefactos, tickets y eventos se guardan en colecciones administrativas separadas de `storefront_app_*`. Las asignaciones permanecen únicamente como compatibilidad cerrada con entregas anteriores; una publicación nueva no crea una fila por administrador o dispositivo.
-- La identidad Android congela canal, `package_name` y certificado SHA-256 de firma al confirmar el primer build. Nombre visible, URL administrativa, Firebase y apariencia se pueden actualizar; cada vista previa inmoviliza exactamente esos valores para que un cambio posterior invalide la confirmación. Cada release recibe el siguiente `versionCode` reservado por el servidor y produce un APK inmutable con nombre, bytes y SHA-256. Ni keystore, contraseñas, `google-services.json` ni rutas del runner se guardan en PocketBase, Git o respuestas públicas.
+- La identidad Android congela canal, `package_name` y certificado SHA-256 de firma al confirmar el primer build. Nombre visible, URL administrativa y apariencia se pueden actualizar; Firebase es una capacidad obligatoria del motor, no una opción del panel. Cada vista previa inmoviliza exactamente esos valores para que un cambio posterior invalide la confirmación. Cada release recibe el siguiente `versionCode` reservado por el servidor y produce un APK inmutable con nombre, bytes y SHA-256. Ni keystore, contraseñas, `google-services.json` ni rutas del runner se guardan en PocketBase, Git o respuestas públicas.
 - El archivo APK seguirá en un campo PocketBase protegido dentro del volumen persistente `/app/pb_data`. Un build no podrá completarse si el archivo físico no existe o no coincide con los metadatos declarados.
 
 **Descarga autenticada para administradores autorizados:**
@@ -948,7 +951,12 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación C10.8:**
 
-- [x] El motor compila `mobile-admin` sin cambiar manualmente el código y conserva exactamente paquete y certificado mientras incrementa `versionCode`; el contrato local y el APK debug fueron verificados, mientras que una compilación release firmada queda pendiente de autorización.
+- [x] El contrato local calcula el siguiente `versionCode`, protege paquete y certificado, exige Firebase y bloquea la construcción release si falta su configuración externa existente.
+- [ ] El runner construye una APK Admin release nueva con paquete y firma iguales a la aplicación instalada y un `versionCode` superior.
+- [ ] La APK nueva se instala como actualización sobre la versión actual sin desinstalarla ni perder su sesión o datos.
+- [ ] En el dispositivo se comprueban apertura, splash/icono, login, navegación administrativa, recepción Firebase y consulta de actualización privada.
+- [ ] Se aprueba y publica exactamente el APK probado, se confirma el mismo SHA-256 en servidor y dispositivo y se verifica el aviso de actualización desde una versión anterior.
+- [ ] Se valida primero la actualización opcional; solo después se prueba la obligatoriedad y su rollback server-side.
 - [x] El APK físico queda protegido en `pb_data` y un trabajo incompleto o con checksum distinto no puede terminar `succeeded`.
 - [x] No existe descarga anónima: sin sesión, con otro usuario, otra tienda, otro dispositivo, grant copiado, ticket vencido/reutilizado o dispositivo revocado, el servidor no entrega bytes.
 - [x] La descarga permanece asociada a la sesión y el dispositivo; revocar usuario, dispositivo o release invalida el acceso inmediatamente.
@@ -963,12 +971,12 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Límites de C10.8:** la autorización local no incluye generar o usar la firma real de `mobile-admin`, compilar un APK de producción, crear o modificar Firebase, enviar enlaces o WhatsApp, desplegar staging/producción, instalar en un teléfono, activar el mínimo obligatorio, publicar en Google Play ni modificar datos reales. Cada acción externa o uso de credenciales requiere autorización separada.
 
-#### Refinamiento de C10.8 — Tu Senda 84 Admin Engine 1.0.0
+#### Refinamiento de C10.8 — Tu Senda 84 Admin Engine 1.0.1
 
-- C10.8 identifica el hito funcional; el constructor ejecutable se llama **Tu Senda 84 Admin Engine 1.0.0**. El panel lo muestra como dato de solo lectura y cada trabajo registra nombre, versión, contrato y revisión del runner. Un runner con otro nombre, versión o contrato falla cerrado.
+- C10.8 identifica el hito funcional; el constructor ejecutable se llama **Tu Senda 84 Admin Engine 1.0.1**. El panel lo muestra como dato de solo lectura y cada trabajo registra nombre, versión, contrato, Firebase obligatorio y revisión del runner. Un runner con otro nombre, versión o contrato falla cerrado.
 - `versionCode` deja de ser una entrada del Master. El servidor calcula `max(latest_version_code, last_allocated_version_code) + 1` y reserva el número dentro de la transacción que confirma el build. Dos vistas previas concurrentes no pueden confirmar el mismo número; un trabajo confirmado que falle no permite reutilizarlo.
 - Una instalación realmente nueva usa baseline `0` y recibe código `1`. Una aplicación ya instalada puede declarar su baseline antes del primer build confirmado; después el sistema protege paquete, firma y baseline y actualiza la versión publicada exclusivamente a partir de artefactos verificados.
-- La pantalla separa **Identidad Android** de **Nombre y dirección**. Paquete, firma y canal definen compatibilidad de actualización. Nombre, URL administrativa, Firebase, color, icono y splash se pueden cambiar sin presentar falsamente esos datos como identidad inmutable.
+- La pantalla separa **Identidad Android** de **Nombre y dirección**. Paquete, firma y canal definen compatibilidad de actualización. Nombre, URL administrativa, color, icono y splash se pueden cambiar sin presentar falsamente esos datos como identidad inmutable; Firebase permanece siempre incluido y fuera de edición.
 - Icono y splash se cargan como PNG cuadrado de 512–2048 px y máximo 2 MiB, quedan en archivos PocketBase protegidos y versionados y cada build fija sus IDs, revisiones y SHA-256. El runner descarga exactamente los recursos congelados, vuelve a comprobar sus hashes, los aplica temporalmente y restaura el árbol fuente incluso si Gradle falla.
 - El flujo visible queda reducido a **Guardar configuración → Elegir apariencia → Crear versión → Descargar APK de prueba → Aprobar APK → Publicar actualización → Hacer actualización obligatoria**. La publicación se autoriza globalmente en tiempo real para administradores activos y dispositivos autorizados; no existen etapas u oleadas en el flujo nuevo.
 - Mobile Admin es una aplicación de plataforma Tu Senda 84, no una aplicación PowerZona. La URL central y los permisos del backend permiten reutilizarla en ecommerce, páginas promocionales, servicios u otros proyectos futuros sin crear otro APK por tipo de web.
@@ -2545,3 +2553,20 @@ Los cambios sobre piezas ya operativas se limitaron a: payload individual del re
 - La migración aditiva `1787194800_admin_app_publication_controls.js` incorpora el evento `release_resumed`; su rollback falla cerrado si ya fue usado. No elimina perfiles, artefactos ni archivos.
 - Las pruebas focales terminaron 24/24 y el runtime PocketBase real 1/1 confirmó candidata sin alterar la versión vigente, publicación, obligatoriedad, pausa sin nuevas entregas, descarga Master durante la pausa, reanudación del mismo checksum, retirada y eliminación automática del entorno temporal. La regresión completa terminó en frontend 543/543 y en backend con 728 pruebas totales, 721 aprobadas, 7 omitidas declaradas y 0 fallos. El build SSR terminó correctamente con las tres advertencias históricas; Android `testDebugUnitTest` y `lintDebug` finalizaron correctamente sin construir APK. La vista previa PowerShell y el backend produjeron el mismo SHA-256 `39fc3fc6e604bece60d4ae6842ab859656fa6752f5bb6eaaa0f9bae6355f8e23`.
 - No se construyó una APK, no se accedió a firma o keystore, no se creó ni modificó Firebase, no se desplegó, no se envió enlace o WhatsApp y no se publicó en Google Play.
+
+### 2026-08-18 — PZ-APP-C10.8 PENDIENTE: cierre condicionado a una APK Admin real nueva
+
+- El propietario determinó que las pruebas automatizadas y el build local validan el motor, pero no cierran C10.8. El hito permanece pendiente hasta producir una APK Admin release nueva y probarla físicamente como actualización de la aplicación instalada.
+- La prueba de cierre deberá demostrar continuidad de paquete, firma y datos; incremento automático de `versionCode`; Firebase incluido; instalación sin desinstalar; funcionamiento administrativo; descarga privada; coincidencia de SHA-256; publicación del mismo archivo probado; actualización opcional y, finalmente, obligatoriedad con rollback.
+- El código correspondiente está versionado y enviado en `f28f394`. No se ha desplegado este commit ni se ha creado, firmado, instalado o publicado una APK nueva como parte de esta decisión.
+
+### 2026-08-19 — Refinamiento C10.7 IMPLEMENTADO LOCALMENTE: una APK cliente y AAB opcional
+
+- Las vistas **Preparar y probar** y **Publicación** representan estados del mismo APK cliente, no aplicaciones staging/producción diferentes. El runner deposita el APK exitoso como candidato privado y el Master puede descargarlo autenticado antes de publicarlo.
+- La secuencia queda fijada como **construir candidato → descargar e instalar para prueba → aprobar → publicar los mismos bytes → preparar WhatsApp**. Antes de publicar no existe enlace permanente público y el inventario de entregas tampoco anuncia esa versión.
+- `versionCode` queda reservado por el servidor mediante `last_allocated_version_code`; construir una candidata no modifica la versión ni el motor vigentes. Ambos avanzan solamente cuando se publica el artefacto aprobado. Un candidato pendiente bloquea la creación de otra versión.
+- El AAB pasa a ser opcional para `mobile-storefront` y permanece inexistente en Mobile Admin. PowerZona aparece activada por defecto. Si se habilita para otra app, el mismo trabajo produce una APK y un AAB privado; las versiones posteriores conservan AAB porque Google Play exige continuidad de la clave de subida. No existe publicación automática en Google Play.
+- El runner puede crear la clave de subida al habilitar AAB por primera vez en una app ya existente, pero únicamente con la autorización externa de generación de firmas ya prevista. La vista previa, el preflight y el runner deben coincidir exactamente antes de ejecutar.
+- La entrega manual por WhatsApp permanece activa tanto para la primera instalación como para actualizaciones, siempre después de publicar. El mensaje conserva enlace permanente, SHA-256 e instrucciones, y abrir WhatsApp o marcar el envío continúan siendo actos manuales separados.
+- Se añadió una migración aditiva para estado `candidate`/`approved`/`published`, responsables y fechas de aprobación/publicación, además del último código reservado. Los APK C10.7 históricos disponibles se migran como publicados para conservar sus enlaces existentes; el rollback falla cerrado si ya existe estado nuevo que pudiera perderse.
+- No se construyó APK/AAB, no se usaron firmas, no se creó o modificó Firebase, no se abrió ni envió WhatsApp, no se publicó en Google Play y no se ejecutó ningún despliegue o acción externa.

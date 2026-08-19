@@ -37,6 +37,7 @@ export type StorefrontAppBuildProfile = {
   upload_cert_sha256: string;
   current_version_code: number;
   current_version_name: string;
+  last_allocated_version_code: number;
   current_engine_version: string;
   current_engine_revision: string;
   icon_asset_id: string;
@@ -160,6 +161,10 @@ export type StorefrontAppArtifact = {
   version_code: number;
   version_name: string;
   download_url: string;
+  master_download_path: string;
+  release_status: '' | 'candidate' | 'approved' | 'published';
+  approved_at: string;
+  published_at: string;
   lifecycle_status: 'staged' | 'available' | 'deletion_queued' | 'deleted';
   deleted_at: string;
   created: string;
@@ -245,8 +250,9 @@ export type MasterStoreAppBuilds = {
     firebase_project_per_store: true;
     signing_custodian: string;
     store_admin_delivery: string[];
-    powerzona_distribution: 'play_and_direct';
-    tenant_distribution: 'direct';
+    aab_optional_for_storefront: true;
+    aab_default_store_slug: 'powerzona';
+    aab_master_only: true;
     runner_isolated: true;
     web_store_independent?: true;
   };
@@ -499,6 +505,7 @@ function profile(value: any): StorefrontAppBuildProfile | null {
     upload_cert_sha256: text(value.upload_cert_sha256, 95),
     current_version_code: integer(value.current_version_code),
     current_version_name: text(value.current_version_name, 40),
+    last_allocated_version_code: integer(value.last_allocated_version_code),
     current_engine_version: currentEngineVersion,
     current_engine_revision: currentEngineRevision,
     icon_asset_id: text(value.icon_asset_id, 15),
@@ -623,14 +630,24 @@ function artifact(value: any): StorefrontAppArtifact | null {
     || !SHA256_PATTERN.test(text(value.sha256, 64))) return null;
   const lifecycleStatus = text(value.lifecycle_status || 'available', 30);
   const downloadUrl = text(value.download_url, 10000);
+  const masterDownloadPath = text(value.master_download_path, 500);
+  const releaseStatus = text(value.release_status, 20);
   if (!['staged', 'available', 'deletion_queued', 'deleted'].includes(lifecycleStatus)
+    || !['', 'candidate', 'approved', 'published'].includes(releaseStatus)
+    || (value.kind === 'apk' && lifecycleStatus === 'available' && !releaseStatus)
+    || (releaseStatus !== 'published' && downloadUrl)
     || (downloadUrl && (!/^https:\/\//.test(downloadUrl)
-      || !downloadUrl.includes(`/api/pz/storefront-app-downloads/${text(value.id, 15)}/`)))) return null;
+      || !downloadUrl.includes(`/api/pz/storefront-app-downloads/${text(value.id, 15)}/`)))
+    || (masterDownloadPath && masterDownloadPath !== `/api/pz/master/storefront-app-artifacts/${text(value.id, 15)}/${encodeURIComponent(text(value.file_name, 220))}`)) return null;
   return {
     id: text(value.id, 15), job_id: text(value.job_id, 15), kind: value.kind, visibility: value.visibility,
     file_name: text(value.file_name, 220), sha256: text(value.sha256, 64), bytes: integer(value.bytes),
     version_code: integer(value.version_code), version_name: text(value.version_name, 40),
     download_url: downloadUrl,
+    master_download_path: masterDownloadPath,
+    release_status: releaseStatus as StorefrontAppArtifact['release_status'],
+    approved_at: isoDate(value.approved_at),
+    published_at: isoDate(value.published_at),
     lifecycle_status: lifecycleStatus as StorefrontAppArtifact['lifecycle_status'],
     deleted_at: isoDate(value.deleted_at), created: isoDate(value.created),
   };
@@ -689,7 +706,14 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const normalizedEngineRelease = engineRelease(value.engine_release);
   const normalizedManualWhatsappDelivery = manualWhatsappDelivery(value.manual_whatsapp_delivery);
   const normalizedBrandAssets = brandAssets(value.brand_assets);
-  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets) return null;
+  const policy = value.policy;
+  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets
+    || policy?.firebase_project_per_store !== true
+    || policy?.aab_optional_for_storefront !== true
+    || policy?.aab_default_store_slug !== 'powerzona'
+    || policy?.aab_master_only !== true
+    || policy?.runner_isolated !== true
+    || !Array.isArray(policy?.store_admin_delivery)) return null;
   return {
     generated_at: isoDate(value.generated_at),
     store: {
@@ -703,7 +727,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
     jobs,
     artifacts,
     admin_actions: adminActions,
-    policy: value.policy,
+    policy,
   };
 }
 
@@ -743,7 +767,7 @@ function engineUpdates(value: any): MasterStoreAppEngineUpdates | null {
       || !recipientContact
       || !['ready', 'missing_primary', 'invalid_primary', 'missing_whatsapp'].includes(recipientStatus)
       || (recipientStatus === 'ready') !== recipientContact.configured
-      || actionUrl !== `/master/stores/${storeId}/app#entrega-whatsapp`) return null;
+      || actionUrl !== `/master/stores/${storeId}/app?channel=publication#entrega-whatsapp`) return null;
     deliveries.push({
       store: { id: storeId, name: text(item.store.name, 140), slug: text(item.store.slug, 80) },
       profile_id: text(item.profile_id, 15),
@@ -810,10 +834,12 @@ export function getMasterAppBuildErrorMessage(error: string) {
     invalid_payload: 'Revisa todos los campos de identidad y versión.',
     premium_required: 'La tienda necesita un plan Premium vigente para administrar su app.',
     store_url_mismatch: 'La URL debe terminar exactamente en /t/{slug de la tienda}.',
-    powerzona_distribution_required: 'PowerZona debe generar APK directo y AAB para Google Play.',
-    tenant_distribution_must_be_direct: 'Las demás tiendas solo pueden generar APK para distribución directa.',
     app_identity_already_used: 'El app key, paquete o proyecto Firebase ya pertenece a otra app.',
     version_code_must_increase: 'El nuevo versionCode debe ser mayor que el publicado anteriormente.',
+    candidate_pending: 'Ya existe un APK candidato pendiente. Apruébalo y publícalo antes de crear otra versión.',
+    candidate_not_ready: 'El APK candidato todavía no está disponible para esta acción.',
+    candidate_approval_required: 'Primero prueba y aprueba el APK candidato; después podrás publicarlo.',
+    candidate_release_failed: 'No se pudo cambiar el estado de publicación del APK candidato.',
     preview_expired: 'La vista previa venció. Genera una nueva antes de confirmar.',
     preview_mismatch: 'La vista previa cambió o no coincide con la confirmación.',
     preview_not_confirmable: 'Esta vista previa ya no se puede confirmar.',
@@ -870,7 +896,7 @@ export type ProvisionPreviewInput = {
   app_key: string;
   brand_key: string;
   display_name: string;
-  distribution: StorefrontAppDistribution;
+  include_aab: boolean;
   firebase_project_id: string;
   package_name: string;
   store_url: string;
@@ -879,12 +905,15 @@ export type ProvisionPreviewInput = {
 };
 
 export type UpdatePreviewInput = {
+  include_aab: boolean;
   store_id: string;
   operation: 'update';
   profile_id: string;
   version_code: number;
   version_name: string;
 };
+
+export type StorefrontAppReleaseAction = 'approve_candidate' | 'publish_candidate';
 
 export function previewMasterStoreAppBuild(
   pocketbaseUrl: string,
@@ -909,6 +938,61 @@ export function confirmMasterStoreAppBuild(
     const normalizedProfile = profile(value.profile);
     return normalizedJob && normalizedProfile ? { job: normalizedJob, profile: normalizedProfile } : null;
   });
+}
+
+export function runMasterStoreAppReleaseAction(
+  pocketbaseUrl: string,
+  token: string,
+  input: {
+    store_id: string;
+    artifact_id: string;
+    action: StorefrontAppReleaseAction;
+    confirmation: 'APROBAR APK CLIENTES' | 'PUBLICAR APK CLIENTES';
+  },
+) {
+  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/release-action', input, (value) => {
+    if (value?.ok !== true) return null;
+    const normalizedArtifact = artifact(value.artifact);
+    const normalizedJob = job(value.job);
+    const normalizedProfile = profile(value.profile);
+    return normalizedArtifact && normalizedJob && normalizedProfile
+      ? { artifact: normalizedArtifact, job: normalizedJob, profile: normalizedProfile, idempotent: value.idempotent === true }
+      : null;
+  });
+}
+
+export async function downloadMasterStoreAppArtifact(
+  pocketbaseUrl: string,
+  token: string,
+  input: Pick<StorefrontAppArtifact, 'file_name' | 'master_download_path'>,
+) {
+  const baseUrl = text(pocketbaseUrl, 500).replace(/\/$/, '');
+  const authToken = text(token, 5000);
+  const path = text(input.master_download_path, 500);
+  if (!baseUrl || !authToken || !path.startsWith('/api/pz/master/storefront-app-artifacts/')) {
+    return { available: false, status: 400, error: 'invalid_payload', data: null } as MasterAppBuildRequest<{ blob: Blob; fileName: string }>;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      return { available: false, status: response.status, error: text(payload?.error, 80) || 'unavailable', data: null };
+    }
+    return {
+      available: true,
+      status: response.status,
+      error: '',
+      data: { blob: await response.blob(), fileName: text(input.file_name, 220) },
+    };
+  } catch (_) {
+    return { available: false, status: 0, error: 'unavailable', data: null };
+  } finally { clearTimeout(timeout); }
 }
 
 export function retryMasterStoreAppBuild(

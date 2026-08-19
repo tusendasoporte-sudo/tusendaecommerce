@@ -36,12 +36,13 @@ const currentStore = {
   planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+const channel = Astro.url.searchParams.get('channel') === 'publication' ? 'publication' : 'prepare';
 ---
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={`App Android · ${currentStore.name}`} currentStore={currentStore}>
     {result.data ? (
-      <MasterStoreAppBuildView data={result.data} planPresentation={currentStore.planPresentation} />
+      <MasterStoreAppBuildView data={result.data} planPresentation={currentStore.planPresentation} channel={channel} />
     ) : (
       <section class="master-error" role="alert">
         <strong>El panel de app no está disponible.</strong><br />
