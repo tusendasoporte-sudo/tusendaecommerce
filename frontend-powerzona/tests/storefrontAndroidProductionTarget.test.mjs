@@ -46,3 +46,9 @@ test('APK privado y AAB Play reciben manifiestos de instalación distintos', () 
   assert.match(gradle, /bundlerelease/);
   assert.match(runner, /PZ_STOREFRONT_PLAY_BUNDLE=true/);
 });
+
+test('la firma privada conserva rutas Windows literales sin interpretar unicode', () => {
+  assert.match(gradle, /def separator = trimmed\.indexOf\('='\)/);
+  assert.match(gradle, /signingProperties\.setProperty/);
+  assert.doesNotMatch(gradle, /signingProperties\.load\(/);
+});
