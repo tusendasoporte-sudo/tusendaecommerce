@@ -71,13 +71,24 @@ test('separa y valida estrictamente aprovisionamiento de actualización', () => 
   assert.deepEqual(builds.parsePreviewPayload({
     store_id: STORE_ID,
     operation: 'update',
+    display_name: 'Power Zona',
     include_aab: false,
     profile_id: PROFILE_ID,
     version_code: 2,
     version_name: '1.0.1',
   }), {
-    operation: 'update', includeAab: false, storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 2, versionName: '1.0.1',
+    operation: 'update', displayName: 'Power Zona', includeAab: false, storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 2, versionName: '1.0.1',
   });
+  assert.equal(builds.parsePreviewPayload({
+    store_id: STORE_ID,
+    operation: 'update',
+    display_name: 'Power Zona\nAlterada',
+    include_aab: false,
+    profile_id: PROFILE_ID,
+    version_code: 2,
+    version_name: '1.0.1',
+  }), null);
   assert.equal(builds.parsePreviewPayload({ ...provisionPayload(), service_account: 'forbidden' }), null);
   assert.equal(builds.parsePreviewPayload({ ...provisionPayload(), package_name: 'com.tusenda84.bad-package' }), null);
   assert.equal(builds.parsePreviewPayload({ ...provisionPayload(), store_url: 'https://tusenda84.com/t/tenant-c10?admin=1' }), null);
@@ -139,19 +150,24 @@ test('actualización bloquea identidad, reutiliza firma y exige incrementar vers
     last_allocated_version_code: 3,
   });
   assert.throws(() => builds.buildPreview(store, {
-    operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 3, versionName: '1.0.3',
+    operation: 'update', displayName: 'Tenant C10', storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 3, versionName: '1.0.3',
   }, profile, undefined, branding()), /version_code_must_increase/);
   const preview = builds.buildPreview(store, {
-    operation: 'update', storeId: STORE_ID, profileId: PROFILE_ID, versionCode: 4, versionName: '1.0.3',
+    operation: 'update', displayName: 'Tenant C10 Renovada', storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 4, versionName: '1.0.3',
   }, profile, new Date('2026-08-16T20:00:00.000Z'), branding());
   assert.equal(preview.firebase.create_project, false);
   assert.equal(preview.signing.create_app_signing_key, false);
   assert.ok(preview.immutable_identity.includes('package_name'));
+  assert.equal(preview.immutable_identity.includes('display_name'), false);
+  assert.equal(preview.identity.display_name, 'Tenant C10 Renovada');
+  assert.equal(preview.identity.package_name, 'com.tusenda84.tenantc10');
   assert.equal(preview.build.version_code, 4);
   assert.equal(preview.engine.update_available, true);
   assert.equal(preview.engine.update_reason, 'engine_untracked');
   const withOptionalAab = builds.buildPreview(store, {
-    operation: 'update', includeAab: true, storeId: STORE_ID, profileId: PROFILE_ID,
+    operation: 'update', displayName: 'Tenant C10', includeAab: true, storeId: STORE_ID, profileId: PROFILE_ID,
     versionCode: 5, versionName: '1.0.4',
   }, profile, new Date('2026-08-16T20:00:00.000Z'), branding());
   assert.equal(withOptionalAab.build.apk, true);
@@ -446,6 +462,7 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   const fs = require('node:fs');
   const path = require('node:path');
   const routes = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_storefront_app_builds.pb.js'), 'utf8');
+  const implementation = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_storefront_app_builds_lib.js'), 'utf8');
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/preview/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/updates/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/whatsapp\/settings/);
@@ -462,4 +479,6 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   assert.match(routes, /requireRunner/);
   assert.match(routes, /bodyLimit\(65536\)/);
   assert.doesNotMatch(routes, /service.account|private.key|keystore/i);
+  assert.match(implementation, /profile\.set\("display_name", displayName\)/);
+  assert.match(implementation, /appConfig\.set\("display_name", displayName\)/);
 });

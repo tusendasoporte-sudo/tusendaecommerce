@@ -263,7 +263,7 @@ function dateTime(value: string) {
   {profile ? (
     <section class="master-card" data-prepare-only>
       <header class="master-card-header">
-        <div><h2 class="master-card-title">Identidad aprovisionada</h2><p class="master-card-subtitle">Estos valores quedan bloqueados para todas las actualizaciones.</p></div>
+        <div><h2 class="master-card-title">Identidad aprovisionada</h2><p class="master-card-subtitle">El paquete, Firebase y la firma quedan bloqueados. El nombre visible puede cambiarse al generar una actualización.</p></div>
         <span class:list={['master-pill', profile.status === 'provisioned' ? 'master-pill--success' : 'master-pill--warning']}>{profile.status}</span>
       </header>
       <div class="master-card-body master-app-build-identity">
@@ -288,11 +288,15 @@ function dateTime(value: string) {
         <form class="master-card-body master-form" data-app-adopt-form>
           <input type="hidden" name="app_key" value={powerZonaDefaults.appKey} />
           <input type="hidden" name="brand_key" value="powerzona" />
-          <input type="hidden" name="display_name" value="PowerZona" />
           <input type="hidden" name="store_url" value="https://tusenda84.com/t/powerzona" />
           <input type="hidden" name="current_version_code" value={POWERZONA_EXISTING_APP_BASELINE.versionCode} />
           <input type="hidden" name="current_version_name" value={POWERZONA_EXISTING_APP_BASELINE.versionName} />
           <div class="master-field-grid">
+            <div class="master-field master-field--full">
+              <label for="adopt-display-name">Nombre visible en la próxima APK</label>
+              <input id="adopt-display-name" name="display_name" maxlength="60" required value="Power Zona" />
+              <small>Este nombre no altera el paquete, Firebase ni el certificado. La app instalada lo mostrará después de actualizarse.</small>
+            </div>
             <div class="master-field"><label>Paquete existente</label><input name="package_name" readonly value={POWERZONA_EXISTING_APP_BASELINE.packageName} /></div>
             <div class="master-field"><label>Versión instalada</label><input readonly value={`${POWERZONA_EXISTING_APP_BASELINE.versionName} (${POWERZONA_EXISTING_APP_BASELINE.versionCode})`} /></div>
             <div class="master-field master-field--full"><label>Firebase que se conserva</label><input name="firebase_project_id" readonly value={powerZonaDefaults.firebaseProjectId} /></div>
@@ -307,7 +311,7 @@ function dateTime(value: string) {
       <header class="master-card-header"><div><h2 class="master-card-title">Crear una app nueva</h2><p class="master-card-subtitle">Aprovisionar por primera vez requiere icono y splash. La vista previa todavía no crea Firebase, registra paquetes ni genera firmas.</p></div></header>
       <form class="master-card-body master-form" data-app-provision-form>
         <div class="master-field-grid">
-          <div class="master-field"><label for="app-display-name">Nombre visible</label><input id="app-display-name" name="display_name" maxlength="60" required value={isPowerZona ? 'PowerZona' : store.name} /></div>
+          <div class="master-field"><label for="app-display-name">Nombre visible</label><input id="app-display-name" name="display_name" maxlength="60" required value={isPowerZona ? 'Power Zona' : store.name} /></div>
           <div class="master-field"><label for="app-brand-key">Clave de marca</label><input id="app-brand-key" name="brand_key" pattern={'[a-z0-9][a-z0-9\\-]{1,62}[a-z0-9]'} required value={store.slug} /></div>
           <div class="master-field"><label for="app-key">App key</label><input id="app-key" name="app_key" required value={isPowerZona ? powerZonaDefaults.appKey : `${store.slug}-storefront`} /></div>
           <div class="master-field"><label for="app-package">Paquete Android exclusivo</label><input id="app-package" name="package_name" required value={`com.tusenda84.${store.slug.replaceAll('-', '')}`} /></div>
@@ -412,6 +416,11 @@ function dateTime(value: string) {
       <header class="master-card-header"><div><h2 class="master-card-title">Generar actualización</h2><p class="master-card-subtitle">Reutiliza el paquete, proyecto Firebase y certificado de firma existentes. La vista previa fijará el motor {data.engine_release.version}.</p></div>{engineNeedsUpdate && <span class:list={['master-pill', engineUpdate?.severity === 'critical' ? 'master-pill--danger' : 'master-pill--warning']}>Motor pendiente</span>}</header>
       <form class="master-card-body master-form" data-app-update-form>
         <div class="master-field-grid">
+          <div class="master-field master-field--full">
+            <label for="update-display-name">Nombre visible</label>
+            <input id="update-display-name" name="display_name" maxlength="60" required value={profile.display_name} />
+            <small>Puedes cambiarlo sin crear otro paquete, proyecto Firebase ni certificado. Se aplicará únicamente a la nueva APK/AAB.</small>
+          </div>
           <div class="master-field"><label for="update-version-code">Nuevo versionCode</label><input id="update-version-code" name="version_code" type="number" min={nextVersionCode} max="2147483647" required value={nextVersionCode} readonly /></div>
           <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" value={isPowerZona && profile.current_version_code === 10 ? '0.2.9' : undefined} /></div>
         </div>
@@ -971,6 +980,7 @@ function dateTime(value: string) {
         store_id: storeId,
         operation: 'update',
         profile_id: profileId,
+        display_name: String(values.get('display_name') || ''),
         include_aab: form.querySelector<HTMLInputElement>('[name="include_aab"]')?.checked === true,
         version_code: Number(values.get('version_code')),
         version_name: values.get('version_name'),

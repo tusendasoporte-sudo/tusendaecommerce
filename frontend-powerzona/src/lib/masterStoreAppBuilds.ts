@@ -975,6 +975,7 @@ export type ProvisionPreviewInput = {
 };
 
 export type UpdatePreviewInput = {
+  display_name: string;
   include_aab: boolean;
   store_id: string;
   operation: 'update';

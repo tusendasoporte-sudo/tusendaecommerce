@@ -426,10 +426,11 @@ function parsePreviewPayload(body) {
     return parsed;
   }
   if (operation === "update") {
-    const keys = ["include_aab", "operation", "profile_id", "store_id", "version_code", "version_name"];
+    const keys = ["display_name", "include_aab", "operation", "profile_id", "store_id", "version_code", "version_name"];
     if (!exactPayload(body, keys)) return null;
     const parsed = {
       operation,
+      displayName: text(bodyValue(body, "display_name"), 120),
       includeAab: bodyValue(body, "include_aab"),
       storeId: text(bodyValue(body, "store_id"), 15),
       profileId: text(bodyValue(body, "profile_id"), 15),
@@ -438,6 +439,8 @@ function parsePreviewPayload(body) {
     };
     if (!RECORD_ID_PATTERN.test(parsed.storeId)
       || !RECORD_ID_PATTERN.test(parsed.profileId)
+      || !parsed.displayName
+      || /[\u0000-\u001f\u007f]/.test(parsed.displayName)
       || typeof parsed.includeAab !== "boolean"
       || !parsed.versionCode
       || !VERSION_NAME_PATTERN.test(parsed.versionName)) return null;
@@ -943,7 +946,7 @@ function buildPreview(store, parsed, profile, now, branding) {
     operation: "update",
     store: { id: parsed.storeId, slug: recordString(store, "slug", 80), name: recordString(store, "name", 140) },
     identity: {
-      app_key: current.app_key, brand_key: current.brand_key, display_name: current.display_name,
+      app_key: current.app_key, brand_key: current.brand_key, display_name: parsed.displayName,
       package_name: current.package_name, store_url: current.store_url,
     },
     engine: previewEngine(profile, approvedRelease),
@@ -1812,12 +1815,16 @@ function handleReleaseAction(e) {
           const preview = storedPreviewValue(job) || {};
           const build = bodyValue(preview, "build") || {};
           const engine = bodyValue(preview, "engine") || {};
+          const identity = bodyValue(preview, "identity") || {};
           const versionCode = Number(bodyValue(build, "version_code"));
           const versionName = text(bodyValue(build, "version_name"), 40);
+          const displayName = text(bodyValue(identity, "display_name"), 120);
           const engineVersion = text(bodyValue(engine, "target_version"), 40);
           const engineRevision = text(bodyValue(engine, "target_revision"), 40).toLowerCase();
           if (!Number.isSafeInteger(versionCode) || versionCode < 1
             || !VERSION_NAME_PATTERN.test(versionName)
+            || !displayName
+            || /[\u0000-\u001f\u007f]/.test(displayName)
             || !ENGINE_VERSION_PATTERN.test(engineVersion)
             || !ENGINE_REVISION_PATTERN.test(engineRevision)
             || versionCode !== recordNumber(artifact, "version_code")
@@ -1841,6 +1848,7 @@ function handleReleaseAction(e) {
           app.save(artifact);
           profile.set("current_version_code", versionCode);
           profile.set("current_version_name", versionName);
+          profile.set("display_name", displayName);
           profile.set("current_engine_version", engineVersion);
           profile.set("current_engine_revision", engineRevision);
           if (brandAssets.icon) profile.set("icon_asset", brandAssets.icon.id);
@@ -1850,6 +1858,7 @@ function handleReleaseAction(e) {
           const appConfig = relationId(profile, "app_config")
             ? findRecord(app, APP_CONFIGS, relationId(profile, "app_config")) : null;
           if (!appConfig) throw new Error("candidate_not_ready");
+          appConfig.set("display_name", displayName);
           appConfig.set("min_supported_version_code", 0);
           appConfig.set("min_supported_version_name", "");
           app.save(appConfig);
@@ -2004,8 +2013,11 @@ function parseStoredRequest(job) {
     });
   }
   if (value.operation === "update") {
+    const storedPreview = storedPreviewValue(job) || {};
+    const storedIdentity = bodyValue(storedPreview, "identity") || {};
     return parsePreviewPayload({
       operation: "update",
+      display_name: value.displayName || bodyValue(storedIdentity, "display_name"),
       include_aab: value.includeAab === true,
       store_id: value.storeId,
       profile_id: value.profileId,

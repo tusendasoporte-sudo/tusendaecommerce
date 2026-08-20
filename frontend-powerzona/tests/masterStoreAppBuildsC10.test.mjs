@@ -293,6 +293,10 @@ test('UX separa primer aprovisionamiento de actualización y exige confirmación
   const view = readFileSync(new URL('../src/components/master/MasterStoreAppBuildView.astro', import.meta.url), 'utf8');
   assert.match(view, /Aprovisionar por primera vez/);
   assert.match(view, /Generar actualización/);
+  assert.match(view, /id="adopt-display-name" name="display_name" maxlength="60" required value="Power Zona"/);
+  assert.match(view, /id="update-display-name" name="display_name" maxlength="60" required value=\{profile\.display_name\}/);
+  assert.match(view, /display_name: String\(values\.get\('display_name'\) \|\| ''\)/);
+  assert.match(view, /El paquete, Firebase y la firma quedan bloqueados/);
   assert.match(view, /data-app-confirm-check/);
   assert.match(view, /Vista previa pendiente de confirmación/);
   assert.match(view, /name="include_aab" checked=\{isPowerZona\}/);
@@ -387,6 +391,7 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(runner, /engine_version/);
   assert.match(runner, /create_play_upload_key = \$config\.Distribution -eq 'play_and_direct' -and -not \$ExistingUploadCertSha256/);
   assert.match(runner, /Generar la firma de subida requiere autorizacion/);
+  assert.match(queue, /app\.display_name=\$\(\[string\]\$preview\.identity\.display_name\)/);
   assert.match(queue, /ProvisionUploadSigning/);
   assert.match(queue, /ExistingUploadCertSha256/);
   assert.match(readiness, /upload_signing_mode_conflict/);
