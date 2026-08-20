@@ -51,8 +51,13 @@ test('la vista inicial de categorias usa una fila y permite cambiar a dos', () =
 });
 
 test('los ajustes nuevos detectan cambios parciales y resuelven la carga inicial', () => {
-  assert.match(settings, /import \{ readPocketBaseAuthToken \} from '\.\.\/\.\.\/lib\/storeActivity'/);
-  assert.match(settings, /storeSettingsWindow\.__pzStoreSettingsAuthToken = \(\) => readPocketBaseAuthToken\(\)/);
+  assert.match(settings, /<script is:inline>[\s\S]*?window\.__pzStoreSettingsAuthToken = \(\) =>/);
+  assert.match(settings, /\.find\(\(value\) => value\.startsWith\('pb_auth='\)\)/);
+  assert.match(settings, /typeof auth\?\.token === 'string' \? auth\.token : ''/);
+  const authHelper = settings.indexOf('window.__pzStoreSettingsAuthToken = () =>');
+  const firstAuthConsumer = settings.indexOf("const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '')");
+  assert.ok(authHelper > -1 && firstAuthConsumer > authHelper);
+  assert.doesNotMatch(settings, /import \{ readPocketBaseAuthToken \} from '\.\.\/\.\.\/lib\/storeActivity'/);
   assert.doesNotMatch(settings, /<script define:vars=\{\{ adminAuthToken \}\}>/);
   assert.match(settings, /orderPrefix:\s*cleanOrderPrefix\(fields\.orderPrefix\?\.value \|\| ''\)/);
   assert.match(settings, /fields\.storeName\?\.value\?\.trim\(\) && fields\.orderPrefix\?\.value\?\.trim\(\)/);

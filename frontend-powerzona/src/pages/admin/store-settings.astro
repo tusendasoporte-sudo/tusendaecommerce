@@ -4561,14 +4561,30 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       })();
     </script>
 
+    <!--
+      This helper must run synchronously before the inline settings controllers.
+      A bundled module script is deferred by the browser; defining it there leaves
+      every controller with an empty token in production and prevents the initial
+      rating/reviews request from running.
+    -->
+    <script is:inline>
+      window.__pzStoreSettingsAuthToken = () => {
+        const cookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!cookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(cookie.slice('pb_auth='.length)));
+          return typeof auth?.token === 'string' ? auth.token : '';
+        } catch (_) {
+          return '';
+        }
+      };
+    </script>
+
     <script>
       import { optimizeStoreVisualImageFile } from '../../lib/storeVisualImageOptimizationCore.js';
-      import { readPocketBaseAuthToken } from '../../lib/storeActivity';
-
-      const storeSettingsWindow = window as typeof window & {
-        __pzStoreSettingsAuthToken?: () => string;
-      };
-      storeSettingsWindow.__pzStoreSettingsAuthToken = () => readPocketBaseAuthToken();
 
       Object.defineProperty(globalThis, 'pzStoreVisualImageOptimizer', {
         value: Object.freeze({ optimizeStoreVisualImageFile }),
