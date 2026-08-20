@@ -8,6 +8,7 @@ export const STOREFRONT_MAX_BODY_BYTES = Object.freeze({
   event: 1024,
   update_policy: 512,
   update_ticket: 256,
+  update_verified: 384,
 });
 
 export const STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
@@ -225,6 +226,19 @@ export function normalizeStorefrontUpdateTicketPayload(value: unknown) {
   return artifactId ? Object.freeze({ artifact_id: artifactId }) : null;
 }
 
+export function normalizeStorefrontUpdateVerifiedPayload(value: unknown) {
+  if (!exactKeys(value, ['artifact_id', 'bytes', 'sha256', 'version_code'])) return null;
+  const source = value as Record<string, unknown>;
+  const artifactId = boundedText(source.artifact_id, 15, RECORD_ID_PATTERN);
+  const sha256 = boundedText(source.sha256, 64, SHA256_PATTERN);
+  const bytes = Number(source.bytes);
+  const versionCode = appVersionCode(source.version_code);
+  return artifactId && sha256 && Number.isSafeInteger(bytes) && bytes > 0 && bytes <= 100 * 1024 * 1024
+    && versionCode
+    ? Object.freeze({ artifact_id: artifactId, sha256, bytes, version_code: versionCode })
+    : null;
+}
+
 function normalizeUpdateArtifact(value: unknown) {
   if (!isPlainObject(value)) return null;
   const id = boundedText(value.id, 15, RECORD_ID_PATTERN);
@@ -296,6 +310,16 @@ export function mapStorefrontUpdateTicketResponse(value: unknown) {
   } catch (_) {}
   return artifact && ticket && expiresAt && Number.isFinite(expiresAt.getTime()) && downloadUrl
     ? Object.freeze({ ok: true, ticket, expires_at: expiresAt.toISOString(), artifact, download_url: downloadUrl })
+    : null;
+}
+
+export function mapStorefrontUpdateVerifiedResponse(value: unknown) {
+  if (!exactKeys(value, ['artifact_id', 'ok', 'verified_at'])) return null;
+  const source = value as Record<string, unknown>;
+  const artifactId = boundedText(source.artifact_id, 15, RECORD_ID_PATTERN);
+  const verifiedAt = typeof source.verified_at === 'string' ? new Date(source.verified_at) : null;
+  return source.ok === true && artifactId && verifiedAt && Number.isFinite(verifiedAt.getTime())
+    ? Object.freeze({ ok: true, artifact_id: artifactId, verified_at: verifiedAt.toISOString() })
     : null;
 }
 

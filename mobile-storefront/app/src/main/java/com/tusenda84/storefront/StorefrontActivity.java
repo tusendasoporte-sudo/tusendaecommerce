@@ -384,6 +384,9 @@ public final class StorefrontActivity extends Activity {
                         ticket.artifact.versionCode,
                         ticket.artifact.packageName
                 );
+                client.reportUpdateVerified(ticket.artifact, result -> {
+                    // La telemetría es deliberadamente no bloqueante: Android puede instalar aunque falle el reporte.
+                });
                 File verified = output;
                 runOnUiThread(() -> {
                     updateDownloadInFlight = false;

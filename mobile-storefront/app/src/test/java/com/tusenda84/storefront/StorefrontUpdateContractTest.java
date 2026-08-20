@@ -48,4 +48,13 @@ public final class StorefrontUpdateContractTest {
                 11, "0.2.9", "com.tusenda84.powerzona"
         ));
     }
+
+    @Test
+    public void verifiedPayloadBindsArtifactHashSizeAndVersion() {
+        String payload = StorefrontUpdateContract.verifiedPayload(ARTIFACT, SHA, 24_000_000, 11);
+        assertTrue(payload.contains("\"artifact_id\":\"" + ARTIFACT + "\""));
+        assertTrue(payload.contains("\"bytes\":24000000"));
+        assertTrue(payload.contains("\"sha256\":\"" + SHA + "\""));
+        assertTrue(payload.contains("\"version_code\":11"));
+    }
 }

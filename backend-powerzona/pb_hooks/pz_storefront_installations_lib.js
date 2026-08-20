@@ -11,6 +11,9 @@ const schema = typeof __hooks === "undefined"
 const secretContract = typeof __hooks === "undefined"
   ? require("./pz_security_secret_contract.js")
   : require(`${__hooks}/pz_security_secret_contract.js`);
+const downloadAnalytics = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_download_analytics_lib.js")
+  : require(`${__hooks}/pz_storefront_app_download_analytics_lib.js`);
 
 const APP_CONFIGS_COLLECTION = "storefront_app_configs";
 const INSTALLATIONS_COLLECTION = "storefront_installations";
@@ -64,6 +67,7 @@ const ACTION_LIMITS = Object.freeze({
   events_record: 120,
   updates_policy: 30,
   updates_ticket: 6,
+  updates_verified: 12,
 });
 const SAFE_ERRORS = new Set([
   "unauthorized",
@@ -398,6 +402,18 @@ function parseUpdateTicketPayload(value) {
   return RECORD_ID_PATTERN.test(artifactId) ? Object.freeze({ artifactId }) : null;
 }
 
+function parseUpdateVerifiedPayload(value) {
+  if (!exactPayload(value, ["artifact_id", "bytes", "sha256", "version_code"])) return null;
+  const artifactId = safeText(bodyValue(value, "artifact_id"));
+  const sha256 = safeText(bodyValue(value, "sha256")).toLowerCase();
+  const bytes = bodyValue(value, "bytes");
+  const versionCode = bodyValue(value, "version_code");
+  if (!RECORD_ID_PATTERN.test(artifactId) || !/^[a-f0-9]{64}$/.test(sha256)
+    || !Number.isSafeInteger(bytes) || bytes < 1 || bytes > 100 * 1024 * 1024
+    || !validVersionCode(versionCode)) return null;
+  return Object.freeze({ artifactId, sha256, bytes, versionCode });
+}
+
 function parseEnvelope(body, action) {
   const legacyShape = exactPayload(body, ["app_id", "credential", "client", "payload"]);
   const multiProjectShape = exactPayload(body, ["app_id", "firebase_project_id", "credential", "client", "payload"]);
@@ -425,6 +441,7 @@ function parseEnvelope(body, action) {
   else if (action === "events_record") payload = parseEventPayload(bodyValue(body, "payload"));
   else if (action === "updates_policy") payload = parseUpdatePolicyPayload(bodyValue(body, "payload"));
   else if (action === "updates_ticket") payload = parseUpdateTicketPayload(bodyValue(body, "payload"));
+  else if (action === "updates_verified") payload = parseUpdateVerifiedPayload(bodyValue(body, "payload"));
   if (!payload) return null;
   return Object.freeze({ appId, firebaseProjectId, credential, client, payload });
 }
@@ -689,6 +706,7 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   setInstallationIp(installation, context.client, context.now, context.security, aesKeyOverride);
   schema.assertTenantIsolation(app, INSTALLATIONS_COLLECTION, installation);
   app.save(installation);
+  downloadAnalytics.bestEffort(() => downloadAnalytics.recordVersionActivated(app, installation, context.now));
 
   return Object.freeze({
     ok: true,
@@ -853,12 +871,41 @@ function storefrontUpdateTicket(app, context, credentialSecret) {
   });
 }
 
+function storefrontUpdateVerified(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  const artifact = findById(app, UPDATE_ARTIFACTS_COLLECTION, context.payload.artifactId);
+  const profile = artifact ? findById(app, UPDATE_PROFILES_COLLECTION, relationId(artifact, "profile")) : null;
+  if (!artifact || !profile
+    || relationId(artifact, "store") !== resolved.storeId
+    || relationId(profile, "store") !== resolved.storeId
+    || relationId(profile, "app_config") !== resolved.appConfig.id
+    || recordString(artifact, "kind") !== "apk"
+    || recordNumber(artifact, "version_code") !== context.payload.versionCode
+    || recordNumber(artifact, "bytes") !== context.payload.bytes
+    || recordString(artifact, "sha256").toLowerCase() !== context.payload.sha256) {
+    throw new StorefrontInstallationError("update_not_available");
+  }
+  const event = downloadAnalytics.recordDownloadVerified(
+    app,
+    artifact,
+    resolved.installation,
+    context.now,
+  );
+  if (!event) throw new StorefrontInstallationError("request_unavailable");
+  return Object.freeze({
+    ok: true,
+    artifact_id: artifact.id,
+    verified_at: recordString(event, "occurred_at") || context.now.toISOString(),
+  });
+}
+
 function heartbeatInstallation(app, context, credentialSecret, aesKeyOverride) {
   const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
   setInstallationMetadata(resolved.installation, context.payload);
   resolved.installation.set("last_seen_at", context.now.toISOString());
   setInstallationIp(resolved.installation, context.client, context.now, context.security, aesKeyOverride);
   app.save(resolved.installation);
+  downloadAnalytics.bestEffort(() => downloadAnalytics.recordVersionActivated(app, resolved.installation, context.now));
   return Object.freeze({ ok: true, installation: mapInstallation(resolved.installation) });
 }
 
@@ -1159,6 +1206,7 @@ function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "campaigns_resolve_target") return resolveCampaignTarget(app, context, credentialSecret);
   if (action === "updates_policy") return storefrontUpdatePolicy(app, context, credentialSecret);
   if (action === "updates_ticket") return storefrontUpdateTicket(app, context, credentialSecret);
+  if (action === "updates_verified") return storefrontUpdateVerified(app, context, credentialSecret);
   if (action === "events_record") {
     const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
     const analytics = typeof __hooks === "undefined"
@@ -1260,6 +1308,13 @@ function handleUpdateDownload(e) {
       }
       locked.set("used_at", new Date().toISOString());
       tx.save(locked);
+      downloadAnalytics.bestEffort(() => downloadAnalytics.recordDownloadStarted(
+        tx,
+        lockedArtifact,
+        "private_update",
+        installation,
+        new Date(),
+      ));
     });
     return serveStorefrontUpdate(e, app, artifact, filename);
   } catch (_) {
@@ -1308,6 +1363,7 @@ module.exports = {
   parseRegisterPayload,
   parseUpdatePolicyPayload,
   parseUpdateTicketPayload,
+  parseUpdateVerifiedPayload,
   registerInstallation,
   resolveCredentialContext,
   resolveActiveWebSession,
@@ -1317,5 +1373,6 @@ module.exports = {
   updateInstallationPermission,
   storefrontUpdatePolicy,
   storefrontUpdateTicket,
+  storefrontUpdateVerified,
   updateTicketDigest,
 };

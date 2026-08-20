@@ -9,6 +9,9 @@ const storeActivity = typeof __hooks === "undefined"
 const appAdmin = typeof __hooks === "undefined"
   ? require("./pz_storefront_app_admin_lib.js")
   : require(`${__hooks}/pz_storefront_app_admin_lib.js`);
+const downloadAnalytics = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_download_analytics_lib.js")
+  : require(`${__hooks}/pz_storefront_app_download_analytics_lib.js`);
 
 const PROFILES = "storefront_app_build_profiles";
 const JOBS = "storefront_app_build_jobs";
@@ -1035,13 +1038,13 @@ function updatePolicySnapshot(app, profile) {
   };
 }
 
-function detailResponse(app, store, actor) {
+function detailResponse(app, store, actor, includeAnalytics) {
   const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
   const jobs = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id }).map(jobSnapshot);
   const artifacts = records(app, ARTIFACTS, "store = {:store}", "-created", 50, { store: store.id })
     .map((artifact) => artifactSnapshot(artifact, profile));
   const administrative = appAdmin.adminDetail(app, profile);
-  return {
+  const response = {
     ok: true,
     generated_at: new Date().toISOString(),
     store: {
@@ -1069,6 +1072,13 @@ function detailResponse(app, store, actor) {
       web_store_independent: true,
     },
   };
+  if (includeAnalytics === true) {
+    response.download_analytics = downloadAnalytics.buildDownloadAnalytics(app, store.id, {
+      includeMaster: true,
+      now: new Date(),
+    });
+  }
+  return response;
 }
 
 function engineUpdatesResponse(app, actor) {
@@ -1168,13 +1178,20 @@ function handleDetail(e) {
   try {
     const info = e.requestInfo();
     if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
-    if (!exactPayload(info.body || {}, ["store_id"])) return e.json(400, { ok: false, error: "invalid_payload" });
+    const body = info.body || {};
+    const includesAnalyticsFlag = exactPayload(body, ["include_analytics", "store_id"]);
+    if (!exactPayload(body, ["store_id"]) && !includesAnalyticsFlag) {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
     const storeId = text(bodyValue(info.body, "store_id"), 15);
-    if (!RECORD_ID_PATTERN.test(storeId)) return e.json(400, { ok: false, error: "invalid_payload" });
+    const includeAnalytics = includesAnalyticsFlag && bodyValue(body, "include_analytics") === true;
+    if (!RECORD_ID_PATTERN.test(storeId) || (includesAnalyticsFlag && !includeAnalytics)) {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
     if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
     const store = findRecord($app, "stores", storeId);
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
-    return e.json(200, detailResponse($app, store, info.auth));
+    return e.json(200, detailResponse($app, store, info.auth, includeAnalytics));
   } catch (error) {
     return e.json(500, { ok: false, error: "app_build_detail_failed" });
   }
@@ -2457,6 +2474,13 @@ function handleMasterArtifactDownload(e) {
     const job = findRecord(app, JOBS, relationId(artifact, "job"));
     if (!profile || !job || recordString(job, "status", 30) !== "succeeded"
       || relationId(job, "profile") !== profile.id) return notFound();
+    downloadAnalytics.bestEffort(() => downloadAnalytics.recordDownloadStarted(
+      app,
+      artifact,
+      "master",
+      null,
+      new Date(),
+    ));
     return serveManagedArtifact(e, app, artifact, requestedName, false);
   } catch (_) {
     return notFound();
@@ -2488,6 +2512,13 @@ function handleArtifactDownload(e) {
     appAdmin.assertDistributionAvailable(profile, artifact);
     const expected = artifactDownloadCapability(artifact, profile);
     if (!expected || !$security.equal(expected, capability)) return notFound();
+    downloadAnalytics.bestEffort(() => downloadAnalytics.recordDownloadStarted(
+      app,
+      artifact,
+      "shared_link",
+      null,
+      new Date(),
+    ));
     return serveManagedArtifact(e, app, artifact, requestedName, true);
   } catch (_) {
     return notFound();

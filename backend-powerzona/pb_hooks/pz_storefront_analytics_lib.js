@@ -20,6 +20,9 @@ const activity = typeof __hooks === "undefined"
 const installationSecurity = typeof __hooks === "undefined"
   ? require("./pz_storefront_installations_lib.js")
   : require(`${__hooks}/pz_storefront_installations_lib.js`);
+const appDownloadAnalytics = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_download_analytics_lib.js")
+  : require(`${__hooks}/pz_storefront_app_download_analytics_lib.js`);
 const manualCoupons = typeof __hooks === "undefined"
   ? require("./pz_manual_coupons_lib.js")
   : require(`${__hooks}/pz_manual_coupons_lib.js`);
@@ -631,6 +634,12 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
     const day = dayInPeriod(recordValue(row, "disabled_at"), period);
     if (day) ensureDay(day).bajas_detectadas += 1;
   });
+  const appDelivery = appDownloadAnalytics.buildDownloadAnalytics(app, context.storeId, {
+    includeMaster: false,
+    now: period.end,
+    periodStart: period.start,
+    periodEnd: period.end,
+  });
   return {
     ok: true,
     range: period.range,
@@ -651,6 +660,7 @@ function buildInstallationAnalytics(app, context, range, nowValue) {
       android_versions: groupedValues(currentActive, "android_version"),
       device_models: groupedValues(currentActive, "device_model"),
     },
+    app_delivery: appDelivery,
     measurement_note: `Estimación basada en instalaciones vigentes con actividad durante los últimos ${ACTIVE_INSTALLATION_WINDOW_DAYS} días. Las bajas son detecciones técnicas, no desinstalaciones confirmadas.`,
   };
 }

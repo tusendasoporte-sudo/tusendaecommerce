@@ -44,6 +44,7 @@ const ACTION_LIMITS = Object.freeze({
   events_record: 120,
   updates_policy: 30,
   updates_ticket: 6,
+  updates_verified: 12,
 });
 
 type StorefrontAction = keyof typeof ACTION_LIMITS;

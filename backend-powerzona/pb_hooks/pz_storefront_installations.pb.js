@@ -72,6 +72,14 @@ routerAdd(
 );
 
 routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/updates/verified",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "updates_verified"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "GET",
   "/api/pz/storefront-app-updates/{artifact}/{ticket}/{filename}",
   (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleUpdateDownload(e),

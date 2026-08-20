@@ -28,7 +28,16 @@ const storeRecord: any = await authPb.collection('stores').getOne(storeId, {
 }).catch(() => null);
 if (!storeRecord) return Astro.redirect('/master/stores');
 
-const result = await getMasterStoreAppBuilds(serverPocketBaseUrl(), authPb.authStore.token, storeId);
+const requestedChannel = Astro.url.searchParams.get('channel');
+const channel = requestedChannel === 'publication' || requestedChannel === 'analytics'
+  ? requestedChannel
+  : 'prepare';
+const result = await getMasterStoreAppBuilds(
+  serverPocketBaseUrl(),
+  authPb.authStore.token,
+  storeId,
+  channel === 'analytics',
+);
 const currentStore = {
   id: storeId,
   name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
@@ -37,7 +46,6 @@ const currentStore = {
   planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
-const channel = Astro.url.searchParams.get('channel') === 'publication' ? 'publication' : 'prepare';
 ---
 
 <Layout isMaster={true}>

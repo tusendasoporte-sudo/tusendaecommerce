@@ -121,6 +121,14 @@ test('contratos privados son exactos y no aceptan identidad de otra app', () => 
     package_name: 'com.tusenda84.powerzona', version_code: 10, version_name: '0.2.8', install_source: 'direct', store_id: STORE,
   }), null);
   assert.deepEqual(updates.parseUpdateTicketPayload({ artifact_id: ARTIFACT }), { artifactId: ARTIFACT });
+  assert.deepEqual(updates.parseUpdateVerifiedPayload({
+    artifact_id: ARTIFACT, bytes: 24_000_000, sha256: 'a'.repeat(64), version_code: 11,
+  }), {
+    artifactId: ARTIFACT, bytes: 24_000_000, sha256: 'a'.repeat(64), versionCode: 11,
+  });
+  assert.equal(updates.parseUpdateVerifiedPayload({
+    artifact_id: ARTIFACT, bytes: 24_000_000, sha256: 'a'.repeat(64), version_code: 11, installed: true,
+  }), null);
 });
 
 test('política usa fuente de instalación y el mínimo controlado por Master', () => {

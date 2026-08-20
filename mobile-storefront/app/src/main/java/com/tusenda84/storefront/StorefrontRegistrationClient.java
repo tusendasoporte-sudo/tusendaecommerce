@@ -273,6 +273,22 @@ final class StorefrontRegistrationClient {
         executeUpdateTicket(callback, () -> updateTicketInternal(artifactId));
     }
 
+    void reportUpdateVerified(UpdateArtifact artifact, Callback callback) {
+        execute(callback, () -> {
+            if (artifact == null) return Result.fail("Metadatos de actualización no disponibles.");
+            return authenticatedPost(
+                    StorefrontConfig.UPDATE_VERIFIED_PATH,
+                    StorefrontUpdateContract.verifiedPayload(
+                            artifact.id,
+                            artifact.sha256,
+                            artifact.bytes,
+                            artifact.versionCode
+                    ),
+                    "Descarga verificada registrada."
+            );
+        });
+    }
+
     private Result registerInternal(
             boolean forceAppCheckRefresh,
             RegistrationOrigin origin

@@ -74,10 +74,11 @@ test('marketing.push.manage exige simultáneamente permiso y capability Premium'
   ), false);
 });
 
-test('las ocho colecciones públicas permanecen cerradas al CRUD incluso para usuarios de tienda', () => {
+test('las colecciones privadas permanecen cerradas al CRUD incluso para usuarios de tienda', () => {
   assert.deepEqual(enforcement.STOREFRONT_PUSH_PRIVATE_COLLECTIONS, [
     'storefront_app_configs',
     'storefront_installations',
+    'storefront_app_download_events',
     'storefront_web_sessions',
     'storefront_order_links',
     'push_media',

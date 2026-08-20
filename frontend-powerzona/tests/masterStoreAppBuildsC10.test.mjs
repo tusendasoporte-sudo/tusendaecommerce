@@ -75,6 +75,19 @@ test('conserva visible un trabajo C10 heredado para poder cancelarlo antes de ca
       delivery_marked_at: '', created: '2026-08-17T12:00:00.000Z', updated: '2026-08-17T12:00:00.000Z',
     }],
     artifacts: [],
+    download_analytics: {
+      available: true,
+      generated_at: '2026-08-17T12:00:00.000Z',
+      includes_master: true,
+      active_estimate_window_days: 30,
+      summary: {
+        shared_link_downloads: 0, private_update_downloads: 0, verified_updates: 0,
+        activated_installations: 0, active_installations: 0, pending_installations: 0,
+        master_downloads: 0, customer_downloads: 0, all_downloads: 0, last_activity_at: '',
+      },
+      versions: [],
+      measurement_note: 'Las fuentes permanecen separadas.',
+    },
     policy: {
       firebase_project_per_store: true, signing_custodian: 'Tu Senda 84',
       store_admin_delivery: ['apk', 'checksums', 'instructions'], aab_optional_for_storefront: true,

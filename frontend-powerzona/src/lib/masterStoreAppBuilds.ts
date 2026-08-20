@@ -226,6 +226,35 @@ export type ManualWhatsappDelivery = {
   recipient: ManualWhatsappRecipient;
 };
 
+export type StorefrontAppDownloadAnalyticsVersion = {
+  artifact_id: string;
+  version_code: number;
+  version_name: string;
+  release_status: '' | 'candidate' | 'approved' | 'published';
+  update_delivery_status: '' | 'active' | 'paused' | 'withdrawn';
+  shared_link_downloads: number;
+  private_update_downloads: number;
+  verified_updates: number;
+  activated_installations: number;
+  active_installations: number;
+  pending_installations: number;
+  master_downloads: number;
+  customer_downloads: number;
+  all_downloads: number;
+  last_activity_at: string;
+};
+
+export type StorefrontAppDownloadAnalytics = {
+  available: boolean;
+  generated_at: string;
+  includes_master: true;
+  active_estimate_window_days: 30;
+  summary: Omit<StorefrontAppDownloadAnalyticsVersion,
+    'artifact_id' | 'version_code' | 'version_name' | 'release_status' | 'update_delivery_status'>;
+  versions: StorefrontAppDownloadAnalyticsVersion[];
+  measurement_note: string;
+};
+
 export type ManualWhatsappDeliveryPreview = {
   schema_version: 2;
   mode: 'manual_wa_me';
@@ -261,6 +290,7 @@ export type MasterStoreAppBuilds = {
   profile: StorefrontAppBuildProfile | null;
   jobs: StorefrontAppBuildJob[];
   artifacts: StorefrontAppArtifact[];
+  download_analytics: StorefrontAppDownloadAnalytics;
   admin_actions: StorefrontAppAdminAction[];
   update_policy: {
     minimum_supported_version_code: number;
@@ -744,6 +774,91 @@ function adminState(value: any): StorefrontAppAdminState | null {
   };
 }
 
+function downloadAnalytics(value: any): StorefrontAppDownloadAnalytics | null {
+  const countKeys = [
+    'shared_link_downloads', 'private_update_downloads', 'verified_updates', 'activated_installations',
+    'active_installations', 'pending_installations', 'master_downloads', 'customer_downloads', 'all_downloads',
+  ];
+  const validDate = (candidate: any) => candidate === '' || Boolean(isoDate(candidate));
+  const validCounts = (candidate: any) => candidate && countKeys.every((key) => Number.isSafeInteger(Number(candidate[key]))
+    && Number(candidate[key]) >= 0) && validDate(candidate.last_activity_at);
+  if (!value || typeof value.available !== 'boolean' || value.includes_master !== true
+    || value.active_estimate_window_days !== 30 || !validCounts(value.summary)
+    || !Array.isArray(value.versions) || typeof value.measurement_note !== 'string' || !value.measurement_note.trim()) return null;
+  const versions: StorefrontAppDownloadAnalyticsVersion[] = [];
+  for (const item of value.versions) {
+    const artifactId = text(item?.artifact_id, 15);
+    const versionCode = integer(item?.version_code);
+    const versionName = text(item?.version_name, 40);
+    const releaseStatus = text(item?.release_status, 20);
+    const updateDeliveryStatus = text(item?.update_delivery_status, 20);
+    if ((artifactId && !RECORD_ID_PATTERN.test(artifactId)) || versionCode < 1 || !versionName
+      || !['', 'candidate', 'approved', 'published'].includes(releaseStatus)
+      || !['', 'active', 'paused', 'withdrawn'].includes(updateDeliveryStatus)
+      || !validCounts(item)) return null;
+    versions.push({
+      artifact_id: artifactId,
+      version_code: versionCode,
+      version_name: versionName,
+      release_status: releaseStatus as StorefrontAppDownloadAnalyticsVersion['release_status'],
+      update_delivery_status: updateDeliveryStatus as StorefrontAppDownloadAnalyticsVersion['update_delivery_status'],
+      shared_link_downloads: integer(item.shared_link_downloads),
+      private_update_downloads: integer(item.private_update_downloads),
+      verified_updates: integer(item.verified_updates),
+      activated_installations: integer(item.activated_installations),
+      active_installations: integer(item.active_installations),
+      pending_installations: integer(item.pending_installations),
+      master_downloads: integer(item.master_downloads),
+      customer_downloads: integer(item.customer_downloads),
+      all_downloads: integer(item.all_downloads),
+      last_activity_at: isoDate(item.last_activity_at),
+    });
+  }
+  return {
+    available: value.available,
+    generated_at: isoDate(value.generated_at),
+    includes_master: true,
+    active_estimate_window_days: 30,
+    summary: {
+      shared_link_downloads: integer(value.summary.shared_link_downloads),
+      private_update_downloads: integer(value.summary.private_update_downloads),
+      verified_updates: integer(value.summary.verified_updates),
+      activated_installations: integer(value.summary.activated_installations),
+      active_installations: integer(value.summary.active_installations),
+      pending_installations: integer(value.summary.pending_installations),
+      master_downloads: integer(value.summary.master_downloads),
+      customer_downloads: integer(value.summary.customer_downloads),
+      all_downloads: integer(value.summary.all_downloads),
+      last_activity_at: isoDate(value.summary.last_activity_at),
+    },
+    versions,
+    measurement_note: value.measurement_note.trim(),
+  };
+}
+
+function emptyDownloadAnalytics(generatedAt: unknown): StorefrontAppDownloadAnalytics {
+  return {
+    available: false,
+    generated_at: isoDate(generatedAt),
+    includes_master: true,
+    active_estimate_window_days: 30,
+    summary: {
+      shared_link_downloads: 0,
+      private_update_downloads: 0,
+      verified_updates: 0,
+      activated_installations: 0,
+      active_installations: 0,
+      pending_installations: 0,
+      master_downloads: 0,
+      customer_downloads: 0,
+      all_downloads: 0,
+      last_activity_at: '',
+    },
+    versions: [],
+    measurement_note: 'Abre Instalaciones y analítica para consultar el historial completo.',
+  };
+}
+
 function detail(value: any): MasterStoreAppBuilds | null {
   if (value?.ok !== true || !RECORD_ID_PATTERN.test(text(value.store?.id, 15))) return null;
   const normalizedProfile = value.profile ? profile(value.profile) : null;
@@ -756,6 +871,9 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const normalizedEngineRelease = engineRelease(value.engine_release);
   const normalizedManualWhatsappDelivery = manualWhatsappDelivery(value.manual_whatsapp_delivery);
   const normalizedBrandAssets = brandAssets(value.brand_assets);
+  const normalizedDownloadAnalytics = value.download_analytics === undefined
+    ? emptyDownloadAnalytics(value.generated_at)
+    : downloadAnalytics(value.download_analytics);
   const updatePolicy = value.update_policy || {
     minimum_supported_version_code: 0,
     minimum_supported_version_name: '',
@@ -763,7 +881,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
   };
   const updateReleaseState = text(updatePolicy.release_state, 20);
   const policy = value.policy;
-  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets
+  if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets || !normalizedDownloadAnalytics
     || !Number.isSafeInteger(Number(updatePolicy.minimum_supported_version_code))
     || Number(updatePolicy.minimum_supported_version_code) < 0
     || !['', 'active', 'paused', 'withdrawn'].includes(updateReleaseState)
@@ -785,6 +903,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
     profile: normalizedProfile,
     jobs,
     artifacts,
+    download_analytics: normalizedDownloadAnalytics,
     admin_actions: adminActions,
     update_policy: {
       minimum_supported_version_code: Number(updatePolicy.minimum_supported_version_code),
@@ -951,9 +1070,20 @@ export function getMasterAppBuildErrorMessage(error: string) {
   return messages[error] || 'No se pudo completar la acción. Inténtalo nuevamente.';
 }
 
-export function getMasterStoreAppBuilds(pocketbaseUrl: string, token: string, storeId: string) {
+export function getMasterStoreAppBuilds(
+  pocketbaseUrl: string,
+  token: string,
+  storeId: string,
+  includeAnalytics = false,
+) {
   if (!RECORD_ID_PATTERN.test(storeId)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
-  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds', { store_id: storeId }, detail);
+  return post(
+    pocketbaseUrl,
+    token,
+    '/api/pz/master/storefront-app-builds',
+    { store_id: storeId, ...(includeAnalytics ? { include_analytics: true } : {}) },
+    detail,
+  );
 }
 
 export function getMasterStoreAppEngineUpdates(pocketbaseUrl: string, token: string) {

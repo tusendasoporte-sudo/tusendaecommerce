@@ -36,6 +36,21 @@ final class StorefrontUpdateContract {
         }
     }
 
+    static String verifiedPayload(String artifactId, String sha256, long bytes, long versionCode) {
+        String safeArtifactId = clean(artifactId);
+        String safeSha256 = normalized(sha256);
+        if (!RECORD_ID.matcher(safeArtifactId).matches() || !SHA256.matcher(safeSha256).matches()
+                || bytes < 1 || bytes > MAX_APK_BYTES || versionCode < 1 || versionCode > Integer.MAX_VALUE) {
+            throw new IllegalStateException("update_payload_invalid");
+        }
+        return "{"
+                + "\"artifact_id\":\"" + safeArtifactId + "\""
+                + ",\"bytes\":" + bytes
+                + ",\"sha256\":\"" + safeSha256 + "\""
+                + ",\"version_code\":" + versionCode
+                + "}";
+    }
+
     static boolean validArtifact(String id, String fileName, String sha256, long bytes,
                                  long versionCode, String versionName, String packageName) {
         return RECORD_ID.matcher(clean(id)).matches()

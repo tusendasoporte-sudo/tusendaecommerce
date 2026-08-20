@@ -5,8 +5,10 @@ import test from 'node:test';
 import {
   mapStorefrontUpdatePolicyResponse,
   mapStorefrontUpdateTicketResponse,
+  mapStorefrontUpdateVerifiedResponse,
   normalizeStorefrontUpdatePolicyPayload,
   normalizeStorefrontUpdateTicketPayload,
+  normalizeStorefrontUpdateVerifiedPayload,
 } from '../src/lib/storefrontPushContracts.ts';
 import { POWERZONA_EXISTING_APP_BASELINE } from '../src/lib/storefrontAppDefaults.ts';
 
@@ -90,6 +92,36 @@ test('ticket queda ligado a un artefacto, vencimiento y URL HTTPS', () => {
   }), null);
 });
 
+test('confirmación verificada queda ligada al mismo artefacto, hash, tamaño y versión', () => {
+  assert.deepEqual(normalizeStorefrontUpdateVerifiedPayload({
+    artifact_id: ARTIFACT.id,
+    bytes: ARTIFACT.bytes,
+    sha256: ARTIFACT.sha256,
+    version_code: ARTIFACT.version_code,
+  }), {
+    artifact_id: ARTIFACT.id,
+    bytes: ARTIFACT.bytes,
+    sha256: ARTIFACT.sha256,
+    version_code: ARTIFACT.version_code,
+  });
+  assert.equal(normalizeStorefrontUpdateVerifiedPayload({
+    artifact_id: ARTIFACT.id,
+    bytes: ARTIFACT.bytes,
+    sha256: ARTIFACT.sha256,
+    version_code: ARTIFACT.version_code,
+    installed: true,
+  }), null);
+  assert.deepEqual(mapStorefrontUpdateVerifiedResponse({
+    ok: true,
+    artifact_id: ARTIFACT.id,
+    verified_at: '2026-08-20T12:01:00.000Z',
+  }), {
+    ok: true,
+    artifact_id: ARTIFACT.id,
+    verified_at: '2026-08-20T12:01:00.000Z',
+  });
+});
+
 test('adopción PowerZona conserva exactamente la identidad auditada y rutas privadas', () => {
   assert.deepEqual(POWERZONA_EXISTING_APP_BASELINE, {
     packageName: 'com.tusenda84.powerzona',
@@ -100,9 +132,12 @@ test('adopción PowerZona conserva exactamente la identidad auditada y rutas pri
   const view = readFileSync(new URL('../src/components/master/MasterStoreAppBuildView.astro', import.meta.url), 'utf8');
   const policyRoute = readFileSync(new URL('../src/pages/api/storefront/v1/updates/policy.ts', import.meta.url), 'utf8');
   const ticketRoute = readFileSync(new URL('../src/pages/api/storefront/v1/updates/ticket.ts', import.meta.url), 'utf8');
+  const verifiedRoute = readFileSync(new URL('../src/pages/api/storefront/v1/updates/verified.ts', import.meta.url), 'utf8');
   assert.match(view, /ADOPTAR APP EXISTENTE/);
   assert.match(view, /PAUSAR ACTUALIZACION CLIENTES/);
   assert.match(view, /RETIRAR ACTUALIZACION CLIENTES/);
   assert.match(policyRoute, /credential: 'required'/);
   assert.match(ticketRoute, /credential: 'required'/);
+  assert.match(verifiedRoute, /credential: 'required'/);
+  assert.match(verifiedRoute, /updates_verified/);
 });

@@ -42,7 +42,7 @@ test('el resumen se llama Analíticas, inicia en Hoy con un desplegable y expone
   assert.match(masterBackend, /"90": 90/);
 });
 
-test('Ver más presenta solo agregados, privacidad explícita y los mismos rangos', () => {
+test('Ver más presenta agregados por versión, privacidad explícita y los mismos rangos', () => {
   const source = read('../src/pages/admin/app-installations.astro');
   const details = read('../src/pages/admin/app-installation-details.astro');
   const tenantRoute = read('../src/pages/t/[storeSlug]/admin/app-installations.astro');
@@ -71,7 +71,12 @@ test('Ver más presenta solo agregados, privacidad explícita y los mismos rango
   assert.match(source, /Altas y bajas detectadas/);
   assert.match(source, /data-installation-period/);
   assert.match(source, /class="installations-chart"/);
-  assert.doesNotMatch(source, /<table|<tbody|class="table-wrap"/);
+  assert.match(source, /Descargas y actualizaciones de la app/);
+  assert.match(source, /Las pruebas realizadas desde Master están excluidas/);
+  assert.match(source, /<table class="delivery-table">/);
+  assert.match(source, /Enlace\/WhatsApp/);
+  assert.match(source, /Verificadas/);
+  assert.match(source, /Instaladas/);
   assert.doesNotMatch(source, /<p class="notice">\{analytics\.measurement_note\}<\/p>/);
   assert.match(source, /const analytics = normalizeAnalytics\(payload\)/);
   assert.doesNotMatch(source, /fid_digest|credential_digest|ip_ciphertext|firebase_message_id/);

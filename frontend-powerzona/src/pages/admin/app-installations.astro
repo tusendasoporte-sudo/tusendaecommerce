@@ -43,6 +43,28 @@ const response = await fetch(`${pocketbaseUrl}/api/pz/storefront/v1/analytics/in
 }).catch(() => null);
 const payload = response?.ok ? await response.json().catch(() => null) : null;
 const isCount = (value: unknown) => Number.isInteger(value) && Number(value) >= 0;
+const normalizeDeliveryAnalytics = (value: any) => {
+  const countKeys = [
+    'shared_link_downloads', 'private_update_downloads', 'verified_updates', 'activated_installations',
+    'active_installations', 'pending_installations', 'master_downloads', 'customer_downloads', 'all_downloads',
+  ];
+  const validDate = (candidate: unknown) => candidate === ''
+    || (typeof candidate === 'string' && Number.isFinite(new Date(candidate).getTime()));
+  if (!value || typeof value !== 'object' || typeof value.available !== 'boolean'
+    || value.includes_master !== false || value.active_estimate_window_days !== 30
+    || !value.summary || !Array.isArray(value.versions)
+    || typeof value.measurement_note !== 'string' || !value.measurement_note.trim()
+    || countKeys.some((key) => !isCount(value.summary[key]))
+    || !validDate(value.summary.last_activity_at)) return null;
+  for (const item of value.versions) {
+    if (!item || !isCount(item.version_code) || item.version_code < 1
+      || typeof item.version_name !== 'string' || !item.version_name.trim()
+      || !['', 'candidate', 'approved', 'published'].includes(String(item.release_status || ''))
+      || !['', 'active', 'paused', 'withdrawn'].includes(String(item.update_delivery_status || ''))
+      || countKeys.some((key) => !isCount(item[key])) || !validDate(item.last_activity_at)) return null;
+  }
+  return value;
+};
 const normalizeAnalytics = (value: any) => {
   const expectedDays: Record<string, number> = { today: 1, '7': 7, '15': 15, '30': 30, '90': 90 };
   if (!value || typeof value !== 'object' || value.ok !== true
@@ -53,6 +75,8 @@ const normalizeAnalytics = (value: any) => {
     || typeof value.measurement_note !== 'string' || !value.measurement_note.trim()
     || !value.metrics || !value.status || !value.permission
     || !Array.isArray(value.daily) || !value.distributions) return null;
+  const appDelivery = normalizeDeliveryAnalytics(value.app_delivery);
+  if (!appDelivery) return null;
   const metricKeys = ['instalaciones_vigentes_ahora', 'instalaciones_nuevas', 'bajas_detectadas'];
   const statusKeys = ['active', 'disabled', 'invalid', 'revoked'];
   const permissionKeys = ['granted', 'denied', 'unknown'];
@@ -72,6 +96,9 @@ const normalizeAnalytics = (value: any) => {
 const analytics = normalizeAnalytics(payload);
 const metrics = analytics?.metrics || {};
 const permission = analytics?.permission || {};
+const appDelivery = analytics?.app_delivery || null;
+const deliverySummary = appDelivery?.summary || {};
+const deliveryVersions = appDelivery?.versions || [];
 const rangeLabels = { today: 'Hoy', '7': '7 días', '15': '15 días', '30': '30 días', '90': '90 días' };
 const adminOverviewPath = getStoreAdminPath(adminContext.store.slug);
 const installationDetailsPath = getStoreAdminPath(adminContext.store.slug, 'app-installation-details');
@@ -97,6 +124,12 @@ const chartLabelIndexes = [...new Set([0, Math.floor((chartRows.length - 1) / 2)
 const shortDate = (value: string) => {
   const [, month = '', day = ''] = String(value || '').split('-');
   return `${day}/${month}`;
+};
+const dateTime = (value: string) => {
+  const parsed = new Date(String(value || ''));
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed)
+    : 'Sin actividad';
 };
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -145,7 +178,23 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
       .chart-low-point { fill: #ef4444; }
       .notice { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; border-radius: 16px; padding: 14px 16px; line-height: 1.55; }
       .error { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
-      @media (max-width: 800px) { .page { padding: 18px; } .summary-lists { grid-template-columns: 1fr; } .details-cta { align-items: stretch; flex-direction: column; } .details-button { width: 100%; } .chart-head { display: grid; } }
+      .delivery-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+      .delivery-summary article { display: grid; gap: 7px; min-width: 0; padding: 15px; border: 1px solid #dbe4ef; border-radius: 16px; background: #f8fbff; }
+      .delivery-summary span { color: #64748b; font-size: 12px; font-weight: 850; line-height: 1.35; }
+      .delivery-summary strong { color: #0f2d67; font-size: 25px; }
+      .delivery-summary small { color: #64748b; line-height: 1.4; }
+      .delivery-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #dbe4ef; border-radius: 16px; }
+      .delivery-table { width: 100%; min-width: 940px; border-collapse: collapse; }
+      .delivery-table th, .delivery-table td { padding: 13px 14px; border-bottom: 1px solid #e5edf5; text-align: left; white-space: nowrap; }
+      .delivery-table th { background: #f1f6fc; color: #475569; font-size: 12px; font-weight: 900; }
+      .delivery-table td { color: #1e293b; font-size: 13px; font-weight: 750; }
+      .delivery-table tbody tr:last-child td { border-bottom: 0; }
+      .delivery-version { display: grid; gap: 3px; }
+      .delivery-version strong { color: #0f2d67; }
+      .delivery-version small { color: #64748b; }
+      .delivery-note { margin: 14px 0 0; color: #64748b; font-size: 12px; font-weight: 700; line-height: 1.5; }
+      @media (max-width: 1100px) { .delivery-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 800px) { .page { padding: 18px; } .summary-lists { grid-template-columns: 1fr; } .details-cta { align-items: stretch; flex-direction: column; } .details-button { width: 100%; } .chart-head { display: grid; } .delivery-summary { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -216,6 +265,44 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
                   <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Sin decidir</p><p class="admin-compact-summary__value">{Number(permission.unknown || 0).toLocaleString('es-US')}</p></article>
                 </div>
               </section>
+            </section>
+
+            <section class="section" aria-labelledby="app-delivery-title">
+              <header class="chart-head">
+                <div>
+                  <h2 id="app-delivery-title">Descargas y actualizaciones de la app</h2>
+                  <p class="muted">Actividad de clientes durante {rangeLabels[range as keyof typeof rangeLabels].toLowerCase()}. Las pruebas realizadas desde Master están excluidas.</p>
+                </div>
+              </header>
+              <div class="delivery-summary">
+                <article><span>Solicitudes de descarga</span><strong>{Number(deliverySummary.customer_downloads || 0).toLocaleString('es-US')}</strong><small>Enlace compartido y actualización privada.</small></article>
+                <article><span>Privadas verificadas</span><strong>{Number(deliverySummary.verified_updates || 0).toLocaleString('es-US')}</strong><small>APK completa y validada por la app.</small></article>
+                <article><span>Instalaciones confirmadas</span><strong>{Number(deliverySummary.activated_installations || 0).toLocaleString('es-US')}</strong><small>La nueva versión abrió y se registró.</small></article>
+                <article><span>Pendientes de actualizar</span><strong>{Number(deliverySummary.pending_installations || 0).toLocaleString('es-US')}</strong><small>Instalaciones activas bajo la publicación vigente.</small></article>
+                <article><span>Última actividad</span><strong>{deliverySummary.last_activity_at ? 'Registrada' : '—'}</strong><small>{dateTime(deliverySummary.last_activity_at)}</small></article>
+              </div>
+              {deliveryVersions.length ? (
+                <div class="delivery-table-wrap">
+                  <table class="delivery-table">
+                    <thead><tr><th>Versión</th><th>Enlace/WhatsApp</th><th>Privadas</th><th>Verificadas</th><th>Instaladas</th><th>Activas</th><th>Pendientes</th><th>Última actividad</th></tr></thead>
+                    <tbody>
+                      {deliveryVersions.map((item: any) => (
+                        <tr>
+                          <td><span class="delivery-version"><strong>{item.version_name}</strong><small>Código {item.version_code}</small></span></td>
+                          <td>{Number(item.shared_link_downloads).toLocaleString('es-US')}</td>
+                          <td>{Number(item.private_update_downloads).toLocaleString('es-US')}</td>
+                          <td>{Number(item.verified_updates).toLocaleString('es-US')}</td>
+                          <td>{Number(item.activated_installations).toLocaleString('es-US')}</td>
+                          <td>{Number(item.active_installations).toLocaleString('es-US')}</td>
+                          <td>{Number(item.pending_installations).toLocaleString('es-US')}</td>
+                          <td>{dateTime(item.last_activity_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : <p class="notice">La medición comenzará cuando exista una versión administrada o una instalación activa.</p>}
+              <p class="delivery-note">{appDelivery.measurement_note}</p>
             </section>
 
             <section class="details-cta" aria-label="Versiones y modelos">
