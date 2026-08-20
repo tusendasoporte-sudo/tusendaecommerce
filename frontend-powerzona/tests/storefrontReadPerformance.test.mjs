@@ -7,8 +7,12 @@ const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf
 const api = read('../src/lib/api.ts');
 const pocketbase = read('../src/lib/pocketbase.ts');
 const stores = read('../src/lib/stores.ts');
+const storeSeo = read('../src/lib/storeSeo.ts');
 const layout = read('../src/layouts/Layout.astro');
+const socialMeta = read('../src/components/SocialMeta.astro');
 const home = read('../src/components/public-store/PublicStoreHome.astro');
+const orderReview = read('../src/pages/t/[storeSlug]/review/order/[token].astro');
+const storeSocialImage = read('../src/pages/api/og/tienda/[storeSlug].jpg.ts');
 const category = read('../src/pages/categoria/[slug].astro');
 const subcategory = read('../src/pages/subcategoria/[slug].astro');
 const product = read('../src/pages/producto/[slug].astro');
@@ -103,6 +107,27 @@ test('portada usa el WebP optimizado original y conserva miniaturas para otros c
   assert.match(home, /settings\?\.coverGalleryHeroUrls/);
   assert.match(home, /\.public-hero-cover img \{[^}]*object-fit: cover/);
   assert.match(home, /\.public-hero-slide img \{[^}]*object-fit: cover/);
+});
+
+test('tienda y reseña comparten un preview JPEG compatible con WhatsApp', () => {
+  assert.match(storeSeo, /STORE_SOCIAL_IMAGE_WIDTH = 1200/);
+  assert.match(storeSeo, /STORE_SOCIAL_IMAGE_HEIGHT = 630/);
+  assert.match(storeSeo, /\/api\/og\/tienda\/\$\{storeSlug\}\.jpg/);
+  assert.match(home, /buildStoreSocialImagePath/);
+  assert.match(orderReview, /buildStoreSocialImagePath/);
+  assert.match(home, /\[settings\?\.updated, currentStore\?\.updated\]\.filter\(Boolean\)\.join\('-'\)/);
+  assert.match(orderReview, /\[settings\?\.updated, currentStore\.updated\]\.filter\(Boolean\)\.join\('-'\)/);
+  assert.match(home, /imageType: 'image\/jpeg'/);
+  assert.match(orderReview, /imageType: 'image\/jpeg'/);
+  assert.match(socialMeta, /og:image:type/);
+});
+
+test('imagen social de tienda conserva la portada completa sin depender de WebP', () => {
+  assert.match(storeSocialImage, /settings\?\.cover_mode === 'carousel'[\s\S]*galleryHeroUrls\[0\]/);
+  assert.match(storeSocialImage, /store\.bannerHeroUrl[\s\S]*settings\?\.coverHeroImageUrl/);
+  assert.match(storeSocialImage, /fit: 'contain'/);
+  assert.match(storeSocialImage, /'Content-Type': 'image\/jpeg'/);
+  assert.match(storeSocialImage, /\.jpeg\(\{ quality/);
 });
 
 test('regalos entrega el WebP optimizado sin una segunda conversion a miniatura PNG', () => {

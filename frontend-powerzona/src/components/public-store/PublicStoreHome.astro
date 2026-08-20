@@ -10,6 +10,7 @@ import { getSettings, getCategories, getSubcategories, getHomepageProducts, getP
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getStoreInitials } from '../../lib/storeIdentity';
+import { buildStoreSocialImagePath, STORE_SOCIAL_IMAGE_HEIGHT, STORE_SOCIAL_IMAGE_WIDTH } from '../../lib/storeSeo';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { getVisibleRafflesForStore } from '../../lib/raffles';
@@ -105,12 +106,10 @@ const heroCarouselEnabled = settings?.cover_mode === 'carousel' && coverGalleryU
 const heroCarouselImages = heroCarouselEnabled && coverGalleryUrls.length >= 2 ? coverGalleryUrls : [];
 const heroImages = heroCarouselEnabled ? coverGalleryUrls : (coverImageUrl ? [coverImageUrl] : []);
 const heroPreloadImageUrl = isTemporarilyClosed ? '' : (heroImages[0] || '');
-const storeSeoImage =
-  heroImages[0]
-  || coverImageUrl
-  || logoImageUrl
-  || currentStore?.bazaarImageUrl
-  || '/brand/tusenda84-bazzar-logo.webp';
+const storeSeoImage = buildStoreSocialImagePath({
+  storeSlug: currentStore.slug,
+  version: [settings?.updated, currentStore?.updated].filter(Boolean).join('-'),
+});
 const storeSeoTitle = storeName;
 const storeSeoDescription = storeName;
 const storeSeoUrl = getPublicPath('/', currentStore, currentPathname);
@@ -261,6 +260,9 @@ function getProductOfferView(product: any) {
     title: storeSeoTitle,
     description: storeSeoDescription,
     image: storeSeoImage,
+    imageType: 'image/jpeg',
+    imageWidth: STORE_SOCIAL_IMAGE_WIDTH,
+    imageHeight: STORE_SOCIAL_IMAGE_HEIGHT,
     canonical: storeSeoUrl,
     type: 'website',
     siteName: storeName,

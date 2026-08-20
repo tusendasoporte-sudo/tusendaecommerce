@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Layout from '../../../../../layouts/Layout.astro';
 import { getSettings } from '../../../../../lib/api';
+import { buildStoreSocialImagePath, STORE_SOCIAL_IMAGE_HEIGHT, STORE_SOCIAL_IMAGE_WIDTH } from '../../../../../lib/storeSeo';
 import { getStoreBySlug } from '../../../../../lib/stores';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -38,18 +39,19 @@ function getStoreInitials(value: unknown) {
 
 const publicStoreName = cleanDisplayText(settings?.store_name || settings?.stored_name || storeName || currentStore.slug, 'Tienda');
 const storeLogoUrl = settings?.logoImageUrl || currentStore.logoUrl || settings?.coverImageUrl || currentStore.bannerUrl || '';
-const storePreviewImageUrl = settings?.coverImageUrl
-  || currentStore.bannerUrl
-  || (Array.isArray(settings?.coverGalleryUrls) ? settings.coverGalleryUrls[0] : '')
-  || settings?.logoImageUrl
-  || currentStore.logoUrl
-  || '';
+const storePreviewImageUrl = buildStoreSocialImagePath({
+  storeSlug,
+  version: [settings?.updated, currentStore.updated].filter(Boolean).join('-'),
+});
 const reviewCanonicalUrl = `${Astro.url.origin}/t/${encodeURIComponent(storeSlug)}/review/order/${encodeURIComponent(token)}`;
 const reviewSeo = {
   title: `Deja tu reseña | ${publicStoreName}`,
   description: `Comparte tu experiencia con tu compra en ${publicStoreName}.`,
   image: storePreviewImageUrl,
   imageAlt: publicStoreName,
+  imageType: 'image/jpeg',
+  imageWidth: STORE_SOCIAL_IMAGE_WIDTH,
+  imageHeight: STORE_SOCIAL_IMAGE_HEIGHT,
   canonical: reviewCanonicalUrl,
   type: 'website',
   siteName: publicStoreName,
