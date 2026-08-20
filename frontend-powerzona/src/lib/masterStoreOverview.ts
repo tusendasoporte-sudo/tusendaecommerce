@@ -165,7 +165,7 @@ async function postEndpoint(
   try {
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: authToken, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       cache: 'no-store',
       signal: controller.signal,

@@ -554,7 +554,7 @@ async function postPrivateEndpoint(
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${authToken}`,
+        Authorization: authToken,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),

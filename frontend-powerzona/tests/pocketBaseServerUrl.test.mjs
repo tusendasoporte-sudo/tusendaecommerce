@@ -79,3 +79,17 @@ test('paginas SSR privadas del Master usan la URL interna para llamadas servidor
     assert.doesNotMatch(source, /import\.meta\.env\.PUBLIC_POCKETBASE_URL/, page);
   }
 });
+
+test('consultas privadas Master envian el token PocketBase sin prefijo Bearer', () => {
+  const clients = [
+    '../src/lib/masterStoreOverview.ts',
+    '../src/lib/masterStoreProducts.ts',
+    '../src/lib/masterStoreAnalytics.ts',
+  ];
+
+  for (const client of clients) {
+    const source = read(client);
+    assert.match(source, /Authorization:\s*authToken/, client);
+    assert.doesNotMatch(source, /Authorization:\s*`Bearer \$\{authToken\}`/, client);
+  }
+});
