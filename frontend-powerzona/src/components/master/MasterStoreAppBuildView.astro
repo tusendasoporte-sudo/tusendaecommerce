@@ -2,6 +2,7 @@
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
 import { proposeFirebaseProjectId, type MasterStoreAppBuilds } from '../../lib/masterStoreAppBuilds';
+import { powerZonaStorefrontDefaults } from '../../lib/storefrontAppDefaults';
 import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
@@ -40,8 +41,9 @@ const currentPreviewEngineReady = buildActionsAllowed
   && currentActionJob.preview.engine.target_revision === data.engine_release.revision;
 const retryMode = currentActionJob ? ['failed', 'needs_attention'].includes(currentActionJob.status) : false;
 const isPowerZona = store.slug === 'powerzona';
+const powerZonaDefaults = powerZonaStorefrontDefaults();
 const proposedFirebaseProjectId = isPowerZona
-  ? 'tu-senda-84-storefront-staging'
+  ? powerZonaDefaults.firebaseProjectId
   : proposeFirebaseProjectId(store.name, store.id);
 const manualDelivery = data.manual_whatsapp_delivery;
 const latestApk = artifacts.find((artifact) => artifact.kind === 'apk'
@@ -273,7 +275,7 @@ function dateTime(value: string) {
         <div class="master-field-grid">
           <div class="master-field"><label for="app-display-name">Nombre visible</label><input id="app-display-name" name="display_name" maxlength="60" required value={isPowerZona ? 'PowerZona' : store.name} /></div>
           <div class="master-field"><label for="app-brand-key">Clave de marca</label><input id="app-brand-key" name="brand_key" pattern={'[a-z0-9][a-z0-9\\-]{1,62}[a-z0-9]'} required value={store.slug} /></div>
-          <div class="master-field"><label for="app-key">App key</label><input id="app-key" name="app_key" required value={isPowerZona ? 'powerzona-storefront-staging' : `${store.slug}-storefront`} /></div>
+          <div class="master-field"><label for="app-key">App key</label><input id="app-key" name="app_key" required value={isPowerZona ? powerZonaDefaults.appKey : `${store.slug}-storefront`} /></div>
           <div class="master-field"><label for="app-package">Paquete Android exclusivo</label><input id="app-package" name="package_name" required value={`com.tusenda84.${store.slug.replaceAll('-', '')}`} /></div>
           <div class="master-field master-field--full"><label for="app-store-url">URL pública</label><input id="app-store-url" name="store_url" type="url" required value={`https://tusenda84.com/t/${store.slug}`} /></div>
           <div class="master-field master-field--full">
