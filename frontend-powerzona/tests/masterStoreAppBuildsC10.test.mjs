@@ -402,6 +402,9 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(validator, /jks\|keystore\|p12/);
   assert.match(validator, /service-account/);
   assert.match(runner, /Release requiere un workspace Git limpio y versionado/);
+  assert.match(runner, /Push-Location -LiteralPath \$mobileRoot/);
+  assert.match(runner, /if \(\$gradleLocationPushed\) \{ Pop-Location \}/);
+  assert.match(runner, /existingReleaseContents\.Count -gt 0/);
   assert.match(runner, /engine_version/);
   assert.match(runner, /create_play_upload_key = \$config\.Distribution -eq 'play_and_direct' -and -not \$ExistingUploadCertSha256/);
   assert.match(runner, /Generar la firma de subida requiere autorizacion/);
@@ -409,6 +412,8 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(queue, /ProvisionUploadSigning/);
   assert.match(queue, /ExistingUploadCertSha256/);
   assert.match(readiness, /upload_signing_mode_conflict/);
+  assert.match(readiness, /upload_signing_incomplete/);
+  assert.match(readiness, /\$uploadKeystoreExists -xor \$uploadPropertiesExists/);
   assert.match(signingGenerator, /\$KeyPurpose -eq 'app'/);
   assert.match(signingGenerator, /\$payload\.operation -ne 'provision'.*create_app_signing_key/s);
   assert.match(signingGenerator, /\$payload\.signing\.create_play_upload_key/);

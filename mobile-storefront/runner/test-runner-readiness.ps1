@@ -111,8 +111,10 @@ if ($RequireReleaseSigning) {
             if ([string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -cne 'true') { Add-Failure 'signing_generation_not_authorized' }
             if (([string]$env:PZ_STORE_APP_KEYSTORE_PASSWORD).Length -lt 16) { Add-Failure 'keystore_password_missing' }
             if (([string]$env:PZ_STORE_APP_KEY_PASSWORD).Length -lt 16) { Add-Failure 'key_password_missing' }
-            if ((Test-Path -LiteralPath $uploadKeystorePath) -or (Test-Path -LiteralPath $uploadPropertiesPath)) {
-                Add-Failure 'upload_signing_already_exists'
+            $uploadKeystoreExists = Test-Path -LiteralPath $uploadKeystorePath -PathType Leaf
+            $uploadPropertiesExists = Test-Path -LiteralPath $uploadPropertiesPath -PathType Leaf
+            if ($uploadKeystoreExists -xor $uploadPropertiesExists) {
+                Add-Failure 'upload_signing_incomplete'
             }
         } elseif ($RequireAab -and (-not (Test-Path -LiteralPath $uploadKeystorePath -PathType Leaf) -or
             -not (Test-Path -LiteralPath $uploadPropertiesPath -PathType Leaf))) {

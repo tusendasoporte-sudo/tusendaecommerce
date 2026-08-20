@@ -207,13 +207,20 @@ if ($BuildType -eq 'Release') {
 }
 
 $releaseDirectory = Join-Path $mobileRoot "releases\$($config.StoreKey)\$VersionName-$VersionCode"
-if (Test-Path -LiteralPath $releaseDirectory) { throw 'La salida de esta version ya existe; no se sobrescribe.' }
+if (Test-Path -LiteralPath $releaseDirectory) {
+    $existingReleaseContents = @(Get-ChildItem -LiteralPath $releaseDirectory -Force)
+    if ($existingReleaseContents.Count -gt 0) { throw 'La salida de esta version ya existe; no se sobrescribe.' }
+    Remove-Item -LiteralPath $releaseDirectory -Force
+}
 New-Item -ItemType Directory -Path $releaseDirectory -Force | Out-Null
 $gradle = Join-Path $mobileRoot 'gradlew.bat'
 $previousSigning = [string]$env:PZ_STOREFRONT_SIGNING_PROPERTIES
 $previousConfigFile = [string]$env:PZ_STOREFRONT_CONFIG_FILE
 $previousBrandFile = [string]$env:PZ_STOREFRONT_BRAND_CONFIG_FILE
+$gradleLocationPushed = $false
 try {
+    Push-Location -LiteralPath $mobileRoot
+    $gradleLocationPushed = $true
     $gradleArgs = @("-PPZ_STOREFRONT_CONFIG=$ConfigKey", "-PPZ_STOREFRONT_VERSION_CODE=$VersionCode", "-PPZ_STOREFRONT_VERSION_NAME=$VersionName", '--no-daemon')
     if ($ApiBaseUrl) { $gradleArgs += "-PPZ_STOREFRONT_API_BASE_URL=$ApiBaseUrl" }
     if ($ConfigPath) { $env:PZ_STOREFRONT_CONFIG_FILE = $config.ConfigPath }
@@ -269,6 +276,7 @@ try {
         EngineVersion = $config.EngineVersion; EngineRevision = $engineRevision
     }
 } finally {
+    if ($gradleLocationPushed) { Pop-Location }
     if ($previousSigning) { $env:PZ_STOREFRONT_SIGNING_PROPERTIES = $previousSigning }
     else { Remove-Item Env:PZ_STOREFRONT_SIGNING_PROPERTIES -ErrorAction SilentlyContinue }
     if ($previousConfigFile) { $env:PZ_STOREFRONT_CONFIG_FILE = $previousConfigFile }
