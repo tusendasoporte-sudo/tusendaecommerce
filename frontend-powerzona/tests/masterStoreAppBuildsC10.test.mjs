@@ -405,6 +405,8 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(runner, /Push-Location -LiteralPath \$mobileRoot/);
   assert.match(runner, /if \(\$gradleLocationPushed\) \{ Pop-Location \}/);
   assert.match(runner, /existingReleaseContents\.Count -gt 0/);
+  assert.match(runner, /& \$gradle 'clean' 'testDebugUnitTest' @gradleArgs[\s\S]*& \$gradle 'lintRelease' 'assembleRelease' @gradleArgs/);
+  assert.doesNotMatch(runner, /'testDebugUnitTest' 'lintRelease' 'assembleRelease'/);
   assert.match(runner, /engine_version/);
   assert.match(runner, /create_play_upload_key = \$config\.Distribution -eq 'play_and_direct' -and -not \$ExistingUploadCertSha256/);
   assert.match(runner, /Generar la firma de subida requiere autorizacion/);

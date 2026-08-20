@@ -231,7 +231,9 @@ try {
         $apkSource = Join-Path $mobileRoot 'app\build\outputs\apk\debug\app-debug.apk'
     } else {
         $env:PZ_STOREFRONT_SIGNING_PROPERTIES = $SigningPropertiesPath
-        & $gradle 'clean' 'testDebugUnitTest' 'lintRelease' 'assembleRelease' @gradleArgs
+        & $gradle 'clean' 'testDebugUnitTest' @gradleArgs
+        if ($LASTEXITCODE -ne 0) { throw 'Gradle no completo las pruebas unitarias previas al Release.' }
+        & $gradle 'lintRelease' 'assembleRelease' @gradleArgs
         if ($LASTEXITCODE -ne 0) { throw 'Gradle no completo el APK Release.' }
         $apkSource = Join-Path $mobileRoot 'app\build\outputs\apk\release\app-release.apk'
     }
