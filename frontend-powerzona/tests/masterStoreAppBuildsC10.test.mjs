@@ -11,6 +11,7 @@ import {
   proposeFirebaseProjectId,
   runMasterStoreAppAdminAction,
   saveMasterWhatsappSettings,
+  startMasterStoreAppRunner,
 } from '../src/lib/masterStoreAppBuilds.ts';
 
 test('conserva visible un trabajo C10 heredado para poder cancelarlo antes de cargar la marca', async () => {
@@ -164,6 +165,12 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.match(view, /1080 × 1920/);
   assert.match(view, /cancelMasterStoreAppBuild/);
   assert.match(view, /CANCELAR TRABAJO/);
+  assert.match(view, /startMasterStoreAppRunner/);
+  assert.match(view, /data-app-runner-start/);
+  assert.match(view, /INICIAR RUNNER PRIVADO/);
+  assert.match(view, /Autorizar ejecución manual/);
+  assert.match(view, /Tu Senda 84 – Ejecutar runner/);
+  assert.match(view, /Autoriza este trabajo exacto/);
   assert.match(view, /data-engine-release-ready/);
   assert.match(view, /data-preview-engine-ready/);
   assert.match(view, /data-build-actions-allowed=\{String\(buildActionsAllowed\)\}/);
@@ -331,6 +338,53 @@ test('resumen Master muestra inventario visual de motores pendientes', () => {
   assert.match(dashboard, /para enviar por WhatsApp/);
 });
 
+test('botón Master autoriza un único job para un runner manual registrado y cerrado', async () => {
+  const originalFetch = globalThis.fetch;
+  const jobId = 'jobrunnerc10t01';
+  const profileId = 'profilerunc10t1';
+  const previewHash = 'd'.repeat(64);
+  let requestBody = null;
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /\/api\/pz\/master\/storefront-app-builds\/start-runner$/);
+    requestBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      ok: true,
+      idempotent: false,
+      job: {
+        id: jobId, profile_id: profileId, operation: 'update', status: 'queued', preview_hash: previewHash,
+        preview: null, preview_expires_at: '', confirmed_at: '2026-08-20T12:00:00.000Z', runner_id: '',
+        execution_authorized_at: '2026-08-20T12:01:00.000Z',
+        execution_authorized_until: '2026-08-20T12:11:00.000Z',
+        execution_authorized_by: 'masterrunc10t01', execution_runner_id: 'windows-storefront-01',
+        failure_code: '', started_at: '', completed_at: '', delivery_status: '', delivery_sender_id: '',
+        delivery_recipient_id: '', delivery_sender_whatsapp: '', delivery_recipient_whatsapp: '',
+        delivery_message_sha256: '', delivery_marked_at: '', created: '2026-08-20T12:00:00.000Z',
+        updated: '2026-08-20T12:01:00.000Z',
+      },
+      runner: {
+        runner_id: 'windows-storefront-01', mode: 'manual', engine_version: '1.2.0',
+        engine_revision: 'a'.repeat(40), allow_firebase: true, allow_signing: true,
+        workspace_clean: true, last_seen_at: '2026-08-20T12:00:59.000Z', online: false,
+      },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const result = await startMasterStoreAppRunner('https://pb.example.test', 'master-token', {
+      job_id: jobId, preview_hash: previewHash, confirmation: 'INICIAR RUNNER PRIVADO',
+    });
+    assert.equal(result.available, true);
+    assert.equal(result.data?.runner.mode, 'manual');
+    assert.equal(result.data?.runner.online, false);
+    assert.equal(result.data?.runner.workspace_clean, true);
+    assert.equal(result.data?.job.execution_runner_id, 'windows-storefront-01');
+    assert.deepEqual(requestBody, {
+      job_id: jobId, preview_hash: previewHash, confirmation: 'INICIAR RUNNER PRIVADO',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('errores de integridad tienen mensajes cerrados y accionables', () => {
   assert.match(getMasterAppBuildErrorMessage('preview_mismatch'), /no coincide/i);
   assert.match(getMasterAppBuildErrorMessage('version_code_must_increase'), /mayor/i);
@@ -341,6 +395,10 @@ test('errores de integridad tienen mensajes cerrados y accionables', () => {
   assert.match(getMasterAppBuildErrorMessage('engine_release_unconfigured'), /revisión Git exactas/i);
   assert.match(getMasterAppBuildErrorMessage('engine_release_changed'), /release aprobada.*cambió/i);
   assert.match(getMasterAppBuildErrorMessage('job_not_cancelable'), /runner/i);
+  assert.match(getMasterAppBuildErrorMessage('runner_not_registered'), /registro inicial/i);
+  assert.match(getMasterAppBuildErrorMessage('runner_offline'), /servicio privado/i);
+  assert.match(getMasterAppBuildErrorMessage('runner_engine_mismatch'), /revisión exactas/i);
+  assert.match(getMasterAppBuildErrorMessage('runner_capability_missing'), /Firebase o firma/i);
   assert.match(getMasterAppBuildErrorMessage('app_distribution_withdrawn'), /Reactívala/i);
   assert.match(getMasterAppBuildErrorMessage('delete_confirmation_mismatch'), /exactamente/i);
   assert.match(getMasterAppBuildErrorMessage('recovery_window_expired'), /30 días/i);
@@ -392,6 +450,7 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   const runner = readFileSync(new URL('../../mobile-storefront/runner/store-app-runner.ps1', import.meta.url), 'utf8');
   const queue = readFileSync(new URL('../../mobile-storefront/runner/run-job-queue.ps1', import.meta.url), 'utf8');
   const readiness = readFileSync(new URL('../../mobile-storefront/runner/test-runner-readiness.ps1', import.meta.url), 'utf8');
+  const installer = readFileSync(new URL('../../mobile-storefront/runner/install-local-runner-shortcut.ps1', import.meta.url), 'utf8');
   const signingGenerator = readFileSync(new URL('../../mobile-storefront/runner/generate-store-signing.ps1', import.meta.url), 'utf8');
   const validator = readFileSync(new URL('../../mobile-storefront/scripts/validate-store-config.ps1', import.meta.url), 'utf8');
   assert.match(runner, /Preview no admite efectos externos ni compilacion/);
@@ -413,6 +472,17 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(queue, /app\.display_name=\$\(\[string\]\$preview\.identity\.display_name\)/);
   assert.match(queue, /ProvisionUploadSigning/);
   assert.match(queue, /ExistingUploadCertSha256/);
+  assert.match(queue, /storefront-app-runners\/heartbeat/);
+  assert.match(queue, /workspace_clean = \$stillClean/);
+  assert.match(installer, /Tu Senda 84 - Ejecutar runner/);
+  assert.match(installer, /CreateShortcut/);
+  assert.match(installer, /-HeartbeatOnly/);
+  assert.match(installer, /-BuildOnly/);
+  assert.match(installer, /-Once/);
+  assert.match(installer, /EngineRoot debe estar limpio/);
+  assert.match(installer, /PersistentProcess = \$false/);
+  assert.match(installer, /SecretsInShortcutArguments = \$false/);
+  assert.doesNotMatch(installer, /Register-ScheduledTask|New-ScheduledTask/);
   assert.match(readiness, /upload_signing_mode_conflict/);
   assert.match(readiness, /upload_signing_incomplete/);
   assert.match(readiness, /\$uploadKeystoreExists -xor \$uploadPropertiesExists/);

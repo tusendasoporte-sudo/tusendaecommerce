@@ -25,6 +25,16 @@ const legacyBrandJob = jobs.find((job) => job.status === 'needs_attention'
 const cancelableJob = activeExecutionJob?.status === 'queued' && !activeExecutionJob.runner_id
   ? activeExecutionJob : legacyBrandJob;
 const queueNoticeJob = activeExecutionJob || legacyBrandJob;
+const runnerControl = data.runner_control;
+const compatibleOnlineRunner = runnerControl.agents.find((runner) => runner.online && runner.compatible) || null;
+const compatibleRegisteredRunner = compatibleOnlineRunner
+  || runnerControl.agents.find((runner) => runner.compatible) || null;
+const anyOnlineRunner = runnerControl.agents.find((runner) => runner.online) || null;
+const anyRegisteredRunner = runnerControl.agents[0] || null;
+const runnerAuthorizationActive = runnerControl.authorization_state === 'authorized';
+const runnerCanStart = activeExecutionJob?.status === 'queued'
+  && ['pending', 'expired'].includes(runnerControl.authorization_state)
+  && !!compatibleRegisteredRunner;
 const brandAssetUrl = (asset: typeof brandAssets.icon) => asset
   ? `/api/master/store-app-brand-assets?asset_id=${encodeURIComponent(asset.id)}&file_name=${encodeURIComponent(asset.file_name)}`
   : '';
@@ -113,7 +123,7 @@ function activityDateTime(value: string) {
 }
 ---
 
-<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)} data-channel={channel}>
+<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)} data-runner-watch={String(!!activeExecutionJob)} data-channel={channel}>
   <MasterStoreContextHeader
     store={{
       id: store.id,
@@ -192,6 +202,58 @@ function activityDateTime(value: string) {
         </button>
       )}
       <p class="master-form-alert" data-app-cancel-alert hidden></p>
+    </section>
+  )}
+
+  {activeExecutionJob && (
+    <section class="master-card master-app-runner-control" data-prepare-only>
+      <header class="master-card-header">
+        <div>
+          <h2 class="master-card-title">Ejecución privada</h2>
+          <p class="master-card-subtitle">Autoriza este trabajo exacto y luego abre el acceso directo del runner en la PC de compilación.</p>
+        </div>
+        <span class:list={['master-pill', activeExecutionJob.status === 'claimed' || compatibleOnlineRunner ? 'master-pill--success' : 'master-pill--warning']}>
+          {activeExecutionJob.status === 'claimed'
+            ? 'En ejecución'
+            : runnerAuthorizationActive
+              ? 'Esperando apertura manual'
+              : compatibleOnlineRunner ? 'Runner abierto' : compatibleRegisteredRunner ? 'Runner preparado' : 'Runner no registrado'}
+        </span>
+      </header>
+      <div class="master-card-body master-app-runner-control__body">
+        <div class="master-app-runner-control__status">
+          <MasterIcon name={compatibleRegisteredRunner ? 'check' : 'alert'} size={21} />
+          <div>
+            <strong>{compatibleOnlineRunner
+              ? 'Runner manual abierto y conectado'
+              : compatibleRegisteredRunner ? 'Runner manual registrado; no permanece abierto'
+                : anyOnlineRunner ? 'Hay un runner abierto, pero no es compatible' : 'Falta registrar el runner manual'}</strong>
+            <span>{compatibleOnlineRunner
+              ? `Motor ${compatibleOnlineRunner.engine_version} · ${compatibleOnlineRunner.engine_revision.slice(0, 7)} · última señal ${dateTime(compatibleOnlineRunner.last_seen_at)}`
+              : compatibleRegisteredRunner
+                ? `Motor ${compatibleRegisteredRunner.engine_version} · ${compatibleRegisteredRunner.engine_revision.slice(0, 7)} · último registro ${dateTime(compatibleRegisteredRunner.last_seen_at)}. Después de autorizar, abre el acceso directo en la PC.`
+                : anyOnlineRunner || anyRegisteredRunner
+                ? 'Debe coincidir con la release aprobada y permitir localmente las capacidades solicitadas.'
+                : 'Ejecuta una vez el registro inicial desde la PC del runner para vincular su release y capacidades.'}</span>
+          </div>
+        </div>
+        <div class="master-app-runner-control__contract">
+          <span>Trabajo <code>{activeExecutionJob.id}</code></span>
+          <span>Vista previa <code>{activeExecutionJob.preview_hash}</code></span>
+          <span>Permisos: {runnerControl.required_capabilities.firebase ? 'Firebase' : 'sin cambios Firebase'} · {runnerControl.required_capabilities.signing ? 'firma' : 'sin generar firma'}</span>
+        </div>
+        {runnerAuthorizationActive && activeExecutionJob.status === 'queued' && (
+          <p class="master-app-runner-control__waiting">Autorización de un solo uso preparada para {runnerControl.authorized_runner_id}. Abre ahora el acceso directo “Tu Senda 84 – Ejecutar runner”; debe hacerse antes de que pasen 10 minutos.</p>
+        )}
+        <p class="master-form-alert" data-app-runner-alert hidden></p>
+        {activeExecutionJob.status === 'queued' && !runnerAuthorizationActive && (
+          <div class="master-app-build-actions">
+            <button class="master-btn master-btn--primary" type="button" data-app-runner-start data-job-id={activeExecutionJob.id} data-preview-hash={activeExecutionJob.preview_hash} disabled={!runnerCanStart}>
+              <MasterIcon name="external" size={18} /> Autorizar ejecución manual
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   )}
 
@@ -706,6 +768,7 @@ function activityDateTime(value: string) {
     retryMasterStoreAppBuild,
     runMasterStoreAppAdminAction,
     runMasterStoreAppReleaseAction,
+    startMasterStoreAppRunner,
   } from '../../lib/masterStoreAppBuilds';
 
   function initializeStoreAppBuildPanel() {
@@ -742,10 +805,15 @@ function activityDateTime(value: string) {
     const whatsappMarkButton = root.querySelector<HTMLButtonElement>('[data-app-whatsapp-mark-sent]');
     const cancelJobButton = root.querySelector<HTMLButtonElement>('[data-app-cancel-job]');
     const cancelJobAlert = root.querySelector<HTMLElement>('[data-app-cancel-alert]');
+    const runnerStartButton = root.querySelector<HTMLButtonElement>('[data-app-runner-start]');
+    const runnerAlert = root.querySelector<HTMLElement>('[data-app-runner-alert]');
     const adminAlert = root.querySelector<HTMLElement>('[data-app-admin-alert]');
     const releaseAlert = root.querySelector<HTMLElement>('[data-app-release-alert]');
     const previewDismissalKey = `pz-master-app-preview-closed:${storeId}`;
     let currentWhatsappPreview: any = null;
+    if (root.dataset.runnerWatch === 'true') {
+      window.setTimeout(() => window.location.reload(), 15_000);
+    }
 
     const setAlert = (element: HTMLElement | null, message = '') => {
       if (!element) return;
@@ -908,6 +976,26 @@ function activityDateTime(value: string) {
       else {
         setAlert(cancelJobAlert, getMasterAppBuildErrorMessage(result.error));
         cancelJobButton.disabled = false;
+      }
+    });
+
+    runnerStartButton?.addEventListener('click', async () => {
+      const jobId = String(runnerStartButton.dataset.jobId || '');
+      const hash = String(runnerStartButton.dataset.previewHash || '');
+      if (!jobId || !hash || !window.confirm(
+        `Se autorizará durante 10 minutos una sola ejecución para el trabajo ${jobId}. Después debes abrir el acceso directo del runner en la PC. Solo podrá usar la vista previa SHA-256 ${hash}. ¿Continuar?`,
+      )) return;
+      runnerStartButton.disabled = true;
+      setAlert(runnerAlert);
+      const result = await startMasterStoreAppRunner(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
+        job_id: jobId,
+        preview_hash: hash,
+        confirmation: 'INICIAR RUNNER PRIVADO',
+      });
+      if (result.data) window.location.reload();
+      else {
+        setAlert(runnerAlert, getMasterAppBuildErrorMessage(result.error));
+        runnerStartButton.disabled = false;
       }
     });
 
@@ -1221,6 +1309,14 @@ function activityDateTime(value: string) {
   .master-app-build-preview pre { max-height: 36rem; overflow: auto; padding: 1rem; border-radius: 10px; background: #081735; color: #e9f1ff; white-space: pre-wrap; overflow-wrap: anywhere; }
   .master-app-build-hash { color: #5b6880; overflow-wrap: anywhere; }
   .master-app-build-confirm { display: flex; align-items: flex-start; gap: .65rem; padding: 1rem; border: 1px solid #e7b75b; border-radius: 10px; background: #fff9e9; color: #5d430d; }
+  .master-app-runner-control { border-color: #b9cffb; }
+  .master-app-runner-control__body { display: grid; gap: 1rem; }
+  .master-app-runner-control__status { display: flex; align-items: flex-start; gap: .75rem; padding: .9rem 1rem; border-radius: 12px; background: #f3f7ff; color: #155eeb; }
+  .master-app-runner-control__status div { display: grid; gap: .25rem; color: #243858; }
+  .master-app-runner-control__status span { color: #68748a; line-height: 1.45; }
+  .master-app-runner-control__contract { display: grid; gap: .4rem; color: #5b6880; font-size: .8rem; }
+  .master-app-runner-control__contract code { overflow-wrap: anywhere; color: #14264b; }
+  .master-app-runner-control__waiting { margin: 0; padding: .85rem 1rem; border: 1px solid #bbdfca; border-radius: 10px; background: #effaf3; color: #17643a; font-weight: 700; }
   .master-app-build-history { display: grid; gap: .75rem; }
   .master-app-build-history article { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .85rem 0; border-bottom: 1px solid #e6eaf1; }
   .master-app-build-history article:last-child { border-bottom: 0; }

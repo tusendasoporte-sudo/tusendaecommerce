@@ -3,6 +3,9 @@ param(
     [Parameter(Mandatory = $true)][ValidatePattern('^https?://')][string]$PocketBaseUrl,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9._:-]{3,100}$')][string]$RunnerId,
     [Parameter(Mandatory = $true)][string]$SecretsRoot,
+    [switch]$ServiceMode,
+    [switch]$HeartbeatOnly,
+    [switch]$BuildOnly,
     [switch]$Once
 )
 
@@ -18,7 +21,23 @@ $apiBaseUrl = [string]$env:PZ_STOREFRONT_API_BASE_URL
 $readiness = Join-Path $PSScriptRoot 'test-runner-readiness.ps1'
 $artifactRemoval = Join-Path $PSScriptRoot 'remove-store-app-artifacts.ps1'
 $mobileRoot = Split-Path -Parent $PSScriptRoot
+$repositoryRoot = Split-Path -Parent $mobileRoot
 $artifactsRoot = Join-Path $mobileRoot 'releases'
+
+$engineVersionLine = Get-Content -LiteralPath (Join-Path $mobileRoot 'config\engine.properties') -Encoding UTF8 |
+    Where-Object { $_ -match '^engine\.version=' } | Select-Object -First 1
+$engineVersion = if ($engineVersionLine) { $engineVersionLine.Substring('engine.version='.Length).Trim() } else { '' }
+$engineRevision = ''
+$workspaceClean = $false
+Push-Location -LiteralPath $repositoryRoot
+try {
+    $engineRevision = ([string](& git rev-parse HEAD 2>$null)).Trim().ToLowerInvariant()
+    $workspaceChanges = @(& git status --porcelain --untracked-files=normal 2>$null)
+    $workspaceClean = $LASTEXITCODE -eq 0 -and $workspaceChanges.Count -eq 0
+} finally { Pop-Location }
+if ($engineVersion -cnotmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $engineRevision -cnotmatch '^[a-f0-9]{40}$') {
+    throw 'No se pudo identificar la release local exacta del motor.'
+}
 
 function Write-Utf8NoBom {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$Content)
@@ -233,6 +252,30 @@ function Send-AdminCompletion {
         -Body ($Body | ConvertTo-Json -Depth 6 -Compress) | Out-Null
 }
 
+function Send-RunnerHeartbeat {
+    $currentRevision = ''
+    $currentChanges = @('unverified')
+    $currentGitOk = $false
+    Push-Location -LiteralPath $repositoryRoot
+    try {
+        $currentRevision = ([string](& git rev-parse HEAD 2>$null)).Trim().ToLowerInvariant()
+        $currentChanges = @(& git status --porcelain --untracked-files=normal 2>$null)
+        $currentGitOk = $LASTEXITCODE -eq 0
+    } finally { Pop-Location }
+    $stillClean = $workspaceClean -and $currentGitOk -and $currentChanges.Count -eq 0 `
+        -and $currentRevision -ceq $engineRevision
+    Invoke-RestMethod -Method Post -Headers $headers -Uri "$baseUrl/api/pz/internal/storefront-app-runners/heartbeat" `
+        -Body (@{
+            runner_id = $RunnerId
+            engine_version = $engineVersion
+            engine_revision = $engineRevision
+            mode = if ($ServiceMode) { 'service' } else { 'manual' }
+            allow_firebase = $allowFirebase
+            allow_signing = $allowSigning
+            workspace_clean = $stillClean
+        } | ConvertTo-Json -Compress) | Out-Null
+}
+
 function Assert-PanelPreviewMatchesLocal {
     param($Panel, $Local)
     foreach ($key in @('app_key', 'brand_key', 'display_name', 'package_name', 'store_url')) {
@@ -275,34 +318,38 @@ function Assert-PanelPreviewMatchesLocal {
 }
 
 do {
-    $adminClaim = Invoke-RestMethod -Method Post -Headers $headers `
-        -Uri "$baseUrl/api/pz/internal/storefront-app-admin-actions/claim" `
-        -Body (@{ runner_id = $RunnerId } | ConvertTo-Json -Compress)
-    if ($adminClaim.action) {
-        $adminAction = $adminClaim.action
-        try {
-            $removal = & $artifactRemoval -Action $adminAction -ArtifactsRoot $artifactsRoot
-            Send-AdminCompletion -Body @{
-                action_id = [string]$adminAction.id
-                runner_id = $RunnerId
-                status = 'succeeded'
-                failure_code = ''
-                deleted_artifact_ids = @($removal.DeletedArtifactIds)
+    Send-RunnerHeartbeat
+    if ($HeartbeatOnly) { break }
+    if (-not $BuildOnly) {
+        $adminClaim = Invoke-RestMethod -Method Post -Headers $headers `
+            -Uri "$baseUrl/api/pz/internal/storefront-app-admin-actions/claim" `
+            -Body (@{ runner_id = $RunnerId } | ConvertTo-Json -Compress)
+        if ($adminClaim.action) {
+            $adminAction = $adminClaim.action
+            try {
+                $removal = & $artifactRemoval -Action $adminAction -ArtifactsRoot $artifactsRoot
+                Send-AdminCompletion -Body @{
+                    action_id = [string]$adminAction.id
+                    runner_id = $RunnerId
+                    status = 'succeeded'
+                    failure_code = ''
+                    deleted_artifact_ids = @($removal.DeletedArtifactIds)
+                }
+            } catch {
+                $failureCode = ([string]$_.Exception.Message).ToLowerInvariant() -replace '[^a-z0-9_:-]', '_'
+                if ($failureCode.Length -lt 3) { $failureCode = 'artifact_removal_failed' }
+                if ($failureCode.Length -gt 80) { $failureCode = $failureCode.Substring(0, 80) }
+                Send-AdminCompletion -Body @{
+                    action_id = [string]$adminAction.id
+                    runner_id = $RunnerId
+                    status = 'needs_attention'
+                    failure_code = $failureCode
+                    deleted_artifact_ids = @()
+                }
             }
-        } catch {
-            $failureCode = ([string]$_.Exception.Message).ToLowerInvariant() -replace '[^a-z0-9_:-]', '_'
-            if ($failureCode.Length -lt 3) { $failureCode = 'artifact_removal_failed' }
-            if ($failureCode.Length -gt 80) { $failureCode = $failureCode.Substring(0, 80) }
-            Send-AdminCompletion -Body @{
-                action_id = [string]$adminAction.id
-                runner_id = $RunnerId
-                status = 'needs_attention'
-                failure_code = $failureCode
-                deleted_artifact_ids = @()
-            }
+            if ($Once) { break }
+            continue
         }
-        if ($Once) { break }
-        continue
     }
     $claim = Invoke-RestMethod -Method Post -Headers $headers -Uri "$baseUrl/api/pz/internal/storefront-app-builds/claim" `
         -Body (@{ runner_id = $RunnerId } | ConvertTo-Json -Compress)

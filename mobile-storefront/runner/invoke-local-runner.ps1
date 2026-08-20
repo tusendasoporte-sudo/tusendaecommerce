@@ -11,6 +11,9 @@ param(
     [string]$GoogleCloudSdk = "$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk",
     [switch]$AuthorizeFirebase,
     [switch]$AuthorizeSigning,
+    [switch]$ServiceMode,
+    [switch]$HeartbeatOnly,
+    [switch]$BuildOnly,
     [switch]$Once
 )
 
@@ -62,7 +65,8 @@ try {
     $env:PZ_GOOGLE_CLOUD_ORGANIZATION_ID = $GoogleCloudOrganizationId
     $env:PZ_GOOGLE_CLOUD_BILLING_ACCOUNT = $GoogleCloudBillingAccount
     $env:PZ_STOREFRONT_API_BASE_URL = $ApiBaseUrl
-    & $queue -PocketBaseUrl $PocketBaseUrl -RunnerId $RunnerId -SecretsRoot $resolvedSecretsRoot -Once:$Once
+    & $queue -PocketBaseUrl $PocketBaseUrl -RunnerId $RunnerId -SecretsRoot $resolvedSecretsRoot `
+        -ServiceMode:$ServiceMode -HeartbeatOnly:$HeartbeatOnly -BuildOnly:$BuildOnly -Once:$Once
 } finally {
     foreach ($name in $names) {
         [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process')

@@ -19,6 +19,7 @@ const ARTIFACTS = "storefront_app_artifacts";
 const APP_CONFIGS = "storefront_app_configs";
 const BRAND_ASSETS = "storefront_app_brand_assets";
 const UPDATE_TICKETS = "storefront_app_update_tickets";
+const RUNNER_AGENTS = "storefront_app_runner_agents";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const BRAND_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/;
@@ -33,6 +34,8 @@ const WHATSAPP_NUMBER_PATTERN = /^[1-9][0-9]{7,14}$/;
 const CERT_SHA256_PATTERN = /^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/;
 const FIREBASE_APP_ID_PATTERN = /^1:[0-9]{6,20}:android:[a-f0-9]{16,64}$/;
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
+const RUNNER_ONLINE_TTL_MS = 45 * 1000;
+const RUNNER_AUTHORIZATION_TTL_MS = 10 * 60 * 1000;
 const BRAND_ASSET_NORMALIZER_PATTERN = /^[a-z0-9._-]{8,80}$/;
 const BRAND_ASSET_FILE_PATTERN = /^(?:icon|splash)[-_][a-f0-9]{32}(?:_[A-Za-z0-9]{6,32})?\.png$/;
 const BRAND_ASSET_MAX_BYTES = 8 * 1024 * 1024;
@@ -545,6 +548,10 @@ function jobSnapshot(job) {
     preview_expires_at: isoDate(recordValue(job, "preview_expires_at")),
     confirmed_at: isoDate(recordValue(job, "confirmed_at")),
     runner_id: recordString(job, "runner_id", 100),
+    execution_authorized_at: isoDate(recordValue(job, "execution_authorized_at")),
+    execution_authorized_until: isoDate(recordValue(job, "execution_authorized_until")),
+    execution_authorized_by: relationId(job, "execution_authorized_by"),
+    execution_runner_id: recordString(job, "execution_runner_id", 100),
     failure_code: recordString(job, "failure_code", 80),
     started_at: isoDate(recordValue(job, "started_at")),
     completed_at: isoDate(recordValue(job, "completed_at")),
@@ -557,6 +564,90 @@ function jobSnapshot(job) {
     delivery_marked_at: isoDate(recordValue(job, "delivery_marked_at")),
     created: isoDate(recordValue(job, "created")),
     updated: isoDate(recordValue(job, "updated")),
+  };
+}
+
+function requiredRunnerCapabilities(preview) {
+  const firebase = bodyValue(preview, "firebase") || {};
+  const signing = bodyValue(preview, "signing") || {};
+  return {
+    firebase: bodyValue(firebase, "create_project") === true
+      || bodyValue(firebase, "register_android_app") === true,
+    signing: bodyValue(signing, "create_app_signing_key") === true
+      || bodyValue(signing, "create_play_upload_key") === true,
+  };
+}
+
+function runnerAgentSnapshot(agent, now) {
+  if (!agent) return null;
+  const lastSeenAt = isoDate(recordValue(agent, "last_seen_at"));
+  const lastSeen = new Date(lastSeenAt);
+  const currentTime = new Date(now || Date.now()).getTime();
+  return {
+    runner_id: recordString(agent, "runner_id", 100),
+    mode: recordString(agent, "mode", 20) === "service" ? "service" : "manual",
+    engine_version: recordString(agent, "engine_version", 40),
+    engine_revision: recordString(agent, "engine_revision", 40).toLowerCase(),
+    allow_firebase: recordValue(agent, "allow_firebase") === true,
+    allow_signing: recordValue(agent, "allow_signing") === true,
+    workspace_clean: recordValue(agent, "workspace_clean") === true,
+    last_seen_at: lastSeenAt,
+    online: Number.isFinite(lastSeen.getTime()) && lastSeen.getTime() > currentTime - RUNNER_ONLINE_TTL_MS,
+  };
+}
+
+function runnerCompatibility(agent, preview, now) {
+  const snapshot = runnerAgentSnapshot(agent, now);
+  const engine = bodyValue(preview, "engine") || {};
+  const required = requiredRunnerCapabilities(preview);
+  const engineMatches = !!snapshot && snapshot.workspace_clean
+    && snapshot.engine_version === text(bodyValue(engine, "target_version"), 40)
+    && snapshot.engine_revision === text(bodyValue(engine, "target_revision"), 40).toLowerCase();
+  const capabilitiesMatch = !!snapshot
+    && (!required.firebase || snapshot.allow_firebase)
+    && (!required.signing || snapshot.allow_signing);
+  return { snapshot, required, engineMatches, capabilitiesMatch };
+}
+
+function authorizationState(job, now) {
+  if (!job) return "none";
+  if (recordString(job, "runner_id", 100) || recordString(job, "status", 30) === "claimed") return "claimed";
+  const authorizedAt = isoDate(recordValue(job, "execution_authorized_at"));
+  const authorizedUntil = new Date(isoDate(recordValue(job, "execution_authorized_until")));
+  if (!authorizedAt) return "pending";
+  return Number.isFinite(authorizedUntil.getTime())
+    && authorizedUntil.getTime() > new Date(now || Date.now()).getTime() ? "authorized" : "expired";
+}
+
+function clearExecutionAuthorization(job) {
+  job.set("execution_authorized_at", "");
+  job.set("execution_authorized_until", "");
+  job.set("execution_authorized_by", "");
+  job.set("execution_runner_id", "");
+  job.set("execution_capabilities", null);
+}
+
+function runnerControlResponse(app, jobs, now) {
+  const activeJob = (jobs || []).find((job) => ["queued", "claimed"].includes(recordString(job, "status", 30))) || null;
+  const preview = activeJob ? storedPreviewValue(activeJob) : null;
+  const agents = records(app, RUNNER_AGENTS, "", "-last_seen_at", 10, {}).map((agent) => {
+    const compatibility = preview ? runnerCompatibility(agent, preview, now) : null;
+    return {
+      ...runnerAgentSnapshot(agent, now),
+      compatible: compatibility
+        ? compatibility.engineMatches && compatibility.capabilitiesMatch
+        : false,
+    };
+  });
+  const required = preview ? requiredRunnerCapabilities(preview) : { firebase: false, signing: false };
+  return {
+    online_ttl_seconds: Math.floor(RUNNER_ONLINE_TTL_MS / 1000),
+    authorization_ttl_seconds: Math.floor(RUNNER_AUTHORIZATION_TTL_MS / 1000),
+    required_capabilities: required,
+    active_job_id: activeJob ? activeJob.id : "",
+    authorization_state: authorizationState(activeJob, now),
+    authorized_runner_id: activeJob ? recordString(activeJob, "execution_runner_id", 100) : "",
+    agents,
   };
 }
 
@@ -1017,6 +1108,10 @@ function managementReady(app) {
       && app.findCollectionByNameOrId(UPDATE_TICKETS).listRule === null
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
+      && !!jobs.fields.getByName("execution_authorized_at")
+      && !!jobs.fields.getByName("execution_authorized_until")
+      && !!jobs.fields.getByName("execution_runner_id")
+      && app.findCollectionByNameOrId(RUNNER_AGENTS).listRule === null
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
       && !!app.findCollectionByNameOrId("users").fields.getByName("phone")
       && !!app.findCollectionByNameOrId(APP_CONFIGS).fields.getByName("firebase_project_id");
@@ -1048,7 +1143,8 @@ function updatePolicySnapshot(app, profile) {
 
 function detailResponse(app, store, actor, includeAnalytics) {
   const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
-  const jobs = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id }).map(jobSnapshot);
+  const jobRecords = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id });
+  const jobs = jobRecords.map(jobSnapshot);
   const artifacts = records(app, ARTIFACTS, "store = {:store}", "-created", 50, { store: store.id })
     .map((artifact) => artifactSnapshot(artifact, profile));
   const administrative = appAdmin.adminDetail(app, profile);
@@ -1069,6 +1165,7 @@ function detailResponse(app, store, actor, includeAnalytics) {
     artifacts,
     update_policy: updatePolicySnapshot(app, profile),
     admin_actions: administrative.actions,
+    runner_control: runnerControlResponse(app, jobRecords, new Date()),
     policy: {
       firebase_project_per_store: true,
       signing_custodian: "Tu Senda 84",
@@ -1077,6 +1174,7 @@ function detailResponse(app, store, actor, includeAnalytics) {
       aab_default_store_slug: "powerzona",
       aab_master_only: true,
       runner_isolated: true,
+      runner_requires_explicit_authorization: true,
       web_store_independent: true,
     },
   };
@@ -2172,8 +2270,9 @@ function handleConfirm(e) {
       job.set("status", "queued");
       job.set("confirmed_by", actor.id);
       job.set("confirmed_at", new Date().toISOString());
+      clearExecutionAuthorization(job);
       app.save(job);
-      createActivity(app, store, actor, "app_build_preview_confirmed", job, "Vista previa confirmada por Master Admin y enviada al runner aislado");
+      createActivity(app, store, actor, "app_build_preview_confirmed", job, "Vista previa confirmada por Master Admin; la ejecución privada espera autorización separada");
       response = { ok: true, profile: profileSnapshot(profile), job: jobSnapshot(job) };
     });
     return e.json(200, response);
@@ -2223,6 +2322,7 @@ function handleRetry(e) {
       job.set("completed_at", "");
       job.set("confirmed_by", actor.id);
       job.set("confirmed_at", new Date().toISOString());
+      clearExecutionAuthorization(job);
       profile.set("status", recordString(job, "operation", 20) === "provision" ? "queued" : "provisioned");
       profile.set("updated_by", actor.id);
       app.save(profile);
@@ -2239,6 +2339,154 @@ function handleRetry(e) {
       return e.json(409, { ok: false, error: code });
     }
     return e.json(500, { ok: false, error: "app_build_retry_failed" });
+  }
+}
+
+function createRunnerAuthorizationActivity(app, store, actor, job, runnerId, reauthorized) {
+  return storeActivity.createActivity(app, {
+    storeId: store.id,
+    actor,
+    module: "operation",
+    action: reauthorized ? "app_build_runner_reauthorized" : "app_build_runner_authorized",
+    severity: "critical",
+    resourceType: "storefront_app_build",
+    resourceId: job.id,
+    resourceLabel: recordString(store, "name", 140) || "App de tienda",
+    changedFields: ["runner_authorization"],
+    previousValues: {},
+    newValues: { runner_id: runnerId, preview_hash: recordString(job, "preview_hash", 64) },
+    summary: `Master Admin autorizó una sola ejecución para el runner privado ${runnerId}`,
+    sourceEventKey: `storefront_app:runner_authorized:${job.id}:${Date.now()}`,
+  });
+}
+
+function handleRunnerHeartbeat(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    const body = info.body || {};
+    const keys = ["allow_firebase", "allow_signing", "engine_revision", "engine_version", "mode", "runner_id", "workspace_clean"];
+    if (!exactPayload(body, keys)) return e.json(400, { ok: false, error: "invalid_payload" });
+    const parsed = {
+      runnerId: text(bodyValue(body, "runner_id"), 100),
+      engineVersion: text(bodyValue(body, "engine_version"), 40),
+      engineRevision: text(bodyValue(body, "engine_revision"), 40).toLowerCase(),
+      mode: text(bodyValue(body, "mode"), 20),
+      allowFirebase: bodyValue(body, "allow_firebase"),
+      allowSigning: bodyValue(body, "allow_signing"),
+      workspaceClean: bodyValue(body, "workspace_clean"),
+    };
+    if (!/^[A-Za-z0-9._:-]{3,100}$/.test(parsed.runnerId)
+      || !ENGINE_VERSION_PATTERN.test(parsed.engineVersion)
+      || !ENGINE_REVISION_PATTERN.test(parsed.engineRevision)
+      || !["service", "manual"].includes(parsed.mode)
+      || typeof parsed.allowFirebase !== "boolean"
+      || typeof parsed.allowSigning !== "boolean"
+      || typeof parsed.workspaceClean !== "boolean") {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
+    let snapshot = null;
+    $app.runInTransaction((app) => {
+      let agent = findFirst(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId: parsed.runnerId });
+      if (!agent) agent = new Record(app.findCollectionByNameOrId(RUNNER_AGENTS), {});
+      agent.set("runner_id", parsed.runnerId);
+      agent.set("engine_version", parsed.engineVersion);
+      agent.set("engine_revision", parsed.engineRevision);
+      agent.set("mode", parsed.mode);
+      agent.set("allow_firebase", parsed.allowFirebase);
+      agent.set("allow_signing", parsed.allowSigning);
+      agent.set("workspace_clean", parsed.workspaceClean);
+      agent.set("last_seen_at", new Date().toISOString());
+      app.save(agent);
+      snapshot = runnerAgentSnapshot(agent, new Date());
+    });
+    return e.json(200, { ok: true, runner: snapshot });
+  } catch (_) {
+    return e.json(500, { ok: false, error: "runner_heartbeat_failed" });
+  }
+}
+
+function handleRunnerStart(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!exactPayload(info.body || {}, ["confirmation", "job_id", "preview_hash"])) {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
+    const jobId = text(bodyValue(info.body, "job_id"), 15);
+    const previewHash = text(bodyValue(info.body, "preview_hash"), 64).toLowerCase();
+    const confirmation = text(bodyValue(info.body, "confirmation"), 40);
+    if (!RECORD_ID_PATTERN.test(jobId) || !SHA256_PATTERN.test(previewHash)
+      || confirmation !== "INICIAR RUNNER PRIVADO") {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
+    let response = null;
+    $app.runInTransaction((app) => {
+      const now = new Date();
+      const actor = findRecord(app, "users", recordString(info.auth, "id", 15));
+      const job = findRecord(app, JOBS, jobId);
+      if (!actor || !isMaster(actor)) throw new Error("unauthorized");
+      if (!job || recordString(job, "status", 30) !== "queued" || recordString(job, "runner_id", 100)) {
+        throw new Error("runner_job_not_startable");
+      }
+      if (recordString(job, "preview_hash", 64) !== previewHash) throw new Error("preview_mismatch");
+      const store = findRecord(app, "stores", relationId(job, "store"));
+      const profile = findRecord(app, PROFILES, relationId(job, "profile"));
+      if (!store || !profile) throw new Error("profile_not_found");
+      appAdmin.assertBuildAllowed(profile);
+      assertPremium(store, now);
+      const preview = storedPreviewValue(job);
+      assertPreviewEngineRelease(preview);
+      assertPreviewBrandingCurrent(app, store, preview, true, profile);
+
+      const currentState = authorizationState(job, now);
+      const currentRunnerId = recordString(job, "execution_runner_id", 100);
+      if (currentState === "authorized" && currentRunnerId) {
+        const existingAgent = findFirst(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId: currentRunnerId });
+        const existingCompatibility = runnerCompatibility(existingAgent, preview, now);
+        if (existingCompatibility.snapshot
+          && existingCompatibility.engineMatches && existingCompatibility.capabilitiesMatch) {
+          response = { ok: true, idempotent: true, job: jobSnapshot(job), runner: existingCompatibility.snapshot };
+          return;
+        }
+      }
+
+      const agents = records(app, RUNNER_AGENTS, "", "-last_seen_at", 50, {});
+      const registered = agents.map((agent) => ({ agent, compatibility: runnerCompatibility(agent, preview, now) }))
+        .filter((item) => item.compatibility.snapshot);
+      if (!registered.length) throw new Error("runner_not_registered");
+      const matchingEngine = registered.filter((item) => item.compatibility.engineMatches);
+      if (!matchingEngine.length) throw new Error("runner_engine_mismatch");
+      const compatible = matchingEngine.filter((item) => item.compatibility.capabilitiesMatch)
+        .sort((left, right) => {
+          const onlineOrder = Number(right.compatibility.snapshot.online) - Number(left.compatibility.snapshot.online);
+          return onlineOrder || Number(right.compatibility.snapshot.mode === "manual")
+            - Number(left.compatibility.snapshot.mode === "manual");
+        });
+      if (!compatible.length) throw new Error("runner_capability_missing");
+      const selected = compatible[0].compatibility.snapshot;
+      const required = requiredRunnerCapabilities(preview);
+      const reauthorized = !!isoDate(recordValue(job, "execution_authorized_at"));
+      job.set("execution_authorized_at", now.toISOString());
+      job.set("execution_authorized_until", new Date(now.getTime() + RUNNER_AUTHORIZATION_TTL_MS).toISOString());
+      job.set("execution_authorized_by", actor.id);
+      job.set("execution_runner_id", selected.runner_id);
+      job.set("execution_capabilities", required);
+      app.save(job);
+      createRunnerAuthorizationActivity(app, store, actor, job, selected.runner_id, reauthorized);
+      response = { ok: true, idempotent: false, job: jobSnapshot(job), runner: selected };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (code === "unauthorized") return e.json(403, { ok: false, error: code });
+    if (["runner_job_not_startable", "preview_mismatch", "runner_not_registered", "runner_engine_mismatch",
+      "runner_capability_missing", "premium_required", "engine_release_unconfigured", "engine_release_changed",
+      "brand_assets_changed", "brand_assets_required", "app_deletion_pending"].includes(code)) {
+      return e.json(409, { ok: false, error: code });
+    }
+    return e.json(500, { ok: false, error: "runner_start_failed" });
   }
 }
 
@@ -2264,12 +2512,28 @@ function handleRunnerClaim(e) {
             app.save(staleProfile);
           }
         });
-      const job = records(app, JOBS, "status = 'queued'", "+created", 1, {})[0] || null;
+      const agent = findFirst(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId });
+      const agentSnapshot = runnerAgentSnapshot(agent, new Date());
+      if (!agentSnapshot || !agentSnapshot.online) return;
+      const currentTime = Date.now();
+      const job = records(app, JOBS, "status = 'queued'", "+created", 100, {}).find((candidate) => {
+        const authorizedUntil = new Date(isoDate(recordValue(candidate, "execution_authorized_until")));
+        return recordString(candidate, "execution_runner_id", 100) === runnerId
+          && !!isoDate(recordValue(candidate, "execution_authorized_at"))
+          && Number.isFinite(authorizedUntil.getTime())
+          && authorizedUntil.getTime() > currentTime;
+      }) || null;
       if (!job) return;
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
       const store = findRecord(app, "stores", relationId(job, "store"));
       if (!profile || !store) throw new Error("profile_not_found");
       appAdmin.assertBuildAllowed(profile);
+      const compatibility = runnerCompatibility(agent, storedPreviewValue(job), new Date());
+      if (!compatibility.engineMatches || !compatibility.capabilitiesMatch) {
+        clearExecutionAuthorization(job);
+        app.save(job);
+        return;
+      }
       try {
         assertPreviewBrandingCurrent(app, store, storedPreviewValue(job), true, profile);
       } catch (_) {
@@ -2730,7 +2994,9 @@ module.exports = {
   handleBrandAssetUpload,
   handleArtifactDownload,
   handleMasterArtifactDownload,
+  handleRunnerHeartbeat,
   handleRunnerClaim,
+  handleRunnerStart,
   handleRunnerArtifactUpload,
   handleRunnerBrandAssetFile,
   handleRunnerComplete,

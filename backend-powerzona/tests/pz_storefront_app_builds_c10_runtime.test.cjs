@@ -390,6 +390,79 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assertStatus(c107Confirmed, 200, 'confirmar vista previa C10.7');
     const c107RunnerHeaders = { 'x-pz-store-app-runner': runtimeEnvironment.PZ_STORE_APP_RUNNER_SECRET };
+    const unauthorizedClaim = await request('/api/pz/internal/storefront-app-builds/claim', {
+      headers: c107RunnerHeaders,
+      body: { runner_id: 'runtime-c107-runner' },
+    });
+    assertStatus(unauthorizedClaim, 200, 'mantener el trabajo fuera del alcance del runner antes de autorizar');
+    assert.equal(unauthorizedClaim.data.job, null);
+
+    const c107Heartbeat = await request('/api/pz/internal/storefront-app-runners/heartbeat', {
+      headers: c107RunnerHeaders,
+      body: {
+        runner_id: 'runtime-c107-runner',
+        engine_version: '2.1.0',
+        engine_revision: ENGINE_REVISION,
+        mode: 'manual',
+        allow_firebase: true,
+        allow_signing: true,
+        workspace_clean: true,
+      },
+    });
+    assertStatus(c107Heartbeat, 200, 'registrar presencia segura del runner C10.7');
+    assert.equal(c107Heartbeat.data.runner.online, true);
+
+    const registeredRunners = await request('/api/collections/storefront_app_runner_agents/records?perPage=10', {
+      token: superToken,
+    });
+    assertStatus(registeredRunners, 200, 'consultar registro privado del runner manual');
+    const registeredRunner = registeredRunners.data.items.find((item) => item.runner_id === 'runtime-c107-runner');
+    assert.ok(registeredRunner);
+    await update('storefront_app_runner_agents', registeredRunner.id, {
+      last_seen_at: '2026-08-20T00:00:00.000Z',
+    });
+
+    const runnerDetail = await request('/api/pz/master/storefront-app-builds', {
+      token: masterToken, body: { store_id: provisionStore.id },
+    });
+    assertStatus(runnerDetail, 200, 'consultar presencia del runner desde Master');
+    assert.equal(runnerDetail.data.runner_control.authorization_state, 'pending');
+    assert.equal(runnerDetail.data.runner_control.agents[0].compatible, true);
+    assert.equal(runnerDetail.data.runner_control.agents[0].online, false);
+
+    const c107Started = await request('/api/pz/master/storefront-app-builds/start-runner', {
+      token: masterToken,
+      body: {
+        job_id: c107Preview.data.job.id,
+        preview_hash: c107Preview.data.job.preview_hash,
+        confirmation: 'INICIAR RUNNER PRIVADO',
+      },
+    });
+    assertStatus(c107Started, 200, 'autorizar un solo trabajo C10.7 desde Master');
+    assert.equal(c107Started.data.job.execution_runner_id, 'runtime-c107-runner');
+    assert.ok(c107Started.data.job.execution_authorized_until);
+
+    const offlineClaim = await request('/api/pz/internal/storefront-app-builds/claim', {
+      headers: c107RunnerHeaders,
+      body: { runner_id: 'runtime-c107-runner' },
+    });
+    assertStatus(offlineClaim, 200, 'impedir claim sin señal fresca aunque Master haya autorizado');
+    assert.equal(offlineClaim.data.job, null);
+
+    const freshManualHeartbeat = await request('/api/pz/internal/storefront-app-runners/heartbeat', {
+      headers: c107RunnerHeaders,
+      body: {
+        runner_id: 'runtime-c107-runner',
+        engine_version: '2.1.0',
+        engine_revision: ENGINE_REVISION,
+        mode: 'manual',
+        allow_firebase: true,
+        allow_signing: true,
+        workspace_clean: true,
+      },
+    });
+    assertStatus(freshManualHeartbeat, 200, 'abrir manualmente el runner con una señal fresca');
+
     const c107Claim = await request('/api/pz/internal/storefront-app-builds/claim', {
       headers: c107RunnerHeaders,
       body: { runner_id: 'runtime-c107-runner' },

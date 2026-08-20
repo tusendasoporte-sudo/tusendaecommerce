@@ -151,6 +151,10 @@ export type StorefrontAppBuildJob = {
   preview_expires_at: string;
   confirmed_at: string;
   runner_id: string;
+  execution_authorized_at: string;
+  execution_authorized_until: string;
+  execution_authorized_by: string;
+  execution_runner_id: string;
   failure_code: string;
   started_at: string;
   completed_at: string;
@@ -163,6 +167,29 @@ export type StorefrontAppBuildJob = {
   delivery_marked_at: string;
   created: string;
   updated: string;
+};
+
+export type StorefrontAppRunnerAgent = {
+  runner_id: string;
+  mode: 'service' | 'manual';
+  engine_version: string;
+  engine_revision: string;
+  allow_firebase: boolean;
+  allow_signing: boolean;
+  workspace_clean: boolean;
+  last_seen_at: string;
+  online: boolean;
+  compatible: boolean;
+};
+
+export type StorefrontAppRunnerControl = {
+  online_ttl_seconds: number;
+  authorization_ttl_seconds: number;
+  required_capabilities: { firebase: boolean; signing: boolean };
+  active_job_id: string;
+  authorization_state: 'none' | 'pending' | 'authorized' | 'claimed' | 'expired';
+  authorized_runner_id: string;
+  agents: StorefrontAppRunnerAgent[];
 };
 
 export type StorefrontAppArtifact = {
@@ -292,6 +319,7 @@ export type MasterStoreAppBuilds = {
   artifacts: StorefrontAppArtifact[];
   download_analytics: StorefrontAppDownloadAnalytics;
   admin_actions: StorefrontAppAdminAction[];
+  runner_control: StorefrontAppRunnerControl;
   update_policy: {
     minimum_supported_version_code: number;
     minimum_supported_version_name: string;
@@ -305,6 +333,7 @@ export type MasterStoreAppBuilds = {
     aab_default_store_slug: 'powerzona';
     aab_master_only: true;
     runner_isolated: true;
+    runner_requires_explicit_authorization?: true;
     web_store_independent?: true;
   };
 };
@@ -669,12 +698,16 @@ function job(value: any): StorefrontAppBuildJob | null {
   const deliverySenderWhatsapp = text(value.delivery_sender_whatsapp, 15);
   const deliveryRecipientWhatsapp = text(value.delivery_recipient_whatsapp, 15);
   const deliveryMessageSha256 = text(value.delivery_message_sha256, 64).toLowerCase();
+  const executionAuthorizedBy = text(value.execution_authorized_by, 15);
+  const executionRunnerId = text(value.execution_runner_id, 100);
   if (!['', 'pending', 'marked_sent'].includes(deliveryStatus)
     || (deliverySenderId && !RECORD_ID_PATTERN.test(deliverySenderId))
     || (deliveryRecipientId && !RECORD_ID_PATTERN.test(deliveryRecipientId))
     || !WHATSAPP_NUMBER_PATTERN.test(deliverySenderWhatsapp)
     || !WHATSAPP_NUMBER_PATTERN.test(deliveryRecipientWhatsapp)
-    || (deliveryMessageSha256 && !SHA256_PATTERN.test(deliveryMessageSha256))) return null;
+    || (deliveryMessageSha256 && !SHA256_PATTERN.test(deliveryMessageSha256))
+    || (executionAuthorizedBy && !RECORD_ID_PATTERN.test(executionAuthorizedBy))
+    || (executionRunnerId && !/^[A-Za-z0-9._:-]{3,100}$/.test(executionRunnerId))) return null;
   return {
     id: text(value.id, 15),
     profile_id: text(value.profile_id, 15),
@@ -685,6 +718,10 @@ function job(value: any): StorefrontAppBuildJob | null {
     preview_expires_at: isoDate(value.preview_expires_at),
     confirmed_at: isoDate(value.confirmed_at),
     runner_id: text(value.runner_id, 100),
+    execution_authorized_at: isoDate(value.execution_authorized_at),
+    execution_authorized_until: isoDate(value.execution_authorized_until),
+    execution_authorized_by: executionAuthorizedBy,
+    execution_runner_id: executionRunnerId,
     failure_code: text(value.failure_code, 80),
     started_at: isoDate(value.started_at),
     completed_at: isoDate(value.completed_at),
@@ -859,6 +896,78 @@ function emptyDownloadAnalytics(generatedAt: unknown): StorefrontAppDownloadAnal
   };
 }
 
+function runnerAgent(value: any): StorefrontAppRunnerAgent | null {
+  const runnerId = text(value?.runner_id, 100);
+  const mode = text(value?.mode, 20);
+  const engineVersion = text(value?.engine_version, 40);
+  const engineRevision = text(value?.engine_revision, 40).toLowerCase();
+  if (!/^[A-Za-z0-9._:-]{3,100}$/.test(runnerId)
+    || !['service', 'manual'].includes(mode)
+    || !ENGINE_VERSION_PATTERN.test(engineVersion)
+    || !/^[a-f0-9]{40}$/.test(engineRevision)
+    || typeof value?.allow_firebase !== 'boolean'
+    || typeof value?.allow_signing !== 'boolean'
+    || typeof value?.workspace_clean !== 'boolean'
+    || typeof value?.online !== 'boolean'
+    || typeof value?.compatible !== 'boolean'
+    || !isoDate(value?.last_seen_at)) return null;
+  return {
+    runner_id: runnerId,
+    mode: mode as StorefrontAppRunnerAgent['mode'],
+    engine_version: engineVersion,
+    engine_revision: engineRevision,
+    allow_firebase: value.allow_firebase,
+    allow_signing: value.allow_signing,
+    workspace_clean: value.workspace_clean,
+    last_seen_at: isoDate(value.last_seen_at),
+    online: value.online,
+    compatible: value.compatible,
+  };
+}
+
+function emptyRunnerControl(): StorefrontAppRunnerControl {
+  return {
+    online_ttl_seconds: 45,
+    authorization_ttl_seconds: 600,
+    required_capabilities: { firebase: false, signing: false },
+    active_job_id: '',
+    authorization_state: 'none',
+    authorized_runner_id: '',
+    agents: [],
+  };
+}
+
+function runnerControl(value: any): StorefrontAppRunnerControl | null {
+  if (value === undefined) return emptyRunnerControl();
+  const state = text(value?.authorization_state, 20);
+  const activeJobId = text(value?.active_job_id, 15);
+  const authorizedRunnerId = text(value?.authorized_runner_id, 100);
+  const onlineTtl = integer(value?.online_ttl_seconds);
+  const authorizationTtl = integer(value?.authorization_ttl_seconds);
+  const agents = Array.isArray(value?.agents)
+    ? value.agents.map(runnerAgent).filter(Boolean) as StorefrontAppRunnerAgent[]
+    : [];
+  if (!['none', 'pending', 'authorized', 'claimed', 'expired'].includes(state)
+    || (activeJobId && !RECORD_ID_PATTERN.test(activeJobId))
+    || (authorizedRunnerId && !/^[A-Za-z0-9._:-]{3,100}$/.test(authorizedRunnerId))
+    || onlineTtl < 10 || authorizationTtl < 60
+    || typeof value?.required_capabilities?.firebase !== 'boolean'
+    || typeof value?.required_capabilities?.signing !== 'boolean'
+    || agents.length !== (Array.isArray(value?.agents) ? value.agents.length : 0)) return null;
+  return {
+    online_ttl_seconds: onlineTtl,
+    authorization_ttl_seconds: authorizationTtl,
+    required_capabilities: {
+      firebase: value.required_capabilities.firebase,
+      signing: value.required_capabilities.signing,
+    },
+    active_job_id: activeJobId,
+    authorization_state: state as StorefrontAppRunnerControl['authorization_state'],
+    authorized_runner_id: authorizedRunnerId,
+    agents,
+  };
+}
+
 function detail(value: any): MasterStoreAppBuilds | null {
   if (value?.ok !== true || !RECORD_ID_PATTERN.test(text(value.store?.id, 15))) return null;
   const normalizedProfile = value.profile ? profile(value.profile) : null;
@@ -874,6 +983,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const normalizedDownloadAnalytics = value.download_analytics === undefined
     ? emptyDownloadAnalytics(value.generated_at)
     : downloadAnalytics(value.download_analytics);
+  const normalizedRunnerControl = runnerControl(value.runner_control);
   const updatePolicy = value.update_policy || {
     minimum_supported_version_code: 0,
     minimum_supported_version_name: '',
@@ -881,7 +991,10 @@ function detail(value: any): MasterStoreAppBuilds | null {
   };
   const updateReleaseState = text(updatePolicy.release_state, 20);
   const policy = value.policy;
+  const activeJobId = jobs.find((item) => ['queued', 'claimed'].includes(item.status))?.id || '';
   if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets || !normalizedDownloadAnalytics
+    || !normalizedRunnerControl
+    || (value.runner_control !== undefined && normalizedRunnerControl.active_job_id !== activeJobId)
     || !Number.isSafeInteger(Number(updatePolicy.minimum_supported_version_code))
     || Number(updatePolicy.minimum_supported_version_code) < 0
     || !['', 'active', 'paused', 'withdrawn'].includes(updateReleaseState)
@@ -890,6 +1003,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
     || policy?.aab_default_store_slug !== 'powerzona'
     || policy?.aab_master_only !== true
     || policy?.runner_isolated !== true
+    || (value.runner_control !== undefined && policy?.runner_requires_explicit_authorization !== true)
     || !Array.isArray(policy?.store_admin_delivery)) return null;
   return {
     generated_at: isoDate(value.generated_at),
@@ -905,6 +1019,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
     artifacts,
     download_analytics: normalizedDownloadAnalytics,
     admin_actions: adminActions,
+    runner_control: normalizedRunnerControl,
     update_policy: {
       minimum_supported_version_code: Number(updatePolicy.minimum_supported_version_code),
       minimum_supported_version_name: text(updatePolicy.minimum_supported_version_name, 40),
@@ -1045,6 +1160,12 @@ export function getMasterAppBuildErrorMessage(error: string) {
     brand_asset_busy: 'Ya hay varias imágenes convirtiéndose. Espera un momento.',
     job_not_cancelable: 'El trabajo ya fue reclamado por el runner y no puede cancelarse desde el panel.',
     job_not_retryable: 'Este trabajo ya no admite reanudación.',
+    runner_job_not_startable: 'Este trabajo ya fue reclamado, cancelado o dejó de estar disponible para iniciar.',
+    runner_not_registered: 'El runner manual todavía no está registrado. Ejecuta una vez el registro inicial desde la PC de compilación.',
+    runner_offline: 'El servicio privado de compilación no está conectado. Enciende la PC del runner o revisa el servicio de Windows.',
+    runner_engine_mismatch: 'El runner conectado no tiene la versión y revisión exactas del motor aprobado.',
+    runner_capability_missing: 'El runner conectado no tiene autorizadas localmente las capacidades de Firebase o firma que exige esta vista previa.',
+    runner_start_failed: 'No se pudo autorizar la ejecución privada. Revisa el estado del runner e inténtalo nuevamente.',
     profile_not_provisioned: 'La app todavía no está aprovisionada; no puede generar una actualización.',
     master_whatsapp_required: 'Configura primero el número oficial de WhatsApp del Master con código de país.',
     primary_admin_required: 'La tienda todavía no tiene un administrador principal designado.',
@@ -1166,6 +1287,21 @@ export function confirmMasterStoreAppBuild(
     const normalizedJob = job(value.job);
     const normalizedProfile = profile(value.profile);
     return normalizedJob && normalizedProfile ? { job: normalizedJob, profile: normalizedProfile } : null;
+  });
+}
+
+export function startMasterStoreAppRunner(
+  pocketbaseUrl: string,
+  token: string,
+  input: { job_id: string; preview_hash: string; confirmation: 'INICIAR RUNNER PRIVADO' },
+) {
+  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/start-runner', input, (value) => {
+    if (value?.ok !== true) return null;
+    const normalizedJob = job(value.job);
+    const normalizedRunner = runnerAgent({ ...value.runner, compatible: true });
+    return normalizedJob && normalizedRunner
+      ? { job: normalizedJob, runner: normalizedRunner, idempotent: value.idempotent === true }
+      : null;
   });
 }
 

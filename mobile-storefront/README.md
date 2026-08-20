@@ -4,7 +4,43 @@ Este proyecto es el template Android reproducible de Tu Senda 84. La marca, URL,
 
 Toda APK/AAB `Release` deriva su origen nativo de producción desde `store.url`. Por ejemplo, `https://tusenda84.com/t/powerzona` fija `https://tusenda84.com` para registro de instalaciones, App Check y analítica nativa. Un valor alternativo de `PZ_STOREFRONT_API_BASE_URL` solo cambia la variante `Staging`; no puede desviar una release confirmada ni las apps nuevas a staging.
 
-El frontend Master no ejecuta Gradle. Solo crea una vista previa inmutable y, tras una confirmación explícita, pone el trabajo en cola. El proceso privado `runner/run-job-queue.ps1` reclama trabajos mediante un secreto aislado y llama al motor `runner/store-app-runner.ps1` en un workspace Android dedicado.
+El frontend Master no ejecuta Gradle. Crea una vista previa inmutable y, tras una primera confirmación, deja el trabajo en cola sin hacerlo reclamable. Un segundo control, **Autorizar ejecución manual**, habilita durante diez minutos una sola ejecución ligada al ID, SHA-256 de la vista previa, release Git y capacidades exactas. Cuando el usuario abre el acceso directo local, `runner/run-job-queue.ps1` registra una señal fresca, reclama únicamente el trabajo asignado, llama a `runner/store-app-runner.ps1` y termina después de esa ejecución.
+
+## Runner manual y acceso directo
+
+`runner/install-local-runner-shortcut.ps1` crea en el escritorio **Tu Senda 84 - Ejecutar runner**. No instala servicios ni procesos persistentes y no contiene contraseñas en sus argumentos. El checkout indicado por `EngineRoot` debe ser Git, estar limpio y contener el commit aprobado. `-RegisterNow` envía únicamente el heartbeat inicial; no reclama trabajos, no compila y no ejecuta acciones administrativas.
+
+- registro previo y última señal del runner;
+- versión y revisión exactas del motor;
+- si Firebase y firma están permitidos por la política local;
+- estado pendiente, autorizado, en ejecución o completado.
+
+Ejemplo de instalación desde un checkout aislado y limpio:
+
+```powershell
+.\mobile-storefront\runner\install-local-runner-shortcut.ps1 `
+  -PocketBaseUrl 'https://api.tusenda84.com' `
+  -ApiBaseUrl 'https://tusenda84.com' `
+  -RunnerId 'windows-storefront-01' `
+  -SecretsRoot 'C:\ruta\privada\storefront-runner' `
+  -GoogleCloudOrganizationId '<organizacion>' `
+  -EngineRoot 'C:\ruta\checkout-limpio' `
+  -AllowFirebase `
+  -AllowSigning `
+  -RegisterNow
+```
+
+### Cómo ejecutarlo cada vez que haga falta
+
+1. En Master, crear y revisar la vista previa.
+2. Confirmarla para dejar el trabajo en cola.
+3. Presionar **Autorizar ejecución manual**.
+4. Dentro de los diez minutos siguientes, iniciar sesión en la PC de compilación y abrir **Tu Senda 84 - Ejecutar runner**.
+5. No escribir ni cerrar la ventana de PowerShell. El runner valida credenciales, checkout, motor, Firebase, firma y SHA-256 antes de ejecutar efectos.
+6. Esperar a que la ventana se cierre sola. El runner procesa como máximo un trabajo y termina tanto si no encuentra autorización como después de completar o reportar un fallo.
+7. Volver a Master: el panel se actualiza automáticamente mientras el trabajo está activo.
+
+La PC solo necesita estar encendida durante el build y el usuario custodio debe iniciar sesión porque las credenciales usan DPAPI CurrentUser. El panel web no abre programas en la PC: prepara una autorización de un uso para el runner registrado. Si pasan diez minutos, la autorización vence. Una señal fresca incompatible —checkout modificado, release distinta o capacidad local ausente— impide el claim aunque Master hubiera autorizado usando el registro anterior.
 
 ## Versionado y alertas del motor
 

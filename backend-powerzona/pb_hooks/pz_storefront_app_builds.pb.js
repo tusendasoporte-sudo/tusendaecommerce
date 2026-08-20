@@ -52,6 +52,15 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/internal/storefront-app-runners/heartbeat",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerHeartbeat(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/internal/storefront-app-builds/claim",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerClaim(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireRunner(e),
@@ -148,6 +157,16 @@ routerAdd(
   "POST",
   "/api/pz/master/storefront-app-builds/confirm",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleConfirm(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/master/storefront-app-builds/start-runner",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleRunnerStart(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
   $apis.requireAuth(),
   $apis.bodyLimit(2048),
