@@ -392,6 +392,7 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   const runner = readFileSync(new URL('../../mobile-storefront/runner/store-app-runner.ps1', import.meta.url), 'utf8');
   const queue = readFileSync(new URL('../../mobile-storefront/runner/run-job-queue.ps1', import.meta.url), 'utf8');
   const readiness = readFileSync(new URL('../../mobile-storefront/runner/test-runner-readiness.ps1', import.meta.url), 'utf8');
+  const signingGenerator = readFileSync(new URL('../../mobile-storefront/runner/generate-store-signing.ps1', import.meta.url), 'utf8');
   const validator = readFileSync(new URL('../../mobile-storefront/scripts/validate-store-config.ps1', import.meta.url), 'utf8');
   assert.match(runner, /Preview no admite efectos externos ni compilacion/);
   assert.match(runner, /AllowFirebaseProvisioning/);
@@ -408,6 +409,10 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(queue, /ProvisionUploadSigning/);
   assert.match(queue, /ExistingUploadCertSha256/);
   assert.match(readiness, /upload_signing_mode_conflict/);
+  assert.match(signingGenerator, /\$KeyPurpose -eq 'app'/);
+  assert.match(signingGenerator, /\$payload\.operation -ne 'provision'.*create_app_signing_key/s);
+  assert.match(signingGenerator, /\$payload\.signing\.create_play_upload_key/);
+  assert.doesNotMatch(signingGenerator, /if \(\$preview\.payload\.operation -ne 'provision'\)/);
 });
 
 test('inventario Master normaliza alertas de motor sin ejecutar builds', async () => {

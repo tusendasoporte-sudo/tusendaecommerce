@@ -18,8 +18,20 @@ $preview = Get-Content -LiteralPath $ConfirmedPreviewPath -Raw -Encoding UTF8 | 
 if ($preview.preview_hash -ne $ConfirmedPreviewHash -or $preview.payload.config_key -ne $ConfigKey) {
     throw 'La confirmacion no coincide con la vista previa.'
 }
-if ($preview.payload.operation -ne 'provision') { throw 'Solo el aprovisionamiento inicial puede generar firmas.' }
-if ($KeyPurpose -eq 'upload' -and -not [bool]$preview.payload.build.aab) { throw 'Esta tienda no utiliza clave de subida.' }
+$payload = $preview.payload
+if (@('provision', 'update') -notcontains [string]$payload.operation) {
+    throw 'La operacion confirmada no admite generar firmas.'
+}
+if ($KeyPurpose -eq 'app') {
+    if ($payload.operation -ne 'provision' -or -not [bool]$payload.signing.create_app_signing_key) {
+        throw 'Solo el aprovisionamiento inicial confirmado puede generar la firma principal.'
+    }
+} else {
+    if (-not [bool]$payload.build.aab) { throw 'Esta tienda no utiliza clave de subida.' }
+    if (-not [bool]$payload.signing.create_play_upload_key) {
+        throw 'La vista previa confirmada no autoriza generar la firma de subida.'
+    }
+}
 
 $storePassword = [string]$env:PZ_STORE_APP_KEYSTORE_PASSWORD
 $keyPassword = [string]$env:PZ_STORE_APP_KEY_PASSWORD
