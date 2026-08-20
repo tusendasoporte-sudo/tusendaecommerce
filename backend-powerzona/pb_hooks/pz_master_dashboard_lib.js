@@ -15,12 +15,20 @@ const LOG_MESSAGES = {
   PZ_MASTER_ORDER_QUERY_FAILED: "PowerZona master order query failed safely.",
 };
 
-function logMasterActivity(code) {
+function errorDetail(error) {
+  return String(error && error.message ? error.message : error || "unknown")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 240);
+}
+
+function logMasterActivity(code, error) {
   try {
     $app.logger().error(
       LOG_MESSAGES[code] || LOG_MESSAGES.PZ_MASTER_ACTIVITY_SUMMARY_FAILED,
       "code",
-      code
+      code,
+      "detail",
+      errorDetail(error)
     );
   } catch (_) {}
 }
@@ -266,7 +274,7 @@ function queryRows(app, sql, bindings, model, logCode) {
     app.db().newQuery(sql).bind(bindings || {}).all(rows);
     return rows;
   } catch (error) {
-    logMasterActivity(logCode);
+    logMasterActivity(logCode, error);
     throw error;
   }
 }
@@ -1001,8 +1009,8 @@ function handleStoreAnalyticsDetail(e) {
       top_pages: pagesResult.topPages,
       pages: pagesResult.pages,
     });
-  } catch (_) {
-    logMasterActivity("PZ_MASTER_ANALYTICS_DETAIL_FAILED");
+  } catch (error) {
+    logMasterActivity("PZ_MASTER_ANALYTICS_DETAIL_FAILED", error);
     return e.json(500, { ok: false, error: "analytics_failed" });
   }
 }
@@ -1106,8 +1114,8 @@ function handleOrderReadonlyDetail(e) {
         items: queryOrderItems($app, payload.orderId),
       },
     });
-  } catch (_) {
-    logMasterActivity("PZ_MASTER_ORDER_DETAIL_FAILED");
+  } catch (error) {
+    logMasterActivity("PZ_MASTER_ORDER_DETAIL_FAILED", error);
     return e.json(500, { ok: false, error: "order_failed" });
   }
 }
@@ -1165,7 +1173,7 @@ function queryStoreActivity(app, cutoff) {
       ORDER BY s.id
     `).bind({ cutoff }).all(rows);
   } catch (error) {
-    logMasterActivity("PZ_MASTER_ACTIVITY_QUERY_FAILED");
+    logMasterActivity("PZ_MASTER_ACTIVITY_QUERY_FAILED", error);
     throw error;
   }
 
@@ -1199,8 +1207,8 @@ function handleStoreActivitySummary(e) {
       generated_at: new Date().toISOString(),
       items: queryStoreActivity($app, cutoffIso(PERIOD_DAYS)),
     });
-  } catch (_) {
-    logMasterActivity("PZ_MASTER_ACTIVITY_SUMMARY_FAILED");
+  } catch (error) {
+    logMasterActivity("PZ_MASTER_ACTIVITY_SUMMARY_FAILED", error);
     return e.json(500, { ok: false, error: "summary_failed" });
   }
 }

@@ -33,12 +33,20 @@ const LOG_MESSAGES = {
   PZ_MASTER_PRODUCT_QUERY_FAILED: "PowerZona master product query failed safely.",
 };
 
-function logMasterProducts(code) {
+function errorDetail(error) {
+  return String(error && error.message ? error.message : error || "unknown")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 240);
+}
+
+function logMasterProducts(code, error) {
   try {
     $app.logger().error(
       LOG_MESSAGES[code] || LOG_MESSAGES.PZ_MASTER_PRODUCTS_LIST_FAILED,
       "code",
-      code
+      code,
+      "detail",
+      errorDetail(error)
     );
   } catch (_) {}
 }
@@ -229,7 +237,7 @@ function queryRows(app, sql, bindings, model, logCode) {
     app.db().newQuery(sql).bind(bindings || {}).all(rows);
     return rows;
   } catch (error) {
-    logMasterProducts(logCode);
+    logMasterProducts(logCode, error);
     throw error;
   }
 }
@@ -658,8 +666,8 @@ function handleStoreProducts(e) {
       filters: { categories, subcategories },
       page: listProducts($app, payload, store.status === "active"),
     });
-  } catch (_) {
-    logMasterProducts("PZ_MASTER_PRODUCTS_LIST_FAILED");
+  } catch (error) {
+    logMasterProducts("PZ_MASTER_PRODUCTS_LIST_FAILED", error);
     return e.json(500, { ok: false, error: "products_failed" });
   }
 }
@@ -915,8 +923,8 @@ function handleStoreProductDetail(e) {
       variations_total: variations.total,
       related_products: related,
     });
-  } catch (_) {
-    logMasterProducts("PZ_MASTER_PRODUCT_DETAIL_FAILED");
+  } catch (error) {
+    logMasterProducts("PZ_MASTER_PRODUCT_DETAIL_FAILED", error);
     return e.json(500, { ok: false, error: "product_failed" });
   }
 }

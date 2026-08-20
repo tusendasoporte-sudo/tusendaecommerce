@@ -5,9 +5,21 @@ const PERIOD_DAYS = 30;
 const PAGE_SIZE = 10;
 const PRICE_STATUSES = ["active", "paused", "deleted", "all"];
 
-function logOverview(code) {
+function errorDetail(error) {
+  return String(error && error.message ? error.message : error || "unknown")
+    .replace(/[\r\n\t]+/g, " ")
+    .slice(0, 240);
+}
+
+function logOverview(code, error) {
   try {
-    $app.logger().error("PowerZona master overview failed safely.", "code", code);
+    $app.logger().error(
+      "PowerZona master overview failed safely.",
+      "code",
+      code,
+      "detail",
+      errorDetail(error)
+    );
   } catch (_) {}
 }
 
@@ -436,8 +448,8 @@ function handleGlobalOverview(e) {
       recent_activity: queryActivity($app, "", 8),
       top_stores: queryTopStores($app, cutoffIso()),
     });
-  } catch (_) {
-    logOverview("PZ_MASTER_GLOBAL_OVERVIEW_FAILED");
+  } catch (error) {
+    logOverview("PZ_MASTER_GLOBAL_OVERVIEW_FAILED", error);
     return e.json(500, { ok: false, error: "overview_failed" });
   }
 }
@@ -477,8 +489,8 @@ function handleStoreOverview(e) {
       security: securityMetrics($app, parsed.storeId, labels.status),
       team: teamMetrics($app, parsed.storeId),
     });
-  } catch (_) {
-    logOverview("PZ_MASTER_STORE_OVERVIEW_FAILED");
+  } catch (error) {
+    logOverview("PZ_MASTER_STORE_OVERVIEW_FAILED", error);
     return e.json(500, { ok: false, error: "overview_failed" });
   }
 }
@@ -589,8 +601,8 @@ function handlePriceWatchPage(e) {
       page: pricePage($app, parsed),
       stores: priceStores($app),
     });
-  } catch (_) {
-    logOverview("PZ_MASTER_PRICE_WATCH_PAGE_FAILED");
+  } catch (error) {
+    logOverview("PZ_MASTER_PRICE_WATCH_PAGE_FAILED", error);
     return e.json(500, { ok: false, error: "price_watch_failed" });
   }
 }
