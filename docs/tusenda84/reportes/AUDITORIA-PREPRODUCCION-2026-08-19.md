@@ -4,13 +4,13 @@
 
 Producción no se actualizará hasta disponer de una copia integrada de `pb_data` fuera del servidor y comprobar una restauración aislada. Volver solo al contenedor anterior no es suficiente porque el despliegue nuevo incorpora migraciones de PocketBase.
 
-## Punto actual de producción preservado
+## Punto anterior de producción preservado para rollback
 
-- Commit activo en frontend y backend: `6b95711`.
+- Commit anterior preservado de frontend y backend: `6b95711`.
 - Frontend: `tusenda-frontend-production` (`jtrit41bvul0opvg6b29mqc8`).
 - Backend: `tusenda-pocketbase-production` (`v6xlthr74wt63ri2yhqvot1t`).
-- Imagen frontend activa: `sha256:776cf22146aa88b08671f6300df59938abb39ac99bd0136858b227bb28a64201`.
-- Imagen backend activa: `sha256:d7450a7a3b1de29f9f4d28b84f5a8b97e9c9a4700465da46970cff5b1b8d61b4`.
+- Imagen frontend anterior: `sha256:776cf22146aa88b08671f6300df59938abb39ac99bd0136858b227bb28a64201`.
+- Imagen backend anterior: `sha256:d7450a7a3b1de29f9f4d28b84f5a8b97e9c9a4700465da46970cff5b1b8d61b4`.
 - Etiqueta de rollback frontend: `rollback/tusenda-frontend:prod-20260819-6b95711`.
 - Etiqueta de rollback backend: `rollback/tusenda-pocketbase:prod-20260819-6b95711`.
 - Volumen persistente: `/data/coolify/pb_data_production` montado como `/app/pb_data`.
@@ -20,11 +20,11 @@ Las etiquetas se añadieron sin reiniciar, detener o redesplegar los contenedore
 
 ## Versión candidata validada
 
-- Commit base candidato: `8b2ea4a` en `dev`; los ajustes de identidad storefront de esta auditoría siguen locales, sin commit ni push.
+- Commit de aplicación promovido: `612f959` en `main`, mediante fast-forward desde `6b95711`. `dev` conserva además el cierre documental posterior, sin cambios ejecutables adicionales.
 - Astro: `7.2.4`.
 - Adaptador Node: `11.1.4`.
 - PocketBase: `0.39.8`.
-- Frontend local: build aprobado y 580/580 pruebas aprobadas.
+- Frontend local: build aprobado y 583/583 pruebas aprobadas.
 - Backend local sobre PocketBase 0.39.8: 738 pruebas; 731 aprobadas, 7 omitidas por requerir entornos externos y 0 fallos.
 - Frontend staging: deployment `htrrygwk8qsgo3gn7staa5mn`, éxito en 1m17s.
 - Backend staging: deployment `kd1exc5d40gm8qkfq5wcfgip`, éxito en 25s.
@@ -44,7 +44,7 @@ La actualización eliminó las vulnerabilidades altas del frontend. `npm audit -
 - No hay almacenamiento S3 ni tarea programada que replique los backups fuera del host.
 - Coolify se administra actualmente por HTTP directo en el puerto 8000.
 
-## Configuración productiva preparada sin despliegue
+## Configuración productiva aplicada
 
 - Se generaron secretos aleatorios independientes de 64 caracteres directamente para producción; no se imprimieron, no se copiaron desde staging y no se guardaron en Git.
 - Frontend configurado en runtime con `PZ_STOREFRONT_INTERNAL_SECRET`, `PZ_STOREFRONT_PUSH_RELAY_SECRET` y `PZ_STOREFRONT_MEDIA_PUBLIC_ORIGIN`.
@@ -54,8 +54,8 @@ La actualización eliminó las vulnerabilidades altas del frontend. `npm audit -
 - Mientras no exista DNS para `media.tusenda84.com`, el origen media se fijó de forma segura a `https://api.tusenda84.com`.
 - Healthcheck backend preparado y habilitado: HTTP `localhost:8080/api/health`, código 200, intervalo 15 s, timeout 5 s, 5 reintentos y arranque 30 s.
 - Healthcheck frontend preparado y habilitado: HTTP `localhost:4321/`, código 200, intervalo 15 s, timeout 5 s, 5 reintentos y arranque 30 s.
-- Coolify indica que estos cambios se aplicarán en el próximo redeploy. No se reinició ni desplegó ningún servicio durante la preparación.
-- Tras guardar la configuración, ambos servicios continúan en `6b95711`; `https://api.tusenda84.com/api/health` y `https://tusenda84.com/` responden HTTP 200.
+- La configuración quedó aplicada durante la promoción del commit `612f959`. Los valores privados permanecen ocultos en Coolify.
+- `https://api.tusenda84.com/api/health`, `https://tusenda84.com/` y `https://tusenda84.com/t/powerzona` responden HTTP 200.
 
 ## Puerta obligatoria antes del despliegue
 
@@ -67,7 +67,7 @@ La actualización eliminó las vulnerabilidades altas del frontend. `npm audit -
 6. [x] Guardar el checksum y la ruta de custodia.
 7. [x] Preparar variables y healthchecks sin aplicarlos.
 8. [x] Custodiar y validar la configuración Firebase y congelar las identidades de firma de las dos APK existentes.
-9. [ ] Ejecutar la validación completa de los cambios locales, hacer commit/push y realizar el despliegue por etapas.
+9. [x] Ejecutar la validación completa, hacer commit/push, promover producción y comprobar cada servicio por separado.
 
 ## Identidades Firebase y APK congeladas
 
@@ -108,6 +108,17 @@ Promoción: backup verificado → variables runtime → backend → salud/migrac
 
 Rollback ante fallo: detener promoción → restaurar `pb_data` completo desde la copia verificada → iniciar la imagen backend etiquetada de `6b95711` → comprobar `/api/health` → iniciar la imagen frontend etiquetada de `6b95711` → comprobar tienda, login, catálogo y pedido de lectura.
 
+## Promoción productiva ejecutada
+
+- El código de aplicación de `origin/dev` se promovió a `origin/main` en `612f959` mediante fast-forward, sin reescritura de historial. El cierre documental se mantiene después únicamente en `dev` para no provocar otro redeploy sin cambios ejecutables.
+- El webhook de `main` inició backend y frontend automáticamente en paralelo. La validación se cerró de forma secuencial: primero backend y sus migraciones/health, después frontend y sus smokes. Para futuras promociones estrictamente escalonadas debe pausarse temporalmente el autodeploy del frontend.
+- Backend: deployment `smhib9h6klbr2ptvhowa0465`, `Success`, 48 segundos, commit `612f959`; health pública HTTP 200 con `API is healthy`.
+- Frontend: deployment `cpa9ix9t3pkxs1coro8ixv9i`, `Success`, 3 minutos 8 segundos, commit `612f959`; el contenedor nuevo pasó el primer healthcheck interno en `http://localhost:4321/`.
+- Smoke público: portada y tienda PowerZona HTTP 200; el catálogo renderiza categorías y productos y la consola del navegador no registra errores.
+- Smoke administrativo anónimo: la ruta Master de aplicaciones redirige a `https://tusenda84.com/master-login` y presenta el formulario esperado.
+- Verificación de migraciones y privacidad: `storefront_app_build_profiles`, `storefront_app_artifacts`, `storefront_app_brand_assets` y `storefront_app_admin_actions` existen y responden 403 a lecturas anónimas, no 404.
+- La copia externa, las imágenes etiquetadas de `6b95711` y el procedimiento de restauración continúan disponibles para rollback.
+
 ## Estado
 
-`PUERTA DE ROLLBACK APROBADA; DESPLIEGUE AÚN BLOQUEADO`. El backup externo y la restauración aislada quedaron verificados; las identidades de las dos APK y la configuración Firebase compartida de clientes quedaron congeladas; las variables runtime y los healthchecks están preparados sin aplicar. Falta validar por completo los cambios locales, hacer commit/push y ejecutar la promoción controlada de backend y frontend. También permanecen como mejoras operativas Sentinel/Metrics, notificaciones, límites y backup remoto. Producción continúa sirviendo `6b95711`.
+`PRODUCCIÓN ACTUALIZADA Y VERIFICADA`. Frontend y backend sirven el commit `612f959`, los healthchecks y smokes aprobados no detectaron regresiones y la puerta de rollback a `6b95711` permanece disponible. Las dos identidades APK quedaron congeladas, pero no se construyeron ni publicaron APK nuevas durante esta promoción. Permanecen como mejoras operativas no bloqueantes Sentinel/Metrics, notificaciones, límites y backup remoto.
