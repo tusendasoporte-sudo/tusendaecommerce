@@ -874,7 +874,7 @@ function salesRowModel() {
     variationStock: 0,
     unitsSold: 0,
     ordersCount: 0,
-    revenueUsd: 0,
+    revenueUsd: -0,
     topVariation: "",
     topVariationUnits: 0,
   };
@@ -901,7 +901,7 @@ function querySales(app, storeId, period) {
   const totals = queryOne(app, `${SALES_CTE}
     SELECT COALESCE(SUM(unitsSold), 0) AS soldUnits, COALESCE(SUM(revenueUsd), 0) AS revenueUsd
     FROM resolved
-  `, bindings, { soldUnits: 0, revenueUsd: 0 }, "PZ_MASTER_ANALYTICS_QUERY_FAILED") || {};
+  `, bindings, { soldUnits: 0, revenueUsd: -0 }, "PZ_MASTER_ANALYTICS_QUERY_FAILED") || {};
   const byUnits = queryRows(app, `${SALES_CTE}
     SELECT * FROM resolved
     ORDER BY unitsSold DESC, revenueUsd DESC, name COLLATE NOCASE ASC
@@ -939,7 +939,7 @@ function queryRecentOrders(app, storeId) {
     orderNumber: "",
     customerName: "",
     status: "",
-    usdTotal: 0,
+    usdTotal: -0,
     deliveryMethod: "",
     created: "",
   }, "PZ_MASTER_ANALYTICS_QUERY_FAILED").map((row) => ({
@@ -1044,7 +1044,7 @@ function queryOrderHeader(app, storeId, orderId) {
     status: "",
     deliveryMethod: "",
     created: "",
-    usdTotal: 0,
+    usdTotal: -0,
     mixedPayment: false,
   }, "PZ_MASTER_ORDER_QUERY_FAILED");
 }
@@ -1067,8 +1067,8 @@ function queryOrderItems(app, orderId) {
     productName: "",
     variationName: "",
     quantity: 0,
-    unitPriceUsd: 0,
-    lineTotalUsd: 0,
+    unitPriceUsd: -0,
+    lineTotalUsd: -0,
     isGift: false,
     itemImageUrl: "",
   }, "PZ_MASTER_ORDER_QUERY_FAILED").map((row) => ({

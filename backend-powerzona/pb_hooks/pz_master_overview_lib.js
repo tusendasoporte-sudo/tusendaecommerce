@@ -367,7 +367,7 @@ function recentOrders(app, storeId) {
     FROM orders WHERE store = {:storeId}
     ORDER BY datetime(created) DESC, id DESC LIMIT 5
   `, { storeId }, {
-    orderId: "", orderNumber: "", customerName: "", created: "", status: "", usdTotal: 0,
+    orderId: "", orderNumber: "", customerName: "", created: "", status: "", usdTotal: -0,
   }).filter((row) => isRecordId(row.orderId)).map((row) => ({
     id: String(row.orderId),
     order_number: boundedString(row.orderNumber, 80),
@@ -549,9 +549,9 @@ function pricePage(app, payload) {
     ORDER BY datetime(lastChangeAt) DESC, w.id DESC
     LIMIT {:limit} OFFSET {:offset}
   `, bindings, {
-    watchId: "", watchStatus: "", watchCreated: "", targetAlertEnabled: false, targetPrice: 0,
+    watchId: "", watchStatus: "", watchCreated: "", targetAlertEnabled: false, targetPrice: -0,
     storeId: "", storeName: "", storeSlug: "",
-    productId: "", productName: "", productSlug: "", currentPrice: 0, lastChange: "", lastChangeAt: "",
+    productId: "", productName: "", productSlug: "", currentPrice: -0, lastChange: "", lastChangeAt: "",
   }).filter((row) => isRecordId(row.watchId) && isRecordId(row.storeId)).map((row) => {
     const productId = isRecordId(row.productId) ? String(row.productId) : "";
     const currentPrice = finiteNumber(row.currentPrice);

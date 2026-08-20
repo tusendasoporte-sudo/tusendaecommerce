@@ -615,15 +615,15 @@ function listProducts(app, payload, storeActive) {
   });
   const model = {
     productId: "", name: "", slug: "", active: false, featured: false,
-    trackStock: false, storedStock: 0, basePriceUsd: 0, regularPriceUsd: 0,
-    offerPriceUsd: 0, categoryId: "", subcategoryId: "", deliveryMode: "",
+    trackStock: false, storedStock: 0, basePriceUsd: -0, regularPriceUsd: -0,
+    offerPriceUsd: -0, categoryId: "", subcategoryId: "", deliveryMode: "",
     onlyUsd: false, expirationDate: "", internalRef: "", imagesRaw: "", imageOrderRaw: "",
     created: "", updated: "", watchStatus: "", watchStartedAt: "", categoryName: "", categorySlug: "", joinedCategoryActive: false,
     subcategoryName: "", subcategorySlug: "", joinedSubcategoryActive: false,
     categoryActive: false, subcategoryActive: false, hasVariations: false, variationCount: 0,
     activeVariationCount: 0, allVariationsStock: 0, activeVariationsStock: 0,
-    minVariationPriceUsd: 0, maxVariationPriceUsd: 0, variationPriceFallback: false,
-    currentPriceUsd: 0, publiclyVisible: false, visibilityReason: "", inventoryState: "",
+    minVariationPriceUsd: -0, maxVariationPriceUsd: -0, variationPriceFallback: false,
+    currentPriceUsd: -0, publiclyVisible: false, visibilityReason: "", inventoryState: "",
     noRealStock: false, preorderCapable: false, effectiveOffer: false,
   };
   const items = queryRows(app, `${PRODUCT_STATE_CTE}
@@ -733,7 +733,7 @@ function detailProductRow(app, storeId, productId, storeActive) {
   `, { storeId, productId, storeActive: storeActive ? 1 : 0 }, {
     productId: "", name: "", slug: "", descriptionRaw: "", imagesRaw: "", imageOrderRaw: "",
     active: false, featured: false, featuredOrder: 0, categoryId: "", subcategoryId: "",
-    basePriceUsd: 0, regularPriceUsd: 0, offerPriceUsd: 0, isOffer: false, stock: 0,
+    basePriceUsd: -0, regularPriceUsd: -0, offerPriceUsd: -0, isOffer: false, stock: 0,
     trackStock: false, hasVariations: false, variationView: "", allowPreorder: false,
     onlyUsd: false, deliveryMode: "", expirationDate: "", internalRef: "", extraInfoRaw: "",
     relatedProductsRaw: "", created: "", updated: "", categoryName: "", categorySlug: "",
@@ -775,8 +775,8 @@ function variationRows(app, productId) {
     ORDER BY sort_order ASC, datetime(created) ASC, id ASC
     LIMIT {:limit}
   `, { productId, limit: MAX_VARIATIONS }, {
-    variationId: "", variationType: "", value: "", active: false, priceUsd: 0,
-    offerPriceUsd: 0, isOffer: false, stock: 0, allowPreorder: false,
+    variationId: "", variationType: "", value: "", active: false, priceUsd: -0,
+    offerPriceUsd: -0, isOffer: false, stock: 0, allowPreorder: false,
     internalRef: "", sortOrder: 0, expirationDate: "", imageRaw: "", created: "", updated: "",
   }, "PZ_MASTER_PRODUCT_QUERY_FAILED").map((row) => {
     const regular = finiteNumber(row.priceUsd);
