@@ -176,6 +176,35 @@ test('actualización bloquea identidad, reutiliza firma y exige incrementar vers
   assert.deepEqual(withOptionalAab.delivery.master_only, ['aab', 'build_manifest']);
 });
 
+test('permite una vista previa nueva tras fallar una actualización sin confundirla con un primer build', () => {
+  const store = record(STORE_ID, { slug: 'powerzona', name: 'PowerZona' });
+  const establishedProfile = record(PROFILE_ID, {
+    store: STORE_ID, app_key: 'powerzona-storefront-staging', brand_key: 'powerzona', display_name: 'Power Zona',
+    package_name: 'com.tusenda84.powerzona', store_url: 'https://tusenda84.com/t/powerzona',
+    distribution: 'play_and_direct', status: 'needs_attention', firebase_project_id: 'tu-senda-84-storefront-staging',
+    firebase_app_id: '1:123456789012:android:0123456789abcdef012345',
+    signing_cert_sha256: '12:'.repeat(31) + '12', current_version_code: 10, current_version_name: '0.2.8',
+    last_allocated_version_code: 11,
+  });
+  const preview = builds.buildPreview(store, {
+    operation: 'update', displayName: 'Power Zona', includeAab: true, storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 12, versionName: '0.2.9',
+  }, establishedProfile, new Date('2026-08-20T17:00:00.000Z'), branding());
+  assert.equal(preview.operation, 'update');
+  assert.equal(preview.build.version_code, 12);
+  assert.equal(preview.firebase.create_project, false);
+  assert.equal(preview.signing.create_app_signing_key, false);
+
+  const incompleteFirstBuild = record(PROFILE_ID, {
+    store: STORE_ID, status: 'needs_attention', current_version_code: 0,
+    firebase_project_id: 'tu-senda-84-storefront-staging',
+  });
+  assert.throws(() => builds.buildPreview(store, {
+    operation: 'update', displayName: 'Power Zona', includeAab: true, storeId: STORE_ID, profileId: PROFILE_ID,
+    versionCode: 1, versionName: '0.1.0',
+  }, incompleteFirstBuild, undefined, branding()), /profile_not_provisioned/);
+});
+
 test('release aprobada detecta apps atrasadas y conserva severidad visual', () => {
   const previous = {
     version: process.env.PZ_STOREFRONT_ENGINE_VERSION,

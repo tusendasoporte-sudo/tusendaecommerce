@@ -935,7 +935,15 @@ function buildPreview(store, parsed, profile, now, branding) {
   }
   if (!profile || relationId(profile, "store") !== parsed.storeId) throw new Error("profile_not_found");
   appAdmin.assertBuildAllowed(profile);
-  if (recordString(profile, "status", 30) !== "provisioned") throw new Error("profile_not_provisioned");
+  const profileStatus = recordString(profile, "status", 30);
+  const establishedProfileNeedsAttention = profileStatus === "needs_attention"
+    && recordNumber(profile, "current_version_code") > 0
+    && !!recordString(profile, "firebase_project_id", 128)
+    && !!recordString(profile, "firebase_app_id", 255)
+    && CERT_SHA256_PATTERN.test(recordString(profile, "signing_cert_sha256", 95));
+  if (profileStatus !== "provisioned" && !establishedProfileNeedsAttention) {
+    throw new Error("profile_not_provisioned");
+  }
   const allocatedVersion = Math.max(
     recordNumber(profile, "current_version_code"),
     recordNumber(profile, "last_allocated_version_code"),
