@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -75,6 +76,79 @@ test('runner valida configuración externa con los PNG exactos aprobados por el 
     const result = spawnSync('powershell.exe', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', validator,
       '-ConfigKey', 'c10-runner-brand', '-ExternalConfigPath', configPath,
+      '-ExternalBrandPath', brandPath,
+    ], { cwd: workspace, encoding: 'utf8', windowsHide: true, timeout: 30_000 });
+    assert.equal(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);
+    assert.match(result.stdout, /valida y sin secretos rastreados/i);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('runner conserva icono y splash heredados del motor con sus dimensiones originales', async (context) => {
+  if (process.platform !== 'win32') return context.skip('El runner C10 actual usa PowerShell en Windows.');
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'pz-c10-runner-inherited-brand-'));
+  try {
+    const sourceDirectory = path.join(workspace, 'mobile-storefront', 'brands', 'powerzona');
+    const iconBuffer = await readFile(path.join(sourceDirectory, 'icon.png'));
+    const splashBuffer = await readFile(path.join(sourceDirectory, 'splash.png'));
+    const asset = async (kind, buffer) => {
+      const sha256 = createHash('sha256').update(buffer).digest('hex');
+      const metadata = await sharp(buffer).metadata();
+      const file = `${kind}-${sha256.slice(0, 32)}.png`;
+      await writeFile(path.join(directory, file), buffer);
+      return {
+        file,
+        sha256,
+        width: metadata.width,
+        height: metadata.height,
+        bytes: buffer.byteLength,
+        normalizer_version: 'engine-brand-v1',
+      };
+    };
+    const icon = await asset('icon', iconBuffer);
+    const splash = await asset('splash', splashBuffer);
+    const configPath = path.join(directory, 'storefront.properties');
+    await writeFile(configPath, [
+      'schema.version=1',
+      'store.key=powerzona',
+      'app.key=powerzona-storefront-staging',
+      'store.url=https://tusenda84.com/t/powerzona',
+      'app.display_name=Power Zona',
+      'application.id=com.tusenda84.powerzona',
+      'brand.key=powerzona',
+      'firebase.project_id=tu-senda-84-storefront-staging',
+      'firebase.provisioning=existing',
+      'distribution=play_and_direct',
+      'build.publishable=true',
+      'version.code=12',
+      'version.name=0.2.9',
+      '',
+    ].join('\n'), 'utf8');
+    const brandPath = path.join(directory, 'brand.json');
+    await writeFile(brandPath, JSON.stringify({
+      schema_version: 1,
+      brand_key: 'powerzona',
+      store_key: 'powerzona',
+      display_name: 'Power Zona',
+      application_id: 'com.tusenda84.powerzona',
+      store_url: 'https://tusenda84.com/t/powerzona',
+      publishable: true,
+      firebase_android: {
+        project_id: 'tu-senda-84-storefront-staging', package_name: 'com.tusenda84.powerzona',
+        configuration_file: 'app/google-services.json', tracked_in_git: false,
+      },
+      assets: { icon, splash },
+      palette: {
+        deep_sapphire: '#071F63', energy_cobalt: '#155EEB', flash_blue: '#4A8DFF',
+        platinum: '#C7D0DE', luminous_ice: '#E9F1FF', pearl_white: '#FFFFFF',
+        ink: '#081735', secondary_text: '#465574', base_background: '#F8FAFF',
+      },
+    }), 'utf8');
+
+    const result = spawnSync('powershell.exe', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', validator,
+      '-ConfigKey', 'powerzona', '-ExternalConfigPath', configPath,
       '-ExternalBrandPath', brandPath,
     ], { cwd: workspace, encoding: 'utf8', windowsHide: true, timeout: 30_000 });
     assert.equal(result.status, 0, `${result.stdout || ''}\n${result.stderr || ''}`);

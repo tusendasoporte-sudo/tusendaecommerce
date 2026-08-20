@@ -121,8 +121,9 @@ foreach ($assetName in @('icon', 'splash')) {
     $assetPath = Join-Path (Split-Path -Parent $brandPath) $asset.file
     if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) { throw "Falta el recurso $assetName." }
     if ($ExternalBrandPath) {
-        $expectedWidth = if ($assetName -eq 'icon') { 1024 } else { 1080 }
-        $expectedHeight = if ($assetName -eq 'icon') { 1024 } else { 1920 }
+        $inheritedEngineAsset = [string]$asset.normalizer_version -ceq 'engine-brand-v1'
+        $expectedWidth = if ($inheritedEngineAsset) { [int]$asset.width } elseif ($assetName -eq 'icon') { 1024 } else { 1080 }
+        $expectedHeight = if ($inheritedEngineAsset) { [int]$asset.height } elseif ($assetName -eq 'icon') { 1024 } else { 1920 }
         $dimensions = Get-PngDimensions -Path $assetPath
         $length = (Get-Item -LiteralPath $assetPath).Length
         if ([string]$asset.file -cnotmatch "^$assetName[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png$" -or
