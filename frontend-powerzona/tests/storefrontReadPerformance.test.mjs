@@ -112,7 +112,9 @@ test('portada usa el WebP optimizado original y conserva miniaturas para otros c
 test('tienda y reseña comparten un preview JPEG compatible con WhatsApp', () => {
   assert.match(storeSeo, /STORE_SOCIAL_IMAGE_WIDTH = 1200/);
   assert.match(storeSeo, /STORE_SOCIAL_IMAGE_HEIGHT = 630/);
-  assert.match(storeSeo, /\/api\/og\/tienda\/\$\{storeSlug\}\.jpg/);
+  assert.match(storeSeo, /STORE_SOCIAL_IMAGE_REVISION = '20260820a'/);
+  assert.match(storeSeo, /new URLSearchParams\(\{ r: STORE_SOCIAL_IMAGE_REVISION \}\)/);
+  assert.match(storeSeo, /\/api\/og\/tienda\/\$\{storeSlug\}\.jpg\?\$\{searchParams\.toString\(\)\}/);
   assert.match(home, /buildStoreSocialImagePath/);
   assert.match(orderReview, /buildStoreSocialImagePath/);
   assert.match(home, /\[settings\?\.updated, currentStore\?\.updated\]\.filter\(Boolean\)\.join\('-'\)/);
