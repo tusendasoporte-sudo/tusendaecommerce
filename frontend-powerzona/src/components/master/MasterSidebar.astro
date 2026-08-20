@@ -62,6 +62,54 @@ function initials(value: string, fallback: string) {
     </button>
   </div>
 
+  <section
+    class="master-sidebar__server-monitor"
+    aria-label="Estado del servidor"
+    aria-busy="true"
+    data-master-server-monitor
+  >
+    <header class="master-sidebar__server-header">
+      <span>ESTADO DEL SERVIDOR</span>
+      <i class="master-sidebar__server-dot" aria-hidden="true" data-server-status-dot></i>
+    </header>
+
+    <div class="master-sidebar__server-metric" data-server-metric="memory">
+      <div class="master-sidebar__server-metric-copy">
+        <span>Memoria</span>
+        <strong data-server-metric-value>—</strong>
+        <b data-server-metric-percent>—</b>
+      </div>
+      <div
+        class="master-sidebar__server-track"
+        role="progressbar"
+        aria-label="Uso de memoria"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuetext="Información temporalmente no disponible"
+        data-server-metric-progress
+      ><span data-server-metric-bar></span></div>
+    </div>
+
+    <div class="master-sidebar__server-metric" data-server-metric="disk">
+      <div class="master-sidebar__server-metric-copy">
+        <span>Disco</span>
+        <strong data-server-metric-value>—</strong>
+        <b data-server-metric-percent>—</b>
+      </div>
+      <div
+        class="master-sidebar__server-track"
+        role="progressbar"
+        aria-label="Uso de disco"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuetext="Información temporalmente no disponible"
+        data-server-metric-progress
+      ><span data-server-metric-bar></span></div>
+    </div>
+
+    <p class="master-sidebar__server-status" data-server-status>Conectando…</p>
+  </section>
+
   <nav class="master-sidebar__nav">
     <section class="master-sidebar__section">
       <p class="master-sidebar__label">PRINCIPAL</p>
@@ -171,3 +219,130 @@ function initials(value: string, fallback: string) {
 </aside>
 
 <div class="master-sidebar-overlay" data-master-sidebar-overlay></div>
+
+<script>
+  type ServerMetric = {
+    total_bytes: number;
+    used_bytes: number;
+    available_bytes: number;
+    percent: number;
+  };
+
+  type ServerMetricsPayload = {
+    ok?: boolean;
+    sampled_at?: string;
+    memory?: ServerMetric;
+    disk?: ServerMetric;
+  };
+
+  const BYTE_GIB = 1024 ** 3;
+  const REFRESH_MS = 30_000;
+
+  document.querySelectorAll<HTMLElement>('[data-master-server-monitor]').forEach((monitor) => {
+    if (monitor.dataset.bound === 'true') return;
+    monitor.dataset.bound = 'true';
+
+    const status = monitor.querySelector<HTMLElement>('[data-server-status]');
+    const statusDot = monitor.querySelector<HTMLElement>('[data-server-status-dot]');
+    let sampledAt = 0;
+    let loading = false;
+
+    function formatBytes(value: number) {
+      const gibibytes = Math.max(0, Number(value || 0)) / BYTE_GIB;
+      const maximumFractionDigits = gibibytes >= 10 ? 0 : 1;
+      return `${new Intl.NumberFormat('es', {
+        minimumFractionDigits: maximumFractionDigits,
+        maximumFractionDigits,
+      }).format(gibibytes)} GB`;
+    }
+
+    function level(percent: number) {
+      if (percent >= 85) return 'danger';
+      if (percent >= 70) return 'warning';
+      return 'healthy';
+    }
+
+    function updateMetric(name: 'memory' | 'disk', metric: ServerMetric) {
+      const row = monitor.querySelector<HTMLElement>(`[data-server-metric="${name}"]`);
+      if (!row) return;
+      const value = row.querySelector<HTMLElement>('[data-server-metric-value]');
+      const percent = row.querySelector<HTMLElement>('[data-server-metric-percent]');
+      const progress = row.querySelector<HTMLElement>('[data-server-metric-progress]');
+      const bar = row.querySelector<HTMLElement>('[data-server-metric-bar]');
+      const safePercent = Math.min(100, Math.max(0, Number(metric.percent || 0)));
+      if (value) value.textContent = `${formatBytes(metric.used_bytes)} / ${formatBytes(metric.total_bytes)}`;
+      if (percent) percent.textContent = `${new Intl.NumberFormat('es', { maximumFractionDigits: 1 }).format(safePercent)}%`;
+      if (bar) bar.style.width = `${safePercent}%`;
+      row.dataset.level = level(safePercent);
+      progress?.setAttribute('aria-valuenow', String(safePercent));
+      progress?.setAttribute('aria-valuetext', `${safePercent}% utilizado`);
+    }
+
+    function setUnavailable() {
+      monitor.setAttribute('aria-busy', 'false');
+      monitor.dataset.state = 'unavailable';
+      sampledAt = 0;
+      monitor.querySelectorAll<HTMLElement>('[data-server-metric]').forEach((row) => {
+        delete row.dataset.level;
+        const value = row.querySelector<HTMLElement>('[data-server-metric-value]');
+        const percent = row.querySelector<HTMLElement>('[data-server-metric-percent]');
+        const progress = row.querySelector<HTMLElement>('[data-server-metric-progress]');
+        const bar = row.querySelector<HTMLElement>('[data-server-metric-bar]');
+        if (value) value.textContent = 'No disponible';
+        if (percent) percent.textContent = '—';
+        if (bar) bar.style.width = '0%';
+        progress?.removeAttribute('aria-valuenow');
+        progress?.setAttribute('aria-valuetext', 'Información temporalmente no disponible');
+      });
+      if (status) status.textContent = 'Información temporalmente no disponible';
+      if (statusDot) statusDot.title = 'Sin conexión con el monitor';
+    }
+
+    function updateFreshness() {
+      if (!sampledAt || !status) return;
+      const seconds = Math.max(0, Math.floor((Date.now() - sampledAt) / 1000));
+      if (seconds < 10) status.textContent = 'Actualizado ahora';
+      else if (seconds < 60) status.textContent = `Actualizado hace ${seconds} s`;
+      else status.textContent = `Actualizado hace ${Math.floor(seconds / 60)} min`;
+    }
+
+    async function loadMetrics() {
+      if (loading || document.visibilityState === 'hidden') return;
+      loading = true;
+      monitor.setAttribute('aria-busy', 'true');
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 7000);
+      try {
+        const response = await fetch('/api/master/server-metrics', {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        const payload = await response.json() as ServerMetricsPayload;
+        if (!response.ok || payload.ok !== true || !payload.memory || !payload.disk) throw new Error('metrics_unavailable');
+        updateMetric('memory', payload.memory);
+        updateMetric('disk', payload.disk);
+        const parsedSample = new Date(String(payload.sampled_at || '')).getTime();
+        sampledAt = Number.isFinite(parsedSample) ? parsedSample : Date.now();
+        monitor.dataset.state = 'ready';
+        monitor.setAttribute('aria-busy', 'false');
+        if (statusDot) statusDot.title = 'Monitor conectado';
+        updateFreshness();
+      } catch (_) {
+        setUnavailable();
+      } finally {
+        window.clearTimeout(timeout);
+        loading = false;
+      }
+    }
+
+    void loadMetrics();
+    window.setInterval(loadMetrics, REFRESH_MS);
+    window.setInterval(updateFreshness, 5000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void loadMetrics();
+    });
+  });
+</script>
