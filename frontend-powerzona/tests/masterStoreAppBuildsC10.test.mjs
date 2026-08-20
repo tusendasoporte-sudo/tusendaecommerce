@@ -419,6 +419,8 @@ test('runner y documentación prohíben efectos desde Preview y secretos en Git'
   assert.match(signingGenerator, /\$KeyPurpose -eq 'app'/);
   assert.match(signingGenerator, /\$payload\.operation -ne 'provision'.*create_app_signing_key/s);
   assert.match(signingGenerator, /\$payload\.signing\.create_play_upload_key/);
+  assert.match(signingGenerator, /"keyPassword=\$storePassword"/);
+  assert.doesNotMatch(signingGenerator, /"keyPassword=\$keyPassword"/);
   assert.doesNotMatch(signingGenerator, /if \(\$preview\.payload\.operation -ne 'provision'\)/);
 });
 

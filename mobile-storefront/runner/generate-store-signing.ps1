@@ -60,7 +60,7 @@ try {
         "storeFile=$keystorePath"
         "storePassword=$storePassword"
         "keyAlias=$alias"
-        "keyPassword=$keyPassword"
+        "keyPassword=$storePassword"
     ) | Set-Content -LiteralPath $propertiesPath -Encoding ASCII
     $certificate = & $keytool -list -v -keystore $keystorePath -alias $alias `
         -storepass:env PZ_KEYTOOL_STORE_PASSWORD 2>$null
