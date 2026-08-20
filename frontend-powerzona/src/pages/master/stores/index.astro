@@ -6,6 +6,7 @@ import MasterShell from '../../../components/master/MasterShell.astro';
 import MasterStoresView, { type MasterStoresViewItem } from '../../../components/master/MasterStoresView.astro';
 import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import { getMasterStoreUserSummary } from '../../../lib/masterUsers';
 import { getMasterStoreActivitySummary } from '../../../lib/masterStoreActivity';
 import {
@@ -38,7 +39,7 @@ const storeCounts = await getMasterStoreCounts(authPb);
 const userSummary = await getMasterStoreUserSummary(authPb, storesPage.items.map((store) => store.id));
 const totalUsers = userSummary.total_users;
 const securityMap = await getMasterSecuritySettingsMap(authPb);
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const [activity, securityHealth] = await Promise.all([
   getMasterStoreActivitySummary(pocketbaseUrl, authPb.authStore.token),
   getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token).catch(() => getDefaultSecurityBackendHealth()),

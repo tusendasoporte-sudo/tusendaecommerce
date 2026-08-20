@@ -5,6 +5,7 @@ import Layout from '../../../../../layouts/Layout.astro';
 import MasterOrderReadonlyView from '../../../../../components/master/MasterOrderReadonlyView.astro';
 import MasterShell from '../../../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../../../lib/pocketBaseServerUrl';
 import {
   getMasterOrderReadonlyDetail,
   isValidRecordId,
@@ -52,7 +53,7 @@ const currentStore = {
 };
 
 const analyticsPath = `/master/analytics/${encodeURIComponent(storeId)}`;
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const result = await getMasterOrderReadonlyDetail(
   pocketbaseUrl,
   authPb.authStore.token,

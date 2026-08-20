@@ -5,6 +5,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MasterShell from '../../../components/master/MasterShell.astro';
 import MasterPriceWatchDetailView from '../../../components/master/MasterPriceWatchDetailView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import {
   getMasterProductWatchDetail,
   normalizeHistoryPage,
@@ -44,7 +45,7 @@ const backQuery = returnParams.toString();
 const backUrl = `/master/price-watch${backQuery ? `?${backQuery}` : ''}`;
 
 const detailResult = await getMasterProductWatchDetail(
-  import.meta.env.PUBLIC_POCKETBASE_URL,
+  serverPocketBaseUrl(),
   authPb.authStore.token,
   watchId,
   historyPage,

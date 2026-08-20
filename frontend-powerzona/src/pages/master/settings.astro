@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import MasterSettingsView from '../../components/master/MasterSettingsView.astro';
 import MasterShell from '../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import { getMasterStoreAppEngineUpdates, type ManualWhatsappContact } from '../../lib/masterStoreAppBuilds';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -19,7 +20,7 @@ if (!masterUser) return Astro.redirect('/master');
 
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
 const settingsResult = await getMasterStoreAppEngineUpdates(
-  import.meta.env.PUBLIC_POCKETBASE_URL,
+  serverPocketBaseUrl(),
   authPb.authStore.token,
 );
 const rawFallbackPhone = String(masterUser.phone || '').trim();

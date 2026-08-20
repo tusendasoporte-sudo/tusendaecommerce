@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import MasterNotificationsView from '../../components/master/MasterNotificationsView.astro';
 import MasterShell from '../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import {
   getMasterNotificationsPage,
   normalizeNotificationCategory,
@@ -27,7 +28,7 @@ const currentPage = normalizeNotificationsPage(Astro.url.searchParams.get('page'
 const currentStatus = normalizeNotificationStatus(Astro.url.searchParams.get('status'));
 const currentCategory = normalizeNotificationCategory(Astro.url.searchParams.get('category'));
 const result = await getMasterNotificationsPage(
-  import.meta.env.PUBLIC_POCKETBASE_URL,
+  serverPocketBaseUrl(),
   authPb.authStore.token,
   currentPage,
   currentStatus,

@@ -6,6 +6,7 @@ import MasterShell from '../../../../components/master/MasterShell.astro';
 import MasterStoreActionsController from '../../../../components/master/MasterStoreActionsController.astro';
 import MasterStorePlanView from '../../../../components/master/MasterStorePlanView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStorePlan } from '../../../../lib/masterStorePlans';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 import { getStoreSecuritySettings, SECURITY_STATUS_LABELS } from '../../../../lib/security';
@@ -29,7 +30,7 @@ const [storeResult, planResult, securitySettings] = await Promise.all([
     fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent,featured,protected,updated',
     requestKey: null,
   }).then((record) => ({ record, status: 200 })).catch((error) => ({ record: null, status: Number(error?.status || 0) })),
-  getMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, storeId),
+  getMasterStorePlan(serverPocketBaseUrl(), authPb.authStore.token, storeId),
   getStoreSecuritySettings(storeId, authPb),
 ]);
 

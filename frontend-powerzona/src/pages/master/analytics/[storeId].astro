@@ -5,6 +5,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MasterStoreAnalyticsView from '../../../components/master/MasterStoreAnalyticsView.astro';
 import MasterShell from '../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import {
   getMasterStoreAnalytics,
   isValidRecordId,
@@ -47,7 +48,7 @@ try {
 
 const currentRange = normalizeMasterAnalyticsRange(Astro.url.searchParams.get('range'));
 const pagesPage = normalizeMasterAnalyticsPage(Astro.url.searchParams.get('pages_page'));
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const result = await getMasterStoreAnalytics(
   pocketbaseUrl,
   authPb.authStore.token,

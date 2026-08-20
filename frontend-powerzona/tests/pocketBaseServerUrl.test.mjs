@@ -32,7 +32,7 @@ test('proxy SSR falla cerrado si la URL interna configurada es invalida', () => 
   }
 });
 
-test('solo proxies SSR de identidad usan el selector interno', () => {
+test('proxies SSR de identidad usan el selector interno', () => {
   const proxies = [
     '../src/pages/api/security/track-navigation.ts',
     '../src/pages/api/security/register-order.ts',
@@ -53,4 +53,29 @@ test('solo proxies SSR de identidad usan el selector interno', () => {
   assert.match(publicSecurity, /const baseUrl = serverPocketBaseUrl\(\)/);
   assert.match(read('../src/lib/pocketbase.ts'), /import\.meta\.env\.PUBLIC_POCKETBASE_URL/);
   assert.match(read('../src/lib/auth.ts'), /import\.meta\.env\.PUBLIC_POCKETBASE_URL/);
+});
+
+test('paginas SSR privadas del Master usan la URL interna para llamadas servidor a servidor', () => {
+  const masterPages = [
+    '../src/pages/master/index.astro',
+    '../src/pages/master/mobile-admin.astro',
+    '../src/pages/master/notifications.astro',
+    '../src/pages/master/price-watch.astro',
+    '../src/pages/master/price-watch/[watchId].astro',
+    '../src/pages/master/settings.astro',
+    '../src/pages/master/stores/index.astro',
+    '../src/pages/master/stores/[storeId].astro',
+    '../src/pages/master/stores/[storeId]/app.astro',
+    '../src/pages/master/stores/[storeId]/plan.astro',
+    '../src/pages/master/products/[storeId].astro',
+    '../src/pages/master/products/[storeId]/[productId].astro',
+    '../src/pages/master/analytics/[storeId].astro',
+    '../src/pages/master/analytics/[storeId]/orders/[orderId].astro',
+  ];
+
+  for (const page of masterPages) {
+    const source = read(page);
+    assert.match(source, /serverPocketBaseUrl\(\)/, page);
+    assert.doesNotMatch(source, /import\.meta\.env\.PUBLIC_POCKETBASE_URL/, page);
+  }
 });

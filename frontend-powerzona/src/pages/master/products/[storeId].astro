@@ -5,6 +5,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MasterStoreProductsView from '../../../components/master/MasterStoreProductsView.astro';
 import MasterShell from '../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import {
   getMasterStoreProducts,
   isValidRecordId,
@@ -56,7 +57,7 @@ const categoryParam = String(Astro.url.searchParams.get('category') || '').trim(
 const subcategoryParam = String(Astro.url.searchParams.get('subcategory') || '').trim();
 const currentCategory = isValidRecordId(categoryParam) ? categoryParam : '';
 const currentSubcategory = isValidRecordId(subcategoryParam) ? subcategoryParam : '';
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const result = await getMasterStoreProducts(pocketbaseUrl, authPb.authStore.token, storeId, {
   page: currentPage,
   status: currentStatus,

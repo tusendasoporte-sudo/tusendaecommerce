@@ -6,6 +6,7 @@ import MasterShell from '../../../components/master/MasterShell.astro';
 import MasterStoreOverviewView from '../../../components/master/MasterStoreOverviewView.astro';
 import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import { getStoreSecuritySettings } from '../../../lib/security';
 import { getMasterStoreOverview } from '../../../lib/masterStoreOverview';
 import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
@@ -34,8 +35,9 @@ try {
   return Astro.redirect('/master/stores');
 }
 
+const pocketbaseUrl = serverPocketBaseUrl();
 const [result, securitySettings] = await Promise.all([
-  getMasterStoreOverview(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, storeId),
+  getMasterStoreOverview(pocketbaseUrl, authPb.authStore.token, storeId),
   getStoreSecuritySettings(storeId, authPb),
 ]);
 if (result.status === 404) return Astro.redirect('/master/stores');

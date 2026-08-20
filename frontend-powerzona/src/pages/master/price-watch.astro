@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import MasterShell from '../../components/master/MasterShell.astro';
 import MasterIcon from '../../components/master/MasterIcon.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import { resolveStorePlanPresentation, type StorePlanPresentation } from '../../lib/storePlanPresentation';
 import {
   getMasterPriceWatchPage,
@@ -44,7 +45,7 @@ if (currentStoreId) {
   }
 }
 
-const result = await getMasterPriceWatchPage(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, {
+const result = await getMasterPriceWatchPage(serverPocketBaseUrl(), authPb.authStore.token, {
   page: currentPage,
   status: currentStatus,
   store_id: currentStoreId,

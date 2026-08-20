@@ -6,6 +6,7 @@ import MasterShell from '../../components/master/MasterShell.astro';
 import MasterIcon from '../../components/master/MasterIcon.astro';
 import type { MasterIconName } from '../../lib/masterIcons';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import { getMasterStoreUserCount } from '../../lib/masterUsers';
 import { getMasterStoreActivitySummary } from '../../lib/masterStoreActivity';
 import { getMasterGlobalOverview } from '../../lib/masterStoreOverview';
@@ -30,7 +31,7 @@ const masterUser = requireMasterAdmin(authPb.authStore.record as any);
 if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
 if (!masterUser) return Astro.redirect('/master');
 
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const [storeCounts, totalUsers, activity, overviewResult, notificationFeed, securityMap, engineUpdatesResult] = await Promise.all([
   getMasterStoreCounts(authPb),
   getMasterStoreUserCount(authPb),

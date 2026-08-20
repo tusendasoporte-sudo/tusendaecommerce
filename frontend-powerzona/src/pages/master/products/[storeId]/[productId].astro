@@ -5,6 +5,7 @@ import Layout from '../../../../layouts/Layout.astro';
 import MasterProductReadonlyView from '../../../../components/master/MasterProductReadonlyView.astro';
 import MasterShell from '../../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStoreProductDetail, isValidRecordId } from '../../../../lib/masterStoreProducts';
 import { getMasterProductPriceHistory, getMasterProductWatchDetail, normalizeHistoryPage } from '../../../../lib/masterProductWatches';
 import {
@@ -59,7 +60,7 @@ const currentStore = {
   planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 
-const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const pocketbaseUrl = serverPocketBaseUrl();
 const result = await getMasterStoreProductDetail(
   pocketbaseUrl,
   authPb.authStore.token,

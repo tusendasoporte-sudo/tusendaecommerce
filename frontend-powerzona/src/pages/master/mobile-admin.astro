@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import MasterShell from '../../components/master/MasterShell.astro';
 import MasterMobileAdminReleaseView from '../../components/master/MasterMobileAdminReleaseView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import { getMasterAdminAppDetail } from '../../lib/mobileAdminReleases';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -18,7 +19,7 @@ if (!authPb.authStore.isValid || !master) return Astro.redirect('/master-login')
 const channel = Astro.url.searchParams.get('channel') === 'production' ? 'production' : 'staging';
 
 const result = await getMasterAdminAppDetail(
-  import.meta.env.PUBLIC_POCKETBASE_URL,
+  serverPocketBaseUrl(),
   authPb.authStore.token,
   channel,
 );

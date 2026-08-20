@@ -5,6 +5,7 @@ import Layout from '../../../../layouts/Layout.astro';
 import MasterShell from '../../../../components/master/MasterShell.astro';
 import MasterStoreAppBuildView from '../../../../components/master/MasterStoreAppBuildView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
+import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStoreAppBuilds, getMasterAppBuildErrorMessage } from '../../../../lib/masterStoreAppBuilds';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 
@@ -27,7 +28,7 @@ const storeRecord: any = await authPb.collection('stores').getOne(storeId, {
 }).catch(() => null);
 if (!storeRecord) return Astro.redirect('/master/stores');
 
-const result = await getMasterStoreAppBuilds(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, storeId);
+const result = await getMasterStoreAppBuilds(serverPocketBaseUrl(), authPb.authStore.token, storeId);
 const currentStore = {
   id: storeId,
   name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
