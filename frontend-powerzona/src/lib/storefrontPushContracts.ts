@@ -6,6 +6,8 @@ export const STOREFRONT_MAX_BODY_BYTES = Object.freeze({
   session_bootstrap: 256,
   resolve_target: 512,
   event: 1024,
+  update_policy: 512,
+  update_ticket: 256,
 });
 
 export const STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
@@ -20,6 +22,9 @@ const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
 const TIMEZONE_PATTERN = /^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,3})$/;
 const PERMISSION_STATES = Object.freeze(['unknown', 'granted', 'denied'] as const);
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
+const PACKAGE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const APK_FILE_PATTERN = /^[A-Za-z0-9._-]+\.apk$/;
 const ORDER_TARGET_PATH_PATTERN = /^\/orden\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{6,80}$/;
 const STOREFRONT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?(?:\?[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$/;
 
@@ -198,6 +203,100 @@ export function normalizeStorefrontEventPayload(value: unknown) {
     occurred_at: occurredAt.toISOString(),
     target_path: targetPath,
   });
+}
+
+export function normalizeStorefrontUpdatePolicyPayload(value: unknown) {
+  if (!exactKeys(value, ['install_source', 'package_name', 'version_code', 'version_name'])) return null;
+  const source = value as Record<string, unknown>;
+  const packageName = boundedText(source.package_name, 190, PACKAGE_PATTERN);
+  const versionCode = appVersionCode(source.version_code);
+  const versionName = boundedText(source.version_name, 40, VERSION_PATTERN);
+  const installSource = ['direct', 'play', 'unknown'].includes(String(source.install_source || ''))
+    ? String(source.install_source) as 'direct' | 'play' | 'unknown'
+    : '';
+  return packageName && versionCode && versionName && installSource
+    ? Object.freeze({ package_name: packageName, version_code: versionCode, version_name: versionName, install_source: installSource })
+    : null;
+}
+
+export function normalizeStorefrontUpdateTicketPayload(value: unknown) {
+  if (!exactKeys(value, ['artifact_id'])) return null;
+  const artifactId = boundedText((value as Record<string, unknown>).artifact_id, 15, RECORD_ID_PATTERN);
+  return artifactId ? Object.freeze({ artifact_id: artifactId }) : null;
+}
+
+function normalizeUpdateArtifact(value: unknown) {
+  if (!isPlainObject(value)) return null;
+  const id = boundedText(value.id, 15, RECORD_ID_PATTERN);
+  const fileName = boundedText(value.file_name, 220, APK_FILE_PATTERN);
+  const sha256 = boundedText(value.sha256, 64, SHA256_PATTERN);
+  const bytes = Number(value.bytes);
+  const versionCode = appVersionCode(value.version_code);
+  const versionName = boundedText(value.version_name, 40, VERSION_PATTERN);
+  const packageName = boundedText(value.package_name, 190, PACKAGE_PATTERN);
+  return id && fileName && sha256 && Number.isSafeInteger(bytes) && bytes > 0 && bytes <= 100 * 1024 * 1024
+    && versionCode && versionName && packageName
+    ? Object.freeze({ id, file_name: fileName, sha256, bytes, version_code: versionCode, version_name: versionName, package_name: packageName })
+    : null;
+}
+
+export function mapStorefrontUpdatePolicyResponse(value: unknown) {
+  if (!isPlainObject(value) || value.ok !== true || !isPlainObject(value.policy)) return null;
+  const policy = value.policy;
+  const packageName = boundedText(policy.package_name, 190, PACKAGE_PATTERN);
+  const currentVersionCode = appVersionCode(policy.current_version_code);
+  const currentVersionName = boundedText(policy.current_version_name, 40, VERSION_PATTERN);
+  const latestVersionCode = appVersionCode(policy.latest_version_code);
+  const latestVersionName = boundedText(policy.latest_version_name, 40, VERSION_PATTERN);
+  const minimumVersionCode = Number(policy.minimum_supported_version_code);
+  const deliveryMode = policy.delivery_mode === 'play_store' || policy.delivery_mode === 'private_apk'
+    ? policy.delivery_mode : '';
+  const updateAvailable = typeof policy.update_available === 'boolean' ? policy.update_available : null;
+  const updateRequired = typeof policy.update_required === 'boolean' ? policy.update_required : null;
+  const artifact = policy.artifact === null ? null : normalizeUpdateArtifact(policy.artifact);
+  let playStoreUrl = '';
+  try {
+    const parsed = new URL(String(policy.play_store_url || ''));
+    if (parsed.protocol === 'https:' && parsed.hostname === 'play.google.com'
+      && parsed.pathname === '/store/apps/details' && parsed.searchParams.get('id') === packageName) playStoreUrl = parsed.toString();
+  } catch (_) {}
+  if (!packageName || !currentVersionCode || !currentVersionName || !latestVersionCode || !latestVersionName
+    || !Number.isSafeInteger(minimumVersionCode) || minimumVersionCode < 0 || !deliveryMode
+    || updateAvailable === null || updateRequired === null
+    || (updateAvailable && !artifact) || (!updateAvailable && artifact)
+    || (deliveryMode === 'play_store' && !playStoreUrl)) return null;
+  return Object.freeze({
+    ok: true,
+    policy: Object.freeze({
+      package_name: packageName,
+      current_version_code: currentVersionCode,
+      current_version_name: currentVersionName,
+      latest_version_code: latestVersionCode,
+      latest_version_name: latestVersionName,
+      minimum_supported_version_code: minimumVersionCode,
+      update_available: updateAvailable,
+      update_required: updateRequired,
+      delivery_mode: deliveryMode,
+      play_store_url: playStoreUrl,
+      artifact,
+    }),
+  });
+}
+
+export function mapStorefrontUpdateTicketResponse(value: unknown) {
+  if (!isPlainObject(value) || value.ok !== true) return null;
+  const artifact = normalizeUpdateArtifact(value.artifact);
+  const ticket = boundedText(value.ticket, 43, /^[A-Za-z0-9_-]{43}$/);
+  const expiresAt = typeof value.expires_at === 'string' ? new Date(value.expires_at) : null;
+  let downloadUrl = '';
+  try {
+    const parsed = new URL(String(value.download_url || ''));
+    if (parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.hash
+      && parsed.pathname.startsWith('/api/pz/storefront-app-updates/')) downloadUrl = parsed.toString();
+  } catch (_) {}
+  return artifact && ticket && expiresAt && Number.isFinite(expiresAt.getTime()) && downloadUrl
+    ? Object.freeze({ ok: true, ticket, expires_at: expiresAt.toISOString(), artifact, download_url: downloadUrl })
+    : null;
 }
 
 export function mapStorefrontEventResponse(value: unknown) {

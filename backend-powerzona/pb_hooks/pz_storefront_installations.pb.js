@@ -57,6 +57,30 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/storefront/v1/updates/policy",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "updates_policy"),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/updates/ticket",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "updates_ticket"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
+  "/api/pz/storefront-app-updates/{artifact}/{ticket}/{filename}",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleUpdateDownload(e),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/storefront/v1/events",
   (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "events_record"),
   $apis.bodyLimit(4096),

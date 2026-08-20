@@ -2,6 +2,8 @@
 
 Este proyecto es el template Android reproducible de Tu Senda 84. La marca, URL, `applicationId`, proyecto Firebase, distribución y versión se seleccionan mediante configuración; no se copia ni edita el código fuente por tienda.
 
+Toda APK/AAB `Release` deriva su origen nativo de producción desde `store.url`. Por ejemplo, `https://tusenda84.com/t/powerzona` fija `https://tusenda84.com` para registro de instalaciones, App Check y analítica nativa. Un valor alternativo de `PZ_STOREFRONT_API_BASE_URL` solo cambia la variante `Staging`; no puede desviar una release confirmada ni las apps nuevas a staging.
+
 El frontend Master no ejecuta Gradle. Solo crea una vista previa inmutable y, tras una confirmación explícita, pone el trabajo en cola. El proceso privado `runner/run-job-queue.ps1` reclama trabajos mediante un secreto aislado y llama al motor `runner/store-app-runner.ps1` en un workspace Android dedicado.
 
 ## Versionado y alertas del motor
@@ -63,6 +65,8 @@ Una ejecución necesita la ruta y hash exactos de la vista previa confirmada, ad
 
 PowerZona genera APK firmado con su clave de firma de app y AAB firmado con una clave de subida distinta. Las demás tiendas rechazan AAB y solo generan APK directo. La salida no se sobrescribe y contiene:
 
+El APK directo incluye el permiso Android para solicitar instalaciones privadas. El AAB se construye en modo `PZ_STOREFRONT_PLAY_BUNDLE=true`, usa un manifiesto separado sin ese permiso y delega las actualizaciones a Google Play. El runner impide usar el modo Play para fabricar el APK directo y también impide crear un AAB sin ese aislamiento.
+
 - `{store}-{version}-{code}-direct.apk`;
 - `{store}-{version}-{code}-play.aab`, solo PowerZona;
 - `SHA256SUMS.txt`;
@@ -120,6 +124,12 @@ Retirar o reactivar distribución no llega al runner y nunca elimina archivos. L
 - clave de subida Play, cuando aplica.
 
 Si falta cualquiera de esos datos, el runner falla cerrado. Nunca rota o sobrescribe un keystore existente.
+
+El motor `1.1.0` incorpora la actualización privada dentro de la app. Al abrir una release de producción, la instalación se registra con App Check y consulta una política ligada a su credencial, paquete y versión. Las instalaciones procedentes de Google Play abren la ficha oficial; las instalaciones directas solicitan un ticket aleatorio de un solo uso y dos minutos. El APK descargado se acepta únicamente si coinciden tamaño, SHA-256, paquete, `versionCode` superior y certificado de firma con la app instalada. Android siempre muestra su instalador: no existe instalación silenciosa.
+
+El Master publica cada APK inicialmente como actualización opcional y luego puede volverla obligatoria, pausarla, reanudarla o retirarla sin reconstruir. Pausar o retirar revoca tickets y enlaces nuevos y elimina cualquier mínimo obligatorio para evitar bloquear una app sin una descarga disponible.
+
+PowerZona puede adoptar su identidad histórica `0.2.8` (`versionCode` 10) sin recrear Firebase, paquete, certificado, icono o splash. En ese perfil los recursos actuales se heredan cuando no se cargan reemplazos; una app completamente nueva sí exige ambos archivos. La primera transición a `0.2.9` debe instalarse manualmente porque `0.2.8` todavía no contiene este motor. Desde la versión que incluya `1.1.0`, las siguientes publicaciones ya se anuncian dentro de la app.
 
 ## Secretos prohibidos en Git
 

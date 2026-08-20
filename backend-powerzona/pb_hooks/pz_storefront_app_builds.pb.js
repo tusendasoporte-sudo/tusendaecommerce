@@ -126,6 +126,16 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/master/storefront-app-builds/adopt-existing",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleAdoptExisting(e),
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/master/storefront-app-builds/preview",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handlePreview(e),
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).requireAuthenticatedUser(e),

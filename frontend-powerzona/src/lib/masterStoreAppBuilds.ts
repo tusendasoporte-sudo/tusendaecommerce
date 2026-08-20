@@ -42,6 +42,9 @@ export type StorefrontAppBuildProfile = {
   current_engine_revision: string;
   icon_asset_id: string;
   splash_asset_id: string;
+  origin: 'generated' | 'adopted_existing';
+  branding_mode: 'managed_assets' | 'inherit_existing';
+  adopted_at: string;
   distribution_status: StorefrontAppDistributionStatus;
   distribution_reason: '' | 'manual' | 'plan_downgrade' | 'app_deletion' | 'artifacts_deleted';
   distribution_changed_at: string;
@@ -75,6 +78,8 @@ export type StorefrontAppBrandAsset = {
 
 export type StorefrontAppBrandAssets = {
   ready: boolean;
+  managed_ready: boolean;
+  inherited: boolean;
   normalizer_policy: {
     input: string[];
     icon: { width: 1024; height: 1024 };
@@ -119,11 +124,21 @@ export type StorefrontAppBuildPreview = {
   delivery: { admin_receives: string[]; master_only: string[] };
   branding: {
     palette: Record<string, string>;
-    assets: { icon: StorefrontAppBrandAsset; splash: StorefrontAppBrandAsset };
+    assets: {
+      icon: StorefrontAppBrandAsset | StorefrontInheritedBrandAsset;
+      splash: StorefrontAppBrandAsset | StorefrontInheritedBrandAsset;
+    };
   };
   irreversible_or_sensitive_steps: string[];
   immutable_identity?: string[];
   generated_at: string;
+};
+
+export type StorefrontInheritedBrandAsset = {
+  source: 'engine_brand';
+  kind: 'icon' | 'splash';
+  file_name: string;
+  sha256: string;
 };
 
 export type StorefrontAppBuildJob = {
@@ -163,6 +178,7 @@ export type StorefrontAppArtifact = {
   download_url: string;
   master_download_path: string;
   release_status: '' | 'candidate' | 'approved' | 'published';
+  update_delivery_status: '' | 'active' | 'paused' | 'withdrawn';
   approved_at: string;
   published_at: string;
   lifecycle_status: 'staged' | 'available' | 'deletion_queued' | 'deleted';
@@ -246,6 +262,11 @@ export type MasterStoreAppBuilds = {
   jobs: StorefrontAppBuildJob[];
   artifacts: StorefrontAppArtifact[];
   admin_actions: StorefrontAppAdminAction[];
+  update_policy: {
+    minimum_supported_version_code: number;
+    minimum_supported_version_name: string;
+    release_state: '' | 'active' | 'paused' | 'withdrawn';
+  };
   policy: {
     firebase_project_per_store: true;
     signing_custodian: string;
@@ -481,10 +502,14 @@ function profile(value: any): StorefrontAppBuildProfile | null {
   const distributionStatus = text(value.distribution_status || 'active', 30);
   const distributionReason = text(value.distribution_reason, 40);
   const lifecycleStatus = text(value.lifecycle_status || (value.status === 'retired' ? 'deleted' : 'active'), 30);
+  const origin = text(value.origin || 'generated', 30);
+  const brandingMode = text(value.branding_mode || 'managed_assets', 30);
   if (!normalizedEngineUpdate
     || !['active', 'withdrawn'].includes(distributionStatus)
     || !['', 'manual', 'plan_downgrade', 'app_deletion', 'artifacts_deleted'].includes(distributionReason)
     || !['active', 'deletion_scheduled', 'deleted'].includes(lifecycleStatus)
+    || !['generated', 'adopted_existing'].includes(origin)
+    || !['managed_assets', 'inherit_existing'].includes(brandingMode)
     || (currentEngineVersion && !ENGINE_VERSION_PATTERN.test(currentEngineVersion))
     || !ENGINE_REVISION_PATTERN.test(currentEngineRevision)
     || normalizedEngineUpdate.current_version !== currentEngineVersion
@@ -510,6 +535,9 @@ function profile(value: any): StorefrontAppBuildProfile | null {
     current_engine_revision: currentEngineRevision,
     icon_asset_id: text(value.icon_asset_id, 15),
     splash_asset_id: text(value.splash_asset_id, 15),
+    origin: origin as StorefrontAppBuildProfile['origin'],
+    branding_mode: brandingMode as StorefrontAppBuildProfile['branding_mode'],
+    adopted_at: isoDate(value.adopted_at),
     distribution_status: distributionStatus as StorefrontAppDistributionStatus,
     distribution_reason: distributionReason as StorefrontAppBuildProfile['distribution_reason'],
     distribution_changed_at: isoDate(value.distribution_changed_at),
@@ -552,11 +580,29 @@ function brandAssets(value: any): StorefrontAppBrandAssets | null {
   if (!value || !value.normalizer_policy || !value.palette) return null;
   const icon = value.icon ? brandAsset(value.icon, 'icon') : null;
   const splash = value.splash ? brandAsset(value.splash, 'splash') : null;
-  if ((value.icon && !icon) || (value.splash && !splash) || Boolean(value.ready) !== Boolean(icon && splash)) return null;
+  const inherited = value.inherited === true;
+  const managedReady = Boolean(icon && splash);
+  const ready = managedReady || inherited;
+  if ((value.icon && !icon) || (value.splash && !splash)
+    || (value.managed_ready !== undefined && Boolean(value.managed_ready) !== managedReady)
+    || Boolean(value.ready) !== ready) return null;
   return {
-    ready: Boolean(icon && splash), normalizer_policy: value.normalizer_policy,
-    palette: value.palette, icon, splash,
+    ready, managed_ready: managedReady, inherited,
+    normalizer_policy: value.normalizer_policy, palette: value.palette, icon, splash,
   } as StorefrontAppBrandAssets;
+}
+
+function previewBrandAsset(value: any, expectedKind: 'icon' | 'splash') {
+  const managed = brandAsset(value, expectedKind);
+  if (managed) return managed;
+  const fileName = expectedKind === 'icon' ? 'icon.png' : 'splash.png';
+  if (value?.source !== 'engine_brand' || value?.kind !== expectedKind
+    || text(value?.file_name, 220) !== fileName
+    || !SHA256_PATTERN.test(text(value?.sha256, 64).toLowerCase())) return null;
+  return {
+    source: 'engine_brand', kind: expectedKind, file_name: fileName,
+    sha256: text(value.sha256, 64).toLowerCase(),
+  } as StorefrontInheritedBrandAsset;
 }
 
 function preview(value: any): StorefrontAppBuildPreview | null {
@@ -566,7 +612,8 @@ function preview(value: any): StorefrontAppBuildPreview | null {
   if (!ENGINE_VERSION_PATTERN.test(text(value.engine.target_version, 40))
     || !ENGINE_REVISION_PATTERN.test(text(value.engine.target_revision, 40).toLowerCase())
     || value.engine.change_scope !== 'shared_native_engine') return null;
-  if (!brandAsset(value.branding.assets?.icon, 'icon') || !brandAsset(value.branding.assets?.splash, 'splash')) return null;
+  if (!previewBrandAsset(value.branding.assets?.icon, 'icon')
+    || !previewBrandAsset(value.branding.assets?.splash, 'splash')) return null;
   return value as StorefrontAppBuildPreview;
 }
 
@@ -632,8 +679,10 @@ function artifact(value: any): StorefrontAppArtifact | null {
   const downloadUrl = text(value.download_url, 10000);
   const masterDownloadPath = text(value.master_download_path, 500);
   const releaseStatus = text(value.release_status, 20);
+  const updateDeliveryStatus = text(value.update_delivery_status || (releaseStatus === 'published' ? 'active' : ''), 20);
   if (!['staged', 'available', 'deletion_queued', 'deleted'].includes(lifecycleStatus)
     || !['', 'candidate', 'approved', 'published'].includes(releaseStatus)
+    || !['', 'active', 'paused', 'withdrawn'].includes(updateDeliveryStatus)
     || (value.kind === 'apk' && lifecycleStatus === 'available' && !releaseStatus)
     || (releaseStatus !== 'published' && downloadUrl)
     || (downloadUrl && (!/^https:\/\//.test(downloadUrl)
@@ -646,6 +695,7 @@ function artifact(value: any): StorefrontAppArtifact | null {
     download_url: downloadUrl,
     master_download_path: masterDownloadPath,
     release_status: releaseStatus as StorefrontAppArtifact['release_status'],
+    update_delivery_status: updateDeliveryStatus as StorefrontAppArtifact['update_delivery_status'],
     approved_at: isoDate(value.approved_at),
     published_at: isoDate(value.published_at),
     lifecycle_status: lifecycleStatus as StorefrontAppArtifact['lifecycle_status'],
@@ -706,8 +756,17 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const normalizedEngineRelease = engineRelease(value.engine_release);
   const normalizedManualWhatsappDelivery = manualWhatsappDelivery(value.manual_whatsapp_delivery);
   const normalizedBrandAssets = brandAssets(value.brand_assets);
+  const updatePolicy = value.update_policy || {
+    minimum_supported_version_code: 0,
+    minimum_supported_version_name: '',
+    release_state: '',
+  };
+  const updateReleaseState = text(updatePolicy.release_state, 20);
   const policy = value.policy;
   if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets
+    || !Number.isSafeInteger(Number(updatePolicy.minimum_supported_version_code))
+    || Number(updatePolicy.minimum_supported_version_code) < 0
+    || !['', 'active', 'paused', 'withdrawn'].includes(updateReleaseState)
     || policy?.firebase_project_per_store !== true
     || policy?.aab_optional_for_storefront !== true
     || policy?.aab_default_store_slug !== 'powerzona'
@@ -727,6 +786,11 @@ function detail(value: any): MasterStoreAppBuilds | null {
     jobs,
     artifacts,
     admin_actions: adminActions,
+    update_policy: {
+      minimum_supported_version_code: Number(updatePolicy.minimum_supported_version_code),
+      minimum_supported_version_name: text(updatePolicy.minimum_supported_version_name, 40),
+      release_state: updateReleaseState as MasterStoreAppBuilds['update_policy']['release_state'],
+    },
     policy,
   };
 }
@@ -835,11 +899,17 @@ export function getMasterAppBuildErrorMessage(error: string) {
     premium_required: 'La tienda necesita un plan Premium vigente para administrar su app.',
     store_url_mismatch: 'La URL debe terminar exactamente en /t/{slug de la tienda}.',
     app_identity_already_used: 'El app key, paquete o proyecto Firebase ya pertenece a otra app.',
+    existing_app_config_required: 'La app existente debe estar registrada primero en la configuración privada de push de esta tienda.',
+    adoption_not_supported: 'La adopción automática solo está habilitada para la app histórica de PowerZona.',
+    existing_profile_incompatible: 'El perfil existente no coincide exactamente con PowerZona 0.2.8, su Firebase o su certificado de firma.',
+    existing_profile_busy: 'Hay un build de esta app en ejecución. Termínalo o cancélalo antes de adoptar la identidad existente.',
+    app_adoption_failed: 'No se pudo adoptar la identidad de la app existente.',
     version_code_must_increase: 'El nuevo versionCode debe ser mayor que el publicado anteriormente.',
     candidate_pending: 'Ya existe un APK candidato pendiente. Apruébalo y publícalo antes de crear otra versión.',
     candidate_not_ready: 'El APK candidato todavía no está disponible para esta acción.',
     candidate_approval_required: 'Primero prueba y aprueba el APK candidato; después podrás publicarlo.',
     candidate_release_failed: 'No se pudo cambiar el estado de publicación del APK candidato.',
+    release_not_available: 'Esta publicación ya no está disponible para ese control.',
     preview_expired: 'La vista previa venció. Genera una nueva antes de confirmar.',
     preview_mismatch: 'La vista previa cambió o no coincide con la confirmación.',
     preview_not_confirmable: 'Esta vista previa ya no se puede confirmar.',
@@ -913,7 +983,35 @@ export type UpdatePreviewInput = {
   version_name: string;
 };
 
-export type StorefrontAppReleaseAction = 'approve_candidate' | 'publish_candidate';
+export type StorefrontAppReleaseAction = 'approve_candidate' | 'publish_candidate'
+  | 'require_update' | 'optional_update' | 'pause_update' | 'resume_update' | 'withdraw_update';
+
+export type AdoptExistingStorefrontAppInput = {
+  store_id: string;
+  app_key: string;
+  brand_key: string;
+  display_name: string;
+  include_aab: boolean;
+  firebase_project_id: string;
+  package_name: string;
+  store_url: string;
+  current_version_code: number;
+  current_version_name: string;
+  signing_cert_sha256: string;
+  confirmation: 'ADOPTAR APP EXISTENTE';
+};
+
+export function adoptExistingMasterStoreApp(
+  pocketbaseUrl: string,
+  token: string,
+  input: AdoptExistingStorefrontAppInput,
+) {
+  return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/adopt-existing', input, (value) => {
+    if (value?.ok !== true) return null;
+    const normalizedProfile = profile(value.profile);
+    return normalizedProfile ? { profile: normalizedProfile } : null;
+  });
+}
 
 export function previewMasterStoreAppBuild(
   pocketbaseUrl: string,
@@ -947,7 +1045,10 @@ export function runMasterStoreAppReleaseAction(
     store_id: string;
     artifact_id: string;
     action: StorefrontAppReleaseAction;
-    confirmation: 'APROBAR APK CLIENTES' | 'PUBLICAR APK CLIENTES';
+    confirmation: 'APROBAR APK CLIENTES' | 'PUBLICAR APK CLIENTES'
+      | 'EXIGIR ACTUALIZACION CLIENTES' | 'HACER OPCIONAL ACTUALIZACION CLIENTES'
+      | 'PAUSAR ACTUALIZACION CLIENTES' | 'REANUDAR ACTUALIZACION CLIENTES'
+      | 'RETIRAR ACTUALIZACION CLIENTES';
   },
 ) {
   return post(pocketbaseUrl, token, '/api/pz/master/storefront-app-builds/release-action', input, (value) => {

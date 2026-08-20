@@ -2,7 +2,7 @@
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
 import { proposeFirebaseProjectId, type MasterStoreAppBuilds } from '../../lib/masterStoreAppBuilds';
-import { powerZonaStorefrontDefaults } from '../../lib/storefrontAppDefaults';
+import { POWERZONA_EXISTING_APP_BASELINE, powerZonaStorefrontDefaults } from '../../lib/storefrontAppDefaults';
 import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
@@ -42,6 +42,11 @@ const currentPreviewEngineReady = buildActionsAllowed
 const retryMode = currentActionJob ? ['failed', 'needs_attention'].includes(currentActionJob.status) : false;
 const isPowerZona = store.slug === 'powerzona';
 const powerZonaDefaults = powerZonaStorefrontDefaults();
+const canAdoptPowerZona = isPowerZona && (!profile || (
+  profile.package_name === POWERZONA_EXISTING_APP_BASELINE.packageName
+  && profile.current_version_code === POWERZONA_EXISTING_APP_BASELINE.versionCode
+  && profile.branding_mode !== 'inherit_existing'
+));
 const proposedFirebaseProjectId = isPowerZona
   ? powerZonaDefaults.firebaseProjectId
   : proposeFirebaseProjectId(store.name, store.id);
@@ -85,6 +90,9 @@ const distributionLabel = profile?.distribution_status === 'withdrawn' ? 'Retira
 const lifecycleLabel = profile?.lifecycle_status === 'deletion_scheduled'
   ? 'Eliminación programada'
   : profile?.lifecycle_status === 'deleted' ? 'Eliminada' : 'Activa';
+const updateReleaseState = latestApk?.update_delivery_status || data.update_policy.release_state;
+const latestUpdateRequired = !!latestApk
+  && data.update_policy.minimum_supported_version_code === latestApk.version_code;
 
 const statusLabels: Record<string, string> = {
   preview: 'Vista previa', queued: 'En cola', claimed: 'En ejecución', succeeded: 'Completado',
@@ -184,10 +192,10 @@ function dateTime(value: string) {
     <header class="master-card-header">
       <div>
         <h2 class="master-card-title">Icono y pantalla de inicio</h2>
-        <p class="master-card-subtitle">Sube la imagen original. El Master la convierte automáticamente, sin recortar, elimina sus metadatos y fija su SHA-256.</p>
+        <p class="master-card-subtitle">En una app nueva ambas imágenes son obligatorias. En una app existente puedes conservar las actuales o reemplazar solo la que necesites.</p>
       </div>
       <span class:list={['master-pill', brandAssets.ready ? 'master-pill--success' : 'master-pill--warning']}>
-        {brandAssets.ready ? 'Listos para vista previa' : 'Configuración pendiente'}
+        {brandAssets.inherited ? 'Se conservarán las actuales' : brandAssets.ready ? 'Listos para vista previa' : 'Configuración pendiente'}
       </span>
     </header>
     <div class="master-card-body">
@@ -205,7 +213,7 @@ function dateTime(value: string) {
               <div class:list={['master-app-brand-asset__preview', `is-${kind}`]}>
                 {asset
                   ? <img src={brandAssetUrl(asset)} alt={`Vista normalizada: ${label}`} loading="lazy" />
-                  : <span><MasterIcon name="eye" size={28} /> Sin imagen</span>}
+                  : <span><MasterIcon name="eye" size={28} /> {brandAssets.inherited ? 'Conservar la actual' : 'Sin imagen'}</span>}
               </div>
               <div class="master-app-brand-asset__content">
                 <div>
@@ -220,7 +228,7 @@ function dateTime(value: string) {
                 )}
                 <form data-app-brand-form data-kind={kind}>
                   <label class="master-app-brand-asset__file">
-                    <span>{asset ? 'Elegir reemplazo' : 'Elegir imagen'}</span>
+                    <span>{asset || brandAssets.inherited ? 'Elegir reemplazo opcional' : 'Elegir imagen'}</span>
                     <input type="file" name="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required disabled={!!activeExecutionJob || !buildActionsAllowed} />
                   </label>
                   <button class="master-btn master-btn--primary" type="submit" disabled={!!activeExecutionJob || !buildActionsAllowed}>
@@ -233,7 +241,8 @@ function dateTime(value: string) {
           );
         })}
       </div>
-      {!brandAssets.ready && <p class="master-app-brand-assets__required">Debes completar ambas imágenes antes de crear una vista previa. Nada se envía a Firebase ni al runner al guardarlas.</p>}
+      {!brandAssets.ready && <p class="master-app-brand-assets__required">Como esta app aún no existe, debes completar ambas imágenes antes de crear una vista previa. Nada se envía a Firebase ni al runner al guardarlas.</p>}
+      {brandAssets.inherited && <p class="master-app-brand-assets__required">Si no subes reemplazos, la siguiente APK reutilizará exactamente el icono y el splash versionados de PowerZona.</p>}
     </div>
   </section>
 
@@ -269,8 +278,33 @@ function dateTime(value: string) {
       </div>
     </section>
   ) : (
+    <>
+    {canAdoptPowerZona && (
+      <section class="master-card" data-prepare-only>
+        <header class="master-card-header">
+          <div><h2 class="master-card-title">Adoptar la app PowerZona existente</h2><p class="master-card-subtitle">Registra la identidad ya instalada sin reconstruir la APK 0.2.8 ni crear otro Firebase o certificado.</p></div>
+          <span class="master-pill master-pill--info">Recomendado</span>
+        </header>
+        <form class="master-card-body master-form" data-app-adopt-form>
+          <input type="hidden" name="app_key" value={powerZonaDefaults.appKey} />
+          <input type="hidden" name="brand_key" value="powerzona" />
+          <input type="hidden" name="display_name" value="PowerZona" />
+          <input type="hidden" name="store_url" value="https://tusenda84.com/t/powerzona" />
+          <input type="hidden" name="current_version_code" value={POWERZONA_EXISTING_APP_BASELINE.versionCode} />
+          <input type="hidden" name="current_version_name" value={POWERZONA_EXISTING_APP_BASELINE.versionName} />
+          <div class="master-field-grid">
+            <div class="master-field"><label>Paquete existente</label><input name="package_name" readonly value={POWERZONA_EXISTING_APP_BASELINE.packageName} /></div>
+            <div class="master-field"><label>Versión instalada</label><input readonly value={`${POWERZONA_EXISTING_APP_BASELINE.versionName} (${POWERZONA_EXISTING_APP_BASELINE.versionCode})`} /></div>
+            <div class="master-field master-field--full"><label>Firebase que se conserva</label><input name="firebase_project_id" readonly value={powerZonaDefaults.firebaseProjectId} /></div>
+            <div class="master-field master-field--full"><label>Certificado de firma que se conserva</label><input name="signing_cert_sha256" readonly value={POWERZONA_EXISTING_APP_BASELINE.signingCertSha256} /></div>
+          </div>
+          <p class="master-form-alert" data-app-form-alert hidden></p>
+          <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed}><MasterIcon name="check" size={18} /> Adoptar identidad existente</button></div>
+        </form>
+      </section>
+    )}
     <section class="master-card" data-prepare-only>
-      <header class="master-card-header"><div><h2 class="master-card-title">Aprovisionar por primera vez</h2><p class="master-card-subtitle">La vista previa no crea Firebase, no registra paquetes y no genera firmas.</p></div></header>
+      <header class="master-card-header"><div><h2 class="master-card-title">Crear una app nueva</h2><p class="master-card-subtitle">Aprovisionar por primera vez requiere icono y splash. La vista previa todavía no crea Firebase, registra paquetes ni genera firmas.</p></div></header>
       <form class="master-card-body master-form" data-app-provision-form>
         <div class="master-field-grid">
           <div class="master-field"><label for="app-display-name">Nombre visible</label><input id="app-display-name" name="display_name" maxlength="60" required value={isPowerZona ? 'PowerZona' : store.name} /></div>
@@ -298,6 +332,7 @@ function dateTime(value: string) {
         <div class="master-app-build-actions"><button class="master-btn master-btn--primary" type="submit" disabled={!brandAssets.ready || !!queueNoticeJob || !engineReleaseReady || !buildActionsAllowed}><MasterIcon name="eye" size={18} /> Crear vista previa</button></div>
       </form>
     </section>
+    </>
   )}
 
   {profile && (
@@ -378,7 +413,7 @@ function dateTime(value: string) {
       <form class="master-card-body master-form" data-app-update-form>
         <div class="master-field-grid">
           <div class="master-field"><label for="update-version-code">Nuevo versionCode</label><input id="update-version-code" name="version_code" type="number" min={nextVersionCode} max="2147483647" required value={nextVersionCode} readonly /></div>
-          <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" /></div>
+          <div class="master-field"><label for="update-version-name">Nuevo versionName</label><input id="update-version-name" name="version_name" required pattern={'[0-9]+\\.[0-9]+\\.[0-9]+'} placeholder="1.0.1" value={isPowerZona && profile.current_version_code === 10 ? '0.2.9' : undefined} /></div>
         </div>
         <label class="master-app-build-aab-option">
           <input type="checkbox" name="include_aab" checked={profile.distribution === 'play_and_direct'} disabled={profile.distribution === 'play_and_direct'} />
@@ -456,10 +491,15 @@ function dateTime(value: string) {
       )}
       {latestApk && (
         <article class="master-app-release__published">
-          <div><span>Publicación actual</span><strong>{latestApk.file_name}</strong><small>Versión {latestApk.version_name} ({latestApk.version_code}) · SHA-256 {latestApk.sha256}</small></div>
+          <div><span>Publicación actual · {updateReleaseState === 'paused' ? 'Pausada' : updateReleaseState === 'withdrawn' ? 'Retirada' : latestUpdateRequired ? 'Obligatoria' : 'Opcional'}</span><strong>{latestApk.file_name}</strong><small>Versión {latestApk.version_name} ({latestApk.version_code}) · SHA-256 {latestApk.sha256}</small></div>
           <div class="master-app-release__actions">
             {latestApk.download_url && <a class="master-btn" href={latestApk.download_url} target="_blank" rel="noreferrer"><MasterIcon name="download" size={18} /> Abrir enlace publicado</a>}
             {publishedAab && <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={publishedAab.master_download_path} data-file-name={publishedAab.file_name}><MasterIcon name="download" size={18} /> Descargar AAB para Google Play</button>}
+            {updateReleaseState === 'active' && !latestUpdateRequired && <button class="master-btn master-btn--primary" type="button" data-app-release-action="require_update" data-artifact-id={latestApk.id}>Hacer obligatoria</button>}
+            {updateReleaseState === 'active' && latestUpdateRequired && <button class="master-btn master-btn--secondary" type="button" data-app-release-action="optional_update" data-artifact-id={latestApk.id}>Volver a opcional</button>}
+            {updateReleaseState === 'active' && <button class="master-btn master-btn--secondary" type="button" data-app-release-action="pause_update" data-artifact-id={latestApk.id}>Pausar descargas</button>}
+            {updateReleaseState === 'paused' && <button class="master-btn master-btn--primary" type="button" data-app-release-action="resume_update" data-artifact-id={latestApk.id}>Reanudar descargas</button>}
+            {['active', 'paused'].includes(updateReleaseState) && <button class="master-btn master-btn--danger" type="button" data-app-release-action="withdraw_update" data-artifact-id={latestApk.id}>Retirar publicación</button>}
           </div>
         </article>
       )}
@@ -591,6 +631,7 @@ function dateTime(value: string) {
 <script>
   import PocketBase from 'pocketbase';
   import {
+    adoptExistingMasterStoreApp,
     cancelMasterStoreAppBuild,
     confirmMasterStoreAppBuild,
     downloadMasterStoreAppArtifact,
@@ -838,12 +879,22 @@ function dateTime(value: string) {
 
     root.querySelectorAll<HTMLButtonElement>('[data-app-release-action]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const action = String(button.dataset.appReleaseAction || '') as 'approve_candidate' | 'publish_candidate';
+        const action = String(button.dataset.appReleaseAction || '') as
+          | 'approve_candidate' | 'publish_candidate' | 'require_update' | 'optional_update'
+          | 'pause_update' | 'resume_update' | 'withdraw_update';
         const artifactId = String(button.dataset.artifactId || '');
-        const confirmation = action === 'approve_candidate' ? 'APROBAR APK CLIENTES' : 'PUBLICAR APK CLIENTES';
-        const question = action === 'approve_candidate'
-          ? 'Confirma que descargaste e instalaste esta misma APK y que la prueba fue satisfactoria. ¿Marcarla como aprobada?'
-          : 'Se habilitarán el enlace permanente y WhatsApp para esta misma APK aprobada. ¿Publicarla ahora?';
+        const contracts = {
+          approve_candidate: ['APROBAR APK CLIENTES', 'Confirma que descargaste e instalaste esta misma APK y que la prueba fue satisfactoria. ¿Marcarla como aprobada?'],
+          publish_candidate: ['PUBLICAR APK CLIENTES', 'Se publicará esta misma APK como actualización opcional. ¿Continuar?'],
+          require_update: ['EXIGIR ACTUALIZACION CLIENTES', 'Las versiones anteriores quedarán bloqueadas hasta actualizar. ¿Hacer obligatoria esta versión?'],
+          optional_update: ['HACER OPCIONAL ACTUALIZACION CLIENTES', 'La app volverá a permitir posponer esta actualización. ¿Continuar?'],
+          pause_update: ['PAUSAR ACTUALIZACION CLIENTES', 'Se pausarán de inmediato las nuevas descargas y se desactivará cualquier obligación. ¿Continuar?'],
+          resume_update: ['REANUDAR ACTUALIZACION CLIENTES', '¿Reanudar las descargas privadas de esta publicación?'],
+          withdraw_update: ['RETIRAR ACTUALIZACION CLIENTES', 'Esta publicación quedará retirada definitivamente; las apps instaladas no se borrarán. ¿Continuar?'],
+        } as const;
+        const contract = contracts[action];
+        if (!contract) return;
+        const [confirmation, question] = contract;
         if (!artifactId || !window.confirm(question)) return;
         const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-app-release-action]')];
         buttons.forEach((item) => { item.disabled = true; });
@@ -859,6 +910,37 @@ function dateTime(value: string) {
           buttons.forEach((item) => { item.disabled = false; });
         }
       });
+    });
+
+    root.querySelector<HTMLFormElement>('[data-app-adopt-form]')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      if (!form.reportValidity()) return;
+      if (!window.confirm('Se registrará la identidad exacta de PowerZona 0.2.8 sin construir ni publicar una APK. ¿Continuar?')) return;
+      const values = new FormData(form);
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      const alert = form.querySelector<HTMLElement>('[data-app-form-alert]');
+      if (button) button.disabled = true;
+      setAlert(alert);
+      const result = await adoptExistingMasterStoreApp(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
+        store_id: storeId,
+        app_key: String(values.get('app_key') || ''),
+        brand_key: String(values.get('brand_key') || ''),
+        display_name: String(values.get('display_name') || ''),
+        include_aab: true,
+        firebase_project_id: String(values.get('firebase_project_id') || ''),
+        package_name: String(values.get('package_name') || ''),
+        store_url: String(values.get('store_url') || ''),
+        current_version_code: Number(values.get('current_version_code')),
+        current_version_name: String(values.get('current_version_name') || ''),
+        signing_cert_sha256: String(values.get('signing_cert_sha256') || ''),
+        confirmation: 'ADOPTAR APP EXISTENTE',
+      });
+      if (result.data) window.location.reload();
+      else {
+        setAlert(alert, getMasterAppBuildErrorMessage(result.error));
+        if (button) button.disabled = false;
+      }
     });
 
     root.querySelector<HTMLFormElement>('[data-app-provision-form]')?.addEventListener('submit', (event) => {

@@ -55,8 +55,9 @@ def validateBrandAsset = { String key ->
         throw new GradleException("El recurso ${key} debe ser PNG, WebP o XML vectorial.")
     }
     if (externalBrandConfigPath) {
-        def expectedWidth = key == 'icon' ? 1024 : 1080
-        def expectedHeight = key == 'icon' ? 1024 : 1920
+        def inheritedEngineAsset = entry.normalizer_version?.toString() == 'engine-brand-v1'
+        def expectedWidth = inheritedEngineAsset ? (entry.width as Integer) : (key == 'icon' ? 1024 : 1080)
+        def expectedHeight = inheritedEngineAsset ? (entry.height as Integer) : (key == 'icon' ? 1024 : 1920)
         def decoded = javax.imageio.ImageIO.read(file)
         if (extension != 'png'
                 || !(file.name ==~ /${key}[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png/)
@@ -70,6 +71,18 @@ def validateBrandAsset = { String key ->
 }
 
 def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def playBundleMode = (project.findProperty('PZ_STOREFRONT_PLAY_BUNDLE') ?: 'false')
+        .toString().trim().equalsIgnoreCase('true')
+def releaseBundleRequested = requestedTasks.any { name -> name.contains('bundlerelease') }
+def directReleaseRequested = requestedTasks.any { name ->
+    name.contains('assemblerelease') || name.contains('installrelease')
+}
+if (releaseBundleRequested && !playBundleMode) {
+    throw new GradleException('El AAB de Google Play exige PZ_STOREFRONT_PLAY_BUNDLE=true para retirar permisos de instalación privada.')
+}
+if (playBundleMode && directReleaseRequested) {
+    throw new GradleException('PZ_STOREFRONT_PLAY_BUNDLE no puede usarse para fabricar el APK directo.')
+}
 def stagingPackagingRequested = requestedTasks.any { name ->
     name.contains('assemblestaging') || name.contains('bundlestaging') || name.contains('installstaging')
 }
@@ -129,11 +142,22 @@ def validStoreUrl = { String value, String key ->
     } catch (Exception ignored) { return false }
 }
 
+def httpsOriginFromStoreUrl = { String value ->
+    try {
+        def parsed = new URI(value)
+        return "https://${parsed.host.toLowerCase()}"
+    } catch (Exception ignored) { return '' }
+}
+
 if (configuredSchemaVersion != '1') {
     throw new GradleException('La configuracion debe declarar schema.version=1.')
 }
 if (!validStoreUrl(storeUrl, storeKey)) {
     throw new GradleException('store.url debe ser una URL HTTPS /t/{store.key} y coincidir con store.key.')
+}
+def productionApiBaseUrl = httpsOriginFromStoreUrl(storeUrl)
+if (!validHttpsOrigin(productionApiBaseUrl)) {
+    throw new GradleException('No se pudo derivar el origen HTTPS productivo desde store.url.')
 }
 if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
     throw new GradleException('app.display_name debe contener entre 1 y 60 caracteres visibles.')
@@ -296,7 +320,14 @@ android {
         resValues true
     }
 
-    sourceSets { main.res.srcDir(generatedBrandResDirectory.get().asFile) }
+    sourceSets {
+        main.res.srcDir(generatedBrandResDirectory.get().asFile)
+        debug.manifest.srcFile('src/direct/AndroidManifest.xml')
+        staging.manifest.srcFile('src/direct/AndroidManifest.xml')
+        release.manifest.srcFile(playBundleMode
+                ? 'src/play/AndroidManifest.xml'
+                : 'src/direct/AndroidManifest.xml')
+    }
 
     signingConfigs {
         storefront {
@@ -330,6 +361,7 @@ android {
             if (signingConfigured) signingConfig signingConfigs.storefront
         }
         release {
+            buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(productionApiBaseUrl)
             buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
             minifyEnabled true
             shrinkResources true

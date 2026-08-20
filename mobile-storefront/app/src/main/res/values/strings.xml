@@ -25,4 +25,14 @@
     <string name="downloads_blocked">Las descargas se abren fuera de la app cuando están permitidas.</string>
     <string name="still_offline">Todavía no hay conexión a internet.</string>
     <string name="push_target_unavailable">El destino ya no está disponible. Abrimos la portada de la tienda.</string>
+    <string name="update_available_title">Actualización disponible</string>
+    <string name="update_required_title">Actualización necesaria</string>
+    <string name="update_available_message">La versión %1$s está lista. Puedes instalarla ahora o continuar y hacerlo después.</string>
+    <string name="update_required_message">Debes instalar la versión %1$s para seguir usando esta app de forma segura.</string>
+    <string name="update_now">Actualizar ahora</string>
+    <string name="update_later">Más tarde</string>
+    <string name="update_downloading">Descargando y verificando la actualización…</string>
+    <string name="update_verification_failed">La actualización no superó la verificación o ya no está disponible.</string>
+    <string name="update_allow_installs">Autoriza a esta app para instalar la actualización privada.</string>
+    <string name="update_installer_unavailable">Android no pudo abrir el instalador verificado.</string>
 </resources>

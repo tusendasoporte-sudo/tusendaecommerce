@@ -15,6 +15,7 @@ const JOBS = "storefront_app_build_jobs";
 const ARTIFACTS = "storefront_app_artifacts";
 const APP_CONFIGS = "storefront_app_configs";
 const BRAND_ASSETS = "storefront_app_brand_assets";
+const UPDATE_TICKETS = "storefront_app_update_tickets";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const BRAND_KEY_PATTERN = /^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/;
@@ -48,6 +49,18 @@ const POWERZONA_BRAND_PALETTE = Object.freeze({
   deep_sapphire: "#071F63", energy_cobalt: "#155EEB", flash_blue: "#4A8DFF",
   platinum: "#C7D0DE", luminous_ice: "#E9F1FF", pearl_white: "#FFFFFF",
   ink: "#081735", secondary_text: "#465574", base_background: "#F8FAFF",
+});
+const POWERZONA_ENGINE_BRAND_ASSETS = Object.freeze({
+  icon: Object.freeze({
+    source: "engine_brand", kind: "icon", file_name: "icon.png",
+    sha256: "e284d6746df6e11f22c344eac4a117855c61cf8e737a51db3cec1d7415c8dadb",
+    width: 1254, height: 1254, bytes: 1322043, normalizer_version: "engine-brand-v1",
+  }),
+  splash: Object.freeze({
+    source: "engine_brand", kind: "splash", file_name: "splash.png",
+    sha256: "6934893ef19c110e30facc2ef87eb1a91a26d4b0346cd190f90ea02f3f007bdf",
+    width: 941, height: 1672, bytes: 1317923, normalizer_version: "engine-brand-v1",
+  }),
 });
 
 function setPrivateHeaders(e) {
@@ -503,6 +516,9 @@ function profileSnapshot(profile) {
     current_engine_revision: recordString(profile, "current_engine_revision", 40),
     icon_asset_id: relationId(profile, "icon_asset"),
     splash_asset_id: relationId(profile, "splash_asset"),
+    origin: recordString(profile, "origin", 30) || "generated",
+    branding_mode: recordString(profile, "branding_mode", 30) || "managed_assets",
+    adopted_at: isoDate(recordValue(profile, "adopted_at")),
     ...appAdmin.profileAdminSnapshot(profile),
     engine_update: engineUpdateState(profile, release),
     created: isoDate(recordValue(profile, "created")),
@@ -540,6 +556,7 @@ function jobSnapshot(job) {
 
 function artifactSnapshot(artifact, profile) {
   const releaseStatus = artifactReleaseStatus(artifact);
+  const updateDeliveryStatus = artifactUpdateDeliveryStatus(artifact);
   const available = recordString(artifact, "file", 220)
     && recordString(artifact, "lifecycle_status", 30) === "available";
   return {
@@ -556,16 +573,23 @@ function artifactSnapshot(artifact, profile) {
       && recordString(artifact, "visibility", 30) === "store_delivery"
       && available
       && releaseStatus === "published"
+      && updateDeliveryStatus === "active"
       ? artifactDownloadUrl(artifact, profile)
       : "",
     master_download_path: available && ["apk", "aab"].includes(recordString(artifact, "kind", 30))
       ? masterArtifactDownloadPath(artifact) : "",
     release_status: releaseStatus,
+    update_delivery_status: updateDeliveryStatus,
     approved_at: isoDate(recordValue(artifact, "approved_at")),
     published_at: isoDate(recordValue(artifact, "published_at")),
     ...appAdmin.artifactAdminSnapshot(artifact),
     created: isoDate(recordValue(artifact, "created")),
   };
+}
+
+function artifactUpdateDeliveryStatus(artifact) {
+  return recordString(artifact, "update_delivery_status", 20)
+    || (artifactReleaseStatus(artifact) === "published" ? "active" : "");
 }
 
 function brandPalette(store) {
@@ -630,14 +654,26 @@ function activeBrandAssetRecords(app, storeId) {
   return result;
 }
 
-function activeBrandingState(app, store) {
+function inheritedBrandAsset(store, profile, kind) {
+  if (!store || !profile
+    || recordString(store, "slug", 80) !== "powerzona"
+    || recordString(profile, "branding_mode", 30) !== "inherit_existing") return null;
+  const asset = POWERZONA_ENGINE_BRAND_ASSETS[kind];
+  return asset ? { ...asset } : null;
+}
+
+function activeBrandingState(app, store, profile) {
   const assets = activeBrandAssetRecords(app, store.id);
   let icon = null;
   let splash = null;
   try { icon = validateBrandAssetRecord(assets.icon, store.id, "icon", true); } catch (_) {}
   try { splash = validateBrandAssetRecord(assets.splash, store.id, "splash", true); } catch (_) {}
+  const inheritedIcon = icon ? null : inheritedBrandAsset(store, profile, "icon");
+  const inheritedSplash = splash ? null : inheritedBrandAsset(store, profile, "splash");
   return {
-    ready: !!icon && !!splash,
+    ready: !!(icon || inheritedIcon) && !!(splash || inheritedSplash),
+    managed_ready: !!icon && !!splash,
+    inherited: !!inheritedIcon || !!inheritedSplash,
     normalizer_policy: {
       input: ["image/jpeg", "image/png", "image/webp"],
       icon: BRAND_ASSET_PROFILES.icon,
@@ -648,30 +684,52 @@ function activeBrandingState(app, store) {
     palette: brandPalette(store),
     icon,
     splash,
+    effective_icon: icon || inheritedIcon,
+    effective_splash: splash || inheritedSplash,
   };
 }
 
-function requireActiveBranding(app, store) {
+function requireUsableBranding(app, store, profile) {
   const recordsByKind = activeBrandAssetRecords(app, store.id);
+  const assets = {};
+  ["icon", "splash"].forEach((kind) => {
+    try {
+      assets[kind] = validateBrandAssetRecord(recordsByKind[kind], store.id, kind, true);
+    } catch (_) {
+      assets[kind] = inheritedBrandAsset(store, profile, kind);
+    }
+    if (!assets[kind]) throw new Error("brand_assets_required");
+  });
   return {
     records: recordsByKind,
     snapshot: {
       palette: brandPalette(store),
-      assets: {
-        icon: validateBrandAssetRecord(recordsByKind.icon, store.id, "icon", true),
-        splash: validateBrandAssetRecord(recordsByKind.splash, store.id, "splash", true),
-      },
+      assets,
     },
   };
 }
 
-function assertPreviewBrandingCurrent(app, store, preview, requireActive) {
+function assertPreviewBrandingCurrent(app, store, preview, requireActive, profile) {
   const branding = bodyValue(preview, "branding");
   const assets = bodyValue(branding, "assets");
   if (!preview || Number(bodyValue(preview, "schema_version")) !== 2 || !assets) throw new Error("brand_assets_required");
   const result = { icon: null, splash: null };
   ["icon", "splash"].forEach((kind) => {
     const expected = bodyValue(assets, kind);
+    if (text(bodyValue(expected, "source"), 30) === "engine_brand") {
+      const inherited = inheritedBrandAsset(store, profile, kind);
+      if (!inherited
+        || text(bodyValue(expected, "kind"), 20) !== kind
+        || text(bodyValue(expected, "file_name"), 220) !== inherited.file_name
+        || text(bodyValue(expected, "sha256"), 64).toLowerCase() !== inherited.sha256
+        || Number(bodyValue(expected, "width")) !== inherited.width
+        || Number(bodyValue(expected, "height")) !== inherited.height
+        || Number(bodyValue(expected, "bytes")) !== inherited.bytes
+        || text(bodyValue(expected, "normalizer_version"), 80) !== inherited.normalizer_version) {
+        throw new Error("brand_assets_changed");
+      }
+      return;
+    }
     const id = text(bodyValue(expected, "id"), 15);
     const asset = RECORD_ID_PATTERN.test(id) ? findRecord(app, BRAND_ASSETS, id) : null;
     const current = validateBrandAssetRecord(asset, store.id, kind, requireActive !== false);
@@ -708,6 +766,7 @@ function buildManualWhatsappPreview(store, profile, job, artifact, sender, recip
     || recordString(artifact, "kind", 30) !== "apk"
     || recordString(artifact, "visibility", 30) !== "store_delivery"
     || !artifactIsPublished(artifact)) throw new Error("apk_not_ready");
+  if (artifactUpdateDeliveryStatus(artifact) !== "active") throw new Error("apk_not_ready");
 
   const storeName = recordString(store, "name", 140) || recordString(store, "slug", 80) || "tu tienda";
   const appName = recordString(profile, "display_name", 120) || storeName;
@@ -934,16 +993,43 @@ function managementReady(app) {
       && !!profiles.fields.getByName("lifecycle_status")
       && !!profiles.fields.getByName("download_nonce")
       && !!profiles.fields.getByName("last_allocated_version_code")
+      && !!profiles.fields.getByName("origin")
+      && !!profiles.fields.getByName("branding_mode")
       && app.findCollectionByNameOrId(appAdmin.ACTIONS).listRule === null
       && !!artifacts.fields.getByName("lifecycle_status")
       && !!artifacts.fields.getByName("file")
       && !!artifacts.fields.getByName("release_status")
+      && !!artifacts.fields.getByName("update_delivery_status")
+      && app.findCollectionByNameOrId(UPDATE_TICKETS).listRule === null
       && !!jobs.fields.getByName("delivery_status")
       && !!jobs.fields.getByName("delivery_message_sha256")
       && !!app.findCollectionByNameOrId("stores").fields.getByName("primary_admin_user")
       && !!app.findCollectionByNameOrId("users").fields.getByName("phone")
       && !!app.findCollectionByNameOrId(APP_CONFIGS).fields.getByName("firebase_project_id");
   } catch (_) { return false; }
+}
+
+function updatePolicySnapshot(app, profile) {
+  if (!profile) return {
+    minimum_supported_version_code: 0,
+    minimum_supported_version_name: "",
+    release_state: "",
+  };
+  const appConfig = relationId(profile, "app_config")
+    ? findRecord(app, APP_CONFIGS, relationId(profile, "app_config")) : null;
+  const artifact = records(
+    app,
+    ARTIFACTS,
+    "profile = {:profile} && kind = 'apk' && release_status = 'published' && lifecycle_status = 'available'",
+    "-version_code",
+    1,
+    { profile: profile.id },
+  )[0] || null;
+  return {
+    minimum_supported_version_code: recordNumber(appConfig, "min_supported_version_code"),
+    minimum_supported_version_name: recordString(appConfig, "min_supported_version_name", 40),
+    release_state: artifact ? artifactUpdateDeliveryStatus(artifact) : "",
+  };
 }
 
 function detailResponse(app, store, actor) {
@@ -962,11 +1048,12 @@ function detailResponse(app, store, actor) {
       status: recordString(store, "status", 30) === "active" ? "active" : "suspended",
     },
     engine_release: engineRelease(),
-    brand_assets: activeBrandingState(app, store),
+    brand_assets: activeBrandingState(app, store, profile),
     manual_whatsapp_delivery: manualDeliveryState(app, store, actor),
     profile: profileSnapshot(profile),
     jobs,
     artifacts,
+    update_policy: updatePolicySnapshot(app, profile),
     admin_actions: administrative.actions,
     policy: {
       firebase_project_per_store: true,
@@ -1231,7 +1318,8 @@ function handleBrandAssetUpload(e) {
       cancelUnconfirmedPreviews(app, store.id);
       created = asset;
     });
-    return e.json(201, { ok: true, asset: brandAssetSnapshot(created), brand_assets: activeBrandingState($app, store) });
+    const profile = findFirst($app, PROFILES, "store = {:store}", { store: store.id });
+    return e.json(201, { ok: true, asset: brandAssetSnapshot(created), brand_assets: activeBrandingState($app, store, profile) });
   } catch (error) {
     const code = text(error && error.message, 80);
     if (["active_job_exists", "premium_required", "app_deletion_pending"].includes(code)) return e.json(409, { ok: false, error: code });
@@ -1492,6 +1580,162 @@ function handleWhatsappMarkedSent(e) {
   }
 }
 
+function parseAdoptionPayload(body) {
+  const keys = [
+    "app_key", "brand_key", "confirmation", "current_version_code", "current_version_name",
+    "display_name", "firebase_project_id", "include_aab", "package_name", "signing_cert_sha256",
+    "store_id", "store_url",
+  ];
+  if (!exactPayload(body, keys)) return null;
+  const parsed = {
+    storeId: text(bodyValue(body, "store_id"), 15),
+    appKey: text(bodyValue(body, "app_key"), 64),
+    brandKey: text(bodyValue(body, "brand_key"), 64),
+    displayName: text(bodyValue(body, "display_name"), 120),
+    includeAab: bodyValue(body, "include_aab"),
+    firebaseProjectId: text(bodyValue(body, "firebase_project_id"), 128),
+    packageName: text(bodyValue(body, "package_name"), 190),
+    storeUrl: parseHttpsStoreUrl(bodyValue(body, "store_url")),
+    versionCode: positiveVersionCode(bodyValue(body, "current_version_code")),
+    versionName: text(bodyValue(body, "current_version_name"), 40),
+    signingCertSha256: text(bodyValue(body, "signing_cert_sha256"), 95).toUpperCase(),
+    confirmation: text(bodyValue(body, "confirmation"), 80),
+  };
+  if (!RECORD_ID_PATTERN.test(parsed.storeId) || !APP_KEY_PATTERN.test(parsed.appKey)
+    || !BRAND_KEY_PATTERN.test(parsed.brandKey) || !parsed.displayName
+    || typeof parsed.includeAab !== "boolean" || !PROJECT_ID_PATTERN.test(parsed.firebaseProjectId)
+    || !PACKAGE_PATTERN.test(parsed.packageName) || !parsed.storeUrl || !parsed.versionCode
+    || !VERSION_NAME_PATTERN.test(parsed.versionName) || !CERT_SHA256_PATTERN.test(parsed.signingCertSha256)
+    || parsed.confirmation !== "ADOPTAR APP EXISTENTE") return null;
+  return parsed;
+}
+
+function handleAdoptExisting(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+    const parsed = parseAdoptionPayload(info.body || {});
+    if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
+    if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
+    let response = null;
+    $app.runInTransaction((app) => {
+      const actor = findRecord(app, "users", recordString(info.auth, "id", 15));
+      const store = findRecord(app, "stores", parsed.storeId);
+      if (!actor || !isMaster(actor)) throw new Error("unauthorized");
+      if (!store) throw new Error("store_not_found");
+      assertPremium(store, new Date());
+      if (recordString(store, "slug", 80) !== "powerzona" || parsed.brandKey !== "powerzona") {
+        throw new Error("adoption_not_supported");
+      }
+      assertStoreUrlMatches(store, parsed.storeUrl);
+      assertDistribution(store, parsed);
+      const existingProfile = findFirst(
+        app,
+        PROFILES,
+        "app_key = {:appKey} || package_name = {:packageName} || firebase_project_id = {:projectId}",
+        { appKey: parsed.appKey, packageName: parsed.packageName, projectId: parsed.firebaseProjectId },
+      );
+      if (existingProfile) {
+        const sameProfile = relationId(existingProfile, "store") === parsed.storeId
+          && recordString(existingProfile, "app_key", 64) === parsed.appKey
+          && recordString(existingProfile, "package_name", 190) === parsed.packageName
+          && (!recordString(existingProfile, "firebase_project_id", 128)
+            || recordString(existingProfile, "firebase_project_id", 128) === parsed.firebaseProjectId);
+        const configuredVersion = recordNumber(existingProfile, "current_version_code");
+        const configuredCert = recordString(existingProfile, "signing_cert_sha256", 95);
+        const lifecycle = recordString(existingProfile, "lifecycle_status", 30) || "active";
+        if (!sameProfile || (configuredVersion && configuredVersion !== parsed.versionCode)
+          || (configuredCert && configuredCert !== parsed.signingCertSha256)
+          || lifecycle !== "active") throw new Error("existing_profile_incompatible");
+        const activeJob = findFirst(
+          app,
+          JOBS,
+          "profile = {:profile} && (status = 'preview' || status = 'queued' || status = 'claimed')",
+          { profile: existingProfile.id },
+        );
+        if (activeJob) throw new Error("existing_profile_busy");
+      }
+      const appConfig = findFirst(
+        app,
+        APP_CONFIGS,
+        "app_key = {:appKey} || package_name = {:packageName} || firebase_project_id = {:projectId}",
+        { appKey: parsed.appKey, packageName: parsed.packageName, projectId: parsed.firebaseProjectId },
+      );
+      if (!appConfig || recordString(appConfig, "status", 30) !== "active") {
+        throw new Error("existing_app_config_required");
+      }
+      const sameAppConfig = relationId(appConfig, "store") === parsed.storeId
+        && recordString(appConfig, "app_key", 64) === parsed.appKey
+        && recordString(appConfig, "package_name", 190) === parsed.packageName
+        && (!recordString(appConfig, "firebase_project_id", 128)
+          || recordString(appConfig, "firebase_project_id", 128) === parsed.firebaseProjectId);
+      if (!sameAppConfig || (existingProfile && relationId(existingProfile, "app_config")
+        && relationId(existingProfile, "app_config") !== appConfig.id)) {
+        throw new Error("app_identity_already_used");
+      }
+      const wasAlreadyAdopted = !!existingProfile
+        && recordString(existingProfile, "origin", 30) === "adopted_existing"
+        && recordString(existingProfile, "branding_mode", 30) === "inherit_existing";
+      const profile = existingProfile || new Record(app.findCollectionByNameOrId(PROFILES), {});
+      profile.set("store", store.id);
+      profile.set("app_config", appConfig.id);
+      profile.set("app_key", parsed.appKey);
+      profile.set("display_name", parsed.displayName);
+      profile.set("package_name", parsed.packageName);
+      profile.set("store_url", parsed.storeUrl);
+      profile.set("brand_key", parsed.brandKey);
+      profile.set("distribution", parsed.includeAab ? "play_and_direct" : "direct");
+      profile.set("status", "provisioned");
+      profile.set("origin", "adopted_existing");
+      profile.set("branding_mode", "inherit_existing");
+      if (!recordString(profile, "adopted_at", 40)) profile.set("adopted_at", new Date().toISOString());
+      profile.set("distribution_status", "active");
+      profile.set("lifecycle_status", "active");
+      profile.set("firebase_project_id", parsed.firebaseProjectId);
+      profile.set("firebase_project_number", recordString(appConfig, "firebase_project_number", 20));
+      profile.set("firebase_app_id", recordString(appConfig, "firebase_app_id", 255));
+      profile.set("signing_cert_sha256", parsed.signingCertSha256);
+      profile.set("current_version_code", parsed.versionCode);
+      profile.set("current_version_name", parsed.versionName);
+      profile.set("last_allocated_version_code", parsed.versionCode);
+      profile.set("current_engine_version", "1.0.0");
+      profile.set("current_engine_revision", "");
+      if (!relationId(profile, "created_by")) profile.set("created_by", actor.id);
+      profile.set("updated_by", actor.id);
+      app.save(profile);
+      ensureProfileDownloadNonce(app, profile);
+      appConfig.set("min_supported_version_code", 0);
+      appConfig.set("min_supported_version_name", "");
+      app.save(appConfig);
+      storeActivity.createActivity(app, {
+        storeId: store.id, actor, module: "operation", action: "storefront_app_existing_adopted",
+        severity: "critical", resourceType: "storefront_app_build_profile", resourceId: profile.id,
+        resourceLabel: parsed.displayName, changedFields: ["android_app_identity"], previousValues: {},
+        newValues: { package_name: parsed.packageName, version_code: parsed.versionCode },
+        summary: "El Master adoptó la identidad Android existente sin reconstruir ni publicar una APK.",
+        sourceEventKey: `storefront_app:existing_adopted:${profile.id}`,
+      });
+      response = {
+        ok: true,
+        idempotent: wasAlreadyAdopted,
+        profile: profileSnapshot(profile),
+        update_policy: updatePolicySnapshot(app, profile),
+      };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = text(error && error.message, 80);
+    if (code === "unauthorized") return e.json(403, { ok: false, error: code });
+    if (code === "store_not_found") return e.json(404, { ok: false, error: code });
+    if (["premium_required", "app_identity_already_used", "existing_app_config_required", "adoption_not_supported",
+      "existing_profile_incompatible", "existing_profile_busy", "store_url_mismatch"].includes(code)) {
+      return e.json(409, { ok: false, error: code });
+    }
+    return e.json(500, { ok: false, error: "app_adoption_failed" });
+  }
+}
+
 function parseReleasePayload(body) {
   if (!exactPayload(body, ["action", "artifact_id", "confirmation", "store_id"])) return null;
   const parsed = {
@@ -1500,9 +1744,16 @@ function parseReleasePayload(body) {
     confirmation: text(bodyValue(body, "confirmation"), 80),
     storeId: text(bodyValue(body, "store_id"), 15),
   };
-  const expected = parsed.action === "approve_candidate"
-    ? "APROBAR APK CLIENTES"
-    : parsed.action === "publish_candidate" ? "PUBLICAR APK CLIENTES" : "";
+  const confirmations = {
+    approve_candidate: "APROBAR APK CLIENTES",
+    publish_candidate: "PUBLICAR APK CLIENTES",
+    require_update: "EXIGIR ACTUALIZACION CLIENTES",
+    optional_update: "HACER OPCIONAL ACTUALIZACION CLIENTES",
+    pause_update: "PAUSAR ACTUALIZACION CLIENTES",
+    resume_update: "REANUDAR ACTUALIZACION CLIENTES",
+    withdraw_update: "RETIRAR ACTUALIZACION CLIENTES",
+  };
+  const expected = confirmations[parsed.action] || "";
   if (!expected || parsed.confirmation !== expected
     || !RECORD_ID_PATTERN.test(parsed.artifactId) || !RECORD_ID_PATTERN.test(parsed.storeId)) return null;
   return parsed;
@@ -1534,7 +1785,9 @@ function handleReleaseAction(e) {
         || relationId(job, "profile") !== profile.id
         || recordString(job, "status", 30) !== "succeeded") throw new Error("candidate_not_ready");
       appAdmin.assertBuildAllowed(profile);
-      if (parsed.action === "publish_candidate") assertPremium(store, new Date());
+      if (["publish_candidate", "require_update", "resume_update"].includes(parsed.action)) {
+        assertPremium(store, new Date());
+      }
       const previousStatus = artifactReleaseStatus(artifact);
       let idempotent = false;
       if (parsed.action === "approve_candidate") {
@@ -1550,7 +1803,7 @@ function handleReleaseAction(e) {
         } else {
           throw new Error("candidate_not_ready");
         }
-      } else {
+      } else if (parsed.action === "publish_candidate") {
         if (previousStatus === "published") {
           idempotent = true;
         } else if (previousStatus !== "approved") {
@@ -1569,8 +1822,20 @@ function handleReleaseAction(e) {
             || !ENGINE_REVISION_PATTERN.test(engineRevision)
             || versionCode !== recordNumber(artifact, "version_code")
             || versionName !== recordString(artifact, "version_name", 40)) throw new Error("candidate_not_ready");
-          const brandAssets = assertPreviewBrandingCurrent(app, store, preview, false);
+          const brandAssets = assertPreviewBrandingCurrent(app, store, preview, false, profile);
+          records(
+            app,
+            ARTIFACTS,
+            "profile = {:profile} && kind = 'apk' && release_status = 'published' && id != {:artifact}",
+            "-version_code",
+            100,
+            { profile: profile.id, artifact: artifact.id },
+          ).forEach((previous) => {
+            previous.set("update_delivery_status", "withdrawn");
+            app.save(previous);
+          });
           artifact.set("release_status", "published");
+          artifact.set("update_delivery_status", "active");
           artifact.set("published_at", new Date().toISOString());
           artifact.set("published_by", actor.id);
           app.save(artifact);
@@ -1578,19 +1843,59 @@ function handleReleaseAction(e) {
           profile.set("current_version_name", versionName);
           profile.set("current_engine_version", engineVersion);
           profile.set("current_engine_revision", engineRevision);
-          profile.set("icon_asset", brandAssets.icon.id);
-          profile.set("splash_asset", brandAssets.splash.id);
+          if (brandAssets.icon) profile.set("icon_asset", brandAssets.icon.id);
+          if (brandAssets.splash) profile.set("splash_asset", brandAssets.splash.id);
           profile.set("updated_by", actor.id);
           app.save(profile);
           const appConfig = relationId(profile, "app_config")
             ? findRecord(app, APP_CONFIGS, relationId(profile, "app_config")) : null;
           if (!appConfig) throw new Error("candidate_not_ready");
+          appConfig.set("min_supported_version_code", 0);
+          appConfig.set("min_supported_version_name", "");
+          app.save(appConfig);
+          createActivity(app, store, actor, "app_candidate_published", job,
+            "El Master publicó exactamente el APK aprobado como actualización opcional; se habilitaron su enlace permanente y la entrega por WhatsApp");
+        }
+      } else {
+        if (previousStatus !== "published") throw new Error("release_not_available");
+        const appConfig = relationId(profile, "app_config")
+          ? findRecord(app, APP_CONFIGS, relationId(profile, "app_config")) : null;
+        if (!appConfig) throw new Error("release_not_available");
+        const state = artifactUpdateDeliveryStatus(artifact);
+        const versionCode = recordNumber(artifact, "version_code");
+        const versionName = recordString(artifact, "version_name", 40);
+        if (parsed.action === "require_update") {
+          if (state !== "active") throw new Error("release_not_available");
+          idempotent = recordNumber(appConfig, "min_supported_version_code") === versionCode;
           appConfig.set("min_supported_version_code", versionCode);
           appConfig.set("min_supported_version_name", versionName);
           app.save(appConfig);
-          createActivity(app, store, actor, "app_candidate_published", job,
-            "El Master publicó exactamente el APK aprobado; se habilitaron su enlace permanente y la entrega por WhatsApp");
+        } else if (parsed.action === "optional_update") {
+          idempotent = recordNumber(appConfig, "min_supported_version_code") === 0;
+          appConfig.set("min_supported_version_code", 0);
+          appConfig.set("min_supported_version_name", "");
+          app.save(appConfig);
+        } else if (parsed.action === "pause_update") {
+          if (state !== "active") throw new Error("release_not_available");
+          artifact.set("update_delivery_status", "paused");
+          appConfig.set("min_supported_version_code", 0);
+          appConfig.set("min_supported_version_name", "");
+          app.save(artifact);
+          app.save(appConfig);
+        } else if (parsed.action === "resume_update") {
+          if (state !== "paused") throw new Error("release_not_available");
+          artifact.set("update_delivery_status", "active");
+          app.save(artifact);
+        } else if (parsed.action === "withdraw_update") {
+          if (!["active", "paused"].includes(state)) throw new Error("release_not_available");
+          artifact.set("update_delivery_status", "withdrawn");
+          appConfig.set("min_supported_version_code", 0);
+          appConfig.set("min_supported_version_name", "");
+          app.save(artifact);
+          app.save(appConfig);
         }
+        createActivity(app, store, actor, `app_${parsed.action}`, job,
+          `El Master aplicó el control ${parsed.action} a la actualización de clientes sin reconstruir la APK`);
       }
       response = {
         ok: true,
@@ -1598,6 +1903,7 @@ function handleReleaseAction(e) {
         artifact: artifactSnapshot(artifact, profile),
         job: jobSnapshot(job),
         profile: profileSnapshot(profile),
+        update_policy: updatePolicySnapshot(app, profile),
       };
     });
     return e.json(200, response);
@@ -1606,7 +1912,7 @@ function handleReleaseAction(e) {
     if (code === "unauthorized") return e.json(403, { ok: false, error: code });
     if (code === "store_not_found") return e.json(404, { ok: false, error: code });
     if (["candidate_not_ready", "candidate_approval_required", "premium_required", "app_distribution_withdrawn",
-      "artifact_not_available", "app_deletion_pending"].includes(code)) {
+      "artifact_not_available", "app_deletion_pending", "release_not_available"].includes(code)) {
       return e.json(409, { ok: false, error: code });
     }
     return e.json(500, { ok: false, error: "candidate_release_failed" });
@@ -1651,7 +1957,7 @@ function handlePreview(e) {
     }
     const existingJob = findFirst($app, JOBS, "store = {:store} && (status = 'queued' || status = 'claimed')", { store: store.id });
     if (existingJob) throw new Error("active_job_exists");
-    const branding = requireActiveBranding($app, store);
+    const branding = requireUsableBranding($app, store, profile);
     const job = createPreviewJob($app, store, info.auth, parsed, profile, new Date(), branding.snapshot);
     createActivity($app, store, info.auth, "app_build_preview_created", job, "Vista previa de app creada por Master Admin; no se ejecutaron efectos externos");
     return e.json(200, { ok: true, job: jobSnapshot(job) });
@@ -1757,6 +2063,8 @@ function createProfile(app, store, actor, parsed, brandAssetRecords) {
   profile.set("brand_key", parsed.brandKey);
   profile.set("distribution", parsed.includeAab ? "play_and_direct" : "direct");
   profile.set("status", "queued");
+  profile.set("origin", "generated");
+  profile.set("branding_mode", "managed_assets");
   profile.set("distribution_status", "active");
   profile.set("lifecycle_status", "active");
   profile.set("firebase_project_id", parsed.firebaseProjectId);
@@ -1805,8 +2113,8 @@ function handleConfirm(e) {
       assertPremium(store, new Date());
       const storedPreview = storedPreviewValue(job);
       assertPreviewEngineRelease(storedPreview);
-      const brandAssetRecords = assertPreviewBrandingCurrent(app, store, storedPreview);
-      let profile = null;
+      let profile = parsed.operation === "update" ? findRecord(app, PROFILES, parsed.profileId) : null;
+      const brandAssetRecords = assertPreviewBrandingCurrent(app, store, storedPreview, true, profile);
       if (parsed.operation === "provision") {
         const existingAppConfig = assertUniqueIdentity(app, parsed);
         parsed.existingAppConfigId = existingAppConfig ? existingAppConfig.id : "";
@@ -1870,7 +2178,7 @@ function handleRetry(e) {
       assertPremium(store, new Date());
       const storedPreview = storedPreviewValue(job);
       assertPreviewEngineRelease(storedPreview);
-      assertPreviewBrandingCurrent(app, store, storedPreview);
+      assertPreviewBrandingCurrent(app, store, storedPreview, true, profile);
       job.set("status", "queued");
       job.set("failure_code", "");
       job.set("runner_id", "");
@@ -1926,7 +2234,7 @@ function handleRunnerClaim(e) {
       if (!profile || !store) throw new Error("profile_not_found");
       appAdmin.assertBuildAllowed(profile);
       try {
-        assertPreviewBrandingCurrent(app, store, storedPreviewValue(job));
+        assertPreviewBrandingCurrent(app, store, storedPreviewValue(job), true, profile);
       } catch (_) {
         job.set("status", "needs_attention");
         job.set("failure_code", "brand_assets_required");
@@ -2159,6 +2467,7 @@ function handleArtifactDownload(e) {
       || recordString(artifact, "visibility", 30) !== "store_delivery"
       || recordString(artifact, "lifecycle_status", 30) !== "available"
       || !artifactIsPublished(artifact)
+      || artifactUpdateDeliveryStatus(artifact) !== "active"
       || recordString(artifact, "file_name", 220) !== requestedName) return notFound();
     const profile = findRecord(app, PROFILES, relationId(artifact, "profile"));
     const job = findRecord(app, JOBS, relationId(artifact, "job"));
@@ -2254,11 +2563,6 @@ function upsertAppConfig(app, profile, completion) {
   appConfig.set("public_origin", `https://${prefixMatch[1]}`);
   appConfig.set("store_path_prefix", prefixMatch[2]);
   appConfig.set("status", "active");
-  const publishedVersionCode = recordNumber(profile, "current_version_code");
-  if (publishedVersionCode > 0) {
-    appConfig.set("min_supported_version_code", publishedVersionCode);
-    appConfig.set("min_supported_version_name", recordString(profile, "current_version_name", 40));
-  }
   app.save(appConfig);
   return appConfig;
 }
@@ -2281,7 +2585,7 @@ function handleRunnerComplete(e) {
       job.set("completed_at", new Date().toISOString());
       if (parsed.status === "succeeded") {
         const preview = storedPreviewValue(job) || {};
-        assertPreviewBrandingCurrent(app, store, preview);
+        assertPreviewBrandingCurrent(app, store, preview, true, profile);
         const build = bodyValue(preview, "build") || {};
         const targetEngine = bodyValue(preview, "engine") || {};
         const artifactKinds = parsed.artifacts.map((item) => item.kind);
@@ -2367,6 +2671,7 @@ module.exports = {
   handleWhatsappMarkedSent,
   handleWhatsappPreview,
   handleWhatsappSettings,
+  handleAdoptExisting,
   handleReleaseAction,
   handlePreview,
   handleRetry,
@@ -2380,7 +2685,9 @@ module.exports = {
   handleRunnerComplete,
   hashPreview,
   normalizeWhatsappNumber,
+  parseAdoptionPayload,
   parsePreviewPayload,
+  parseReleasePayload,
   parseWhatsappMarkedPayload,
   parseWhatsappPreviewPayload,
   parseWhatsappSettingsPayload,

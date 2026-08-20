@@ -17,7 +17,8 @@ $allowSigning = [string]$env:PZ_STORE_APP_RUNNER_ALLOW_SIGNING -eq 'true'
 $apiBaseUrl = [string]$env:PZ_STOREFRONT_API_BASE_URL
 $readiness = Join-Path $PSScriptRoot 'test-runner-readiness.ps1'
 $artifactRemoval = Join-Path $PSScriptRoot 'remove-store-app-artifacts.ps1'
-$artifactsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'releases'
+$mobileRoot = Split-Path -Parent $PSScriptRoot
+$artifactsRoot = Join-Path $mobileRoot 'releases'
 
 function Write-Utf8NoBom {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$Content)
@@ -50,18 +51,56 @@ function Materialize-ApprovedBranding {
     New-Item -ItemType Directory -Path $workspaceRoot -Force | Out-Null
     $assetHeaders = @{ 'x-pz-store-app-runner' = $runnerSecret; 'x-pz-store-app-runner-id' = $RunnerId }
     $materialized = @{}
+    $materializedMetadata = @{}
     foreach ($kind in @('icon', 'splash')) {
         $asset = $Job.preview.branding.assets.$kind
-        $fileName = [string]$asset.file_name
-        if ($fileName -cnotmatch "^$kind[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png$" -or [string]$asset.sha256 -cnotmatch '^[a-f0-9]{64}$') {
+        $source = [string]$asset.source
+        $sha256 = [string]$asset.sha256
+        if ($sha256 -cnotmatch '^[a-f0-9]{64}$') {
             throw "brand_asset_contract_invalid_$kind"
         }
-        $target = Join-Path $workspaceRoot $fileName
-        Invoke-WebRequest -Method Get -Headers $assetHeaders `
-            -Uri "$baseUrl/api/pz/internal/storefront-app-builds/brand-assets/$jobId/$kind" -OutFile $target
-        if ((Get-Sha256Lower $target) -cne [string]$asset.sha256 -or
-            (Get-Item -LiteralPath $target).Length -ne [int64]$asset.bytes) {
-            throw "brand_asset_download_mismatch_$kind"
+        if ($source -eq 'engine_brand') {
+            $engineBrandPath = Join-Path (Join-Path (Join-Path $mobileRoot 'brands') ([string]$Job.preview.identity.brand_key)) 'brand.json'
+            if (-not (Test-Path -LiteralPath $engineBrandPath -PathType Leaf)) { throw "engine_brand_missing_$kind" }
+            $engineBrand = Get-Content -LiteralPath $engineBrandPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $engineAsset = $engineBrand.assets.$kind
+            $engineFile = Join-Path (Split-Path -Parent $engineBrandPath) ([string]$engineAsset.file)
+            if ([string]$engineBrand.brand_key -cne [string]$Job.preview.identity.brand_key -or
+                [string]$engineBrand.application_id -cne [string]$Job.preview.identity.package_name -or
+                -not (Test-Path -LiteralPath $engineFile -PathType Leaf) -or
+                (Get-Sha256Lower $engineFile) -cne $sha256 -or
+                (Get-Item -LiteralPath $engineFile).Length -ne [int64]$asset.bytes) {
+                throw "engine_brand_mismatch_$kind"
+            }
+            $fileName = "$kind-$($sha256.Substring(0, 32)).png"
+            $target = Join-Path $workspaceRoot $fileName
+            Copy-Item -LiteralPath $engineFile -Destination $target -Force
+            $materializedMetadata[$kind] = [ordered]@{
+                sha256 = $sha256
+                width = [int]$asset.width
+                height = [int]$asset.height
+                bytes = (Get-Item -LiteralPath $target).Length
+                normalizer_version = [string]$asset.normalizer_version
+            }
+        } else {
+            $fileName = [string]$asset.file_name
+            if ($fileName -cnotmatch "^$kind[-_][a-f0-9]{32}(_[A-Za-z0-9]{6,32})?\.png$") {
+                throw "brand_asset_contract_invalid_$kind"
+            }
+            $target = Join-Path $workspaceRoot $fileName
+            Invoke-WebRequest -Method Get -Headers $assetHeaders `
+                -Uri "$baseUrl/api/pz/internal/storefront-app-builds/brand-assets/$jobId/$kind" -OutFile $target
+            if ((Get-Sha256Lower $target) -cne $sha256 -or
+                (Get-Item -LiteralPath $target).Length -ne [int64]$asset.bytes) {
+                throw "brand_asset_download_mismatch_$kind"
+            }
+            $materializedMetadata[$kind] = [ordered]@{
+                sha256 = $sha256
+                width = [int]$asset.width
+                height = [int]$asset.height
+                bytes = [int64]$asset.bytes
+                normalizer_version = [string]$asset.normalizer_version
+            }
         }
         $materialized[$kind] = $target
     }
@@ -104,19 +143,19 @@ function Materialize-ApprovedBranding {
         assets = [ordered]@{
             icon = [ordered]@{
                 file = [IO.Path]::GetFileName([string]$materialized.icon)
-                sha256 = [string]$preview.branding.assets.icon.sha256
-                width = [int]$preview.branding.assets.icon.width
-                height = [int]$preview.branding.assets.icon.height
-                bytes = [int64]$preview.branding.assets.icon.bytes
-                normalizer_version = [string]$preview.branding.assets.icon.normalizer_version
+                sha256 = [string]$materializedMetadata.icon.sha256
+                width = [int]$materializedMetadata.icon.width
+                height = [int]$materializedMetadata.icon.height
+                bytes = [int64]$materializedMetadata.icon.bytes
+                normalizer_version = [string]$materializedMetadata.icon.normalizer_version
             }
             splash = [ordered]@{
                 file = [IO.Path]::GetFileName([string]$materialized.splash)
-                sha256 = [string]$preview.branding.assets.splash.sha256
-                width = [int]$preview.branding.assets.splash.width
-                height = [int]$preview.branding.assets.splash.height
-                bytes = [int64]$preview.branding.assets.splash.bytes
-                normalizer_version = [string]$preview.branding.assets.splash.normalizer_version
+                sha256 = [string]$materializedMetadata.splash.sha256
+                width = [int]$materializedMetadata.splash.width
+                height = [int]$materializedMetadata.splash.height
+                bytes = [int64]$materializedMetadata.splash.bytes
+                normalizer_version = [string]$materializedMetadata.splash.normalizer_version
             }
         }
         palette = $preview.branding.palette
@@ -204,7 +243,8 @@ function Assert-PanelPreviewMatchesLocal {
     }
     if ([int]$Panel.schema_version -ne 2 -or [int]$Local.schema_version -ne 2) { throw 'brand_assets_required' }
     foreach ($kind in @('icon', 'splash')) {
-        foreach ($property in @('sha256', 'width', 'height', 'bytes', 'normalizer_version')) {
+        $properties = if ([string]$Panel.branding.assets.$kind.source -eq 'engine_brand') { @('sha256') } else { @('sha256', 'width', 'height', 'bytes', 'normalizer_version') }
+        foreach ($property in $properties) {
             if ([string]$Panel.branding.assets.$kind.$property -cne [string]$Local.branding.assets.$kind.$property) {
                 throw "brand_asset_mismatch_${kind}_$property"
             }

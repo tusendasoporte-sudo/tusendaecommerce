@@ -623,10 +623,13 @@ test('rutas privadas tienen body limit y omiten activity logs con datos sensible
     '/session/bootstrap',
     '/session/bootstrap/consume',
     '/campaigns/resolve-target',
+    '/updates/policy',
+    '/updates/ticket',
+    '/storefront-app-updates/{artifact}/{ticket}/{filename}',
     '/events',
   ]) assert.match(routes, new RegExp(route.replaceAll('/', '\\/')));
-  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 8);
-  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 8);
+  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 11);
+  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 11);
   assert.match(routes, /campaigns_resolve_target/);
   assert.match(source, /PZ_STOREFRONT_INSTALLATION_REQUEST_FAILED/);
   assert.doesNotMatch(source, /logger\(\)\.error\([\s\S]{0,300}error\.message/);

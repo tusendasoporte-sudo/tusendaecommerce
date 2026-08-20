@@ -162,8 +162,12 @@ public final class StorefrontRegistrationPayloadTest {
                 new java.net.UnknownHostException("private.staging.example")
         );
         assertEquals(
-                "No fue posible conectar con los servicios de staging.",
+                "No fue posible conectar con los servicios de la aplicación.",
                 StorefrontRegistrationClient.safeFailure(network)
+        );
+        assertEquals(
+                "La operación falló de forma segura. Revisa la conectividad y la configuración de la aplicación.",
+                StorefrontRegistrationClient.safeFailure(new RuntimeException("private detail"))
         );
     }
 

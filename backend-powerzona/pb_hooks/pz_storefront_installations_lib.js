@@ -18,6 +18,9 @@ const WEB_SESSIONS_COLLECTION = "storefront_web_sessions";
 const CAMPAIGNS_COLLECTION = "push_campaigns";
 const DELIVERIES_COLLECTION = "push_campaign_deliveries";
 const ORDER_LINKS_COLLECTION = "storefront_order_links";
+const UPDATE_TICKETS_COLLECTION = "storefront_app_update_tickets";
+const UPDATE_PROFILES_COLLECTION = "storefront_app_build_profiles";
+const UPDATE_ARTIFACTS_COLLECTION = "storefront_app_artifacts";
 const INTERNAL_SECRET_ENV = "PZ_STOREFRONT_INTERNAL_SECRET";
 const CREDENTIAL_SECRET_ENV = "PZ_STOREFRONT_CREDENTIAL_SECRET";
 const INTERNAL_HEADERS = Object.freeze({
@@ -36,6 +39,7 @@ const APP_SET_ID_PATTERN = /^[0-9A-Za-z+.=/_$,{}-]{22,150}$/;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 const SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
+const UPDATE_TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const RECEIPT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{6,80}$/;
@@ -58,6 +62,8 @@ const ACTION_LIMITS = Object.freeze({
   session_consume: 24,
   campaigns_resolve_target: 30,
   events_record: 120,
+  updates_policy: 30,
+  updates_ticket: 6,
 });
 const SAFE_ERRORS = new Set([
   "unauthorized",
@@ -79,6 +85,8 @@ const SAFE_ERRORS = new Set([
   "storefront_secrets_unavailable",
   "registration_unavailable",
   "request_unavailable",
+  "update_not_available",
+  "update_ticket_unavailable",
 ]);
 
 const internalNonces = new Map();
@@ -107,6 +115,11 @@ function recordValue(record, key) {
 
 function recordString(record, key) {
   return safeText(recordValue(record, key));
+}
+
+function recordNumber(record, key) {
+  const value = Number(recordValue(record, key));
+  return Number.isSafeInteger(value) ? value : 0;
 }
 
 function relationId(record, key) {
@@ -364,6 +377,27 @@ function parseEventPayload(value) {
   });
 }
 
+function parseUpdatePolicyPayload(value) {
+  if (!exactPayload(value, ["install_source", "package_name", "version_code", "version_name"])) return null;
+  const packageName = boundedText(
+    bodyValue(value, "package_name"),
+    190,
+    /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/
+  );
+  const versionCode = bodyValue(value, "version_code");
+  const versionName = boundedText(bodyValue(value, "version_name"), 40, VERSION_PATTERN);
+  const installSource = safeText(bodyValue(value, "install_source"));
+  if (!packageName || !validVersionCode(versionCode) || !versionName
+    || !["direct", "play", "unknown"].includes(installSource)) return null;
+  return Object.freeze({ packageName, versionCode, versionName, installSource });
+}
+
+function parseUpdateTicketPayload(value) {
+  if (!exactPayload(value, ["artifact_id"])) return null;
+  const artifactId = safeText(bodyValue(value, "artifact_id"));
+  return RECORD_ID_PATTERN.test(artifactId) ? Object.freeze({ artifactId }) : null;
+}
+
 function parseEnvelope(body, action) {
   const legacyShape = exactPayload(body, ["app_id", "credential", "client", "payload"]);
   const multiProjectShape = exactPayload(body, ["app_id", "firebase_project_id", "credential", "client", "payload"]);
@@ -389,6 +423,8 @@ function parseEnvelope(body, action) {
   else if (action === "session_consume") payload = parseBootstrapConsumePayload(bodyValue(body, "payload"));
   else if (action === "campaigns_resolve_target") payload = parseCampaignResolvePayload(bodyValue(body, "payload"));
   else if (action === "events_record") payload = parseEventPayload(bodyValue(body, "payload"));
+  else if (action === "updates_policy") payload = parseUpdatePolicyPayload(bodyValue(body, "payload"));
+  else if (action === "updates_ticket") payload = parseUpdateTicketPayload(bodyValue(body, "payload"));
   if (!payload) return null;
   return Object.freeze({ appId, firebaseProjectId, credential, client, payload });
 }
@@ -466,6 +502,11 @@ function consumeRateLimit(action, context, credentialSecret) {
 
 function findFirst(app, collection, filter, params) {
   try { return app.findFirstRecordByFilter(collection, filter, params || {}); } catch (_) { return null; }
+}
+
+function findRecords(app, collection, filter, sort, limit, params) {
+  try { return app.findRecordsByFilter(collection, filter || "", sort || "", limit || 100, 0, params || {}) || []; }
+  catch (_) { return []; }
 }
 
 function findById(app, collection, id) {
@@ -679,6 +720,137 @@ function resolveCredentialContext(app, context, credentialSecret, allowDisabled,
     throw new StorefrontInstallationError("installation_not_available");
   }
   return Object.freeze({ ...resolved, installation });
+}
+
+function updateDownloadOrigin() {
+  const value = environmentValue("PZ_STOREFRONT_APP_DOWNLOAD_PUBLIC_ORIGIN").replace(/\/+$/, "");
+  if (/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/.test(value)) return value;
+  if (/^http:\/\/(?:127\.0\.0\.1|localhost)(?::[0-9]{1,5})?$/.test(value)) return value;
+  return "";
+}
+
+function updateTicketDigest(token, credentialSecret, security) {
+  if (!UPDATE_TICKET_PATTERN.test(safeText(token))) return "";
+  return normalizedDigest(security.hs256(`pz_storefront_update_ticket:v1|${token}`, credentialSecret));
+}
+
+function updateProfile(app, resolved) {
+  const profile = findFirst(
+    app,
+    UPDATE_PROFILES_COLLECTION,
+    "app_config = {:appConfig} && store = {:store}",
+    { appConfig: resolved.appConfig.id, store: resolved.storeId },
+  );
+  if (!profile || recordString(profile, "status") !== "provisioned"
+    || recordString(profile, "lifecycle_status") !== "active"
+    || recordString(profile, "distribution_status") !== "active") {
+    throw new StorefrontInstallationError("update_not_available");
+  }
+  return profile;
+}
+
+function activePublishedUpdate(app, profile) {
+  return findRecords(
+    app,
+    UPDATE_ARTIFACTS_COLLECTION,
+    "profile = {:profile} && kind = 'apk' && visibility = 'store_delivery' && lifecycle_status = 'available' && release_status = 'published' && (update_delivery_status = 'active' || update_delivery_status = '')",
+    "-version_code",
+    1,
+    { profile: profile.id },
+  )[0] || null;
+}
+
+function updateDeliveryState(artifact) {
+  return recordString(artifact, "update_delivery_status")
+    || (recordString(artifact, "release_status") === "published" ? "active" : "");
+}
+
+function updateArtifactSnapshot(artifact, packageName) {
+  if (!artifact) return null;
+  return Object.freeze({
+    id: safeText(artifact.id).slice(0, 15),
+    file_name: recordString(artifact, "file_name").slice(0, 220),
+    sha256: recordString(artifact, "sha256").toLowerCase().slice(0, 64),
+    bytes: recordNumber(artifact, "bytes"),
+    version_code: recordNumber(artifact, "version_code"),
+    version_name: recordString(artifact, "version_name").slice(0, 40),
+    package_name: packageName,
+  });
+}
+
+function storefrontUpdatePolicy(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  const profile = updateProfile(app, resolved);
+  const expectedPackage = recordString(profile, "package_name");
+  if (context.payload.packageName !== expectedPackage
+    || expectedPackage !== recordString(resolved.appConfig, "package_name")) {
+    throw new StorefrontInstallationError("update_not_available");
+  }
+  const artifact = activePublishedUpdate(app, profile);
+  const availableVersion = artifact ? recordNumber(artifact, "version_code") : context.payload.versionCode;
+  const minimumVersion = artifact ? recordNumber(resolved.appConfig, "min_supported_version_code") : 0;
+  const updateAvailable = !!artifact && availableVersion > context.payload.versionCode;
+  const updateRequired = updateAvailable && minimumVersion > context.payload.versionCode
+    && availableVersion >= minimumVersion;
+  const playDelivery = context.payload.installSource === "play";
+  return Object.freeze({
+    ok: true,
+    policy: Object.freeze({
+      package_name: expectedPackage,
+      current_version_code: context.payload.versionCode,
+      current_version_name: context.payload.versionName,
+      latest_version_code: availableVersion,
+      latest_version_name: artifact ? recordString(artifact, "version_name") : context.payload.versionName,
+      minimum_supported_version_code: minimumVersion,
+      update_available: updateAvailable,
+      update_required: updateRequired,
+      delivery_mode: playDelivery ? "play_store" : "private_apk",
+      play_store_url: playDelivery ? `https://play.google.com/store/apps/details?id=${expectedPackage}` : "",
+      artifact: updateAvailable ? updateArtifactSnapshot(artifact, expectedPackage) : null,
+    }),
+  });
+}
+
+function storefrontUpdateTicket(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  const profile = updateProfile(app, resolved);
+  const artifact = activePublishedUpdate(app, profile);
+  if (!artifact || artifact.id !== context.payload.artifactId
+    || recordNumber(artifact, "version_code") <= recordNumber(resolved.installation, "app_version_code")) {
+    throw new StorefrontInstallationError("update_not_available");
+  }
+  const origin = updateDownloadOrigin();
+  if (!origin) throw new StorefrontInstallationError("update_ticket_unavailable");
+  findRecords(
+    app,
+    UPDATE_TICKETS_COLLECTION,
+    "expires_at <= {:now} || used_at != '' || installation = {:installation}",
+    "+created",
+    100,
+    { now: context.now.toISOString(), installation: resolved.installation.id },
+  ).forEach((stale) => { try { app.delete(stale); } catch (_) {} });
+  const rawTicket = safeText(context.security.randomString(43));
+  const digest = updateTicketDigest(rawTicket, credentialSecret, context.security);
+  if (!UPDATE_TICKET_PATTERN.test(rawTicket) || !/^[a-f0-9]{64}$/.test(digest)) {
+    throw new StorefrontInstallationError("update_ticket_unavailable");
+  }
+  const expiresAt = new Date(context.now.getTime() + 2 * 60 * 1000).toISOString();
+  const ticket = new Record(app.findCollectionByNameOrId(UPDATE_TICKETS_COLLECTION), {});
+  ticket.set("store", resolved.storeId);
+  ticket.set("app_config", resolved.appConfig.id);
+  ticket.set("installation", resolved.installation.id);
+  ticket.set("artifact", artifact.id);
+  ticket.set("token_digest", digest);
+  ticket.set("expires_at", expiresAt);
+  app.save(ticket);
+  const filename = recordString(artifact, "file_name");
+  return Object.freeze({
+    ok: true,
+    ticket: rawTicket,
+    expires_at: expiresAt,
+    artifact: updateArtifactSnapshot(artifact, recordString(profile, "package_name")),
+    download_url: `${origin}/api/pz/storefront-app-updates/${artifact.id}/${rawTicket}/${encodeURIComponent(filename)}`,
+  });
 }
 
 function heartbeatInstallation(app, context, credentialSecret, aesKeyOverride) {
@@ -952,7 +1124,7 @@ function setPrivateHeaders(e) {
 
 function statusForError(code) {
   if (["unauthorized", "invalid_credential", "credential_required"].includes(code)) return 401;
-  if (["app_not_available", "bootstrap_not_found", "target_not_available", "delivery_not_eligible"].includes(code)) return 404;
+  if (["app_not_available", "bootstrap_not_found", "target_not_available", "delivery_not_eligible", "update_not_available"].includes(code)) return 404;
   if (["store_not_available", "plan_not_available"].includes(code)) return 403;
   if (["installation_disabled", "installation_not_available", "event_window_expired", "destination_not_verified"].includes(code)) return 409;
   if (code === "invalid_payload") return 400;
@@ -985,6 +1157,8 @@ function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "session_bootstrap") return createBootstrapSession(app, context, credentialSecret);
   if (action === "session_consume") return consumeBootstrapSession(app, context, credentialSecret);
   if (action === "campaigns_resolve_target") return resolveCampaignTarget(app, context, credentialSecret);
+  if (action === "updates_policy") return storefrontUpdatePolicy(app, context, credentialSecret);
+  if (action === "updates_ticket") return storefrontUpdateTicket(app, context, credentialSecret);
   if (action === "events_record") {
     const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
     const analytics = typeof __hooks === "undefined"
@@ -1017,6 +1191,82 @@ function handleAction(e, action) {
   }
 }
 
+function serveStorefrontUpdate(e, app, artifact, requestedName) {
+  const storedName = recordString(artifact, "file");
+  const basePath = typeof artifact.baseFilesPath === "function" ? safeText(artifact.baseFilesPath()) : "";
+  if (!storedName || !/^[A-Za-z0-9._-]+$/.test(storedName)
+    || !basePath || basePath.includes("..")) throw new Error("update_file_unavailable");
+  const headers = e.response.header();
+  headers.set("Cache-Control", "private, no-store, max-age=0");
+  headers.set("Content-Disposition", `attachment; filename=\"${requestedName}\"`);
+  headers.set("Content-Type", "application/vnd.android.package-archive");
+  headers.set("Pragma", "no-cache");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-PZ-APK-SHA256", recordString(artifact, "sha256"));
+  headers.set("X-PZ-APK-Version-Code", String(recordNumber(artifact, "version_code")));
+  headers.set("X-PZ-APK-Version-Name", recordString(artifact, "version_name"));
+  let filesystem = null;
+  try {
+    filesystem = app.newFilesystem();
+    return filesystem.serve(e.response, e.request, `${basePath}/${storedName}`, requestedName);
+  } finally { try { if (filesystem) filesystem.close(); } catch (_) {} }
+}
+
+function handleUpdateDownload(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "update_not_found" });
+  try {
+    const app = e.app || $app;
+    const artifactId = safeText(e.request.pathValue("artifact"));
+    const token = safeText(e.request.pathValue("ticket"));
+    const filename = safeText(e.request.pathValue("filename"));
+    const security = defaultSecurity();
+    const credentialSecret = getCredentialSecret(security);
+    const digest = credentialSecret ? updateTicketDigest(token, credentialSecret, security) : "";
+    if (!RECORD_ID_PATTERN.test(artifactId) || !UPDATE_TICKET_PATTERN.test(token)
+      || !/^[A-Za-z0-9._-]+$/.test(filename) || !/^[a-f0-9]{64}$/.test(digest)) return notFound();
+    const ticket = findFirst(app, UPDATE_TICKETS_COLLECTION, "token_digest = {:digest}", { digest });
+    if (!ticket || recordString(ticket, "used_at")
+      || new Date(recordString(ticket, "expires_at")).getTime() <= Date.now()
+      || relationId(ticket, "artifact") !== artifactId) return notFound();
+    const artifact = findById(app, UPDATE_ARTIFACTS_COLLECTION, artifactId);
+    const profile = artifact ? findById(app, UPDATE_PROFILES_COLLECTION, relationId(artifact, "profile")) : null;
+    const installation = findById(app, INSTALLATIONS_COLLECTION, relationId(ticket, "installation"));
+    if (!artifact || !profile || !installation
+      || relationId(ticket, "store") !== relationId(profile, "store")
+      || relationId(ticket, "app_config") !== relationId(profile, "app_config")
+      || relationId(installation, "app_config") !== relationId(profile, "app_config")
+      || recordString(installation, "status") !== "active"
+      || recordString(profile, "status") !== "provisioned"
+      || recordString(profile, "lifecycle_status") !== "active"
+      || recordString(profile, "distribution_status") !== "active"
+      || recordString(artifact, "kind") !== "apk"
+      || recordString(artifact, "visibility") !== "store_delivery"
+      || recordString(artifact, "lifecycle_status") !== "available"
+      || recordString(artifact, "release_status") !== "published"
+      || updateDeliveryState(artifact) !== "active"
+      || recordString(artifact, "file_name") !== filename) return notFound();
+    app.runInTransaction((tx) => {
+      const locked = findById(tx, UPDATE_TICKETS_COLLECTION, ticket.id);
+      if (!locked || recordString(locked, "used_at")
+        || new Date(recordString(locked, "expires_at")).getTime() <= Date.now()) {
+        throw new Error("ticket_unavailable");
+      }
+      const lockedArtifact = findById(tx, UPDATE_ARTIFACTS_COLLECTION, artifactId);
+      if (!lockedArtifact || updateDeliveryState(lockedArtifact) !== "active"
+        || recordString(lockedArtifact, "release_status") !== "published"
+        || recordString(lockedArtifact, "lifecycle_status") !== "available") {
+        throw new Error("release_unavailable");
+      }
+      locked.set("used_at", new Date().toISOString());
+      tx.save(locked);
+    });
+    return serveStorefrontUpdate(e, app, artifact, filename);
+  } catch (_) {
+    return notFound();
+  }
+}
+
 function resetMemoryForTests() {
   internalNonces.clear();
   rateBuckets.clear();
@@ -1043,6 +1293,7 @@ module.exports = {
   ensureOrderInstallationLink,
   fidDigest,
   handleAction,
+  handleUpdateDownload,
   heartbeatInstallation,
   mapInstallation,
   normalizeIp,
@@ -1055,6 +1306,8 @@ module.exports = {
   parseHeartbeatPayload,
   parsePermissionPayload,
   parseRegisterPayload,
+  parseUpdatePolicyPayload,
+  parseUpdateTicketPayload,
   registerInstallation,
   resolveCredentialContext,
   resolveActiveWebSession,
@@ -1062,4 +1315,7 @@ module.exports = {
   resetMemoryForTests,
   sessionDigest,
   updateInstallationPermission,
+  storefrontUpdatePolicy,
+  storefrontUpdateTicket,
+  updateTicketDigest,
 };

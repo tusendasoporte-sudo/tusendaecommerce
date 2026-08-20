@@ -3,6 +3,7 @@ package com.tusenda84.storefront;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -37,6 +38,16 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public final class StorefrontActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 601;
     private static final String ANALYTICS_LOG_TAG = "PZStorefrontAnalytics";
@@ -54,7 +65,14 @@ public final class StorefrontActivity extends Activity {
     private boolean registrationSyncInFlight;
     private boolean permissionSyncInFlight;
     private boolean sessionRefreshInFlight;
+    private boolean updateCheckInFlight;
+    private boolean updateDownloadInFlight;
+    private boolean updatePromptVisible;
     private boolean initialNavigationDone;
+    private long lastOptionalUpdateCode;
+    private AlertDialog updateDialog;
+    private File pendingVerifiedUpdate;
+    private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor();
     private int pushResolutionGeneration;
     private String pendingDeliveryId = "";
     private String pendingDestinationUrl = "";
@@ -191,7 +209,10 @@ public final class StorefrontActivity extends Activity {
         client.syncFromAppStart(result -> {
             registrationSyncInFlight = false;
             updateNotificationCard();
-            if (result.ok) refreshWebSession(null);
+            if (result.ok) {
+                refreshWebSession(null);
+                checkForUpdates();
+            }
         });
     }
 
@@ -209,8 +230,220 @@ public final class StorefrontActivity extends Activity {
                 completeInitialNavigation(intent);
                 return;
             }
+            checkForUpdates();
             refreshWebSession(sessionResult -> completeInitialNavigation(intent));
         });
+    }
+
+    private void checkForUpdates() {
+        if (client == null || updateCheckInFlight || updateDownloadInFlight || updatePromptVisible
+                || !"release".equals(BuildConfig.BUILD_TYPE)
+                || !BuildConfig.FIREBASE_CONFIGURED
+                || !StorefrontInstallationStore.hasCredential(this)) return;
+        updateCheckInFlight = true;
+        client.checkForUpdate(installSource(), policy -> {
+            updateCheckInFlight = false;
+            if (policy == null || !policy.available || policy.artifact == null
+                    || isFinishing() || isDestroyed()) return;
+            if (!policy.required && policy.artifact.versionCode <= lastOptionalUpdateCode) return;
+            showUpdatePrompt(policy);
+        });
+    }
+
+    private String installSource() {
+        String installer = "";
+        try {
+            if (Build.VERSION.SDK_INT >= 30) {
+                installer = getPackageManager().getInstallSourceInfo(getPackageName()).getInstallingPackageName();
+            } else {
+                installer = getPackageManager().getInstallerPackageName(getPackageName());
+            }
+        } catch (Exception ignored) {}
+        return "com.android.vending".equals(installer) ? "play" : "direct";
+    }
+
+    private void showUpdatePrompt(StorefrontRegistrationClient.UpdatePolicy policy) {
+        if (updatePromptVisible || isFinishing() || isDestroyed()) return;
+        updatePromptVisible = true;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(policy.required ? R.string.update_required_title : R.string.update_available_title)
+                .setMessage(getString(
+                        policy.required ? R.string.update_required_message : R.string.update_available_message,
+                        policy.artifact.versionName
+                ))
+                .setPositiveButton(R.string.update_now, null)
+                .setCancelable(!policy.required);
+        if (!policy.required) {
+            builder.setNegativeButton(R.string.update_later, (dialog, which) -> {
+                lastOptionalUpdateCode = policy.artifact.versionCode;
+                dialog.dismiss();
+            });
+        }
+        updateDialog = builder.create();
+        updateDialog.setCanceledOnTouchOutside(false);
+        updateDialog.setOnDismissListener(dialog -> {
+            updatePromptVisible = false;
+            updateDialog = null;
+        });
+        updateDialog.setOnShowListener(dialog -> updateDialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> beginUpdate(policy)));
+        updateDialog.show();
+    }
+
+    private void beginUpdate(StorefrontRegistrationClient.UpdatePolicy policy) {
+        if (updateDownloadInFlight) return;
+        if ("play_store".equals(policy.deliveryMode)) {
+            if (!policy.required && updateDialog != null) updateDialog.dismiss();
+            openExternal(Uri.parse(policy.playStoreUrl));
+            return;
+        }
+        if (!"private_apk".equals(policy.deliveryMode) || policy.artifact == null) {
+            showUpdateFailure();
+            return;
+        }
+        updateDownloadInFlight = true;
+        if (updateDialog != null) {
+            updateDialog.setCancelable(false);
+            updateDialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            Button later = updateDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            if (later != null) later.setEnabled(false);
+        }
+        Toast.makeText(this, R.string.update_downloading, Toast.LENGTH_SHORT).show();
+        client.requestUpdateTicket(policy.artifact.id, ticket -> {
+            if (ticket == null || !sameArtifact(policy.artifact, ticket.artifact)) {
+                updateDownloadInFlight = false;
+                showUpdateFailure();
+                return;
+            }
+            downloadVerifiedUpdate(ticket);
+        });
+    }
+
+    private static boolean sameArtifact(
+            StorefrontRegistrationClient.UpdateArtifact expected,
+            StorefrontRegistrationClient.UpdateArtifact actual
+    ) {
+        return expected != null && actual != null
+                && expected.id.equals(actual.id)
+                && expected.sha256.equalsIgnoreCase(actual.sha256)
+                && expected.bytes == actual.bytes
+                && expected.versionCode == actual.versionCode
+                && expected.packageName.equals(actual.packageName);
+    }
+
+    private void downloadVerifiedUpdate(StorefrontRegistrationClient.UpdateTicket ticket) {
+        updateExecutor.execute(() -> {
+            File output = null;
+            HttpURLConnection connection = null;
+            try {
+                File directory = new File(getCacheDir(), "storefront-updates");
+                if (!directory.exists() && !directory.mkdirs()) {
+                    throw new IllegalStateException("update_directory_failed");
+                }
+                File[] previous = directory.listFiles((parent, name) -> name.matches("storefront-[0-9]+\\.apk"));
+                if (previous != null) for (File file : previous) if (!file.delete()) {
+                    throw new IllegalStateException("update_cleanup_failed");
+                }
+                output = new File(directory, "storefront-" + ticket.artifact.versionCode + ".apk");
+                connection = (HttpURLConnection) new URL(ticket.downloadUrl).openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(15_000);
+                connection.setReadTimeout(120_000);
+                connection.setInstanceFollowRedirects(false);
+                connection.setUseCaches(false);
+                connection.setRequestProperty("Accept", "application/vnd.android.package-archive");
+                connection.setRequestProperty("Cache-Control", "no-store");
+                int responseCode = connection.getResponseCode();
+                long declaredLength = connection.getContentLengthLong();
+                if (responseCode != HttpURLConnection.HTTP_OK
+                        || declaredLength > StorefrontUpdateContract.MAX_APK_BYTES
+                        || declaredLength >= 0 && declaredLength != ticket.artifact.bytes) {
+                    throw new IllegalStateException("update_download_denied");
+                }
+                long total = 0;
+                byte[] buffer = new byte[64 * 1024];
+                try (InputStream input = connection.getInputStream();
+                     FileOutputStream file = new FileOutputStream(output)) {
+                    int read;
+                    while ((read = input.read(buffer)) >= 0) {
+                        if (read == 0) continue;
+                        total += read;
+                        if (total > StorefrontUpdateContract.MAX_APK_BYTES
+                                || total > ticket.artifact.bytes) {
+                            throw new IllegalStateException("update_too_large");
+                        }
+                        file.write(buffer, 0, read);
+                    }
+                    file.getFD().sync();
+                }
+                if (total != ticket.artifact.bytes) throw new IllegalStateException("update_size_mismatch");
+                StorefrontApkVerifier.verify(
+                        this,
+                        output,
+                        ticket.artifact.sha256,
+                        ticket.artifact.versionCode,
+                        ticket.artifact.packageName
+                );
+                File verified = output;
+                runOnUiThread(() -> {
+                    updateDownloadInFlight = false;
+                    if (updateDialog != null) updateDialog.dismiss();
+                    openVerifiedUpdate(verified);
+                });
+            } catch (Exception error) {
+                if (output != null && output.exists()) output.delete();
+                runOnUiThread(() -> {
+                    updateDownloadInFlight = false;
+                    showUpdateFailure();
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    private void showUpdateFailure() {
+        Toast.makeText(this, R.string.update_verification_failed, Toast.LENGTH_LONG).show();
+        if (updateDialog != null) {
+            Button update = updateDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            if (update != null) update.setEnabled(true);
+            Button later = updateDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+            updateDialog.setCancelable(later != null);
+            if (later != null) later.setEnabled(true);
+        }
+    }
+
+    private void openVerifiedUpdate(File apk) {
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            pendingVerifiedUpdate = apk;
+            Toast.makeText(this, R.string.update_allow_installs, Toast.LENGTH_LONG).show();
+            try {
+                startActivity(new Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName())
+                ));
+            } catch (ActivityNotFoundException error) {
+                pendingVerifiedUpdate = null;
+                if (apk.exists()) apk.delete();
+                Toast.makeText(this, R.string.update_installer_unavailable, Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        pendingVerifiedUpdate = null;
+        try {
+            Uri content = FileProvider.getUriForFile(
+                    this,
+                    getPackageName() + ".storefront_update_files",
+                    apk
+            );
+            Intent install = new Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(content, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(install);
+        } catch (RuntimeException error) {
+            if (apk.exists()) apk.delete();
+            Toast.makeText(this, R.string.update_installer_unavailable, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void completeInitialNavigation(Intent intent) {
@@ -536,6 +769,16 @@ public final class StorefrontActivity extends Activity {
         syncPermissionIfChanged();
         if (initialNavigationDone) refreshWebSession(null);
         flushEvents();
+        if (pendingVerifiedUpdate != null) {
+            File verified = pendingVerifiedUpdate;
+            if (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls()) {
+                openVerifiedUpdate(verified);
+                return;
+            }
+            pendingVerifiedUpdate = null;
+            if (verified.exists()) verified.delete();
+        }
+        checkForUpdates();
     }
 
     @Override
@@ -546,6 +789,8 @@ public final class StorefrontActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (updateDialog != null) updateDialog.dismiss();
+        updateExecutor.shutdownNow();
         if (webView != null) {
             webView.stopLoading();
             webView.setDownloadListener(null);

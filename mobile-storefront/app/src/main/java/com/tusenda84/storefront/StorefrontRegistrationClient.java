@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
@@ -49,6 +50,14 @@ final class StorefrontRegistrationClient {
 
     interface TargetCallback {
         void complete(TargetResult result);
+    }
+
+    interface UpdatePolicyCallback {
+        void complete(UpdatePolicy policy);
+    }
+
+    interface UpdateTicketCallback {
+        void complete(UpdateTicket ticket);
     }
 
     static final class Result {
@@ -87,12 +96,68 @@ final class StorefrontRegistrationClient {
         }
     }
 
+    static final class UpdateArtifact {
+        final String id;
+        final String fileName;
+        final String sha256;
+        final long bytes;
+        final long versionCode;
+        final String versionName;
+        final String packageName;
+
+        UpdateArtifact(String id, String fileName, String sha256, long bytes, long versionCode,
+                       String versionName, String packageName) {
+            this.id = id;
+            this.fileName = fileName;
+            this.sha256 = sha256;
+            this.bytes = bytes;
+            this.versionCode = versionCode;
+            this.versionName = versionName;
+            this.packageName = packageName;
+        }
+    }
+
+    static final class UpdatePolicy {
+        final boolean available;
+        final boolean required;
+        final String deliveryMode;
+        final String playStoreUrl;
+        final UpdateArtifact artifact;
+
+        UpdatePolicy(boolean available, boolean required, String deliveryMode,
+                     String playStoreUrl, UpdateArtifact artifact) {
+            this.available = available;
+            this.required = required;
+            this.deliveryMode = deliveryMode;
+            this.playStoreUrl = playStoreUrl;
+            this.artifact = artifact;
+        }
+    }
+
+    static final class UpdateTicket {
+        final String downloadUrl;
+        final UpdateArtifact artifact;
+
+        UpdateTicket(String downloadUrl, UpdateArtifact artifact) {
+            this.downloadUrl = downloadUrl;
+            this.artifact = artifact;
+        }
+    }
+
     private interface Operation {
         Result run() throws Exception;
     }
 
     private interface TargetOperation {
         TargetResult run() throws Exception;
+    }
+
+    private interface UpdatePolicyOperation {
+        UpdatePolicy run() throws Exception;
+    }
+
+    private interface UpdateTicketOperation {
+        UpdateTicket run() throws Exception;
     }
 
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
@@ -108,6 +173,7 @@ final class StorefrontRegistrationClient {
     );
     private static final Pattern SAFE_ERROR = Pattern.compile("^[a-z0-9_]{1,80}$");
     private static final Pattern CAMPAIGN_PATTERN = Pattern.compile("^[a-z0-9]{15}$");
+    private static final Pattern UPDATE_TICKET_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{43}$");
     private static final int RESPONSE_LIMIT = 65_536;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
@@ -197,6 +263,14 @@ final class StorefrontRegistrationClient {
 
     void resolveCampaignTarget(String campaignId, TargetCallback callback) {
         executeTarget(callback, () -> resolveCampaignTargetInternal(campaignId));
+    }
+
+    void checkForUpdate(String installSource, UpdatePolicyCallback callback) {
+        executeUpdatePolicy(callback, () -> updatePolicyInternal(installSource));
+    }
+
+    void requestUpdateTicket(String artifactId, UpdateTicketCallback callback) {
+        executeUpdateTicket(callback, () -> updateTicketInternal(artifactId));
     }
 
     private Result registerInternal(
@@ -346,6 +420,100 @@ final class StorefrontRegistrationClient {
         return targetUrl.equals(StorefrontConfig.storeUrl())
                 ? TargetResult.fail()
                 : TargetResult.ok(targetUrl);
+    }
+
+    private UpdatePolicy updatePolicyInternal(String installSource) throws Exception {
+        Result readiness = readiness();
+        if (!readiness.ok || !("play".equals(installSource) || "direct".equals(installSource))) return null;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return null;
+        HttpResult response = post(
+                StorefrontConfig.UPDATE_POLICY_PATH,
+                StorefrontUpdateContract.policyPayload(
+                        context.getPackageName(),
+                        BuildConfig.VERSION_CODE,
+                        releaseVersionName(),
+                        installSource
+                ),
+                credential,
+                false
+        );
+        if (!response.ok()) return null;
+        JSONObject root = new JSONObject(response.body);
+        JSONObject policy = root.optJSONObject("policy");
+        if (!root.optBoolean("ok", false) || policy == null
+                || !context.getPackageName().equals(policy.optString("package_name", ""))
+                || policy.optLong("current_version_code", 0) != BuildConfig.VERSION_CODE
+                || !releaseVersionName().equals(policy.optString("current_version_name", ""))) return null;
+        boolean available = policy.optBoolean("update_available", false);
+        boolean required = policy.optBoolean("update_required", false);
+        String deliveryMode = clean(policy.optString("delivery_mode", ""));
+        String playStoreUrl = clean(policy.optString("play_store_url", ""));
+        JSONObject rawArtifact = policy.optJSONObject("artifact");
+        UpdateArtifact artifact = rawArtifact == null ? null : updateArtifact(rawArtifact);
+        if (!("play_store".equals(deliveryMode) || "private_apk".equals(deliveryMode))
+                || required && !available
+                || available != (artifact != null)
+                || available && artifact.versionCode <= BuildConfig.VERSION_CODE
+                || "play_store".equals(deliveryMode) && !expectedPlayStoreUrl(playStoreUrl)
+                || "private_apk".equals(deliveryMode) && !playStoreUrl.isEmpty()) return null;
+        return new UpdatePolicy(available, required, deliveryMode, playStoreUrl, artifact);
+    }
+
+    private UpdateTicket updateTicketInternal(String artifactId) throws Exception {
+        String requestedArtifactId = clean(artifactId);
+        Result readiness = readiness();
+        if (!readiness.ok || !CAMPAIGN_PATTERN.matcher(requestedArtifactId).matches()) return null;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return null;
+        HttpResult response = post(
+                StorefrontConfig.UPDATE_TICKET_PATH,
+                StorefrontUpdateContract.ticketPayload(requestedArtifactId),
+                credential,
+                false
+        );
+        if (!response.ok()) return null;
+        JSONObject root = new JSONObject(response.body);
+        JSONObject rawArtifact = root.optJSONObject("artifact");
+        UpdateArtifact artifact = rawArtifact == null ? null : updateArtifact(rawArtifact);
+        String ticket = clean(root.optString("ticket", ""));
+        String downloadUrl = clean(root.optString("download_url", ""));
+        Instant expiresAt;
+        try {
+            expiresAt = Instant.parse(clean(root.optString("expires_at", "")));
+        } catch (RuntimeException error) {
+            return null;
+        }
+        Instant now = Instant.now();
+        if (!root.optBoolean("ok", false) || artifact == null
+                || !requestedArtifactId.equals(artifact.id)
+                || artifact.versionCode <= BuildConfig.VERSION_CODE
+                || !context.getPackageName().equals(artifact.packageName)
+                || !UPDATE_TICKET_PATTERN.matcher(ticket).matches()
+                || !expiresAt.isAfter(now) || expiresAt.isAfter(now.plusSeconds(5 * 60))
+                || !StorefrontUpdateContract.allowedDownloadUrl(downloadUrl, StorefrontConfig.storeUrl())) return null;
+        return new UpdateTicket(downloadUrl, artifact);
+    }
+
+    private UpdateArtifact updateArtifact(JSONObject artifact) {
+        String id = clean(artifact.optString("id", ""));
+        String fileName = clean(artifact.optString("file_name", ""));
+        String sha256 = clean(artifact.optString("sha256", ""));
+        long bytes = artifact.optLong("bytes", 0);
+        long versionCode = artifact.optLong("version_code", 0);
+        String versionName = clean(artifact.optString("version_name", ""));
+        String packageName = clean(artifact.optString("package_name", ""));
+        return StorefrontUpdateContract.validArtifact(
+                id, fileName, sha256, bytes, versionCode, versionName, packageName
+        ) ? new UpdateArtifact(id, fileName, sha256, bytes, versionCode, versionName, packageName) : null;
+    }
+
+    private boolean expectedPlayStoreUrl(String candidate) {
+        return ("https://play.google.com/store/apps/details?id=" + context.getPackageName()).equals(candidate);
+    }
+
+    private static String releaseVersionName() {
+        return clean(BuildConfig.VERSION_NAME).replaceFirst("-(?:debug|staging)$", "");
     }
 
     private Result consumeBootstrap(String bootstrapUrl) throws Exception {
@@ -499,7 +667,7 @@ final class StorefrontRegistrationClient {
             return Result.fail("Firebase no está configurado en esta APK.");
         }
         if (StorefrontConfig.apiBaseUrl().isEmpty()) {
-            return Result.fail("El origen HTTPS de staging no está configurado.");
+            return Result.fail("El origen HTTPS de la aplicación no está configurado.");
         }
         return Result.ok("ready");
     }
@@ -557,6 +725,34 @@ final class StorefrontRegistrationClient {
         });
     }
 
+    private void executeUpdatePolicy(UpdatePolicyCallback callback, UpdatePolicyOperation operation) {
+        EXECUTOR.execute(() -> {
+            UpdatePolicy policy;
+            try {
+                policy = operation.run();
+            } catch (Exception error) {
+                logRegistration("update_policy_failed reason=" + safeFailure(error));
+                policy = null;
+            }
+            UpdatePolicy delivered = policy;
+            MAIN.post(() -> callback.complete(delivered));
+        });
+    }
+
+    private void executeUpdateTicket(UpdateTicketCallback callback, UpdateTicketOperation operation) {
+        EXECUTOR.execute(() -> {
+            UpdateTicket ticket;
+            try {
+                ticket = operation.run();
+            } catch (Exception error) {
+                logRegistration("update_ticket_failed reason=" + safeFailure(error));
+                ticket = null;
+            }
+            UpdateTicket delivered = ticket;
+            MAIN.post(() -> callback.complete(delivered));
+        });
+    }
+
     static String safeFailure(Throwable error) {
         StringBuilder diagnostic = new StringBuilder();
         Throwable current = error;
@@ -586,9 +782,9 @@ final class StorefrontRegistrationClient {
         if (material.contains("unknownhost")
                 || material.contains("connectexception")
                 || material.contains("sockettimeoutexception")) {
-            return "No fue posible conectar con los servicios de staging.";
+            return "No fue posible conectar con los servicios de la aplicación.";
         }
-        return "La operación falló de forma segura. Revisa conectividad y configuración de staging.";
+        return "La operación falló de forma segura. Revisa la conectividad y la configuración de la aplicación.";
     }
 
     static boolean shouldRequestMessagingRegistration(RegistrationOrigin origin) {

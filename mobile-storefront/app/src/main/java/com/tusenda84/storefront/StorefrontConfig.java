@@ -13,6 +13,8 @@ final class StorefrontConfig {
     static final String BOOTSTRAP_PATH = "/api/storefront/v1/session/bootstrap";
     static final String RESOLVE_TARGET_PATH = "/api/storefront/v1/campaigns/resolve-target";
     static final String EVENTS_PATH = "/api/storefront/v1/events";
+    static final String UPDATE_POLICY_PATH = "/api/storefront/v1/updates/policy";
+    static final String UPDATE_TICKET_PATH = "/api/storefront/v1/updates/ticket";
 
     private static final Pattern STORE_KEY = Pattern.compile("^[a-z0-9][a-z0-9-]{1,62}$");
     private static final Pattern APP_KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$");

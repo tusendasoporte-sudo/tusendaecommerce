@@ -234,7 +234,8 @@ try {
     if ($BuildType -eq 'Release' -and [bool]$payload.build.aab) {
         if (-not $UploadSigningPropertiesPath) { throw 'El AAB requiere una clave de subida exclusiva de la app.' }
         $env:PZ_STOREFRONT_SIGNING_PROPERTIES = $UploadSigningPropertiesPath
-        & $gradle 'bundleRelease' @gradleArgs
+        $playGradleArgs = @($gradleArgs) + '-PPZ_STOREFRONT_PLAY_BUNDLE=true'
+        & $gradle 'bundleRelease' @playGradleArgs
         if ($LASTEXITCODE -ne 0) { throw 'Gradle no completo el AAB Release.' }
         $aabName = "$($config.StoreKey)-$VersionName-$VersionCode-play.aab"
         Copy-Item -LiteralPath (Join-Path $mobileRoot 'app\build\outputs\bundle\release\app-release.aab') -Destination (Join-Path $releaseDirectory $aabName)
