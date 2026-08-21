@@ -26,6 +26,7 @@ const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settin
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminVisualEditorBasePath = getStoreAdminPath(currentStoreSlug, 'promos/visuals');
 const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
@@ -1200,7 +1201,53 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         font-size: 12px;
         font-weight: 1000;
       }
-      .marketing-quick-filters { margin-top: 0; }
+      .marketing-quick-filter-select {
+        position: relative;
+        display: grid;
+        gap: 3px;
+        margin-top: 0;
+        padding: 12px 46px 12px 15px;
+        border: 1px solid #dbe5f1;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+        color: #64748b;
+        cursor: pointer;
+      }
+      .marketing-quick-filter-select::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 18px;
+        width: 9px;
+        height: 9px;
+        border-right: 2px solid #0f172a;
+        border-bottom: 2px solid #0f172a;
+        transform: translateY(-70%) rotate(45deg);
+        pointer-events: none;
+      }
+      .marketing-quick-filter-select > span {
+        font-size: 11px;
+        line-height: 1.2;
+        font-weight: 900;
+      }
+      .marketing-quick-filter-select select {
+        width: 100%;
+        border: 0;
+        outline: 0;
+        appearance: none;
+        background: transparent;
+        color: #0f172a;
+        padding: 0;
+        font-size: 14px;
+        line-height: 1.25;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+      .marketing-quick-filter-select:focus-within {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+      }
       .marketing-quick-list {
         margin-top: 0 !important;
         display: grid;
@@ -1208,18 +1255,26 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       .marketing-quick-row {
         display: grid;
-        grid-template-columns: 190px minmax(0, 1fr) auto;
+        grid-template-columns: 190px minmax(0, 1fr);
+        grid-template-areas:
+          'thumb main'
+          'actions actions';
         align-items: center;
         gap: 16px;
-        padding: 10px 14px;
+        padding: 16px;
         border: 1px solid #e2e8f0;
         border-radius: 20px;
         background: #fff;
         box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+        cursor: pointer;
+        transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
       }
+      .marketing-quick-row:hover { border-color: #bfdbfe; box-shadow: 0 14px 30px rgba(37, 99, 235, .09); transform: translateY(-1px); }
+      .marketing-quick-row:focus-visible { outline: 3px solid rgba(37, 99, 235, .24); outline-offset: 3px; }
       .marketing-quick-thumb {
+        grid-area: thumb;
         width: 190px;
-        height: 70px;
+        height: 112px;
         display: block;
         overflow: hidden;
         border-radius: 14px;
@@ -1242,7 +1297,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         font-weight: 1000;
         background: linear-gradient(135deg, #dbeafe, #eff6ff);
       }
-      .marketing-quick-main { min-width: 0; }
+      .marketing-quick-main { grid-area: main; min-width: 0; }
       .marketing-quick-title {
         margin: 0;
         color: #0f172a;
@@ -1259,10 +1314,43 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         font-weight: 850;
       }
       .marketing-quick-actions {
+        grid-area: actions;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: center;
+        gap: 0;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+        cursor: default;
+      }
+      .marketing-quick-actions > .pz-admin-btn,
+      .marketing-quick-actions .visual-kebab-btn {
+        width: 100%;
+        min-height: 42px;
         display: inline-flex;
         align-items: center;
-        justify-content: flex-end;
-        gap: 9px;
+        justify-content: center;
+        gap: 7px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #334155;
+        box-shadow: none;
+        padding: 8px;
+        font-size: 12px;
+        font-weight: 950;
+      }
+      .marketing-quick-actions > .pz-admin-btn + .pz-admin-btn,
+      .marketing-quick-actions .visual-menu-wrap {
+        border-left: 1px solid #e2e8f0;
+      }
+      .marketing-quick-actions .visual-menu-wrap {
+        width: 100%;
+        justify-content: stretch;
+      }
+      .marketing-quick-actions .visual-kebab-btn > span:first-child {
+        font-size: 17px;
+        line-height: 1;
       }
       .marketing-quick-status {
         min-height: 30px;
@@ -1827,9 +1915,9 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           flex-direction: column;
         }
         .marketing-quick-row {
-          grid-template-columns: 140px minmax(0, 1fr) auto;
+          grid-template-columns: 140px minmax(0, 1fr);
         }
-        .marketing-quick-thumb { width: 140px; }
+        .marketing-quick-thumb { width: 140px; height: 104px; }
         .marketing-coupons-panel-head { flex-direction: column; }
         .marketing-coupons-panel-actions { width: 100%; justify-content: flex-start; }
         .marketing-coupons-panel-actions > button { flex: 1 1 180px; }
@@ -1893,9 +1981,9 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           grid-template-columns: 1fr;
         }
         .marketing-quick-row {
-          grid-template-columns: 120px minmax(0, 1fr) auto;
+          grid-template-columns: 120px minmax(0, 1fr);
           gap: 12px;
-          padding: 10px;
+          padding: 14px;
           border-radius: 18px;
         }
         .marketing-quick-thumb {
@@ -1907,9 +1995,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         .marketing-quick-meta { font-size: 13px; }
         .marketing-quick-status { display: none; }
         .marketing-quick-actions { align-self: stretch; }
+        .marketing-quick-actions > .pz-admin-btn,
+        .marketing-quick-actions .visual-kebab-btn { min-height: 40px; padding: 7px 5px; font-size: 11px; }
         .marketing-quick-note { display: none; }
-        .marketing-quick-filters { gap: 8px; }
-        .marketing-quick-filters .promotion-filter-btn { min-height: 42px; }
+        .marketing-quick-filter-select { border-radius: 15px; }
         .marketing-coupons-panel {
           padding: 16px;
           border-radius: 24px;
@@ -2068,7 +2157,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       @media (max-width: 430px) {
         .marketing-quick-row {
-          grid-template-columns: 96px minmax(0, 1fr) 38px;
+          grid-template-columns: 96px minmax(0, 1fr);
         }
         .marketing-quick-thumb {
           width: 96px;
@@ -2581,8 +2670,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         storePlanValues={adminContext.store}
         activeSection="marketing"
         mobileTitle="Marketing"
-        mobileActionLabel="Nueva promocion"
-        mobileActionTarget="#promotion-new-btn"
       />
       <LastModificationMeta
         controllerOnly={true}
@@ -3310,13 +3397,16 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 <p id="visual-results-count" class="marketing-quick-results-count">0 tarjetas</p>
               </div>
 
-              <div id="visual-filters" class="promotion-filters marketing-quick-filters" aria-label="Filtrar accesos rápidos">
-                <button class="promotion-filter-btn active" data-visual-filter="all" type="button">Todas</button>
-                <button class="promotion-filter-btn" data-visual-filter="promo_visual" type="button">Promo visual</button>
-                <button class="promotion-filter-btn" data-visual-filter="acceso_rapido" type="button">Acceso rápido</button>
-                <button class="promotion-filter-btn" data-visual-filter="visible" type="button">Visibles</button>
-                <button class="promotion-filter-btn" data-visual-filter="hidden" type="button">Ocultas</button>
-              </div>
+              <label class="marketing-quick-filter-select" for="visual-filter-select">
+                <span>Filtros</span>
+                <select id="visual-filter-select" aria-label="Filtrar tarjetas actuales">
+                  <option value="all">Todas</option>
+                  <option value="promo_visual">Promo visual</option>
+                  <option value="acceso_rapido">Acceso rápido</option>
+                  <option value="visible">Visibles</option>
+                  <option value="hidden">Ocultas</option>
+                </select>
+              </label>
 
               <div id="visual-list" class="items-list marketing-quick-list">
                 <div class="empty-state">Cargando promos y accesos...</div>
@@ -3839,10 +3929,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       });
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, adminVisualEditorBasePath, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
+      const ADMIN_VISUAL_EDITOR_BASE_PATH = String(adminVisualEditorBasePath || '/admin/promos/visuals').replace(/\/$/, '');
       const CAN_MANAGE_PROMOTIONS = canManagePromotions === true;
       const CAN_MANAGE_COUPONS = canManageCoupons === true;
       const CAN_MANAGE_RAFFLES = canManageRaffles === true;
@@ -3904,7 +3995,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       const visualSummaryTotal = document.getElementById('visual-summary-total');
       const visualSummaryVisible = document.getElementById('visual-summary-visible');
       const visualSummaryReview = document.getElementById('visual-summary-review');
-      const visualFilters = document.getElementById('visual-filters');
+      const visualFilterSelect = document.getElementById('visual-filter-select');
       const visualResultsCount = document.getElementById('visual-results-count');
       const visualSaveBtn = document.getElementById('visual-save-btn');
       const refreshBtn = document.getElementById('refresh-btn');
@@ -4522,9 +4613,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
 
         renderVisualSummary();
 
-        visualFilters?.querySelectorAll('[data-visual-filter]').forEach((button) => {
-          button.classList.toggle('active', button.dataset.visualFilter === visualFilter);
-        });
+        if (visualFilterSelect) visualFilterSelect.value = visualFilter;
 
         const sortedVisuals = getAllVisualItemsSorted();
         const filteredVisuals = sortedVisuals.filter(visualMatchesFilter);
@@ -4552,7 +4641,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
             const attachment = visualAttachmentName(item);
 
             return `
-              <article class="marketing-quick-row" data-visual-id="${item.id}">
+              <article class="marketing-quick-row" data-visual-id="${item.id}" tabindex="0" aria-label="Editar tarjeta ${escapeHtml(item.title || 'Sin título')}">
                 ${renderVisualQuickThumb(item)}
 
                 <div class="marketing-quick-main">
@@ -4561,22 +4650,21 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     ${escapeHtml(typeLabel)} · Acción: ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}
                     ${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}
                   </p>
+                  <span class="marketing-quick-status ${item.active !== false ? 'is-visible' : 'is-hidden'}">${escapeHtml(statusLabel)}</span>
                   <span class="pz-last-modification" data-pz-last-modification data-resource-type="visual_item" data-resource-id="${escapeHtml(item.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
 
                 <div class="marketing-quick-actions">
                   <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-visual-move" data-direction="up" type="button" ${sortedIndex <= 0 ? 'disabled' : ''} aria-label="Mover arriba">
-                    ↑
+                    <span aria-hidden="true">↑</span><span>Subir</span>
                   </button>
                   <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-visual-move" data-direction="down" type="button" ${sortedIndex === sortedVisuals.length - 1 ? 'disabled' : ''} aria-label="Mover abajo">
-                    ↓
+                    <span aria-hidden="true">↓</span><span>Bajar</span>
                   </button>
-
-                  <span class="marketing-quick-status ${item.active !== false ? 'is-visible' : 'is-hidden'}">${escapeHtml(statusLabel)}</span>
 
                   <div class="visual-menu-wrap">
                     <button class="visual-kebab-btn js-visual-menu pz-admin-btn pz-admin-btn--icon pz-admin-btn--compact" type="button" aria-label="Abrir opciones" aria-expanded="false">
-                      <span aria-hidden="true">⋮</span>
+                      <span aria-hidden="true">•••</span><span>Más</span>
                     </button>
                     <div class="visual-floating-menu" role="menu">
                       <button class="js-visual-edit" type="button">Editar</button>
@@ -5612,6 +5700,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           visualTitle.focus();
         });
       }
+      function openVisualEditorById(id) {
+        closeVisualMenus();
+        if (!/^[a-z0-9]{15}$/.test(String(id || ''))) return;
+        window.location.assign(`${ADMIN_VISUAL_EDITOR_BASE_PATH}/${encodeURIComponent(id)}`);
+      }
       function closeVisualForm() {
         visualForm.classList.add('hidden');
         resetVisualForm();
@@ -6060,11 +6153,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       visualCancelBtn?.addEventListener('click', closeVisualForm);
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
-      visualFilters?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-visual-filter]');
-        if (!button) return;
-
-        visualFilter = button.dataset.visualFilter || 'all';
+      visualFilterSelect?.addEventListener('change', () => {
+        visualFilter = visualFilterSelect.value || 'all';
         renderVisualList();
       });
       promotionNewBtn?.addEventListener('click', () => {
@@ -6259,9 +6349,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           return;
         }
         if (event.target.closest('.js-visual-edit')) {
-          closeVisualMenus();
-          const item = visualItems.find((entry) => entry.id === id);
-          openVisualForm(item);
+          openVisualEditorById(id);
           return;
         }
         if (event.target.closest('.js-visual-toggle')) {
@@ -6272,7 +6360,17 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         if (event.target.closest('.js-visual-delete')) {
           closeVisualMenus();
           deleteVisualItem(id).catch((error) => showAlert(visualAlert, error.message || 'No se pudo borrar.', 'error'));
+          return;
         }
+        if (event.target.closest('.marketing-quick-actions')) return;
+        openVisualEditorById(id);
+      });
+      visualList?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const row = event.target.closest('[data-visual-id]');
+        if (!row || event.target !== row) return;
+        event.preventDefault();
+        openVisualEditorById(row.dataset.visualId);
       });
       promotionList?.addEventListener('click', (event) => {
         const showMoreButton = event.target.closest('.js-promotion-show-more');

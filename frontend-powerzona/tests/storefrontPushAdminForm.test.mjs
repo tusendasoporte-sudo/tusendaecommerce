@@ -38,6 +38,14 @@ const pushCampaignViewSource = readFileSync(
   'utf8',
 );
 
+test('la selección masiva usa acciones de texto horizontales sin tarjeta contenedora', () => {
+  assert.match(pushCampaignViewSource, /\.push-selection-toolbar \{ display: grid; grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);/);
+  assert.match(pushCampaignViewSource, /\.push-selection-toolbar \.push-btn \{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/);
+  assert.match(pushCampaignViewSource, /\[data-select-all\] \{ justify-self: start;/);
+  assert.match(pushCampaignViewSource, /\[data-delete-selected\] \{ justify-self: end;/);
+  assert.doesNotMatch(pushCampaignViewSource, /\.push-selection-toolbar \{[^}]*border:/);
+});
+
 const baseForm = {
   campaign_id: '',
   title: 'Oferta Premium',

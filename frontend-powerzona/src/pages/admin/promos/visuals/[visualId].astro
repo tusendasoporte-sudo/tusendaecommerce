@@ -1,0 +1,332 @@
+---
+export const prerender = false;
+
+import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
+import { refreshAuthFromCookie } from '../../../../lib/auth';
+import { getStoreAdminPath } from '../../../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+import { getStoreAccessContext } from '../../../../lib/storeTeam';
+import { hasStorePermission } from '../../../../lib/storeTeamPermissions';
+import '../../../../styles/global.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+
+const visualId = String(Astro.params.visualId || '').trim();
+if (!/^[a-z0-9]{15}$/.test(visualId)) {
+  return new Response('No se encontró la tarjeta solicitada.', { status: 404 });
+}
+
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/$/, '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminPromosVisualsPath = `${adminPromosPath}#visuales`;
+const canonicalPath = getStoreAdminPath(currentStoreSlug, `promos/visuals/${visualId}`);
+const requestedStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+if (requestedStoreSlug && requestedStoreSlug !== currentStoreSlug) return Astro.redirect(canonicalPath);
+
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({
+    baseUrl: pocketbaseUrl,
+    token: authPb.authStore.token,
+    supportStoreId: adminContext.isMasterSupport ? currentStoreId : undefined,
+  }).catch(() => null);
+const permissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+if (!hasStorePermission(permissionContext, 'promotions.manage')) {
+  return new Response('No se encontró la página solicitada.', { status: 404 });
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <link rel="canonical" href={canonicalPath} />
+    <title>Editar tarjeta | {currentStoreName}</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <style is:global>
+      :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #eef3f9; }
+      * { box-sizing: border-box; }
+      body { min-height: 100vh; margin: 0; overflow-x: hidden; background: radial-gradient(circle at 14% 0%, rgba(37,99,235,.13), transparent 30%), linear-gradient(180deg,#f8fbff,#eaf0f8); }
+      button, input, select, textarea { font: inherit; }
+      @media (min-width: 1024px) { body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); } }
+      .visual-editor-page { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 30px 0 80px; }
+      .visual-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+      .visual-editor-heading h1 { margin: 0; font-size: clamp(30px,4vw,42px); line-height: 1.05; font-weight: 1000; letter-spacing: -.04em; }
+      .visual-editor-heading p { max-width: 690px; margin: 9px 0 0; color: #64748b; line-height: 1.55; font-weight: 720; }
+      .visual-editor-back { min-height: 42px; display: inline-flex; align-items: center; border: 1px solid #dbe5f1; border-radius: 13px; background: #fff; color: #334155; padding: 9px 14px; text-decoration: none; font-weight: 900; box-shadow: 0 8px 20px rgba(15,23,42,.05); }
+      .visual-editor-form { display: grid; gap: 14px; }
+      .visual-editor-section { display: grid; gap: 14px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.97); padding: 20px; box-shadow: 0 16px 38px rgba(15,23,42,.06); }
+      .visual-editor-section h2 { margin: 0; color: #2563eb; font-size: 16px; font-weight: 1000; }
+      .visual-editor-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+      .visual-editor-field { min-width: 0; display: grid; gap: 7px; color: #334155; font-size: 12px; font-weight: 900; }
+      .visual-editor-field.is-full { grid-column: 1 / -1; }
+      .visual-editor-field input, .visual-editor-field select, .visual-editor-field textarea { width: 100%; min-height: 46px; border: 1px solid #dbe5f1; border-radius: 14px; background: #fff; color: #0f172a; padding: 10px 12px; outline: 0; font-weight: 750; }
+      .visual-editor-field textarea { min-height: 105px; resize: vertical; line-height: 1.5; }
+      .visual-editor-field input:focus, .visual-editor-field select:focus, .visual-editor-field textarea:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+      .visual-editor-help { margin: 0; color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 680; }
+      .visual-editor-switch { min-height: 46px; display: flex; align-items: center; gap: 10px; border: 1px solid #dbe5f1; border-radius: 14px; background: #f8fafc; padding: 10px 12px; }
+      .visual-editor-switch input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: #2563eb; }
+      .visual-editor-alert { border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; color: #1e40af; padding: 12px 14px; font-size: 12px; line-height: 1.45; font-weight: 850; }
+      .visual-editor-alert[data-tone="error"] { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+      .visual-editor-alert[data-tone="success"] { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+      .visual-editor-alert[hidden], [data-action-field][hidden] { display: none !important; }
+      .visual-editor-actions { position: sticky; bottom: 10px; z-index: 10; display: flex; justify-content: flex-end; gap: 10px; border: 1px solid rgba(226,232,240,.95); border-radius: 18px; background: rgba(255,255,255,.94); padding: 10px; box-shadow: 0 18px 44px rgba(15,23,42,.14); backdrop-filter: blur(14px); }
+      .visual-editor-btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #dbe5f1; border-radius: 13px; background: #fff; color: #334155; padding: 10px 16px; text-decoration: none; font-weight: 950; cursor: pointer; }
+      .visual-editor-btn.is-primary { border-color: #1d4ed8; background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; box-shadow: 0 12px 25px rgba(37,99,235,.22); }
+      .visual-editor-btn:disabled { cursor: wait; opacity: .6; }
+      @media (max-width: 1023px) { .visual-editor-page { padding-top: 108px; } .visual-editor-heading h1, .visual-editor-heading > .visual-editor-back { display: none; } .visual-editor-heading p { margin-top: 0; } }
+      @media (max-width: 640px) { .visual-editor-page { width: min(100% - 20px,960px); padding-bottom: 110px; } .visual-editor-grid { grid-template-columns: 1fr; } .visual-editor-field.is-full { grid-column: auto; } .visual-editor-section { padding: 15px; border-radius: 19px; } .visual-editor-actions { bottom: 84px; display: grid; grid-template-columns: 1fr 1fr; } .visual-editor-btn { width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <AdminSidebar
+      storeId={currentStoreId}
+      pocketbaseUrl={pocketbaseUrl}
+      authToken={authPb.authStore.token}
+      storeSlug={currentStoreSlug}
+      storeName={currentStoreName}
+      storePlanValues={adminContext.store}
+      storeAccessContext={storeAccessContext}
+      activeSection="marketing"
+      mobileTitle="Editar tarjeta"
+      mobileBackHref={adminPromosVisualsPath}
+      mobileBackLabel="Volver a Marketing"
+    />
+
+    <main
+      class="visual-editor-page"
+      data-visual-editor-root
+      data-pocketbase-url={pocketbaseUrl}
+      data-store-id={currentStoreId}
+      data-visual-id={visualId}
+      data-back-path={adminPromosVisualsPath}
+    >
+      <header class="visual-editor-heading">
+        <div>
+          <h1>Editar tarjeta</h1>
+          <p>Actualiza el contenido, el destino y la visibilidad de esta tarjeta de Marketing.</p>
+        </div>
+        <a class="visual-editor-back" href={adminPromosVisualsPath}>Volver a Marketing</a>
+      </header>
+
+      <form class="visual-editor-form" data-visual-editor-form>
+        <section class="visual-editor-section">
+          <h2>Contenido</h2>
+          <div class="visual-editor-grid">
+            <label class="visual-editor-field">Tipo
+              <select name="type" required><option value="promo_visual">Promo visual</option><option value="acceso_rapido">Acceso rápido</option></select>
+            </label>
+            <label class="visual-editor-field">Título
+              <input name="title" type="text" required placeholder="Ej: Combo especial" />
+            </label>
+            <label class="visual-editor-field is-full">Descripción corta
+              <textarea name="description" placeholder="Texto corto para mostrar en la tienda pública"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="visual-editor-section">
+          <h2>Visual</h2>
+          <div class="visual-editor-grid">
+            <label class="visual-editor-field">Cambiar imagen
+              <input name="image" type="file" accept="image/jpeg,image/png,image/webp" />
+              <span class="visual-editor-help" data-current-image></span>
+            </label>
+            <label class="visual-editor-field">Texto del botón
+              <input name="button_text" type="text" placeholder="Ej: Contactar por WhatsApp" />
+            </label>
+          </div>
+        </section>
+
+        <section class="visual-editor-section">
+          <h2>Acción y destino</h2>
+          <div class="visual-editor-grid">
+            <label class="visual-editor-field">Acción
+              <select name="action_type" data-action-type><option value="whatsapp">WhatsApp</option><option value="url">Enlace externo</option><option value="categoria">Categoría</option><option value="archivo">Archivo</option></select>
+            </label>
+            <label class="visual-editor-field" data-action-field="url">URL / enlace
+              <input name="target_url" type="url" placeholder="https://..." />
+            </label>
+            <label class="visual-editor-field is-full" data-action-field="whatsapp">Mensaje de WhatsApp
+              <textarea name="whatsapp_message" placeholder="Hola, quiero información sobre..."></textarea>
+            </label>
+            <label class="visual-editor-field" data-action-field="categoria">Categoría
+              <select name="category" data-category><option value="">Selecciona categoría</option></select>
+            </label>
+            <label class="visual-editor-field" data-action-field="archivo">Cambiar archivo
+              <input name="attachment" type="file" accept="application/pdf,image/*" />
+              <span class="visual-editor-help" data-current-attachment></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="visual-editor-section">
+          <h2>Estado y orden</h2>
+          <div class="visual-editor-grid">
+            <label class="visual-editor-field">Orden visual
+              <input name="sort_order" type="number" min="0" step="1" />
+            </label>
+            <label class="visual-editor-field">Estado
+              <span class="visual-editor-switch"><input name="active" type="checkbox" /><strong>Visible en tienda pública</strong></span>
+            </label>
+          </div>
+        </section>
+
+        <div class="visual-editor-alert" data-editor-alert role="status" aria-live="polite">Cargando tarjeta…</div>
+        <div class="visual-editor-actions">
+          <a class="visual-editor-btn" href={adminPromosVisualsPath}>Cancelar</a>
+          <button class="visual-editor-btn is-primary" type="submit" data-save disabled>Guardar cambios</button>
+        </div>
+      </form>
+    </main>
+
+    <script>
+      import { optimizeStoreVisualImageFile } from '../../../../lib/storeVisualImageOptimizationCore.js';
+
+      (() => {
+        const root = document.querySelector('[data-visual-editor-root]');
+        if (!root) return;
+        const form = root.querySelector('[data-visual-editor-form]');
+        const alert = root.querySelector('[data-editor-alert]');
+        const saveButton = root.querySelector('[data-save]');
+        const actionType = root.querySelector('[data-action-type]');
+        const categorySelect = root.querySelector('[data-category]');
+        const baseUrl = String(root.dataset.pocketbaseUrl || '').replace(/\/$/, '');
+        const storeId = String(root.dataset.storeId || '');
+        const visualId = String(root.dataset.visualId || '');
+        const backPath = String(root.dataset.backPath || '/admin/promos');
+        let record = null;
+
+        function relationId(value) {
+          if (Array.isArray(value)) return String(value[0] || '');
+          if (value && typeof value === 'object') return String(value.id || '');
+          return String(value || '');
+        }
+        function fileName(value) {
+          if (Array.isArray(value)) return String(value[0] || '');
+          return String(value || '');
+        }
+        function getAdminToken() {
+          const cookie = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+          if (!cookie) return '';
+          try { return String(JSON.parse(decodeURIComponent(cookie.slice(8)))?.token || ''); } catch { return ''; }
+        }
+        async function api(path, options = {}) {
+          const headers = { ...(options.headers || {}) };
+          const token = getAdminToken();
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const supportStoreId = String(window.PZ_MASTER_SUPPORT_CONTEXT?.storeId || '');
+          if (supportStoreId) headers['X-PZ-Support-Store'] = supportStoreId;
+          const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
+          const result = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(String(result?.message || 'No se pudo completar la operación.'));
+          return result;
+        }
+        function setAlert(message, tone = 'info') {
+          alert.textContent = message;
+          alert.dataset.tone = tone;
+          alert.hidden = !message;
+        }
+        function updateActionFields() {
+          const action = actionType.value;
+          root.querySelectorAll('[data-action-field]').forEach((field) => { field.hidden = field.dataset.actionField !== action; });
+        }
+        async function loadCategories(selectedId = '') {
+          const result = await api('/api/pz/store/marketing/selectors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refs: selectedId ? [selectedId] : [], taxonomy_page: 1, taxonomy_per_page: 100 }),
+          });
+          const categories = Array.isArray(result?.categories) ? result.categories : [];
+          categorySelect.innerHTML = '<option value="">Selecciona categoría</option>' + categories.map((item) => {
+            const id = String(item?.ref || '');
+            const name = String(item?.name || 'Sin nombre').replace(/[&<>"']/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[char]));
+            return /^[a-z0-9]{15}$/.test(id) ? `<option value="${id}">${name}</option>` : '';
+          }).join('');
+          categorySelect.value = selectedId;
+        }
+        function fillForm(item) {
+          form.elements.type.value = item.type || 'promo_visual';
+          form.elements.title.value = item.title || '';
+          form.elements.description.value = item.description || '';
+          form.elements.button_text.value = item.button_text || '';
+          form.elements.action_type.value = item.action_type || 'whatsapp';
+          form.elements.target_url.value = item.target_url || '';
+          form.elements.whatsapp_message.value = item.whatsapp_message || '';
+          form.elements.sort_order.value = String(Number(item.sort_order || 0));
+          form.elements.active.checked = item.active !== false;
+          const image = fileName(item.image);
+          const attachment = fileName(item.attachment);
+          root.querySelector('[data-current-image]').textContent = image ? `Imagen actual: ${image}` : 'Sin imagen actual';
+          root.querySelector('[data-current-attachment]').textContent = attachment ? `Archivo actual: ${attachment}` : 'Sin archivo actual';
+          updateActionFields();
+        }
+        async function load() {
+          try {
+            record = await api(`/api/collections/store_visual_items/records/${encodeURIComponent(visualId)}`);
+            if (relationId(record?.store) !== storeId) throw new Error('La tarjeta no pertenece a esta tienda.');
+            const categoryId = relationId(record.category);
+            await loadCategories(categoryId);
+            fillForm(record);
+            saveButton.disabled = false;
+            setAlert('');
+          } catch (error) {
+            setAlert(error.message || 'No se pudo cargar la tarjeta.', 'error');
+          }
+        }
+        async function optimizeAttachment(file) {
+          if (!file || !String(file.type || '').startsWith('image/')) return file;
+          return optimizeStoreVisualImageFile(file);
+        }
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          if (!record || saveButton.disabled) return;
+          saveButton.disabled = true;
+          saveButton.textContent = 'Guardando…';
+          try {
+            const data = new FormData();
+            data.append('type', form.elements.type.value);
+            data.append('title', String(form.elements.title.value || '').trim());
+            data.append('description', String(form.elements.description.value || '').trim());
+            data.append('button_text', String(form.elements.button_text.value || '').trim());
+            data.append('action_type', form.elements.action_type.value);
+            data.append('target_url', String(form.elements.target_url.value || '').trim());
+            data.append('whatsapp_message', String(form.elements.whatsapp_message.value || '').trim());
+            data.append('category', form.elements.category.value || '');
+            data.append('sort_order', String(Number(form.elements.sort_order.value || 0)));
+            data.append('active', form.elements.active.checked ? 'true' : 'false');
+            data.append('store', storeId);
+            const image = form.elements.image.files?.[0];
+            const attachment = form.elements.attachment.files?.[0];
+            if (image) data.append('image', await optimizeStoreVisualImageFile(image));
+            if (attachment) data.append('attachment', await optimizeAttachment(attachment));
+            await api(`/api/collections/store_visual_items/records/${encodeURIComponent(visualId)}`, { method: 'PATCH', body: data });
+            setAlert('Cambios guardados correctamente.', 'success');
+            window.setTimeout(() => window.location.assign(backPath), 350);
+          } catch (error) {
+            setAlert(error.message || 'No se pudieron guardar los cambios.', 'error');
+            saveButton.disabled = false;
+            saveButton.textContent = 'Guardar cambios';
+          }
+        });
+        actionType.addEventListener('change', updateActionFields);
+        load();
+      })();
+    </script>
+  </body>
+</html>

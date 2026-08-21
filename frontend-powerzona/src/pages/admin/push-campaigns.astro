@@ -109,9 +109,6 @@ if (!pushAccess.allowed && !showPremiumGate) {
       storeAccessContext={pushAccess.storeAccess}
       activeSection="push-campaigns"
       mobileTitle="Campañas push"
-      mobileActionLabel={pushAccess.allowed ? 'Nueva' : ''}
-      mobileActionEvent={pushAccess.allowed ? 'pz:push-campaign:new' : ''}
-      mobileActionAriaLabel="Crear una campaña push"
     />
 
     {pushAccess.allowed ? (

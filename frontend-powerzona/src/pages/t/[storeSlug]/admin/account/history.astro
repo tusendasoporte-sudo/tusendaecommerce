@@ -43,7 +43,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <title>Mi historial | {storeName}</title>
   </head>
-  <body class="pz-account-page pz-account-page--sidebar">
+  <body class="pz-account-page pz-account-page--sidebar pz-account-history-page">
     <AdminSidebar
       storeId={adminContext.storeId}
       pocketbaseUrl={import.meta.env.PUBLIC_POCKETBASE_URL}
@@ -58,7 +58,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
     />
 
     <main class="pz-account-shell pz-account-history-shell">
-      <header class="pz-account-heading pz-account-heading--with-back">
+      <header class="pz-account-heading pz-account-heading--with-back pz-account-heading--history">
         <div>
           <h1>Mi historial</h1>
           <p>Consulta únicamente los cambios administrativos realizados con tu cuenta.</p>

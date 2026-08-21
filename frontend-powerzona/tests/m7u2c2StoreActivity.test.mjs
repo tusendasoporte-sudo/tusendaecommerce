@@ -228,6 +228,7 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
   assert.match(team, /data-team-tab="users"/);
   assert.match(team, /data-team-tab="activity"/);
   assert.match(team, /<StoreActivityView[\s\S]*?mode="team"[\s\S]*?deferred=\{true\}/);
+  assert.match(team, /<StoreActivityView[\s\S]*?mode="team"[\s\S]*?pageSize=\{10\}/);
   assert.match(team, /data-team-action="activity">Ver actividad/);
   assert.match(team, /data-team-action="delete">Eliminar permanentemente/);
   assert.match(team, /name="confirmation_email"[\s\S]*?name="reason_code"[\s\S]*?name="reason_detail"/);
@@ -243,6 +244,19 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
 
   assert.match(activity, /Cambios hoy/);
   assert.match(activity, /Pendientes de revisar/);
+  assert.match(activity, /store-activity-summary is-team-list/);
+  assert.match(activity, /mode === 'team' && 'is-team-heading'/);
+  assert.match(activity, /mode === 'team' && 'is-icon-only'/);
+  assert.match(activity, /<svg class="store-activity-refresh__icon"/);
+  assert.match(activityStyles, /\.store-activity-heading\.is-team-heading \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+  assert.match(activityStyles, /\.store-activity-refresh\.is-icon-only \{[\s\S]*?width: 48px;[\s\S]*?border-radius: 999px;/);
+  assert.equal((activity.match(/role="listitem"/g) || []).length, 4);
+  assert.match(activity, /<AdminIcon name="chart"/);
+  assert.match(activity, /<AdminIcon name="view"/);
+  assert.match(activity, /<AdminIcon name="bell"/);
+  assert.match(activity, /<AdminIcon name="users"/);
+  assert.match(activityStyles, /\.store-activity-summary\.is-team-list \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?border-radius: 20px;/);
+  assert.match(activityStyles, /\.store-activity-summary\.is-team-list article \{[\s\S]*?grid-template-columns: 42px minmax\(0, 1fr\) auto;/);
   assert.match(activity, /data-activity-filter-form/);
   assert.match(activity, /name="action"/);
   assert.match(activity, /resource_type: resourceTypeFilter/);

@@ -33,16 +33,12 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   data-store-slug={storeSlug}
   data-default-timezone={defaultTimezone}
 >
-  <header class="push-hero">
-    <div class="push-hero__copy">
-      <span class="push-hero__eyebrow">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5V9a8 8 0 0 1 16 0v4.5l2 2V18H2v-2.5l2-2ZM9.4 20h5.2a2.8 2.8 0 0 1-5.2 0Z" /></svg>
-        Canal storefront · Premium
-      </span>
-      <h1>Campañas push</h1>
+  <header class="push-intro">
+    <div class="push-intro__copy">
+      <h1 class="sr-only">Campañas push</h1>
       <p>Crea mensajes para la app pública de {storeName}, valida el destino y controla cada envío desde un solo lugar.</p>
     </div>
-    <button class="push-btn push-btn--primary push-hero__action" type="button" data-new-campaign>
+    <button class="push-btn push-btn--primary push-intro__action" type="button" data-new-campaign>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
       Nueva campaña
     </button>
@@ -1753,12 +1749,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-admin button { cursor: pointer; }
   .push-admin button:disabled { cursor: wait; opacity: .58; }
   body.push-dialog-open { overflow: hidden; }
-  .push-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 24px 26px; border: 1px solid rgba(191,219,254,.88); border-radius: 26px; background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(239,246,255,.96)); box-shadow: 0 20px 50px rgba(15,23,42,.08); }
-  .push-hero__copy { max-width: 760px; }
-  .push-hero__eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #1d4ed8; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
-  .push-hero__eyebrow svg { width: 18px; height: 18px; fill: currentColor; }
-  .push-hero h1 { margin: 9px 0 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.05; letter-spacing: -.045em; font-weight: 1000; }
-  .push-hero p { margin: 12px 0 0; color: #475569; font-size: 15px; line-height: 1.6; font-weight: 680; }
+  .push-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 4px 0; }
+  .push-intro__copy { max-width: 760px; }
+  .push-intro p { margin: 0; color: #475569; font-size: 15px; line-height: 1.6; font-weight: 680; }
   .push-btn { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 13px; padding: 10px 15px; font-size: 13px; line-height: 1.2; font-weight: 950; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
   .push-btn:hover:not(:disabled) { transform: translateY(-1px); }
   .push-btn:focus-visible, .push-icon-btn:focus-visible, .push-link-btn:focus-visible, .push-upload-btn:focus-within, .push-field input:focus-visible, .push-field select:focus-visible, .push-field textarea:focus-visible { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }
@@ -1766,7 +1759,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-btn--primary { color: #fff; border-color: #1d4ed8; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 13px 28px rgba(37,99,235,.22); }
   .push-btn--secondary { color: #0f172a; border-color: #dbe5f1; background: #fff; box-shadow: 0 7px 18px rgba(15,23,42,.05); }
   .push-btn--danger { color: #be123c; border-color: #fecdd3; background: #fff1f2; }
-  .push-hero__action { min-height: 46px; flex: 0 0 auto; }
+  .push-intro__action { min-height: 46px; flex: 0 0 auto; }
   .push-policy { --policy-accent: #5b21b6; --policy-border: #ddd6fe; --policy-soft: #f5f3ff; margin: 16px 0; overflow: hidden; border: 1px solid var(--policy-border); border-radius: 18px; background: #fff; box-shadow: 0 14px 35px rgba(15,23,42,.055); }
   .push-policy__head { min-height: 66px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--policy-border); background: linear-gradient(135deg, #fff 0%, var(--policy-soft) 100%); padding: 12px 16px; }
   .push-policy__premium-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border: 1px solid rgba(91,33,182,.22); border-radius: 50%; background: #fff; color: var(--policy-accent); }
@@ -1795,8 +1788,11 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-search input { min-width: 0; border: 0; outline: 0; background: transparent; color: #0f172a; font-weight: 750; }
   .push-filter-select { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; border: 1px solid #dbe5f1; border-radius: 14px; background: #f8fafc; padding: 0 12px; color: #64748b; font-size: 12px; font-weight: 900; }
   .push-filter-select select { width: 100%; min-height: 44px; border: 0; outline: 0; background: transparent; color: #0f172a; font-weight: 850; }
-  .push-selection-toolbar { display: flex; align-items: center; gap: 10px; margin-top: 12px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc; padding: 9px 10px; }
-  .push-selection-toolbar [data-selection-count] { min-width: 0; margin-right: auto; color: #475569; font-size: 12px; font-weight: 850; }
+  .push-selection-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin-top: 14px; padding: 4px 2px; }
+  .push-selection-toolbar .push-btn { min-height: 36px; border: 0; border-radius: 0; background: transparent; padding: 6px 0; box-shadow: none; font-size: 12px; }
+  .push-selection-toolbar [data-select-all] { justify-self: start; color: #1d4ed8; text-align: left; }
+  .push-selection-toolbar [data-selection-count] { min-width: 0; justify-self: center; color: #475569; font-size: 12px; font-weight: 850; text-align: center; white-space: nowrap; }
+  .push-selection-toolbar [data-delete-selected] { justify-self: end; color: #be123c; text-align: right; }
   .push-live { min-height: 21px; margin: 14px 2px 0; color: #64748b; font-size: 12px; font-weight: 750; }
   .push-campaign-list { display: grid; gap: 12px; margin-top: 8px; }
   .push-campaign-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; border: 1px solid #e2e8f0; border-radius: 19px; background: linear-gradient(135deg, #fff, #fbfdff); padding: 17px; }
@@ -1987,8 +1983,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   }
   @media (max-width: 720px) {
     .push-admin { width: min(100% - 20px, 1220px); padding: 14px 0 92px; }
-    .push-hero { display: grid; padding: 20px; border-radius: 21px; }
-    .push-hero__action { width: 100%; }
+    .push-intro { display: grid; padding: 0; }
+    .push-intro__action { width: 100%; }
     .push-policy { border-radius: 16px; }
     .push-policy__head { align-items: flex-start; padding: 12px; }
     .push-policy__badge { align-self: center; }
@@ -1997,9 +1993,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .push-policy__list li + li { border-left: 0; border-top: 1px solid #e2e8f0; }
     .push-list-panel { padding: 15px; border-radius: 20px; }
     .push-filters { grid-template-columns: 1fr; }
-    .push-selection-toolbar { display: grid; grid-template-columns: 1fr 1fr; }
-    .push-selection-toolbar [data-selection-count] { grid-column: 1 / -1; margin-right: 0; text-align: center; }
-    .push-selection-toolbar .push-btn { width: 100%; }
+    .push-selection-toolbar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; padding-inline: 2px; }
+    .push-selection-toolbar .push-btn { width: auto; font-size: 11px; }
+    .push-selection-toolbar [data-selection-count] { font-size: 11px; }
     .push-filter-select { min-height: 46px; }
     .push-campaign-card { padding: 14px; }
     .push-campaign-card__main { display: grid; }

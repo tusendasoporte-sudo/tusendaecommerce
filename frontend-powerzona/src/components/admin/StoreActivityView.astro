@@ -1,5 +1,6 @@
 ---
 import '../../styles/store-activity.css';
+import AdminIcon from './AdminIcon.astro';
 
 interface Props {
   mode: 'team' | 'user' | 'self';
@@ -53,23 +54,50 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
   data-activity-page-size={resolvedPageSize}
   aria-labelledby={`${activityInstance}-title`}
 >
-  <header class="store-activity-heading">
+  <header class:list={['store-activity-heading', mode === 'team' && 'is-team-heading']}>
     <div>
       <span class="store-activity-heading__kicker">Auditoría operativa</span>
       <h2 id={`${activityInstance}-title`} data-activity-title>{title}</h2>
       <p>{description}</p>
     </div>
-    <button class="store-activity-refresh" type="button" data-activity-refresh data-pz-refresh-feedback aria-label="Actualizar actividad">
-      Actualizar
+    <button
+      class:list={['store-activity-refresh', mode === 'team' && 'is-icon-only']}
+      type="button"
+      data-activity-refresh
+      data-pz-refresh-feedback
+      aria-label="Actualizar actividad"
+      title={mode === 'team' ? 'Actualizar actividad' : undefined}
+    >
+      {mode === 'team' ? (
+        <svg class="store-activity-refresh__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z"></path>
+        </svg>
+      ) : 'Actualizar'}
     </button>
   </header>
 
   {mode === 'team' && (
-    <section class="store-activity-summary" aria-label="Resumen de actividad del equipo">
-      <article><span>Cambios hoy</span><strong data-activity-summary="changes_today">—</strong></article>
-      <article><span>Pendientes de revisar</span><strong data-activity-summary="pending_review">—</strong></article>
-      <article><span>Cambios críticos</span><strong data-activity-summary="critical_changes">—</strong></article>
-      <article><span>Usuarios con actividad</span><strong data-activity-summary="active_users">—</strong></article>
+    <section class="store-activity-summary is-team-list" aria-label="Resumen de actividad del equipo" role="list">
+      <article class="is-today" role="listitem">
+        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="chart" class="store-activity-summary__icon-svg" /></span>
+        <span class="store-activity-summary__label">Cambios hoy</span>
+        <strong data-activity-summary="changes_today">—</strong>
+      </article>
+      <article class="is-pending" role="listitem">
+        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="view" class="store-activity-summary__icon-svg" /></span>
+        <span class="store-activity-summary__label">Pendientes de revisar</span>
+        <strong data-activity-summary="pending_review">—</strong>
+      </article>
+      <article class="is-critical" role="listitem">
+        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="bell" class="store-activity-summary__icon-svg" /></span>
+        <span class="store-activity-summary__label">Cambios críticos</span>
+        <strong data-activity-summary="critical_changes">—</strong>
+      </article>
+      <article class="is-users" role="listitem">
+        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="users" class="store-activity-summary__icon-svg" /></span>
+        <span class="store-activity-summary__label">Usuarios con actividad</span>
+        <strong data-activity-summary="active_users">—</strong>
+      </article>
     </section>
   )}
 

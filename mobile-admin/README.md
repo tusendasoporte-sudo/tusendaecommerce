@@ -18,6 +18,26 @@ En PowerShell, desde este directorio:
 
 El APK se crea en `app/build/outputs/apk/debug/app-debug.apk`. Esta variante se firma automaticamente con la clave de desarrollo de Android y se puede instalar manualmente para pruebas.
 
+### Ejecutar en el emulador contra produccion
+
+Con un emulador Android ya iniciado, ejecuta desde este directorio:
+
+```powershell
+.\run-production-emulator.ps1
+```
+
+El script ejecuta las pruebas unitarias, compila la variante `debug` forzando
+`https://tusenda84.com/admin`, instala el APK y abre la aplicacion. Si hay varios
+emuladores conectados, indica uno de forma explicita:
+
+```powershell
+.\run-production-emulator.ps1 -DeviceId emulator-5554
+```
+
+Esta variante permite depurar el WebView, pero usa el backend real: despues de
+iniciar sesion, cualquier alta, edicion o eliminacion afecta datos de produccion.
+El script no genera, firma ni publica una variante `release`.
+
 Para validar cambios locales de la web en el emulador antes de desplegarlos, inicia Astro escuchando en la red local y compila la variante `debug` contra el host especial del emulador:
 
 ```powershell

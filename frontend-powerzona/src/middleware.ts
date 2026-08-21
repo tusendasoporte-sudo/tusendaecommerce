@@ -43,6 +43,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   if (normalized === 'gifts') return { any: ['gifts.manage'] };
   if (normalized === 'expirations') return { any: ['catalog.expirations.manage'] };
   if (normalized === 'promos/raffles') return { any: ['raffles.manage'] };
+  if (normalized.startsWith('promos/visuals/')) return { any: ['promotions.manage'] };
   if (normalized === 'promos') return { any: ['promotions.manage', 'coupons.manage'] };
   if (normalized === 'push-campaigns') return { any: ['marketing.push.manage'] };
   if (normalized === 'notifications') return { any: ['notifications.view'] };

@@ -126,6 +126,27 @@ test('M7U2: Catalogo separa mutaciones de categorias de crear y editar productos
 
 test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   const source = read('../src/pages/admin/promos.astro');
+  const visualEditor = read('../src/pages/admin/promos/visuals/[visualId].astro');
+  const middleware = read('../src/middleware.ts');
+  assert.doesNotMatch(source, /mobileActionLabel="Nueva promocion"/);
+  assert.match(source, /<select id="visual-filter-select" aria-label="Filtrar tarjetas actuales">/);
+  assert.match(source, /<option value="acceso_rapido">Acceso rápido<\/option>/);
+  assert.match(source, /\.marketing-quick-row \{[\s\S]*?grid-template-areas:[\s\S]*?'actions actions';/);
+  assert.match(source, /<span aria-hidden="true">↑<\/span><span>Subir<\/span>/);
+  assert.match(source, /<span aria-hidden="true">↓<\/span><span>Bajar<\/span>/);
+  assert.match(source, /<span aria-hidden="true">•••<\/span><span>Más<\/span>/);
+  assert.match(source, /data-visual-id="\$\{item\.id\}" tabindex="0" aria-label="Editar tarjeta/);
+  assert.match(source, /function openVisualEditorById\(id\)/);
+  assert.match(source, /ADMIN_VISUAL_EDITOR_BASE_PATH/);
+  assert.match(source, /window\.location\.assign\(`\$\{ADMIN_VISUAL_EDITOR_BASE_PATH\}\/\$\{encodeURIComponent\(id\)\}`\)/);
+  assert.match(source, /if \(event\.target\.closest\('\.marketing-quick-actions'\)\) return;\s*openVisualEditorById\(id\);/);
+  assert.match(source, /visualList\?\.addEventListener\('keydown',[\s\S]*?openVisualEditorById\(row\.dataset\.visualId\)/);
+  assert.match(visualEditor, /mobileTitle="Editar tarjeta"/);
+  assert.match(visualEditor, /const adminPromosVisualsPath = `\$\{adminPromosPath\}#visuales`/);
+  assert.match(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
+  assert.match(visualEditor, /data-visual-editor-form/);
+  assert.match(visualEditor, /store_visual_items\/records\/\$\{encodeURIComponent\(visualId\)\}/);
+  assert.match(middleware, /normalized\.startsWith\('promos\/visuals\/'\).*promotions\.manage/);
   for (const permission of [
     'promotions.manage',
     'coupons.manage',

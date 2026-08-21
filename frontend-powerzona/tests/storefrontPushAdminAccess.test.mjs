@@ -81,8 +81,13 @@ test('middleware, rutas y sidebar aplican la puerta de C08 sin abrir C09', () =>
   assert.match(page, /resolveStorefrontPushAdminAccess/);
   assert.match(page, /StoreCapabilityGate/);
   assert.match(page, /showPremiumGate/);
+  assert.match(page, /mobileTitle="Campañas push"/);
+  assert.doesNotMatch(page, /mobileActionLabel=/);
   assert.match(tenantPage, /AdminPushCampaigns/);
   const view = readFileSync(new URL('../src/components/admin/PushCampaignsView.astro', import.meta.url), 'utf8');
+  assert.match(view, /<header class="push-intro">/);
+  assert.match(view, /<h1 class="sr-only">Campañas push<\/h1>/);
+  assert.doesNotMatch(view, /class="push-hero"/);
   assert.match(view, /data-campaign-metrics/);
   assert.match(view, /readStorefrontPushCampaignDetail/);
 });

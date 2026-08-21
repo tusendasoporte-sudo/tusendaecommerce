@@ -23,6 +23,7 @@ const notifications = read('../src/pages/admin/notifications.astro');
 const pageviews = read('../src/pages/admin/pageviews.astro');
 const profits = read('../src/pages/admin/profits.astro');
 const raffles = read('../src/pages/admin/promos/raffles.astro');
+const visualEditor = read('../src/pages/admin/promos/visuals/[visualId].astro');
 
 test('Android consulta primero la jerarquia activa y conserva historial o salida como respaldo', () => {
   assert.match(mainActivity, /ADMIN_BACK_SCRIPT/);
@@ -73,6 +74,7 @@ test('las rutas de detalle declaran su padre aunque se abran desde enlace direct
   assert.match(productHistory, /mobileBackHref=\{returnPath\}/);
   assert.match(teamActivity, /mobileBackHref=\{teamPath\}/);
   assert.match(visitorDetail, /mobileBackHref=\{visitorsBackHref\}/);
+  assert.match(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
   assert.match(notifications, /mobileBackHref=\{adminBasePath\}/);
   assert.match(pageviews, /mobileBackHref=\{adminBasePath\}/);
   assert.match(profits, /mobileBackHref=\{adminBasePath\}/);
