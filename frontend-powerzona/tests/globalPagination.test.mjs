@@ -15,7 +15,6 @@ const responsivePaginationViews = [
   '../src/pages/admin/orders.astro',
   '../src/pages/admin/expirations.astro',
   '../src/pages/admin/index.astro',
-  '../src/pages/admin/gifts.astro',
   '../src/pages/admin/app-installation-details.astro',
   '../src/components/admin/SecurityMonitoringView.astro',
   '../src/components/admin/SecurityVisitorDetailView.astro',
@@ -48,36 +47,37 @@ const paginationViews = [
 test('PAGINACION-GLOBAL: Productos muestra diez registros y una ventana compacta', () => {
   assert.match(products, /const PRODUCT_PAGE_SIZE = 10;/);
   assert.match(products, /const desktopWindowSize = 5;/);
-  assert.match(products, /const mobileWindowSize = 3;/);
-  assert.match(products, /const mobileFirstPage = Math\.max\(1, Math\.min\(currentProductPage - 1, totalPages - mobileWindowSize \+ 1\)\);/);
+  assert.doesNotMatch(products, /const mobileWindowSize = 3;/);
+  assert.match(products, /class="pagination-mobile-status"[^>]*>\$\{currentProductPage\} de \$\{totalPages\}<\/span>/);
   assert.match(products, /filtered\.slice\(startIndex, startIndex \+ PRODUCT_PAGE_SIZE\)/);
   assert.match(products, /\$\{PRODUCT_PAGE_SIZE\} por página/);
 });
 
-test('PAGINACION-GLOBAL: móvil muestra tres páginas y escritorio conserva cinco', () => {
-  assert.match(paginationStyles, /@media \(max-width: 480px\)/);
-  assert.match(paginationStyles, /\[data-pagination-mobile-visible="false"\]/);
+test('PAGINACION-GLOBAL: móvil muestra anterior, página de total y siguiente; escritorio conserva cinco', () => {
+  assert.match(paginationStyles, /@media \(max-width: 760px\)/);
+  assert.match(paginationStyles, /\[data-pagination-mobile-visible\]/);
+  assert.match(paginationStyles, /grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\) !important;/);
+  assert.match(paginationStyles, /\.pagination-mobile-status/);
   assert.match(paginationStyles, /display: none !important;/);
   for (const view of responsivePaginationViews) {
     assert.match(view, /data-pagination-mobile-visible/);
+    assert.match(view, /pagination-mobile-status/);
   }
 });
 
 test('PAGINACION-GLOBAL: Admin, tienda publica y Master comparten el mismo estilo', () => {
   assert.match(globalStyles, /@import "\.\/pagination\.css";/);
   assert.match(masterStyles, /@import "\.\/pagination\.css";/);
-  assert.match(paginationStyles, /PZ-GLOBAL-PAGINATION-001/);
+  assert.match(paginationStyles, /PZ-GLOBAL-PAGINATION-002/);
   assert.match(paginationStyles, /\[class\*="pagination"\] \[aria-current="page"\]/);
   assert.match(paginationStyles, /background: #eaf4ff !important;/);
   assert.match(paginationStyles, /border-radius: 9px !important;/);
 });
 
-test('PAGINACION-GLOBAL: los controles visibles mantienen etiquetas de navegación en español', () => {
-  for (const view of paginationViews) {
-    assert.doesNotMatch(view, />Siguiente(?:<|\s)/);
-  }
+test('PAGINACION-GLOBAL: los controles móviles mantienen etiquetas de navegación en español', () => {
   assert.match(products, />Anterior<\/button>/);
-  assert.match(products, />Próximo<\/button>/);
+  assert.match(products, />Siguiente<\/button>/);
   assert.match(storeActivity, />Anterior<\/button>/);
   assert.match(storeActivity, />Siguiente<\/button>/);
+  assert.ok(paginationViews.some((view) => view.includes('Mostrando')));
 });

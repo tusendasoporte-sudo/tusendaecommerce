@@ -256,19 +256,25 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
 
   assert.match(activity, /Cambios hoy/);
   assert.match(activity, /Pendientes de revisar/);
-  assert.match(activity, /store-activity-summary is-team-list/);
+  assert.match(activity, /admin-compact-summary store-activity-team-summary/);
+  assert.match(activity, /admin-compact-summary__list/);
+  assert.match(activity, /admin-compact-summary__item is-primary/);
+  assert.doesNotMatch(activity, /data-activity-title/);
   assert.match(activity, /mode === 'team' && 'is-team-heading'/);
-  assert.match(activity, /mode === 'team' && 'is-icon-only'/);
+  assert.match(activity, /store-activity-heading__topline/);
   assert.match(activity, /<svg class="store-activity-refresh__icon"/);
   assert.match(activityStyles, /\.store-activity-heading\.is-team-heading \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+  assert.match(activityStyles, /\.store-activity-heading__topline \{[\s\S]*?justify-content: space-between;/);
   assert.match(activityStyles, /\.store-activity-refresh\.is-icon-only \{[\s\S]*?width: 48px;[\s\S]*?border-radius: 999px;/);
   assert.equal((activity.match(/role="listitem"/g) || []).length, 4);
-  assert.match(activity, /<AdminIcon name="chart"/);
-  assert.match(activity, /<AdminIcon name="view"/);
-  assert.match(activity, /<AdminIcon name="bell"/);
-  assert.match(activity, /<AdminIcon name="users"/);
-  assert.match(activityStyles, /\.store-activity-summary\.is-team-list \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);[\s\S]*?border-radius: 20px;/);
-  assert.match(activityStyles, /\.store-activity-summary\.is-team-list article \{[\s\S]*?grid-template-columns: 42px minmax\(0, 1fr\) auto;/);
+  const teamSummaryStart = activity.indexOf('<section class="admin-compact-summary store-activity-team-summary"');
+  const teamSummaryMarkup = activity.slice(
+    teamSummaryStart,
+    activity.indexOf("{isIndividualActivity && (", teamSummaryStart),
+  );
+  assert.doesNotMatch(teamSummaryMarkup, /store-activity-summary__icon/);
+  assert.equal((teamSummaryMarkup.match(/data-activity-summary=/g) || []).length, 4);
+  assert.doesNotMatch(activityStyles, /\.store-activity-summary\.is-team-list/);
   assert.match(activity, /data-activity-filter-form/);
   assert.match(activity, /name="action"/);
   assert.match(activity, /resource_type: resourceTypeFilter/);

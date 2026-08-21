@@ -17,11 +17,15 @@ test('actividad individual usa la cabecera compacta aprobada', () => {
   assert.match(report, /justify-content: flex-end/);
   assert.match(report, /filtersInitiallyOpen=\{false\}/);
   assert.match(report, /pageSize=\{10\}/);
-  assert.match(activity, /mode === 'team' && <h2/);
+  assert.doesNotMatch(activity, /data-activity-title/);
   assert.match(activity, /isIndividualActivity && 'is-user-heading'/);
+  assert.match(activity, /mode === 'self' && 'is-self-heading'/);
   assert.match(activity, /Consulta el historial operativo de este integrante sin alterar los eventos originales\./);
-  assert.match(activity, /isIndividualActivity && 'is-icon-only'/);
+  assert.doesNotMatch(activity, /Consulta únicamente los cambios administrativos realizados con tu cuenta\./);
+  assert.equal((`${history}\n${activity}`.match(/Consulta únicamente los cambios administrativos realizados con tu cuenta\./g) || []).length, 1);
+  assert.match(activity, /class="store-activity-refresh is-icon-only"/);
   assert.match(activityStyles, /\.store-activity-heading\.is-user-heading \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+  assert.match(activityStyles, /\.store-activity-heading\.is-self-heading \{[\s\S]*?justify-content: flex-end;/);
 });
 
 test('el administrador principal usa una sola ruta canónica para su historial', () => {

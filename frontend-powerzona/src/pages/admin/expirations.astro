@@ -615,7 +615,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           window.history.replaceState({}, '', `${url.pathname}${url.search}`);
         }
 
-        function renderPagination(totalPages) {
+        function renderPagination(totalPages, totalItems = 0) {
           const total = Math.max(1, Number(totalPages || 1));
           if (total <= 1) {
             pagination.innerHTML = '';
@@ -625,12 +625,14 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           pagination.hidden = false;
           const first = Math.max(1, Math.min(page - 2, total - 4));
           const pages = Array.from({ length: Math.min(5, total) }, (_, index) => first + index).filter((value) => value <= total);
-          const mobileFirst = Math.max(1, Math.min(page - 1, total - 2));
-          const mobileLast = Math.min(total, mobileFirst + 2);
+          const rangeStart = totalItems ? ((page - 1) * 10) + 1 : 0;
+          const rangeEnd = totalItems ? Math.min(page * 10, totalItems) : 0;
           pagination.innerHTML = [
             `<button class="expiration-page-button" type="button" data-expiration-page="${Math.max(1, page - 1)}" ${page <= 1 ? 'disabled' : ''}>Anterior</button>`,
-            ...pages.map((value) => `<button class="expiration-page-button ${value === page ? 'is-active' : ''}" type="button" data-expiration-page="${value}" data-pagination-mobile-visible="${value >= mobileFirst && value <= mobileLast}" ${value === page ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
-            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.min(total, page + 1)}" ${page >= total ? 'disabled' : ''}>Próximo</button>`,
+            `<span class="pagination-mobile-status" aria-label="Página ${page} de ${total}">${page} de ${total}</span>`,
+            ...pages.map((value) => `<button class="expiration-page-button ${value === page ? 'is-active' : ''}" type="button" data-expiration-page="${value}" data-pagination-mobile-visible="false" ${value === page ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
+            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.min(total, page + 1)}" ${page >= total ? 'disabled' : ''}>Siguiente</button>`,
+            `<span class="pagination-summary">Mostrando ${rangeStart}–${rangeEnd} de ${totalItems} vencimientos</span>`,
           ].join('');
         }
 
@@ -645,7 +647,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           meta.textContent = `Mostrando ${rangeStart}–${rangeEnd} de ${total} productos o variaciones`;
           if (!items.length) {
             list.innerHTML = `<p class="expiration-empty">No hay productos o variaciones ${escapeHtml(viewLabel)}.</p>`;
-            renderPagination(totalPages);
+            renderPagination(totalPages, total);
             syncUrl();
             return;
           }
@@ -684,7 +686,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
               </article>
             `;
           }).join('');
-          renderPagination(totalPages);
+          renderPagination(totalPages, total);
           syncUrl();
         }
 

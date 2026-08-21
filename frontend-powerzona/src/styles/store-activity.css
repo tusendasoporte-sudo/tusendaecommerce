@@ -63,7 +63,7 @@
 }
 
 .store-activity-heading.is-team-heading {
-  align-items: center;
+  display: block;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -94,6 +94,11 @@
   font-weight: 800;
 }
 
+.store-activity-heading.is-self-heading {
+  justify-content: flex-end;
+  padding-block: 0 4px;
+}
+
 .store-activity-view.is-embedded .store-activity-heading.is-team-heading {
   border-radius: 0;
   padding: 10px 4px;
@@ -106,6 +111,22 @@
 
 .store-activity-heading.is-team-heading > div {
   min-width: 0;
+}
+
+.store-activity-heading__topline {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.store-activity-heading.is-team-heading .store-activity-heading__kicker {
+  margin: 0;
+}
+
+.store-activity-heading.is-team-heading p {
+  margin-top: 12px;
 }
 
 .store-activity-heading__kicker {
@@ -302,33 +323,6 @@
 
 .store-activity-summary.is-user-report .is-pending strong { color: #4f46e5; }
 
-.store-activity-summary.is-team-list {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid #dbeafe;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, .97);
-  box-shadow: 0 16px 38px rgba(37, 99, 235, .08);
-}
-
-.store-activity-summary.is-team-list article {
-  display: grid;
-  min-height: 72px;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 13px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  padding: 12px 16px;
-  box-shadow: none;
-}
-
-.store-activity-summary.is-team-list article + article {
-  border-top: 1px solid #e2e8f0;
-}
-
 .store-activity-summary__icon {
   display: grid !important;
   width: 40px;
@@ -345,62 +339,8 @@
   height: 20px;
 }
 
-.store-activity-summary.is-team-list .store-activity-summary__label {
-  color: #334155;
-  font-size: 13px;
-  line-height: 1.35;
-  font-weight: 950;
-}
-
-.store-activity-summary.is-team-list strong {
-  display: grid;
-  min-width: 58px;
-  min-height: 42px;
-  place-items: center;
-  margin: 0;
-  border: 1px solid #dbeafe;
-  border-radius: 13px;
-  background: linear-gradient(180deg, #ffffff, #eff6ff);
-  color: #1d4ed8;
-  padding: 7px 11px;
-  font-size: 23px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
-}
-
-.store-activity-summary.is-team-list .is-pending .store-activity-summary__icon {
-  border-color: #fde68a;
-  background: #fffbeb;
-  color: #b45309 !important;
-}
-
-.store-activity-summary.is-team-list .is-pending strong {
-  border-color: #fde68a;
-  background: linear-gradient(180deg, #ffffff, #fffbeb);
-  color: #92400e;
-}
-
-.store-activity-summary.is-team-list .is-critical .store-activity-summary__icon {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #dc2626 !important;
-}
-
-.store-activity-summary.is-team-list .is-critical strong {
-  border-color: #fecaca;
-  background: linear-gradient(180deg, #ffffff, #fef2f2);
-  color: #b91c1c;
-}
-
-.store-activity-summary.is-team-list .is-users .store-activity-summary__icon {
-  border-color: #ddd6fe;
-  background: #f5f3ff;
-  color: #7c3aed !important;
-}
-
-.store-activity-summary.is-team-list .is-users strong {
-  border-color: #ddd6fe;
-  background: linear-gradient(180deg, #ffffff, #f5f3ff);
-  color: #6d28d9;
+.store-activity-team-summary .admin-compact-summary__item.is-primary .admin-compact-summary__value {
+  color: #2563eb;
 }
 
 .store-activity-filters {
@@ -804,7 +744,6 @@
   .store-activity-heading__kicker { font-size: 9px; }
   .store-activity-heading h2 { font-size: 22px; }
   .store-activity-refresh { flex: 0 0 auto; }
-  .store-activity-summary:not(.is-user-report) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .store-activity-filters { padding: 12px; }
   .store-activity-filters summary { display: grid; }
   .store-activity-filter-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -826,19 +765,13 @@
 @media (max-width: 480px) {
   .store-activity-heading { display: grid; }
   .store-activity-heading.is-user-heading { display: flex; gap: 12px; padding-inline: 2px; }
+  .store-activity-heading.is-self-heading { justify-content: flex-end; }
   .store-activity-heading.is-user-heading p { font-size: 13px; }
   .store-activity-refresh { width: 100%; }
   .store-activity-summary article { padding: 12px; }
   .store-activity-summary strong { font-size: 20px; }
-  .store-activity-summary.is-team-list article {
-    min-height: 66px;
-    grid-template-columns: 38px minmax(0, 1fr) auto;
-    gap: 10px;
-    padding: 10px 12px;
-  }
   .store-activity-summary__icon { width: 36px; height: 36px; border-radius: 12px; }
   .store-activity-summary__icon-svg { width: 18px; height: 18px; }
-  .store-activity-summary.is-team-list strong { min-width: 52px; min-height: 38px; padding: 6px 9px; font-size: 20px; }
   .store-activity-summary.is-user-report article {
     min-height: 64px;
     grid-template-columns: 38px minmax(0, 1fr) auto;

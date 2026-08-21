@@ -2587,10 +2587,11 @@ function getProductOfferView(product: any) {
               <span data-public-reviews-range>Mostrando 1-5 de {reviewCountLabel(storeReviews.length)}</span>
               <div class="public-reviews-pages" aria-label="Paginación de reseñas">
                 <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">Anterior</button>
+                <span class="pagination-mobile-status" data-public-reviews-page-status>1 de {Math.ceil(storeReviews.length / publicReviewsPageSize)}</span>
                 {Array.from({ length: Math.ceil(storeReviews.length / publicReviewsPageSize) }).map((_, index) => (
-                  <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
+                  <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} data-pagination-mobile-visible="false" aria-label={`Página ${index + 1}`}>{index + 1}</button>
                 ))}
-                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página próxima">Próximo</button>
+                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página siguiente">Siguiente</button>
               </div>
             </div>
           )}
@@ -2623,6 +2624,7 @@ function getProductOfferView(product: any) {
       const reviewCards = Array.from(document.querySelectorAll('[data-review-card]'));
       const reviewPagination = document.querySelector('[data-public-reviews-pagination]');
       const reviewRange = document.querySelector('[data-public-reviews-range]');
+      const reviewPageStatus = document.querySelector('[data-public-reviews-page-status]');
       const reviewPageButtons = Array.from(document.querySelectorAll('[data-review-page]'));
       const reviewPrev = document.querySelector('[data-review-prev]');
       const reviewNext = document.querySelector('[data-review-next]');
@@ -2637,6 +2639,7 @@ function getProductOfferView(product: any) {
           card.hidden = index < start || index >= end;
         });
         if (reviewRange) reviewRange.textContent = `Mostrando ${start + 1}-${end} de ${reviewCards.length} ${reviewCards.length === 1 ? 'reseña' : 'reseñas'}`;
+        if (reviewPageStatus) reviewPageStatus.textContent = `${currentReviewPage} de ${totalReviewPages}`;
         reviewPageButtons.forEach((button) => {
           const isActive = Number(button.getAttribute('data-review-page') || 0) === currentReviewPage;
           button.classList.toggle('active', isActive);

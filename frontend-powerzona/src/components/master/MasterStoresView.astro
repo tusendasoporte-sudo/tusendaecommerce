@@ -144,10 +144,11 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
       {page.totalPages > 1 && (
         <nav class="master-pagination" aria-label="Paginación de tiendas">
           {page.page > 1 ? <a href={pageHref(page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}
+          <span class="pagination-mobile-status">{page.page} de {page.totalPages}</span>
           {visiblePages(page.page, page.totalPages).map((item) => (
             <a href={pageHref(item)} data-pagination-mobile-visible={mobilePageVisible(page.page, page.totalPages, item) ? 'true' : 'false'} aria-current={item === page.page ? 'page' : undefined}>{item}</a>
           ))}
-          {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Próximo</a> : <span class="is-disabled">Próximo</span>}
+          {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Siguiente</a> : <span class="is-disabled">Siguiente</span>}
         </nav>
       )}
     </footer>

@@ -913,19 +913,21 @@ function observationActionValue(customer: SecurityCustomer) {
                     <input type="hidden" name="customers_page" value={Math.max(1, customersResult.page - 1)} />
                     <button class="page-button" type="submit" disabled={customersResult.page <= 1}>Anterior</button>
                   </form>
+                  <span class="pagination-mobile-status">{customersResult.page} de {customersResult.totalPages}</span>
                   <form method="POST" action={sectionHref('customers')}>
                     <input type="hidden" name="section" value="customers" />
                     <input type="hidden" name="customer_search" value={params.customerSearch} />
                     <input type="hidden" name="customer_status" value={params.customerStatus} />
                     <input type="hidden" name="customers_page" value={Math.min(customersResult.totalPages, customersResult.page + 1)} />
-                    <button class="page-button" type="submit" disabled={customersResult.page >= customersResult.totalPages}>Próximo</button>
+                    <button class="page-button" type="submit" disabled={customersResult.page >= customersResult.totalPages}>Siguiente</button>
                   </form>
                 </>
               ) : (
                 <>
                   <a class:list={['page-button', { disabled: customersResult.page <= 1 }]} href={paginationHref('customers', Math.max(1, customersResult.page - 1))}>Anterior</a>
+                  <span class="pagination-mobile-status">{customersResult.page} de {customersResult.totalPages}</span>
                   {pageWindow(customersResult).map((page) => <a class:list={['page-button', { 'is-active': page === customersResult.page }]} href={paginationHref('customers', page)} data-pagination-mobile-visible={mobilePageVisible(customersResult, page) ? 'true' : 'false'}>{page}</a>)}
-                  <a class:list={['page-button', { disabled: customersResult.page >= customersResult.totalPages }]} href={paginationHref('customers', Math.min(customersResult.totalPages, customersResult.page + 1))}>Próximo</a>
+                  <a class:list={['page-button', { disabled: customersResult.page >= customersResult.totalPages }]} href={paginationHref('customers', Math.min(customersResult.totalPages, customersResult.page + 1))}>Siguiente</a>
                 </>
               )}
             </div>
@@ -1253,8 +1255,9 @@ function observationActionValue(customer: SecurityCustomer) {
               <span>{customerPageLabel(customerOrders)}</span>
               <div class="pagination-actions">
                 <a class:list={['page-button', { disabled: customerOrders.page <= 1 }]} href={paginationHref('orders', Math.max(1, customerOrders.page - 1))}>Anterior</a>
+                <span class="pagination-mobile-status">{customerOrders.page} de {customerOrders.totalPages}</span>
                 {pageWindow(customerOrders).map((page) => <a class:list={['page-button', { 'is-active': page === customerOrders.page }]} href={paginationHref('orders', page)} data-pagination-mobile-visible={mobilePageVisible(customerOrders, page) ? 'true' : 'false'}>{page}</a>)}
-                <a class:list={['page-button', { disabled: customerOrders.page >= customerOrders.totalPages }]} href={paginationHref('orders', Math.min(customerOrders.totalPages, customerOrders.page + 1))}>Próximo</a>
+                <a class:list={['page-button', { disabled: customerOrders.page >= customerOrders.totalPages }]} href={paginationHref('orders', Math.min(customerOrders.totalPages, customerOrders.page + 1))}>Siguiente</a>
               </div>
             </div>
           </>
@@ -1296,8 +1299,9 @@ function observationActionValue(customer: SecurityCustomer) {
               <span>{customerPageLabel(customerEvents)}</span>
               <div class="pagination-actions">
                 <a class:list={['page-button', { disabled: customerEvents.page <= 1 }]} href={paginationHref('events', Math.max(1, customerEvents.page - 1))}>Anterior</a>
+                <span class="pagination-mobile-status">{customerEvents.page} de {customerEvents.totalPages}</span>
                 {pageWindow(customerEvents).map((page) => <a class:list={['page-button', { 'is-active': page === customerEvents.page }]} href={paginationHref('events', page)} data-pagination-mobile-visible={mobilePageVisible(customerEvents, page) ? 'true' : 'false'}>{page}</a>)}
-                <a class:list={['page-button', { disabled: customerEvents.page >= customerEvents.totalPages }]} href={paginationHref('events', Math.min(customerEvents.totalPages, customerEvents.page + 1))}>Próximo</a>
+                <a class:list={['page-button', { disabled: customerEvents.page >= customerEvents.totalPages }]} href={paginationHref('events', Math.min(customerEvents.totalPages, customerEvents.page + 1))}>Siguiente</a>
               </div>
             </div>
           </>
@@ -1384,8 +1388,9 @@ function observationActionValue(customer: SecurityCustomer) {
             <span>{customerPageLabel(visitorsResult)}</span>
             <div class="pagination-actions">
               <a class:list={['page-button', { disabled: visitorsResult.page <= 1 }]} href={paginationHref('visitors', Math.max(1, visitorsResult.page - 1))}>Anterior</a>
+              <span class="pagination-mobile-status">{visitorsResult.page} de {visitorsResult.totalPages}</span>
               {pageWindow(visitorsResult).map((page) => <a class:list={['page-button', { 'is-active': page === visitorsResult.page }]} href={paginationHref('visitors', page)} data-pagination-mobile-visible={mobilePageVisible(visitorsResult, page) ? 'true' : 'false'}>{page}</a>)}
-              <a class:list={['page-button', { disabled: visitorsResult.page >= visitorsResult.totalPages }]} href={paginationHref('visitors', Math.min(visitorsResult.totalPages, visitorsResult.page + 1))}>Próximo</a>
+              <a class:list={['page-button', { disabled: visitorsResult.page >= visitorsResult.totalPages }]} href={paginationHref('visitors', Math.min(visitorsResult.totalPages, visitorsResult.page + 1))}>Siguiente</a>
             </div>
           </div>
         </>
@@ -1490,8 +1495,9 @@ function observationActionValue(customer: SecurityCustomer) {
             <span>{customerPageLabel(activityResult)}</span>
             <div class="pagination-actions">
               <a class:list={['page-button', { disabled: activityResult.page <= 1 }]} href={paginationHref('activity', Math.max(1, activityResult.page - 1))}>Anterior</a>
+              <span class="pagination-mobile-status">{activityResult.page} de {activityResult.totalPages}</span>
               {pageWindow(activityResult).map((page) => <a class:list={['page-button', { 'is-active': page === activityResult.page }]} href={paginationHref('activity', page)} data-pagination-mobile-visible={mobilePageVisible(activityResult, page) ? 'true' : 'false'}>{page}</a>)}
-              <a class:list={['page-button', { disabled: activityResult.page >= activityResult.totalPages }]} href={paginationHref('activity', Math.min(activityResult.totalPages, activityResult.page + 1))}>Próximo</a>
+              <a class:list={['page-button', { disabled: activityResult.page >= activityResult.totalPages }]} href={paginationHref('activity', Math.min(activityResult.totalPages, activityResult.page + 1))}>Siguiente</a>
             </div>
           </div>
         </>
@@ -1781,20 +1787,22 @@ function observationActionValue(customer: SecurityCustomer) {
                     <input type="hidden" name="blocked_page" value={Math.max(1, blocksResult.page - 1)} />
                     <button class="page-button" type="submit" disabled={blocksResult.page <= 1}>Anterior</button>
                   </form>
+                  <span class="pagination-mobile-status">{blocksResult.page} de {blocksResult.totalPages}</span>
                   <form method="POST" action={sectionHref('blocked')}>
                     <input type="hidden" name="section" value="blocked" />
                     <input type="hidden" name="blocked_search" value={params.blockedSearch} />
                     <input type="hidden" name="blocked_status" value={params.blockedStatus} />
                     <input type="hidden" name="blocked_scope" value={params.blockedScope} />
                     <input type="hidden" name="blocked_page" value={Math.min(blocksResult.totalPages, blocksResult.page + 1)} />
-                    <button class="page-button" type="submit" disabled={blocksResult.page >= blocksResult.totalPages}>Próximo</button>
+                    <button class="page-button" type="submit" disabled={blocksResult.page >= blocksResult.totalPages}>Siguiente</button>
                   </form>
                 </>
               ) : (
                 <>
                   <a class:list={['page-button', { disabled: blocksResult.page <= 1 }]} href={paginationHref('blocked', Math.max(1, blocksResult.page - 1))}>Anterior</a>
+                  <span class="pagination-mobile-status">{blocksResult.page} de {blocksResult.totalPages}</span>
                   {pageWindow(blocksResult).map((page) => <a class:list={['page-button', { 'is-active': page === blocksResult.page }]} href={paginationHref('blocked', page)} data-pagination-mobile-visible={mobilePageVisible(blocksResult, page) ? 'true' : 'false'}>{page}</a>)}
-                  <a class:list={['page-button', { disabled: blocksResult.page >= blocksResult.totalPages }]} href={paginationHref('blocked', Math.min(blocksResult.totalPages, blocksResult.page + 1))}>Próximo</a>
+                  <a class:list={['page-button', { disabled: blocksResult.page >= blocksResult.totalPages }]} href={paginationHref('blocked', Math.min(blocksResult.totalPages, blocksResult.page + 1))}>Siguiente</a>
                 </>
               )}
             </div>

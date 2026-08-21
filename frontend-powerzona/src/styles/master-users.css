@@ -43,6 +43,7 @@
 .master-users-pagination__navigation { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .master-users-pagination__navigation[hidden] { display: none; }
 .master-users-pages { display: flex; gap: 6px; }
+.master-users-mobile-controls { display: flex; align-items: center; gap: 8px; }
 .master-users-page-btn { min-width: 36px; min-height: 36px; border: 1px solid #dbe3ef; border-radius: 9px; background: #fff; color: #334155; font-weight: 850; cursor: pointer; }
 .master-users-page-btn.is-active { border-color: #2563eb; background: #2563eb; color: #fff; }
 .master-users-loading { min-height: 190px; display: grid; place-items: center; color: #64748b; font-weight: 800; }
@@ -134,7 +135,9 @@
   .master-users-field--wide, .master-users-filters [type="search"] { grid-column: auto; }
   .master-users-pagination { align-items: stretch; flex-direction: column; }
   .master-users-pagination__navigation { align-items: stretch; flex-direction: column; }
-  .master-users-pages { flex-wrap: wrap; }
+  .master-users-pages { display: none; }
+  .master-users-mobile-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+  .master-users-mobile-controls .master-btn { width: 100%; }
   .master-users-compact-filter { align-items: stretch; flex-direction: column; }
   .master-users-password-row { flex-wrap: wrap; }
   .master-delete-user-summary { grid-template-columns: 1fr; }

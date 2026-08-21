@@ -2077,10 +2077,11 @@ const variationItems = sellableVariations.map((variation) => {
 							<span data-product-reviews-range>Mostrando 1-5 de {reviewCountLabel(productReviews.length)}</span>
 							<div class="product-reviews-pages" aria-label="Paginación de reseñas del producto">
 								<button class="product-reviews-page-btn" type="button" data-product-review-prev aria-label="Página anterior">Anterior</button>
+								<span class="pagination-mobile-status" data-product-reviews-page-status>1 de {Math.ceil(productReviews.length / productReviewsPageSize)}</span>
 								{Array.from({ length: Math.ceil(productReviews.length / productReviewsPageSize) }).map((_, index) => (
-									<button class={`product-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-product-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
+									<button class={`product-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-product-review-page={index + 1} data-pagination-mobile-visible="false" aria-label={`Página ${index + 1}`}>{index + 1}</button>
 								))}
-								<button class="product-reviews-page-btn" type="button" data-product-review-next aria-label="Página próxima">Próximo</button>
+								<button class="product-reviews-page-btn" type="button" data-product-review-next aria-label="Página siguiente">Siguiente</button>
 							</div>
 						</div>
 					)}
@@ -2144,6 +2145,7 @@ const variationItems = sellableVariations.map((variation) => {
 			const productReviewCards = Array.from(document.querySelectorAll('[data-product-review-card]'));
 			const productReviewPagination = document.querySelector('[data-product-reviews-pagination]');
 			const productReviewRange = document.querySelector('[data-product-reviews-range]');
+			const productReviewPageStatus = document.querySelector('[data-product-reviews-page-status]');
 			const productReviewPageButtons = Array.from(document.querySelectorAll('[data-product-review-page]'));
 			const productReviewPrev = document.querySelector('[data-product-review-prev]');
 			const productReviewNext = document.querySelector('[data-product-review-next]');
@@ -2163,6 +2165,7 @@ const variationItems = sellableVariations.map((variation) => {
 				if (productReviewRange) {
 					productReviewRange.textContent = `Mostrando ${start + 1}-${end} de ${productReviewCards.length} ${productReviewCards.length === 1 ? 'reseña' : 'reseñas'}`;
 				}
+				if (productReviewPageStatus) productReviewPageStatus.textContent = `${currentProductReviewPage} de ${totalProductReviewPages}`;
 
 				productReviewPageButtons.forEach((button) => {
 					const isActive = Number(button.getAttribute('data-product-review-page') || 0) === currentProductReviewPage;

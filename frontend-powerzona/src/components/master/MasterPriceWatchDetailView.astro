@@ -206,8 +206,8 @@ function movementPrice(value: number) {
     {history.total_pages > 1 && (
       <nav class="price-history-pagination" aria-label="Paginación del historial">
         {history.page > 1 ? <a href={historyHref(history.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
-        <strong>Página {history.page} de {history.total_pages}</strong>
-        {history.page < history.total_pages ? <a href={historyHref(history.page + 1)}>Próximo</a> : <span aria-disabled="true">Próximo</span>}
+        <strong>{history.page} de {history.total_pages}</strong>
+        {history.page < history.total_pages ? <a href={historyHref(history.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
       </nav>
     )}
   </section>

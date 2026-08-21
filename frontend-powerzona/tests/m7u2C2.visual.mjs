@@ -1512,7 +1512,8 @@ async function runBrowser(frontendUrl, pocketBaseUrl, fixtures, identity) {
     await goto(`${teamPath}/${encodeURIComponent(fixtures.member.id)}/activity`, '[data-store-activity-root][data-activity-mode="user"]');
     const userActivity = page.locator('[data-store-activity-root][data-activity-mode="user"]');
     await waitActivity(userActivity, 'reporte individual');
-    assert.match(await userActivity.locator('[data-activity-title]').innerText(), new RegExp(identity.memberName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.equal(await userActivity.locator('[data-activity-title]').count(), 0, 'el reporte no debe repetir el titulo de la barra superior');
+    assert.match(await userActivity.innerText(), /Consulta el historial operativo de este integrante/);
     await assertActivityPrivacy(userActivity, [identity.memberEmail, fixtures.temporaryPassword, fixtures.primaryAuth.token], 'reporte individual');
     await screenshot('06-reporte-usuario.png');
 

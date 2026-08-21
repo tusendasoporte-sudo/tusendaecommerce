@@ -1,7 +1,19 @@
 /* =========================================================
-   PZ-GLOBAL-PAGINATION-001
-   Patron compartido: Anterior | paginas | Proximo
+   PZ-GLOBAL-PAGINATION-002
+   Escritorio: Anterior | paginas | Siguiente
+   Movil:      Anterior | pagina de total | Siguiente
+               Mostrando inicio-fin de total
    ========================================================= */
+
+.pagination-mobile-status {
+  display: none !important;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 950;
+  text-align: center;
+  white-space: nowrap;
+}
 
 :where(
   [class*="pagination-actions"],
@@ -95,9 +107,193 @@
   outline-offset: 2px !important;
 }
 
-@media (max-width: 480px) {
-  :where([data-pagination-mobile-visible="false"]) {
+@media (max-width: 760px) {
+  :where([data-pagination-mobile-visible]) {
     display: none !important;
+  }
+
+  .pagination-mobile-status {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: max-content;
+  }
+
+  :where(
+    .pagination-bar,
+    .orders-pagination,
+    .push-pagination,
+    .pageviews-pagination,
+    .rating-list-footer,
+    .pagination-row,
+    .public-reviews-pagination,
+    .product-reviews-pagination
+  ) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 10px 12px !important;
+  }
+
+  :where(
+    .pagination-bar,
+    .orders-pagination,
+    .push-pagination,
+    .pageviews-pagination,
+    .rating-list-footer,
+    .pagination-row,
+    .public-reviews-pagination,
+    .product-reviews-pagination
+  ) > :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  :where(
+    .pagination-summary,
+    .pagination-info,
+    .pageviews-pagination > p,
+    .rating-pagination-summary,
+    .pagination-row > #pagination-summary,
+    .public-reviews-pagination > [data-public-reviews-range],
+    .product-reviews-pagination > [data-product-reviews-range]
+  ) {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    margin: 4px 0 0 !important;
+    text-align: center !important;
+  }
+
+  :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) > :first-child {
+    grid-column: 1 !important;
+  }
+
+  :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) > .pagination-mobile-status,
+  .pageviews-pagination-actions > .pageviews-current-page,
+  .rating-pagination-controls > #rating-all-page-label {
+    grid-column: 2 !important;
+  }
+
+  :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) > :last-child {
+    grid-column: 3 !important;
+  }
+
+  :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) > :first-child,
+  :where(
+    .pagination-actions,
+    .pageviews-pagination-actions,
+    .rating-pagination-controls,
+    .pager,
+    .public-reviews-pages,
+    .product-reviews-pages
+  ) > :last-child {
+    width: 100% !important;
+  }
+
+  .pagination-actions > form,
+  .pagination-actions > form > .page-button {
+    width: 100% !important;
+  }
+
+  :where(
+    .gifts-pagination,
+    .expiration-pagination,
+    .history-pagination,
+    .notifications-pagination,
+    .store-activity-pagination,
+    .master-pagination
+  ) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  :where(
+    .gifts-pagination,
+    .expiration-pagination,
+    .history-pagination,
+    .notifications-pagination,
+    .master-pagination
+  ) > :first-child {
+    grid-column: 1 !important;
+    width: 100% !important;
+  }
+
+  :where(
+    .gifts-pagination,
+    .expiration-pagination,
+    .history-pagination,
+    .notifications-pagination,
+    .master-pagination
+  ) > :last-child {
+    grid-column: 3 !important;
+    width: 100% !important;
+  }
+
+  .gifts-pagination > .pagination-pages {
+    display: none !important;
+  }
+
+  .gifts-pagination > .pagination-text,
+  .history-pagination > [data-page-label],
+  .notifications-pagination > [data-notifications-pagination-label] {
+    grid-column: 2 !important;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+
+  .store-activity-pagination > .store-activity-pagination__range,
+  .gifts-pagination > .pagination-summary,
+  .expiration-pagination > .pagination-summary,
+  .history-pagination > .pagination-summary,
+  .notifications-pagination > .pagination-summary {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    text-align: center !important;
   }
 
   :where(

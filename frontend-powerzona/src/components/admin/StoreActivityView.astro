@@ -7,7 +7,6 @@ interface Props {
   pocketbaseUrl: string;
   storeSlug: string;
   userId?: string;
-  userName?: string;
   deferred?: boolean;
   embedded?: boolean;
   filtersInitiallyOpen?: boolean;
@@ -19,7 +18,6 @@ const {
   pocketbaseUrl,
   storeSlug,
   userId = '',
-  userName = '',
   deferred = false,
   embedded = false,
   filtersInitiallyOpen = true,
@@ -30,14 +28,9 @@ const resolvedPageSize = Number.isInteger(pageSize) && pageSize >= 1 && pageSize
   ? pageSize
   : 20;
 
-const title = mode === 'team'
-  ? 'Actividad del equipo'
-  : (mode === 'self' ? 'Mi actividad' : `Actividad de ${userName || 'este usuario'}`);
 const description = mode === 'team'
   ? 'Consulta, revisa y corrige los cambios administrativos confirmados en tu tienda.'
-  : (mode === 'self'
-      ? 'Consulta únicamente los cambios administrativos realizados con tu cuenta.'
-      : 'Consulta el historial operativo de este integrante sin alterar los eventos originales.');
+  : (mode === 'user' ? 'Consulta el historial operativo de este integrante sin alterar los eventos originales.' : '');
 const canReview = mode !== 'self';
 const isIndividualActivity = mode !== 'team';
 const activityInstance = `store-activity-${mode}-${Math.random().toString(36).slice(2, 9)}`;
@@ -53,51 +46,70 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
   data-user-id={userId}
   data-deferred={deferred ? 'true' : 'false'}
   data-activity-page-size={resolvedPageSize}
-  aria-labelledby={mode === 'team' ? `${activityInstance}-title` : undefined}
-  aria-label={isIndividualActivity ? (mode === 'self' ? 'Mi actividad' : 'Actividad de usuario') : undefined}
+  aria-label={mode === 'team' ? 'Actividad del equipo' : (mode === 'self' ? 'Mi actividad' : 'Actividad de usuario')}
 >
-  <header class:list={['store-activity-heading', mode === 'team' && 'is-team-heading', isIndividualActivity && 'is-user-heading']}>
-    <div>
-      {mode === 'team' && <span class="store-activity-heading__kicker">Auditoría operativa</span>}
-      {mode === 'team' && <h2 id={`${activityInstance}-title`} data-activity-title>{title}</h2>}
+  <header class:list={[
+    'store-activity-heading',
+    mode === 'team' && 'is-team-heading',
+    isIndividualActivity && 'is-user-heading',
+    mode === 'self' && 'is-self-heading',
+  ]}>
+    {mode !== 'self' && <div class="store-activity-heading__copy">
+      {mode === 'team' && (
+        <div class="store-activity-heading__topline">
+          <span class="store-activity-heading__kicker">Auditoría operativa</span>
+          <button
+            class="store-activity-refresh is-icon-only"
+            type="button"
+            data-activity-refresh
+            data-pz-refresh-feedback
+            aria-label="Actualizar actividad"
+            title="Actualizar actividad"
+          >
+            <svg class="store-activity-refresh__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z"></path>
+            </svg>
+          </button>
+        </div>
+      )}
       <p>{description}</p>
-    </div>
-    <button
-      class:list={['store-activity-refresh', mode === 'team' && 'is-icon-only', isIndividualActivity && 'is-icon-only']}
-      type="button"
-      data-activity-refresh
-      data-pz-refresh-feedback
-      aria-label="Actualizar actividad"
-      title="Actualizar actividad"
-    >
-      <svg class="store-activity-refresh__icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z"></path>
-      </svg>
-    </button>
+    </div>}
+    {isIndividualActivity && (
+      <button
+        class="store-activity-refresh is-icon-only"
+        type="button"
+        data-activity-refresh
+        data-pz-refresh-feedback
+        aria-label="Actualizar actividad"
+        title="Actualizar actividad"
+      >
+        <svg class="store-activity-refresh__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.3L13 11h8V3l-3.3 3.3Z"></path>
+        </svg>
+      </button>
+    )}
   </header>
 
   {mode === 'team' && (
-    <section class="store-activity-summary is-team-list" aria-label="Resumen de actividad del equipo" role="list">
-      <article class="is-today" role="listitem">
-        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="chart" class="store-activity-summary__icon-svg" /></span>
-        <span class="store-activity-summary__label">Cambios hoy</span>
-        <strong data-activity-summary="changes_today">—</strong>
-      </article>
-      <article class="is-pending" role="listitem">
-        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="view" class="store-activity-summary__icon-svg" /></span>
-        <span class="store-activity-summary__label">Pendientes de revisar</span>
-        <strong data-activity-summary="pending_review">—</strong>
-      </article>
-      <article class="is-critical" role="listitem">
-        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="bell" class="store-activity-summary__icon-svg" /></span>
-        <span class="store-activity-summary__label">Cambios críticos</span>
-        <strong data-activity-summary="critical_changes">—</strong>
-      </article>
-      <article class="is-users" role="listitem">
-        <span class="store-activity-summary__icon" aria-hidden="true"><AdminIcon name="users" class="store-activity-summary__icon-svg" /></span>
-        <span class="store-activity-summary__label">Usuarios con actividad</span>
-        <strong data-activity-summary="active_users">—</strong>
-      </article>
+    <section class="admin-compact-summary store-activity-team-summary" aria-label="Resumen de actividad del equipo">
+      <div class="admin-compact-summary__list" role="list">
+        <article class="admin-compact-summary__item is-primary" role="listitem">
+          <p class="admin-compact-summary__label">Cambios hoy</p>
+          <p class="admin-compact-summary__value" data-activity-summary="changes_today">—</p>
+        </article>
+        <article class="admin-compact-summary__item is-warn" role="listitem">
+          <p class="admin-compact-summary__label">Pendientes de revisar</p>
+          <p class="admin-compact-summary__value" data-activity-summary="pending_review">—</p>
+        </article>
+        <article class="admin-compact-summary__item is-danger" role="listitem">
+          <p class="admin-compact-summary__label">Cambios críticos</p>
+          <p class="admin-compact-summary__value" data-activity-summary="critical_changes">—</p>
+        </article>
+        <article class="admin-compact-summary__item is-purple" role="listitem">
+          <p class="admin-compact-summary__label">Usuarios con actividad</p>
+          <p class="admin-compact-summary__value" data-activity-summary="active_users">—</p>
+        </article>
+      </div>
     </section>
   )}
 
@@ -430,7 +442,6 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     const previousPage = root.querySelector<HTMLButtonElement>('[data-activity-page="previous"]');
     const nextPage = root.querySelector<HTMLButtonElement>('[data-activity-page="next"]');
     const userFilter = root.querySelector<HTMLSelectElement>('[data-activity-user-filter]');
-    const title = root.querySelector<HTMLElement>('[data-activity-title]');
     const refreshButton = root.querySelector<HTMLButtonElement>('[data-activity-refresh]');
     const resourceFilterNotice = root.querySelector<HTMLElement>('[data-activity-resource-filter]');
     const configuredPageSize = Number(root.dataset.activityPageSize || STORE_ACTIVITY_PAGE_SIZE);
@@ -689,9 +700,6 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
           events = response.items;
           currentPagination = response.pagination;
           renderUserSummary(response.summary);
-          if (title && response.user.display_name) {
-            title.textContent = `Actividad de ${response.user.display_name}${response.user.state === 'deleted' ? ' — usuario eliminado' : ''}`;
-          }
         } else {
           const response = await getStoreSelfActivity(filters, client());
           events = response.items;

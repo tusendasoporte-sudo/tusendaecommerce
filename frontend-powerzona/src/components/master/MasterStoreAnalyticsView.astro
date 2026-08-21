@@ -420,10 +420,10 @@ const sellerMaxRevenue = Math.max(1, ...(analytics?.top_selling_products_by_reve
           {analytics.pages.page > 1
             ? <a class="pagination-button" href={pagesHref(analytics.pages.page - 1)}>Anterior</a>
             : <span class="pagination-button is-disabled">Anterior</span>}
-          <span>{analytics.pages.page} / {analytics.pages.total_pages}</span>
+          <span>{analytics.pages.page} de {analytics.pages.total_pages}</span>
           {analytics.pages.page < analytics.pages.total_pages
-            ? <a class="pagination-button" href={pagesHref(analytics.pages.page + 1)}>Próximo</a>
-            : <span class="pagination-button is-disabled">Próximo</span>}
+            ? <a class="pagination-button" href={pagesHref(analytics.pages.page + 1)}>Siguiente</a>
+            : <span class="pagination-button is-disabled">Siguiente</span>}
         </footer>
       </section>
     </>

@@ -1002,10 +1002,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         document.querySelectorAll('.edit-gift').forEach((btn)=>btn.addEventListener('click',()=>editGift(btn.dataset.id)));
         document.querySelectorAll('.delete-gift').forEach((btn)=>btn.addEventListener('click',()=>deleteGift(btn.dataset.id)));
         document.querySelectorAll('.gift-menu-btn').forEach((btn)=>btn.addEventListener('click',(event)=>{ event.stopPropagation(); openGiftMenu(btn.dataset.id); }));
-        renderGiftsPagination(totalPages);
+        renderGiftsPagination(totalPages, filteredGifts.length);
       }
 
-      function renderGiftsPagination(totalPages){
+      function renderGiftsPagination(totalPages, totalItems = 0){
         if(!giftsPagination) return;
         if(totalPages <= 1){
           giftsPagination.classList.add('hidden');
@@ -1014,14 +1014,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         const firstPage = Math.max(1, Math.min(giftsPage - 2, totalPages - 4));
         const pages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPage + index).filter((page) => page <= totalPages);
-        const mobileFirstPage = Math.max(1, Math.min(giftsPage - 1, totalPages - 2));
-        const mobileLastPage = Math.min(totalPages, mobileFirstPage + 2);
+        const rangeStart = totalItems ? ((giftsPage - 1) * GIFTS_PER_PAGE) + 1 : 0;
+        const rangeEnd = totalItems ? Math.min(giftsPage * GIFTS_PER_PAGE, totalItems) : 0;
         giftsPagination.classList.remove('hidden');
         giftsPagination.innerHTML = `
           <button class="mini-btn js-gifts-page-prev" type="button" ${giftsPage <= 1 ? 'disabled' : ''}>Anterior</button>
-          <span class="pagination-text">Página ${giftsPage} de ${totalPages}</span>
-          <span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" data-pagination-mobile-visible="${page >= mobileFirstPage && page <= mobileLastPage}" type="button">${page}</button>`).join('')}</span>
-          <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Próximo</button>
+          <span class="pagination-text">${giftsPage} de ${totalPages}</span>
+          <span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" data-pagination-mobile-visible="false" type="button">${page}</button>`).join('')}</span>
+          <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+          <span class="pagination-summary">Mostrando ${rangeStart}–${rangeEnd} de ${totalItems} regalos</span>
         `;
         giftsPagination.querySelector('.js-gifts-page-prev')?.addEventListener('click', () => { giftsPage -= 1; renderGifts(); });
         giftsPagination.querySelector('.js-gifts-page-next')?.addEventListener('click', () => { giftsPage += 1; renderGifts(); });

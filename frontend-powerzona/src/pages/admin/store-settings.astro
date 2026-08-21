@@ -4145,8 +4145,8 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                   <p id="rating-all-pagination-summary" class="rating-pagination-summary">Mostrando 0 de 0 rese&ntilde;as</p>
                   <div class="rating-pagination-controls">
                     <button id="rating-all-prev-page" class="mini-btn" type="button">Anterior</button>
-                    <span id="rating-all-page-label">P&aacute;gina 1 de 1</span>
-                    <button id="rating-all-next-page" class="mini-btn" type="button">Próximo</button>
+                    <span id="rating-all-page-label">1 de 1</span>
+                    <button id="rating-all-next-page" class="mini-btn" type="button">Siguiente</button>
                   </div>
                 </div>
               </section>
@@ -7085,7 +7085,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
             </div>
           `;
           if (allPaginationSummary) allPaginationSummary.textContent = `Mostrando ${start + 1}-${end} de ${items.length} rese\u00f1as`;
-          if (allPageLabel) allPageLabel.textContent = `P\u00e1gina ${ratingAllReviewsPage} de ${totalPages}`;
+          if (allPageLabel) allPageLabel.textContent = `${ratingAllReviewsPage} de ${totalPages}`;
           if (allPrevPageBtn) allPrevPageBtn.disabled = ratingAllReviewsPage <= 1;
           if (allNextPageBtn) allNextPageBtn.disabled = ratingAllReviewsPage >= totalPages;
           allPagination?.classList.toggle('hidden', items.length <= RATING_REVIEWS_PAGE_SIZE);

@@ -120,8 +120,9 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       <p class="pagination-summary" data-page-summary>Mostrando 0 campañas · 10 por página</p>
       <div class="pagination-actions">
         <button class="page-button" type="button" data-page-previous disabled>Anterior</button>
-        <button class="page-button is-active" type="button" data-page-label aria-current="page" tabindex="-1" aria-label="Página actual: 1">1</button>
-        <button class="page-button" type="button" data-page-next disabled>Próximo</button>
+        <span class="pagination-mobile-status" data-page-mobile-label aria-label="Página actual: 1">Página 1</span>
+        <button class="page-button is-active" type="button" data-page-label data-pagination-mobile-visible="false" aria-current="page" tabindex="-1" aria-label="Página actual: 1">1</button>
+        <button class="page-button" type="button" data-page-next disabled>Siguiente</button>
       </div>
     </nav>
   </section>
@@ -562,6 +563,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     const selectionCount = one('[data-selection-count]');
     const pageSummary = one('[data-page-summary]');
     const pageLabel = one('[data-page-label]');
+    const pageMobileLabel = one('[data-page-mobile-label]');
     const previousButton = one('[data-page-previous]');
     const nextButton = one('[data-page-next]');
     const errorBox = one('[data-form-error]');
@@ -818,6 +820,10 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         : `Mostrando ${pageStart}${pageEnd > pageStart ? ` a ${pageEnd}` : ''} campaña${state.campaigns.length === 1 ? '' : 's'} · ${STOREFRONT_PUSH_PAGE_SIZE} por página`;
       pageLabel.textContent = String(state.page);
       pageLabel.setAttribute('aria-label', `Página actual: ${state.page}`);
+      if (pageMobileLabel) {
+        pageMobileLabel.textContent = `Página ${state.page}`;
+        pageMobileLabel.setAttribute('aria-label', `Página actual: ${state.page}`);
+      }
       previousButton.disabled = state.loading || state.page <= 1;
       nextButton.disabled = state.loading || !state.hasMore;
       list.setAttribute('aria-busy', 'false');

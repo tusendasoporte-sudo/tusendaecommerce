@@ -2671,23 +2671,20 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         const to = startIndex + pageCount;
         const totalLabel = totalOrders === 1 ? '1 pedido' : `${totalOrders} pedidos`;
         const desktopWindowSize = 5;
-        const mobileWindowSize = 3;
         const firstPage = Math.max(1, Math.min(currentOrdersPage - 2, totalPages - desktopWindowSize + 1));
         const lastPage = Math.min(totalPages, firstPage + desktopWindowSize - 1);
-        const mobileFirstPage = Math.max(1, Math.min(currentOrdersPage - 1, totalPages - mobileWindowSize + 1));
-        const mobileLastPage = Math.min(totalPages, mobileFirstPage + mobileWindowSize - 1);
         const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
           const page = firstPage + index;
-          const mobileVisible = page >= mobileFirstPage && page <= mobileLastPage;
-          return `<button class="page-btn ${page === currentOrdersPage ? 'active' : ''}" type="button" data-orders-page="${page}" data-pagination-mobile-visible="${mobileVisible}">${page}</button>`;
+          return `<button class="page-btn ${page === currentOrdersPage ? 'active' : ''}" type="button" data-orders-page="${page}" data-pagination-mobile-visible="false">${page}</button>`;
         }).join('');
 
         ordersPagination.innerHTML = `
           <div class="pagination-info">Mostrando ${from}&ndash;${to} de ${totalLabel} · 10 por página</div>
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-orders-page="prev" ${currentOrdersPage === 1 ? 'disabled' : ''}>Anterior</button>
+            <span class="pagination-mobile-status" aria-label="Página ${currentOrdersPage} de ${totalPages}">${currentOrdersPage} de ${totalPages}</span>
             ${pageButtons}
-            <button class="page-btn" type="button" data-orders-page="next" ${currentOrdersPage === totalPages ? 'disabled' : ''}>Próximo</button>
+            <button class="page-btn" type="button" data-orders-page="next" ${currentOrdersPage === totalPages ? 'disabled' : ''}>Siguiente</button>
           </div>`;
 
         ordersPagination.querySelectorAll('[data-orders-page]').forEach((button) => {

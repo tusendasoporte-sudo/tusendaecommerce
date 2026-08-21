@@ -7185,23 +7185,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return;
         }
         const desktopWindowSize = 5;
-        const mobileWindowSize = 3;
         const firstPage = Math.max(1, Math.min(currentProductPage - 2, totalPages - desktopWindowSize + 1));
         const lastPage = Math.min(totalPages, firstPage + desktopWindowSize - 1);
-        const mobileFirstPage = Math.max(1, Math.min(currentProductPage - 1, totalPages - mobileWindowSize + 1));
-        const mobileLastPage = Math.min(totalPages, mobileFirstPage + mobileWindowSize - 1);
         const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
           const page = firstPage + index;
-          const mobileVisible = page >= mobileFirstPage && page <= mobileLastPage;
-          return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" data-pagination-mobile-visible="${mobileVisible}" aria-label="Ir a pagina ${page}">${page}</button>`;
+          return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" data-pagination-mobile-visible="false" aria-label="Ir a pagina ${page}">${page}</button>`;
         }).join('');
         productsPagination.classList.remove('hidden');
         productsPagination.innerHTML = `
           <p class="pagination-summary">Mostrando ${fromItem} a ${toItem} de ${totalItems} productos · ${PRODUCT_PAGE_SIZE} por página</p>
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-page="prev" ${currentProductPage <= 1 ? 'disabled' : ''}>Anterior</button>
+            <span class="pagination-mobile-status" aria-label="Página ${currentProductPage} de ${totalPages}">${currentProductPage} de ${totalPages}</span>
             ${pageButtons}
-            <button class="page-btn" type="button" data-page="next" ${currentProductPage >= totalPages ? 'disabled' : ''}>Próximo</button>
+            <button class="page-btn" type="button" data-page="next" ${currentProductPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
           </div>
         `;
       }

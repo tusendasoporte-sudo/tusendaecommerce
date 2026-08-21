@@ -78,8 +78,6 @@ const pageWindowSize = 5;
 const firstPage = Math.max(1, Math.min(currentPage - 2, totalPages - pageWindowSize + 1));
 const lastPage = Math.min(totalPages, firstPage + pageWindowSize - 1);
 const visiblePages = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index);
-const mobileFirstPage = Math.max(1, Math.min(currentPage - 1, totalPages - 2));
-const mobileLastPage = Math.min(totalPages, mobileFirstPage + 2);
 const detailsPath = getStoreAdminPath(adminContext.store.slug, 'app-installation-details');
 const analyticsPath = getStoreAdminPath(adminContext.store.slug, 'app-installations');
 const pageHref = (targetPage: number) => `${detailsPath}?range=${encodeURIComponent(returnRange)}&page=${targetPage}`;
@@ -188,12 +186,13 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
                 {currentPage > 1
                   ? <a class="page-btn" href={pageHref(currentPage - 1)}>Anterior</a>
                   : <span class="page-btn is-disabled" aria-disabled="true">Anterior</span>}
+                <span class="pagination-mobile-status" aria-label={`Página ${currentPage} de ${totalPages}`}>{currentPage} de {totalPages}</span>
                 {visiblePages.map((number) => (
-                  <a class:list={['page-btn', number === currentPage && 'is-active']} href={pageHref(number)} data-pagination-mobile-visible={number >= mobileFirstPage && number <= mobileLastPage ? 'true' : 'false'} aria-current={number === currentPage ? 'page' : undefined}>{number}</a>
+                  <a class:list={['page-btn', number === currentPage && 'is-active']} href={pageHref(number)} data-pagination-mobile-visible="false" aria-current={number === currentPage ? 'page' : undefined}>{number}</a>
                 ))}
                 {currentPage < totalPages
-                  ? <a class="page-btn" href={pageHref(currentPage + 1)}>Próximo</a>
-                  : <span class="page-btn is-disabled" aria-disabled="true">Próximo</span>}
+                  ? <a class="page-btn" href={pageHref(currentPage + 1)}>Siguiente</a>
+                  : <span class="page-btn is-disabled" aria-disabled="true">Siguiente</span>}
               </nav>
             </footer>
           )}

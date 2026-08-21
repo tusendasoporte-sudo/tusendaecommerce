@@ -7312,12 +7312,11 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				expirationPagination.hidden = false;
 				const first = Math.max(1, Math.min(selectedExpirationPage - 2, total - 4));
 				const pages = Array.from({ length: Math.min(5, total) }, (_, index) => first + index).filter((value) => value <= total);
-				const mobileFirst = Math.max(1, Math.min(selectedExpirationPage - 1, total - 2));
-				const mobileLast = Math.min(total, mobileFirst + 2);
 				expirationPagination.innerHTML = [
 					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.max(1, selectedExpirationPage - 1)}" ${selectedExpirationPage <= 1 ? 'disabled' : ''}>Anterior</button>`,
-					...pages.map((value) => `<button class="expiration-page-button" type="button" data-expiration-summary-page="${value}" data-pagination-mobile-visible="${value >= mobileFirst && value <= mobileLast}" ${value === selectedExpirationPage ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
-					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.min(total, selectedExpirationPage + 1)}" ${selectedExpirationPage >= total ? 'disabled' : ''}>Próximo</button>`,
+					`<span class="pagination-mobile-status" aria-label="Página ${selectedExpirationPage} de ${total}">${selectedExpirationPage} de ${total}</span>`,
+					...pages.map((value) => `<button class="expiration-page-button" type="button" data-expiration-summary-page="${value}" data-pagination-mobile-visible="false" ${value === selectedExpirationPage ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
+					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.min(total, selectedExpirationPage + 1)}" ${selectedExpirationPage >= total ? 'disabled' : ''}>Siguiente</button>`,
 				].join('');
 			}
 

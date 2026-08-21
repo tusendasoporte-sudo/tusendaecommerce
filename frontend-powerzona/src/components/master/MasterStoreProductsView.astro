@@ -339,8 +339,8 @@ const totalPages = products?.page.total_pages || 1;
       {totalPages > 1 && (
         <nav class="pagination" aria-label="Paginación del catálogo">
           {currentPage > 1 ? <a href={pageHref(currentPage - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
-          <strong>Página {currentPage} de {totalPages}</strong>
-          {currentPage < totalPages ? <a href={pageHref(currentPage + 1)}>Próximo</a> : <span aria-disabled="true">Próximo</span>}
+          <strong>{currentPage} de {totalPages}</strong>
+          {currentPage < totalPages ? <a href={pageHref(currentPage + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
         </nav>
       )}
     </section>

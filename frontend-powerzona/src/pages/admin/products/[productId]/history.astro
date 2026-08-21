@@ -128,7 +128,8 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
             <p class="history-alert" data-history-alert aria-live="polite">Cargando historial privado...</p>
             <div class="history-list" data-history-list></div>
             <nav class="history-pagination" data-history-pagination aria-label="Paginación del historial" hidden>
-              <button type="button" data-page="previous">Anterior</button><span data-page-label>Página 1 de 1</span><button type="button" data-page="next">Próximo</button>
+              <button type="button" data-page="previous">Anterior</button><span data-page-label>1 de 1</span><button type="button" data-page="next">Siguiente</button>
+              <span class="pagination-summary" data-page-range>Mostrando 0 cambios</span>
             </nav>
           </section>
         </div>
@@ -145,6 +146,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         const list = ROOT.querySelector('[data-history-list]');
         const pagination = ROOT.querySelector('[data-history-pagination]');
         const pageLabel = ROOT.querySelector('[data-page-label]');
+        const pageRange = ROOT.querySelector('[data-page-range]');
         const variationSelect = ROOT.querySelector('[data-history-variation]');
         let scope = 'all';
         let variationId = REQUESTED_VARIATION;
@@ -221,7 +223,14 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           totalPages = Number(info?.total_pages || 1);
           page = Number(info?.page || 1);
           pagination.hidden = Number(info?.total_items || 0) === 0;
-          pageLabel.textContent = `Página ${page} de ${totalPages}`;
+          pageLabel.textContent = `${page} de ${totalPages}`;
+          const totalItems = Number(info?.total_items || 0);
+          const perPage = Number(info?.per_page || 20);
+          const rangeStart = totalItems ? ((page - 1) * perPage) + 1 : 0;
+          const rangeEnd = totalItems ? Math.min(page * perPage, totalItems) : 0;
+          if (pageRange) pageRange.textContent = totalItems
+            ? `Mostrando ${rangeStart}–${rangeEnd} de ${totalItems} cambios`
+            : 'Mostrando 0 cambios';
           pagination.querySelector('[data-page="previous"]').disabled = page <= 1;
           pagination.querySelector('[data-page="next"]').disabled = page >= totalPages;
         }

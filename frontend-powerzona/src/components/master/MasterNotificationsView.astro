@@ -101,8 +101,8 @@ const firstPageHref = pageHref(1);
     {notifications && notifications.total_pages > 1 && (
       <nav class="notifications-pagination" aria-label="Paginación de notificaciones">
         {notifications.page > 1 ? <a href={pageHref(notifications.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
-        <strong>Página {notifications.page} de {notifications.total_pages}</strong>
-        {notifications.page < notifications.total_pages ? <a href={pageHref(notifications.page + 1)}>Próximo</a> : <span aria-disabled="true">Próximo</span>}
+        <strong>{notifications.page} de {notifications.total_pages}</strong>
+        {notifications.page < notifications.total_pages ? <a href={pageHref(notifications.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
       </nav>
     )}
   </section>

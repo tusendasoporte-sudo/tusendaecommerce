@@ -834,10 +834,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           max-width: 100%;
         }
 
-        .pageviews-pagination-actions {
-          grid-template-columns: 1fr;
-        }
-
         .pageviews-current-page {
           text-align: center;
         }
@@ -1202,9 +1198,9 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
                 <span aria-hidden="true">←</span>
                 <span>Anterior</span>
               </button>
-              <span class="pageviews-current-page" data-pageviews-current-page>Página 1 de 1</span>
+              <span class="pageviews-current-page" data-pageviews-current-page>1 de 1</span>
               <button type="button" class="pageviews-page-btn" data-pageviews-next>
-                <span>Próximo</span>
+                <span>Siguiente</span>
                 <span aria-hidden="true">→</span>
               </button>
             </div>
@@ -1669,7 +1665,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         }
 
         if (pageviewsCurrentPageLabel) {
-          pageviewsCurrentPageLabel.textContent = `Página ${pageviewsCurrentPage} de ${totalPages}`;
+          pageviewsCurrentPageLabel.textContent = `${pageviewsCurrentPage} de ${totalPages}`;
         }
 
         if (pageviewsPrevButton) {

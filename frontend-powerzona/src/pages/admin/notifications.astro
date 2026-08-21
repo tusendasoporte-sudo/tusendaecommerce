@@ -191,7 +191,9 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
 
           <div class="notifications-pagination">
             <a class="notifications-page-btn hidden" href={adminNotificationsPath} data-notifications-prev>Anterior</a>
-            <a class="notifications-page-btn hidden" href={adminNotificationsPath} data-notifications-next>Próximo</a>
+            <span class="pagination-mobile-status" data-notifications-pagination-label>1 de 1</span>
+            <a class="notifications-page-btn hidden" href={adminNotificationsPath} data-notifications-next>Siguiente</a>
+            <span class="pagination-summary" data-notifications-pagination-summary>Mostrando 0 notificaciones</span>
           </div>
         </section>
       </main>
@@ -237,6 +239,8 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         const list = document.querySelector('[data-notifications-list]');
         const totalLabel = document.querySelector('[data-notifications-total]');
         const pageLabel = document.querySelector('[data-notifications-page-label]');
+        const paginationLabel = document.querySelector('[data-notifications-pagination-label]');
+        const paginationSummary = document.querySelector('[data-notifications-pagination-summary]');
         const prevLink = document.querySelector('[data-notifications-prev]');
         const nextLink = document.querySelector('[data-notifications-next]');
         const archiveAllButton = document.querySelector('[data-notifications-archive-all]');
@@ -299,9 +303,19 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
 
           if (totalLabel) totalLabel.textContent = `${total} notificacion${total === 1 ? '' : 'es'} activas`;
           if (pageLabel) pageLabel.textContent = `Pagina ${page} de ${totalPages}`;
+          if (paginationLabel) paginationLabel.textContent = `${page} de ${totalPages}`;
+          const rangeStart = total ? ((page - 1) * 24) + 1 : 0;
+          const rangeEnd = total ? Math.min(rangeStart + items.length - 1, total) : 0;
+          if (paginationSummary) paginationSummary.textContent = total
+            ? `Mostrando ${rangeStart}–${rangeEnd} de ${total} notificaciones`
+            : 'Mostrando 0 notificaciones';
 
-          prevLink?.classList.toggle('hidden', page <= 1);
-          nextLink?.classList.toggle('hidden', page >= totalPages);
+          prevLink?.classList.remove('hidden');
+          nextLink?.classList.remove('hidden');
+          prevLink?.classList.toggle('disabled', page <= 1);
+          nextLink?.classList.toggle('disabled', page >= totalPages);
+          prevLink?.setAttribute('aria-disabled', page <= 1 ? 'true' : 'false');
+          nextLink?.setAttribute('aria-disabled', page >= totalPages ? 'true' : 'false');
           if (prevLink) prevLink.setAttribute('href', pageHref(Math.max(1, page - 1)));
           if (nextLink) nextLink.setAttribute('href', pageHref(Math.min(totalPages, page + 1)));
 
