@@ -313,5 +313,45 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
         load();
       })();
     </script>
+    <script is:inline>
+      (() => {
+        const root = document.querySelector('[data-visual-editor-root]');
+        const moduleScript = Array.from(document.scripts).find((script) => {
+          try {
+            const url = new URL(script.src, window.location.href);
+            return url.origin === window.location.origin
+              && url.pathname.startsWith('/_astro/')
+              && url.pathname.includes('_visualId_');
+          } catch {
+            return false;
+          }
+        });
+        if (!root || !moduleScript) return;
+
+        moduleScript.addEventListener('error', () => {
+          let attempt = 0;
+          const retry = async () => {
+            attempt += 1;
+            try {
+              const retryUrl = new URL(moduleScript.src, window.location.href);
+              retryUrl.searchParams.set('retry', `${Date.now()}-${attempt}`);
+              await import(retryUrl.href);
+            } catch {
+              if (attempt < 5) {
+                window.setTimeout(retry, attempt * 700);
+                return;
+              }
+              const alert = root.querySelector('[data-editor-alert]');
+              if (alert) {
+                alert.textContent = 'No se pudo cargar el editor. Actualiza la página para intentarlo nuevamente.';
+                alert.dataset.tone = 'error';
+                alert.hidden = false;
+              }
+            }
+          };
+          retry();
+        }, { once: true });
+      })();
+    </script>
   </body>
 </html>

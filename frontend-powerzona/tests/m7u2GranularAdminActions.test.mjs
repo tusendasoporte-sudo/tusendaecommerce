@@ -148,6 +148,9 @@ test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   assert.match(visualEditor, /data-visual-editor-form/);
   assert.match(visualEditor, /\/api\/admin\/visual-items\/\$\{encodeURIComponent\(visualId\)\}/);
   assert.doesNotMatch(visualEditor, /document\.cookie|Authorization = `Bearer/);
+  assert.match(visualEditor, /moduleScript\.addEventListener\('error'/);
+  assert.match(visualEditor, /retryUrl\.searchParams\.set\('retry'/);
+  assert.match(visualEditor, /attempt < 5/);
   assert.match(visualEditorApi, /sameOriginMutation\(request\)/);
   assert.match(visualEditorApi, /hasStorePermission\(permissionContext, 'promotions\.manage'\)/);
   assert.match(visualEditorApi, /requireCurrentStoreForAdmin\(authPb, \{ storeSlug \}\)/);
