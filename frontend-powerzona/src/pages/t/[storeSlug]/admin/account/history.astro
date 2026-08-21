@@ -57,17 +57,12 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
       storePlanValues={adminContext.store}
       activeSection="account"
       mobileTitle="Mi historial"
-      mobileBackHref={backPath}
-      mobileBackLabel={backLabel}
     />
 
     <main class="pz-account-shell pz-account-history-shell">
       <header class="pz-account-heading pz-account-heading--with-back pz-account-heading--history">
-        <div>
-          <h1>Mi historial</h1>
-          <p>Consulta únicamente los cambios administrativos realizados con tu cuenta.</p>
-        </div>
-        <a class="pz-account-secondary pz-account-heading__back" href={backPath}>{backLabel}</a>
+        <h1>Mi historial</h1>
+        <a class="pz-account-heading__back" href={backPath}>← {backLabel}</a>
       </header>
 
       <section id="my-activity" class="pz-account-activity-view" aria-label="Mi actividad">
@@ -78,6 +73,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
           embedded={true}
           filtersInitiallyOpen={false}
           pageSize={10}
+          description="Consulta únicamente los cambios administrativos realizados con tu cuenta."
         />
       </section>
     </main>

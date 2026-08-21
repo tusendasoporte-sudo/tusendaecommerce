@@ -25,7 +25,7 @@ test('actividad individual usa la cabecera compacta aprobada', () => {
   assert.equal((`${history}\n${activity}`.match(/Consulta únicamente los cambios administrativos realizados con tu cuenta\./g) || []).length, 1);
   assert.match(activity, /class="store-activity-refresh is-icon-only"/);
   assert.match(activityStyles, /\.store-activity-heading\.is-user-heading \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
-  assert.match(activityStyles, /\.store-activity-heading\.is-self-heading \{[\s\S]*?justify-content: flex-end;/);
+  assert.match(activityStyles, /\.store-activity-heading\.is-self-heading \{[\s\S]*?align-items: center;[\s\S]*?justify-content: space-between;/);
 });
 
 test('el administrador principal usa una sola ruta canónica para su historial', () => {
@@ -35,6 +35,9 @@ test('el administrador principal usa una sola ruta canónica para su historial',
   assert.match(report, /if \(userId === currentUserId\)[\s\S]*?account\/history/);
   assert.match(history, /Astro\.url\.searchParams\.get\('from'\) === 'team'/);
   assert.match(history, /backLabel = returnToTeam \? 'Volver a Mi equipo' : 'Volver a Mi cuenta'/);
+  assert.doesNotMatch(history, /mobileBackHref=/);
+  assert.match(history, /class="pz-account-heading__back"[\s\S]*?← \{backLabel\}/);
+  assert.match(history, /description="Consulta únicamente los cambios administrativos realizados con tu cuenta\."/);
   assert.match(history, /class="pz-account-activity-view"/);
   assert.doesNotMatch(history, /id="my-activity" class="pz-account-card"/);
 });

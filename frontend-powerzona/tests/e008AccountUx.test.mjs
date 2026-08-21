@@ -17,7 +17,8 @@ test('E008: Mi cuenta resume el historial en una acción que abre una página pr
   assert.match(styles, /\.pz-account-heading--account-home p \{\s*margin-top: 0;/);
   assert.doesNotMatch(account, /<StoreActivityView/);
   assert.match(history, /<StoreActivityView[\s\S]*?mode="self"/);
-  assert.match(history, /mobileBackHref=\{backPath\}/);
+  assert.doesNotMatch(history, /mobileBackHref=\{backPath\}/);
+  assert.match(history, /class="pz-account-heading__back"[\s\S]*?← \{backLabel\}/);
   assert.match(history, /backPath = returnToTeam \? getStoreAdminPath\(storeSlug, 'team'\) : accountPath/);
   assert.match(middleware, /normalized\.startsWith\('account\/'\)/);
   assert.match(middleware, /requestedSection\.startsWith\('account\/'\)/);
@@ -26,7 +27,7 @@ test('E008: Mi cuenta resume el historial en una acción que abre una página pr
 test('E008: el historial inicia con filtros cerrados y solicita diez eventos', () => {
   assert.match(history, /pz-account-heading--history/);
   assert.match(styles, /\.pz-account-heading--history h1 \{\s*display: none;/);
-  assert.match(styles, /\.pz-account-heading--history p \{\s*margin-top: 0;/);
+  assert.match(history, /description="Consulta únicamente los cambios administrativos realizados con tu cuenta\."/);
   assert.match(history, /filtersInitiallyOpen=\{false\}/);
   assert.match(history, /pageSize=\{10\}/);
   assert.match(activity, /open=\{filtersInitiallyOpen\}/);
@@ -34,16 +35,17 @@ test('E008: el historial inicia con filtros cerrados y solicita diez eventos', (
   assert.match(activity, /per_page: activityPageSize/);
 });
 
-test('E008: el regreso móvil del historial es compacto y no cubre el encabezado', () => {
+test('E008: el regreso móvil del historial es texto fijo y no cubre el encabezado', () => {
   assert.match(history, /pz-account-history-page/);
   assert.match(
     styles,
-    /\.pz-account-history-page \.pz-admin-mobile-back-link \{[\s\S]*?left: auto !important;[\s\S]*?right: 14px !important;[\s\S]*?width: fit-content !important;/,
+    /\.pz-account-heading--history \.pz-account-heading__back \{\s*display: inline-flex;\s*align-self: flex-end;/,
   );
   assert.match(
     styles,
-    /\.pz-account-history-page \.pz-account-history-shell \{\s*padding-top: 148px;/,
+    /\.pz-account-history-page \.pz-account-history-shell \{\s*padding-top: 94px;/,
   );
+  assert.doesNotMatch(styles, /\.pz-account-history-page \.pz-admin-mobile-back-link/);
 });
 
 test('E008: cambiar contraseña abre un diálogo accesible y conserva el flujo seguro', () => {

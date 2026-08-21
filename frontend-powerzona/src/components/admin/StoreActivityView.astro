@@ -11,6 +11,7 @@ interface Props {
   embedded?: boolean;
   filtersInitiallyOpen?: boolean;
   pageSize?: number;
+  description?: string;
 }
 
 const {
@@ -22,15 +23,16 @@ const {
   embedded = false,
   filtersInitiallyOpen = true,
   pageSize = 20,
+  description: customDescription = '',
 } = Astro.props;
 
 const resolvedPageSize = Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100
   ? pageSize
   : 20;
 
-const description = mode === 'team'
+const description = customDescription || (mode === 'team'
   ? 'Consulta, revisa y corrige los cambios administrativos confirmados en tu tienda.'
-  : (mode === 'user' ? 'Consulta el historial operativo de este integrante sin alterar los eventos originales.' : '');
+  : (mode === 'user' ? 'Consulta el historial operativo de este integrante sin alterar los eventos originales.' : ''));
 const canReview = mode !== 'self';
 const isIndividualActivity = mode !== 'team';
 const activityInstance = `store-activity-${mode}-${Math.random().toString(36).slice(2, 9)}`;
@@ -54,7 +56,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     isIndividualActivity && 'is-user-heading',
     mode === 'self' && 'is-self-heading',
   ]}>
-    {mode !== 'self' && <div class="store-activity-heading__copy">
+    {description && <div class="store-activity-heading__copy">
       {mode === 'team' && (
         <div class="store-activity-heading__topline">
           <span class="store-activity-heading__kicker">Auditoría operativa</span>

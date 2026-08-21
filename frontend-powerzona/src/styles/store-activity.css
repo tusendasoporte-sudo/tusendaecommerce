@@ -95,7 +95,8 @@
 }
 
 .store-activity-heading.is-self-heading {
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   padding-block: 0 4px;
 }
 

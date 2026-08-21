@@ -240,6 +240,7 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
   assert.match(team, /data-team-tab="users"/);
   assert.match(team, /data-team-tab="activity"/);
   assert.match(team, /<StoreActivityView[\s\S]*?mode="team"[\s\S]*?deferred=\{true\}/);
+  assert.match(team, /<StoreActivityView[\s\S]*?mode="team"[\s\S]*?filtersInitiallyOpen=\{false\}/);
   assert.match(team, /<StoreActivityView[\s\S]*?mode="team"[\s\S]*?pageSize=\{10\}/);
   assert.match(team, /data-team-action="activity">Ver actividad/);
   assert.match(team, /data-team-action="delete">Eliminar permanentemente/);
