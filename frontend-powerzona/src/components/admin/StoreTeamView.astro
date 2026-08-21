@@ -12,12 +12,14 @@ import { STORE_TEAM_DELETE_REASONS } from '../../lib/storeTeamDeleteReasons';
 interface Props {
   pocketbaseUrl: string;
   storeSlug: string;
+  currentUserId?: string;
   plansPath?: string;
 }
 
 const {
   pocketbaseUrl,
   storeSlug,
+  currentUserId = '',
   plansPath = '/planes',
 } = Astro.props;
 ---
@@ -395,10 +397,11 @@ const {
   </dialog>
 </main>
 
-<script define:vars={{ pocketbaseUrl, storeSlug }}>
+<script define:vars={{ pocketbaseUrl, storeSlug, currentUserId }}>
   window.PZ_STORE_TEAM_CONFIG = {
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
     storeSlug: String(storeSlug || ''),
+    currentUserId: String(currentUserId || ''),
     isPrimaryAdmin: true,
   };
 </script>
@@ -444,6 +447,7 @@ const {
   type TeamConfig = {
     pocketbaseUrl: string;
     storeSlug: string;
+    currentUserId: string;
     isPrimaryAdmin: boolean;
   };
 
@@ -1423,7 +1427,10 @@ const {
         else if (action === 'permissions') void openEditor(user, true);
         else if (action === 'audit') void openAudit(user);
         else if (action === 'activity') {
-          window.location.assign(getStoreAdminPath(config.storeSlug, `team/${encodeURIComponent(user.id)}/activity`));
+          const destination = user.id === config.currentUserId
+            ? `${getStoreAdminPath(config.storeSlug, 'account/history')}?from=team`
+            : getStoreAdminPath(config.storeSlug, `team/${encodeURIComponent(user.id)}/activity`);
+          window.location.assign(destination);
         }
         else if (action === 'delete') openDeleteDialog(user);
         else if (['suspend', 'reactivate', 'temporary', 'sessions', 'devices'].includes(action)) openAction(action as TeamAction, user);

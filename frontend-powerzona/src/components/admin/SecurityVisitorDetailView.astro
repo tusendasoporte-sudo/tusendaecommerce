@@ -109,6 +109,11 @@ function pageWindow(result: PaginatedResult<unknown>) {
   return pages;
 }
 
+function mobilePageVisible(result: PaginatedResult<unknown>, page: number) {
+  const start = Math.max(1, Math.min(result.page - 1, result.totalPages - 2));
+  return page >= start && page <= Math.min(result.totalPages, start + 2);
+}
+
 function pageLabel(result: PaginatedResult<unknown>) {
   if (!result || result.totalItems === 0) return 'Sin resultados';
   const from = (result.page - 1) * result.perPage + 1;
@@ -364,7 +369,7 @@ function pluralIp(value: number) {
               <span>{pageLabel(networkHistory)}</span>
               <div class="pagination-actions">
                 <a class:list={['page-button', { disabled: networkHistory.page <= 1 }]} href={networkPageHref(Math.max(1, networkHistory.page - 1))}>Anterior</a>
-                {pageWindow(networkHistory).map((page) => <a class:list={['page-button', { 'is-active': page === networkHistory.page }]} href={networkPageHref(page)}>{page}</a>)}
+                {pageWindow(networkHistory).map((page) => <a class:list={['page-button', { 'is-active': page === networkHistory.page }]} href={networkPageHref(page)} data-pagination-mobile-visible={mobilePageVisible(networkHistory, page) ? 'true' : 'false'}>{page}</a>)}
                 <a class:list={['page-button', { disabled: networkHistory.page >= networkHistory.totalPages }]} href={networkPageHref(Math.min(networkHistory.totalPages, networkHistory.page + 1))}>Próximo</a>
               </div>
             </div>
@@ -415,7 +420,7 @@ function pluralIp(value: number) {
                 <span>{pageLabel(orders)}</span>
                 <div class="pagination-actions">
                   <a class:list={['page-button', { disabled: orders.page <= 1 }]} href={ordersPageHref(Math.max(1, orders.page - 1))}>Anterior</a>
-                  {pageWindow(orders).map((page) => <a class:list={['page-button', { 'is-active': page === orders.page }]} href={ordersPageHref(page)}>{page}</a>)}
+                  {pageWindow(orders).map((page) => <a class:list={['page-button', { 'is-active': page === orders.page }]} href={ordersPageHref(page)} data-pagination-mobile-visible={mobilePageVisible(orders, page) ? 'true' : 'false'}>{page}</a>)}
                   <a class:list={['page-button', { disabled: orders.page >= orders.totalPages }]} href={ordersPageHref(Math.min(orders.totalPages, orders.page + 1))}>Próximo</a>
                 </div>
               </div>
@@ -485,7 +490,7 @@ function pluralIp(value: number) {
           <span>{pageLabel(pageviews)}</span>
           <div class="pagination-actions">
             <a class:list={['page-button', { disabled: pageviews.page <= 1 }]} href={detailPageHref(Math.max(1, pageviews.page - 1))}>Anterior</a>
-            {pageWindow(pageviews).map((page) => <a class:list={['page-button', { 'is-active': page === pageviews.page }]} href={detailPageHref(page)}>{page}</a>)}
+            {pageWindow(pageviews).map((page) => <a class:list={['page-button', { 'is-active': page === pageviews.page }]} href={detailPageHref(page)} data-pagination-mobile-visible={mobilePageVisible(pageviews, page) ? 'true' : 'false'}>{page}</a>)}
             <a class:list={['page-button', { disabled: pageviews.page >= pageviews.totalPages }]} href={detailPageHref(Math.min(pageviews.totalPages, pageviews.page + 1))}>Próximo</a>
           </div>
         </div>

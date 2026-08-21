@@ -705,14 +705,21 @@ function historicalActor(app, storeId, actorId) {
   return { name: text(row.actor_name_snapshot, 160), state: text(row.actor, 40) ? "active" : "deleted" };
 }
 
+function individualActivityPayload(app, context, filters, options) {
+  return {
+    summary: userReportSummary(app, context.storeId, filters.actorId),
+    ...listActivities(app, context, filters, options),
+  };
+}
+
 function handleUserReport(e) {
   setPrivateHeaders(e);
   try {
     const filters = reportPayload(e.requestInfo().body || {});
     const context = loadAccessContext($app, e, { storeId: filters.storeId, requirePrimary: true });
     const actor = historicalActor($app, context.storeId, filters.actorId);
-    const result = listActivities($app, context, filters, { hideReviews: false, includeReviewNote: false });
-    return e.json(200, { ok: true, actor, summary: userReportSummary($app, context.storeId, filters.actorId), ...result });
+    const result = individualActivityPayload($app, context, filters, { hideReviews: false, includeReviewNote: false });
+    return e.json(200, { ok: true, actor, ...result });
   } catch (error) { return sendError(e, error, "activity_unavailable"); }
 }
 
@@ -725,10 +732,8 @@ function handleSelf(e) {
     if (bodyKeys(body).includes("actor_id") || bodyKeys(body).includes("review_status") || bodyKeys(body).includes("store_id")) throw codedError("invalid_payload");
     const filters = parseFilters(body, { forcedActorId: actorId, hideReviews: true });
     const context = loadAccessContext($app, e, { storeId: "", requirePrimary: false });
-    const result = listActivities($app, context, filters, { hideReviews: true, includeReviewNote: false });
-    const ownSummary = userReportSummary($app, context.storeId, actorId);
-    delete ownSummary.pending_reviews;
-    return e.json(200, { ok: true, summary: ownSummary, ...result });
+    const result = individualActivityPayload($app, context, filters, { hideReviews: true, includeReviewNote: false });
+    return e.json(200, { ok: true, ...result });
   } catch (error) { return sendError(e, error, "activity_unavailable"); }
 }
 

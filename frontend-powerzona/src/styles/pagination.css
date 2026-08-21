@@ -96,6 +96,10 @@
 }
 
 @media (max-width: 480px) {
+  :where([data-pagination-mobile-visible="false"]) {
+    display: none !important;
+  }
+
   :where(
     [class*="pagination"] button,
     [class*="pagination"] a,

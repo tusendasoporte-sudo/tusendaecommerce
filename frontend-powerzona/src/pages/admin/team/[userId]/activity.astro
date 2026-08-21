@@ -35,6 +35,10 @@ const requestedStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCa
 const userId = String(Astro.params.userId || '').trim();
 if (requestedStoreSlug && requestedStoreSlug !== currentStoreSlug) return Astro.redirect(teamPath);
 if (!/^[a-z0-9]{15}$/.test(userId)) return Astro.redirect(teamPath);
+const currentUserId = String(adminContext.user?.id || authPb.authStore.record?.id || '').trim();
+if (userId === currentUserId) {
+  return Astro.redirect(`${getStoreAdminPath(currentStoreSlug, 'account/history')}?from=team`);
+}
 const canonicalPath = getStoreAdminPath(currentStoreSlug, `team/${encodeURIComponent(userId)}/activity`);
 
 let isPrimaryAdmin = false;
@@ -69,14 +73,21 @@ try {
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
       .store-activity-report-shell { width: min(1460px, 100%); margin: 0 auto; padding: 24px 24px 110px; }
-      .store-activity-report-back { display: inline-flex; min-height: 40px; align-items: center; margin-bottom: 14px; border: 1px solid #dbe3ef; border-radius: 11px; background: #fff; color: #334155; padding: 0 13px; text-decoration: none; font-size: 12px; font-weight: 950; }
+      .store-activity-report-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+      .store-activity-report-back { display: inline-flex; min-height: 42px; align-items: center; gap: 9px; border: 0; border-radius: 14px; background: transparent; color: #2563eb; padding: 3px 5px 3px 3px; text-decoration: none; font-size: 13px; font-weight: 950; }
+      .store-activity-report-back__icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; background: #eaf2ff; font-size: 18px; line-height: 1; }
+      .store-activity-report-back:hover, .store-activity-report-back:focus-visible { background: rgba(255, 255, 255, .7); outline: 3px solid rgba(37, 99, 235, .12); }
       .store-activity-report-denied { max-width: 720px; margin: 72px auto; border: 1px solid #fecaca; border-radius: 20px; background: #fff; padding: 26px; }
       .store-activity-report-denied h1 { margin: 0; font-size: 25px; font-weight: 1000; }
       .store-activity-report-denied p { color: #64748b; line-height: 1.55; font-weight: 750; }
       @media (min-width: 1024px) {
         body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); }
       }
-      @media (max-width: 640px) { .store-activity-report-shell { padding: 16px 14px 100px; } }
+      @media (max-width: 640px) {
+        .store-activity-report-shell { padding: 18px 14px 132px; }
+        .store-activity-report-actions { min-height: 42px; margin-bottom: 8px; }
+        .store-activity-report-back { max-width: 100%; }
+      }
     </style>
   </head>
   <body>
@@ -95,12 +106,19 @@ try {
 
     {isPrimaryAdmin ? (
       <main class="store-activity-report-shell">
-        <a class="store-activity-report-back" href={teamPath}>← Volver a Mi equipo</a>
+        <div class="store-activity-report-actions">
+          <a class="store-activity-report-back" href={teamPath}>
+            <span class="store-activity-report-back__icon" aria-hidden="true">←</span>
+            <span>Volver a Mi equipo</span>
+          </a>
+        </div>
         <StoreActivityView
           mode="user"
           pocketbaseUrl={pocketbaseUrl}
           storeSlug={currentStoreSlug}
           userId={userId}
+          filtersInitiallyOpen={false}
+          pageSize={10}
         />
       </main>
     ) : (

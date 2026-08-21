@@ -8,6 +8,20 @@ const products = read('../src/pages/admin/products.astro');
 const globalStyles = read('../src/styles/global.css');
 const masterStyles = read('../src/styles/master-ui.css');
 const paginationStyles = read('../src/styles/pagination.css');
+const storeActivity = read('../src/components/admin/StoreActivityView.astro');
+
+const responsivePaginationViews = [
+  '../src/pages/admin/products.astro',
+  '../src/pages/admin/orders.astro',
+  '../src/pages/admin/expirations.astro',
+  '../src/pages/admin/index.astro',
+  '../src/pages/admin/gifts.astro',
+  '../src/pages/admin/app-installation-details.astro',
+  '../src/components/admin/SecurityMonitoringView.astro',
+  '../src/components/admin/SecurityVisitorDetailView.astro',
+  '../src/components/master/MasterStoreUsersView.astro',
+  '../src/components/master/MasterStoresView.astro',
+].map(read);
 
 const paginationViews = [
   '../src/pages/admin/products.astro',
@@ -18,7 +32,6 @@ const paginationViews = [
   '../src/pages/admin/pageviews.astro',
   '../src/pages/admin/store-settings.astro',
   '../src/pages/admin/products/[productId]/history.astro',
-  '../src/components/admin/StoreActivityView.astro',
   '../src/components/admin/SecurityMonitoringView.astro',
   '../src/components/admin/SecurityVisitorDetailView.astro',
   '../src/components/master/MasterNotificationsView.astro',
@@ -34,10 +47,20 @@ const paginationViews = [
 
 test('PAGINACION-GLOBAL: Productos muestra diez registros y una ventana compacta', () => {
   assert.match(products, /const PRODUCT_PAGE_SIZE = 10;/);
-  assert.match(products, /const windowSize = 5;/);
-  assert.match(products, /const firstPage = Math\.max\(1, Math\.min\(currentProductPage - 2, totalPages - windowSize \+ 1\)\);/);
+  assert.match(products, /const desktopWindowSize = 5;/);
+  assert.match(products, /const mobileWindowSize = 3;/);
+  assert.match(products, /const mobileFirstPage = Math\.max\(1, Math\.min\(currentProductPage - 1, totalPages - mobileWindowSize \+ 1\)\);/);
   assert.match(products, /filtered\.slice\(startIndex, startIndex \+ PRODUCT_PAGE_SIZE\)/);
   assert.match(products, /\$\{PRODUCT_PAGE_SIZE\} por página/);
+});
+
+test('PAGINACION-GLOBAL: móvil muestra tres páginas y escritorio conserva cinco', () => {
+  assert.match(paginationStyles, /@media \(max-width: 480px\)/);
+  assert.match(paginationStyles, /\[data-pagination-mobile-visible="false"\]/);
+  assert.match(paginationStyles, /display: none !important;/);
+  for (const view of responsivePaginationViews) {
+    assert.match(view, /data-pagination-mobile-visible/);
+  }
 });
 
 test('PAGINACION-GLOBAL: Admin, tienda publica y Master comparten el mismo estilo', () => {
@@ -49,10 +72,12 @@ test('PAGINACION-GLOBAL: Admin, tienda publica y Master comparten el mismo estil
   assert.match(paginationStyles, /border-radius: 9px !important;/);
 });
 
-test('PAGINACION-GLOBAL: los controles visibles usan Anterior y Proximo en espanol', () => {
+test('PAGINACION-GLOBAL: los controles visibles mantienen etiquetas de navegación en español', () => {
   for (const view of paginationViews) {
     assert.doesNotMatch(view, />Siguiente(?:<|\s)/);
   }
   assert.match(products, />Anterior<\/button>/);
   assert.match(products, />Próximo<\/button>/);
+  assert.match(storeActivity, />Anterior<\/button>/);
+  assert.match(storeActivity, />Siguiente<\/button>/);
 });

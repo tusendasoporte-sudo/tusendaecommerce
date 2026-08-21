@@ -2670,12 +2670,16 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         const from = startIndex + 1;
         const to = startIndex + pageCount;
         const totalLabel = totalOrders === 1 ? '1 pedido' : `${totalOrders} pedidos`;
-        const windowSize = 5;
-        const firstPage = Math.max(1, Math.min(currentOrdersPage - 2, totalPages - windowSize + 1));
-        const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
+        const desktopWindowSize = 5;
+        const mobileWindowSize = 3;
+        const firstPage = Math.max(1, Math.min(currentOrdersPage - 2, totalPages - desktopWindowSize + 1));
+        const lastPage = Math.min(totalPages, firstPage + desktopWindowSize - 1);
+        const mobileFirstPage = Math.max(1, Math.min(currentOrdersPage - 1, totalPages - mobileWindowSize + 1));
+        const mobileLastPage = Math.min(totalPages, mobileFirstPage + mobileWindowSize - 1);
         const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
           const page = firstPage + index;
-          return `<button class="page-btn ${page === currentOrdersPage ? 'active' : ''}" type="button" data-orders-page="${page}">${page}</button>`;
+          const mobileVisible = page >= mobileFirstPage && page <= mobileLastPage;
+          return `<button class="page-btn ${page === currentOrdersPage ? 'active' : ''}" type="button" data-orders-page="${page}" data-pagination-mobile-visible="${mobileVisible}">${page}</button>`;
         }).join('');
 
         ordersPagination.innerHTML = `

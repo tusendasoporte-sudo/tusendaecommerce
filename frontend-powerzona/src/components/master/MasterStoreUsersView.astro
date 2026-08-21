@@ -177,7 +177,13 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
     }
     function renderPages(page: number, total: number) {
       const pages = root.querySelector<HTMLElement>('[data-users-pages]');
-      if (pages) { const start = Math.max(1, page - 2); const end = Math.min(total, start + 4); pages.innerHTML = Array.from({ length: end - start + 1 }, (_, i) => start + i).map((item) => `<button class="master-users-page-btn${item === page ? ' is-active' : ''}" type="button" data-users-page="${item}" aria-label="Página ${item}">${item}</button>`).join(''); }
+      if (pages) {
+        const start = Math.max(1, Math.min(page - 2, total - 4));
+        const end = Math.min(total, start + 4);
+        const mobileStart = Math.max(1, Math.min(page - 1, total - 2));
+        const mobileEnd = Math.min(total, mobileStart + 2);
+        pages.innerHTML = Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i).map((item) => `<button class="master-users-page-btn${item === page ? ' is-active' : ''}" type="button" data-users-page="${item}" data-pagination-mobile-visible="${item >= mobileStart && item <= mobileEnd}" aria-label="Página ${item}">${item}</button>`).join('');
+      }
       const previous = root.querySelector<HTMLButtonElement>('[data-users-previous]'); const next = root.querySelector<HTMLButtonElement>('[data-users-next]'); if (previous) previous.disabled = page <= 1; if (next) next.disabled = page >= total;
       const navigation = root.querySelector<HTMLElement>('[data-users-navigation]'); if (navigation) navigation.hidden = total <= 1; pagination?.classList.toggle('is-count-only', total <= 1);
     }

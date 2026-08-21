@@ -7184,12 +7184,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           productsPagination.innerHTML = '';
           return;
         }
-        const windowSize = 5;
-        const firstPage = Math.max(1, Math.min(currentProductPage - 2, totalPages - windowSize + 1));
-        const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
+        const desktopWindowSize = 5;
+        const mobileWindowSize = 3;
+        const firstPage = Math.max(1, Math.min(currentProductPage - 2, totalPages - desktopWindowSize + 1));
+        const lastPage = Math.min(totalPages, firstPage + desktopWindowSize - 1);
+        const mobileFirstPage = Math.max(1, Math.min(currentProductPage - 1, totalPages - mobileWindowSize + 1));
+        const mobileLastPage = Math.min(totalPages, mobileFirstPage + mobileWindowSize - 1);
         const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
           const page = firstPage + index;
-          return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" aria-label="Ir a pagina ${page}">${page}</button>`;
+          const mobileVisible = page >= mobileFirstPage && page <= mobileLastPage;
+          return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" data-pagination-mobile-visible="${mobileVisible}" aria-label="Ir a pagina ${page}">${page}</button>`;
         }).join('');
         productsPagination.classList.remove('hidden');
         productsPagination.innerHTML = `

@@ -79,8 +79,9 @@ test('las rutas de detalle declaran su padre aunque se abran desde enlace direct
   assert.match(pageviews, /mobileBackHref=\{adminBasePath\}/);
   assert.match(profits, /mobileBackHref=\{adminBasePath\}/);
   assert.match(raffles, /mobileBackHref=\{adminPromosPath\}/);
-  assert.match(accountHistory, /mobileBackHref=\{accountPath\}/);
-  assert.match(accountHistory, /mobileBackLabel="Volver a Mi cuenta"/);
+  assert.match(accountHistory, /mobileBackHref=\{backPath\}/);
+  assert.match(accountHistory, /mobileBackLabel=\{backLabel\}/);
+  assert.match(accountHistory, /backPath = returnToTeam \? getStoreAdminPath\(storeSlug, 'team'\) : accountPath/);
 });
 
 test('formularios administrativos consumen Atrás y conservan sus guardas de cambios', () => {

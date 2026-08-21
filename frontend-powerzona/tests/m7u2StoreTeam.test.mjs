@@ -335,9 +335,9 @@ test('M7U2-C1: usa una sola capa flotante, conserva el usuario objetivo y cubre 
   assert.match(view, /lifecycleController\.abort\(\)/);
   assert.match(styles, /\.store-team-menu \{[\s\S]*?position: fixed;[\s\S]*?z-index: 1600/);
   assert.doesNotMatch(styles, /\.store-team-actions \{[\s\S]*?position: relative/);
-  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.store-team-menu \{[\s\S]*?bottom: calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.store-team-menu \{[\s\S]*?top: 50% !important;[\s\S]*?left: 50% !important;[\s\S]*?transform: translate\(-50%, -50%\)/);
   assert.match(styles, /\.store-team-menu-backdrop \{[\s\S]*?position: fixed/);
-  assert.match(styles, /\.store-team-floating-menu__actions button \{[\s\S]*?min-height: 48px/);
+  assert.match(styles, /\.store-team-floating-menu__actions button \{[\s\S]*?min-height: 54px/);
   assert.match(view, /class="is-danger"[^>]*data-team-action="suspend"/);
 });
 

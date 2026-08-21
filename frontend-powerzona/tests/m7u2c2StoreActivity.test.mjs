@@ -27,6 +27,16 @@ const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), 
 
 test('M7U2-C2: cliente de actividad usa endpoints privados y actor_id solo donde corresponde', async () => {
   const calls = [];
+  const individualSummary = {
+    total_changes: 1,
+    products: 1,
+    orders: 0,
+    price_stock: 1,
+    expirations: 0,
+    last_activity: '2026-07-20T19:42:00.000Z',
+    critical_changes: 1,
+    pending_reviews: 1,
+  };
   const event = {
     id: 'activity0000001',
     actor_name: 'María González',
@@ -52,10 +62,10 @@ test('M7U2-C2: cliente de actividad usa endpoints privados y actor_id solo donde
       return jsonResponse({ ok: true, summary: { changes_today: 1, pending_reviews: 1, critical_changes: 1, users_with_activity: 1 } });
     }
     if (url.endsWith(STORE_ACTIVITY_API_PATHS.userReport)) {
-      return jsonResponse({ ok: true, actor: { name: 'María González', state: 'active' }, summary: { total_changes: 1 }, events: [event], pagination: { page: 1, per_page: 20, total_items: 1, total_pages: 1 } });
+      return jsonResponse({ ok: true, actor: { name: 'María González', state: 'active' }, summary: individualSummary, events: [event], pagination: { page: 1, per_page: 20, total_items: 1, total_pages: 1 } });
     }
     if (url.endsWith(STORE_ACTIVITY_API_PATHS.self)) {
-      return jsonResponse({ ok: true, events: [event], pagination: { page: 1, per_page: 20, total_items: 1, total_pages: 1 } });
+      return jsonResponse({ ok: true, summary: individualSummary, events: [event], pagination: { page: 1, per_page: 20, total_items: 1, total_pages: 1 } });
     }
     return jsonResponse({ ok: true, events: [event], actors: [{ ref: 'actor000000001', name: 'María González', state: 'active' }], pagination: { page: 1, per_page: 20, total_items: 1, total_pages: 1 } });
   };
@@ -82,6 +92,8 @@ test('M7U2-C2: cliente de actividad usa endpoints privados y actor_id solo donde
   assert.equal(list.items[0].changes[0].before, '25');
   assert.equal(list.items[0].changes[0].after, '22');
   assert.equal(report.user.display_name, 'María González');
+  assert.deepEqual(self.items.map(({ id }) => id), report.items.map(({ id }) => id));
+  assert.deepEqual(self.summary, report.summary);
   assert.equal(self.items[0].can_review, false);
   assert.equal(self.items[0].review.note, '');
 });

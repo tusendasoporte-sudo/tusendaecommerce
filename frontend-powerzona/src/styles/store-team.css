@@ -1135,17 +1135,19 @@
   }
 
   .store-team-menu {
-    top: auto !important;
+    top: 50% !important;
     right: auto;
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    left: 12px !important;
-    width: calc(100vw - 24px);
-    max-height: min(68vh, 570px);
+    bottom: auto;
+    left: 50% !important;
+    width: min(420px, calc(100vw - 48px));
+    max-height: min(58vh, 520px);
     gap: 0;
-    padding: 0 10px max(10px, env(safe-area-inset-bottom));
-    border-radius: 22px;
+    padding: 0 18px 18px;
+    border-color: #dbeafe;
+    border-radius: 28px;
     box-shadow: 0 28px 80px rgba(15, 23, 42, .34);
-    animation: store-team-sheet-in .2s ease-out;
+    transform: translate(-50%, -50%);
+    animation: store-team-modal-in .2s ease-out;
   }
 
   .store-team-floating-menu__head {
@@ -1156,7 +1158,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 14px 2px 11px;
+    padding: 18px 0 14px;
     border-bottom: 1px solid var(--team-border);
     background: #fff;
   }
@@ -1173,21 +1175,21 @@
   }
 
   .store-team-floating-menu__head strong {
-    max-width: calc(100vw - 110px);
+    max-width: calc(100vw - 150px);
     overflow: hidden;
     margin-top: 2px;
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 1000;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .store-team-floating-menu__head button {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     flex: 0 0 auto;
     border: 1px solid var(--team-border);
-    border-radius: 13px;
+    border-radius: 15px;
     background: #f8fafc;
     color: #334155;
     font: inherit;
@@ -1202,14 +1204,15 @@
 
   .store-team-floating-menu__actions {
     gap: 4px;
-    padding-top: 8px;
+    padding-top: 14px;
   }
 
   .store-team-floating-menu__actions button {
-    min-height: 48px;
-    border-radius: 12px;
-    padding: 0 12px;
-    font-size: 12px;
+    min-height: 54px;
+    border: 1px solid #dbeafe;
+    border-radius: 14px;
+    padding: 0 16px;
+    font-size: 14px;
   }
 
   .store-team-floating-menu__actions button.is-danger {
@@ -1277,14 +1280,14 @@
   }
 }
 
-@keyframes store-team-sheet-in {
+@keyframes store-team-modal-in {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translate(-50%, -47%) scale(.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 

@@ -539,7 +539,7 @@ function roleForTemplate(templateCode) {
 function userSnapshot(user, access) {
   return {
     email: bounded(recordString(user, "email").toLowerCase(), 254),
-    display_name: bounded(recordString(user, "display_name"), 140),
+    display_name: bounded(recordString(user, "display_name") || recordString(user, "name") || recordString(user, "email"), 140),
     phone: bounded(recordString(user, "phone"), 60),
     role: STORE_ROLES.includes(recordString(user, "role")) ? recordString(user, "role") : "",
     status: USER_STATUSES.includes(recordString(user, "status")) ? recordString(user, "status") : "",

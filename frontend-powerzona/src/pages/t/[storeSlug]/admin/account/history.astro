@@ -30,6 +30,9 @@ try {
 const storeSlug = String(adminContext.store.slug || '').trim().toLowerCase();
 const accountPath = getStoreAdminPath(storeSlug, 'account');
 const canonicalPath = getStoreAdminPath(storeSlug, 'account/history');
+const returnToTeam = Astro.url.searchParams.get('from') === 'team';
+const backPath = returnToTeam ? getStoreAdminPath(storeSlug, 'team') : accountPath;
+const backLabel = returnToTeam ? 'Volver a Mi equipo' : 'Volver a Mi cuenta';
 const pathSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
 if (pathSlug !== storeSlug) return Astro.redirect(canonicalPath);
 const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
@@ -42,6 +45,7 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <title>Mi historial | {storeName}</title>
+    <link rel="canonical" href={canonicalPath} />
   </head>
   <body class="pz-account-page pz-account-page--sidebar pz-account-history-page">
     <AdminSidebar
@@ -53,8 +57,8 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
       storePlanValues={adminContext.store}
       activeSection="account"
       mobileTitle="Mi historial"
-      mobileBackHref={accountPath}
-      mobileBackLabel="Volver a Mi cuenta"
+      mobileBackHref={backPath}
+      mobileBackLabel={backLabel}
     />
 
     <main class="pz-account-shell pz-account-history-shell">
@@ -63,10 +67,10 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
           <h1>Mi historial</h1>
           <p>Consulta únicamente los cambios administrativos realizados con tu cuenta.</p>
         </div>
-        <a class="pz-account-secondary pz-account-heading__back" href={accountPath}>Volver a Mi cuenta</a>
+        <a class="pz-account-secondary pz-account-heading__back" href={backPath}>{backLabel}</a>
       </header>
 
-      <section id="my-activity" class="pz-account-card" aria-label="Mi actividad">
+      <section id="my-activity" class="pz-account-activity-view" aria-label="Mi actividad">
         <StoreActivityView
           mode="self"
           pocketbaseUrl={String(import.meta.env.PUBLIC_POCKETBASE_URL || '')}

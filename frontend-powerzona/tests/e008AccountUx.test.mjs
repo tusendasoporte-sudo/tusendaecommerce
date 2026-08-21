@@ -17,7 +17,8 @@ test('E008: Mi cuenta resume el historial en una acción que abre una página pr
   assert.match(styles, /\.pz-account-heading--account-home p \{\s*margin-top: 0;/);
   assert.doesNotMatch(account, /<StoreActivityView/);
   assert.match(history, /<StoreActivityView[\s\S]*?mode="self"/);
-  assert.match(history, /mobileBackHref=\{accountPath\}/);
+  assert.match(history, /mobileBackHref=\{backPath\}/);
+  assert.match(history, /backPath = returnToTeam \? getStoreAdminPath\(storeSlug, 'team'\) : accountPath/);
   assert.match(middleware, /normalized\.startsWith\('account\/'\)/);
   assert.match(middleware, /requestedSection\.startsWith\('account\/'\)/);
 });

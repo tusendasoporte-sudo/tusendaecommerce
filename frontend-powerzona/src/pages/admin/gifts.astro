@@ -1012,14 +1012,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           giftsPagination.innerHTML = '';
           return;
         }
-        const pages = totalPages <= 5
-          ? Array.from({ length: totalPages }, (_, index) => index + 1)
-          : [];
+        const firstPage = Math.max(1, Math.min(giftsPage - 2, totalPages - 4));
+        const pages = Array.from({ length: Math.min(5, totalPages) }, (_, index) => firstPage + index).filter((page) => page <= totalPages);
+        const mobileFirstPage = Math.max(1, Math.min(giftsPage - 1, totalPages - 2));
+        const mobileLastPage = Math.min(totalPages, mobileFirstPage + 2);
         giftsPagination.classList.remove('hidden');
         giftsPagination.innerHTML = `
           <button class="mini-btn js-gifts-page-prev" type="button" ${giftsPage <= 1 ? 'disabled' : ''}>Anterior</button>
           <span class="pagination-text">Página ${giftsPage} de ${totalPages}</span>
-          ${pages.length ? `<span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" type="button">${page}</button>`).join('')}</span>` : ''}
+          <span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" data-pagination-mobile-visible="${page >= mobileFirstPage && page <= mobileLastPage}" type="button">${page}</button>`).join('')}</span>
           <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Próximo</button>
         `;
         giftsPagination.querySelector('.js-gifts-page-prev')?.addEventListener('click', () => { giftsPage -= 1; renderGifts(); });

@@ -36,17 +36,15 @@ function pageHref(value: number) {
   return `/master/stores?stores_page=${Math.max(1, Math.floor(value))}#tiendas-registradas`;
 }
 
-function visiblePages(current: number, total: number): Array<number | 'ellipsis'> {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  const values = [...new Set([1, total, current - 1, current, current + 1])]
-    .filter((value) => value >= 1 && value <= total)
-    .sort((a, b) => a - b);
-  const output: Array<number | 'ellipsis'> = [];
-  values.forEach((value, index) => {
-    if (index > 0 && value - values[index - 1] > 1) output.push('ellipsis');
-    output.push(value);
-  });
-  return output;
+function visiblePages(current: number, total: number): number[] {
+  const start = Math.max(1, Math.min(current - 2, total - 4));
+  const end = Math.min(total, start + 4);
+  return Array.from({ length: Math.max(0, end - start + 1) }, (_, index) => start + index);
+}
+
+function mobilePageVisible(current: number, total: number, value: number) {
+  const start = Math.max(1, Math.min(current - 1, total - 2));
+  return value >= start && value <= Math.min(total, start + 2);
 }
 
 const first = counts.total > 0 ? ((page.page - 1) * page.perPage) + 1 : 0;
@@ -146,9 +144,9 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
       {page.totalPages > 1 && (
         <nav class="master-pagination" aria-label="Paginación de tiendas">
           {page.page > 1 ? <a href={pageHref(page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}
-          {visiblePages(page.page, page.totalPages).map((item) => item === 'ellipsis'
-            ? <span class="is-disabled" aria-hidden="true">…</span>
-            : <a href={pageHref(item)} aria-current={item === page.page ? 'page' : undefined}>{item}</a>)}
+          {visiblePages(page.page, page.totalPages).map((item) => (
+            <a href={pageHref(item)} data-pagination-mobile-visible={mobilePageVisible(page.page, page.totalPages, item) ? 'true' : 'false'} aria-current={item === page.page ? 'page' : undefined}>{item}</a>
+          ))}
           {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Próximo</a> : <span class="is-disabled">Próximo</span>}
         </nav>
       )}

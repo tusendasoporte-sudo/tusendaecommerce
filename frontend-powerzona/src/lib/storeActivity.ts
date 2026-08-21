@@ -179,6 +179,10 @@ export type StoreActivityUserReportResponse = StoreActivityListResponse & {
   summary: StoreActivityUserMetrics;
 };
 
+export type StoreActivitySelfResponse = StoreActivityListResponse & {
+  summary: StoreActivityUserMetrics;
+};
+
 export type StoreLastModifiedResource = Readonly<{ type: string; id: string }>;
 
 export type StoreLastModifiedItem = {
@@ -672,7 +676,7 @@ export async function getStoreActivityUserReport(
 export async function getStoreSelfActivity(
   filters: StoreActivityFilters,
   options: StoreActivityClientOptions,
-): Promise<StoreActivityListResponse> {
+): Promise<StoreActivitySelfResponse> {
   const result = await postStoreActivity<any>(options, STORE_ACTIVITY_API_PATHS.self, {
     ...activityPayload(filters, false, false),
     page: Math.max(1, integer(filters.page, 1)),
@@ -681,6 +685,7 @@ export async function getStoreSelfActivity(
   const list = normalizeList(result);
   return {
     ...list,
+    summary: normalizeUserMetrics(result),
     items: list.items.map((item) => ({
       ...item,
       review: { status: 'pending', note: '', reviewed_at: '', reviewed_by_name: '' },

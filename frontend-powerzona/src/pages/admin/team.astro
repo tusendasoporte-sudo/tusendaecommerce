@@ -32,6 +32,7 @@ try {
 const authToken = authPb.authStore.token;
 const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const currentUserId = String(adminContext.user?.id || authPb.authStore.record?.id || '').trim();
 const canonicalTeamPath = getStoreAdminPath(currentStoreSlug, 'team');
 const plansPath = `${getStoreAdminPath(currentStoreSlug, 'account')}#plan`;
 const requestedStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
@@ -106,6 +107,7 @@ try {
       <StoreTeamView
         pocketbaseUrl={pocketbaseUrl}
         storeSlug={currentStoreSlug}
+        currentUserId={currentUserId}
         plansPath={plansPath}
       />
     ) : (

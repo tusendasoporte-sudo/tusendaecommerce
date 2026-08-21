@@ -666,10 +666,16 @@ test('M7U2-C2: autorización distingue principal, Master, self y tenant ajeno', 
   assert.match(selfHandler, /bodyKeys\(body\)\.includes\("actor_id"\)/);
   assert.match(selfHandler, /forcedActorId:\s*actorId/);
   assert.match(selfHandler, /recordId\(e\.auth\)/);
+  assert.match(selfHandler, /individualActivityPayload/);
+  assert.doesNotMatch(selfHandler, /delete\s+ownSummary\.pending_reviews/);
   assert.doesNotMatch(selfHandler, /bodyValue\(body,\s*["']actor_id["']\)/);
   const reportHandler = functionSource(activitySource, 'handleUserReport');
   assert.match(reportHandler, /requirePrimary:\s*true/);
   assert.match(reportHandler, /actor_id_snapshot|actor/);
+  assert.match(reportHandler, /individualActivityPayload/);
+  const individualPayload = functionSource(activitySource, 'individualActivityPayload');
+  assert.match(individualPayload, /userReportSummary/);
+  assert.match(individualPayload, /listActivities/);
   const actorGuard = functionSource(activitySource, 'activeActor');
   const accessGuard = functionSource(activitySource, 'loadAccessContext');
   assert.match(actorGuard, /status\s*===\s*["']active["']/);
