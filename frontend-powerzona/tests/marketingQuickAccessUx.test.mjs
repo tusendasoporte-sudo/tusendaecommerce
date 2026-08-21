@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const promos = readFileSync(new URL('../src/pages/admin/promos.astro', import.meta.url), 'utf8');
+const promotionCreate = readFileSync(new URL('../src/pages/admin/promos/new.astro', import.meta.url), 'utf8');
+const promotionCreateWrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promos/new.astro', import.meta.url), 'utf8');
+const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
 
 test('Marketing evita repetir el encabezado de accesos rápidos antes de Crear tarjeta', () => {
   const quickPanel = promos.slice(
@@ -26,6 +29,23 @@ test('Nueva promoción vive dentro del panel de promociones y no en la cabecera 
   );
 
   assert.doesNotMatch(header, /id="promotion-new-btn"/);
-  assert.match(promotionsPanel, /id="promotion-new-btn"[\s\S]*?pz-admin-btn__label">Nueva promoción/);
+  assert.match(promotionsPanel, /id="promotion-new-link"[\s\S]*?href=\{adminPromosNewPath\}[\s\S]*?pz-admin-btn__label">Nueva promoción/);
   assert.match(promotionsPanel, /id="promotion-readme-btn"/);
+});
+
+test('los estados de promociones se filtran desde un selector desplegable', () => {
+  assert.match(promos, /<select id="promotion-filter-select" aria-label="Filtrar promociones actuales">/);
+  assert.match(promos, /<option value="all">Todas<\/option>[\s\S]*?<option value="active">Activas<\/option>[\s\S]*?<option value="inactive">Inactivas<\/option>[\s\S]*?<option value="expired">Vencidas<\/option>/);
+  assert.match(promos, /promotionFilterSelect\?\.addEventListener\('change'/);
+  assert.doesNotMatch(promos, /data-promotion-filter=/);
+});
+
+test('crear promoción abre una página dedicada y regresa a la lista al cerrar', () => {
+  assert.match(promotionCreate, /<AdminPromos promotionCreatePage=\{true\} \/>/);
+  assert.match(promotionCreateWrapper, /<AdminPromotionCreate \/>/);
+  assert.match(middleware, /normalized === 'promos\/new'[\s\S]*?'promotions\.manage'/);
+  assert.match(promos, /PROMOTION_CREATE_PAGE = promotionCreatePage === true/);
+  assert.match(promos, /window\.location\.assign\(`\$\{ADMIN_PROMOS_PATH\}#promociones`\)/);
+  assert.match(promos, /if \(PROMOTION_CREATE_PAGE\) openPromotionForm\(\)/);
+  assert.match(promos, /data-promotion-create-back[\s\S]*?requestClosePromotionForm\(\)/);
 });

@@ -10,6 +10,11 @@ import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro'
 import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
+interface Props {
+  promotionCreatePage?: boolean;
+}
+
+const { promotionCreatePage = false } = Astro.props;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = Astro.locals.adminAuthPb
   ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -26,6 +31,7 @@ const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settin
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminPromosNewPath = getStoreAdminPath(currentStoreSlug, 'promos/new');
 const adminVisualEditorBasePath = getStoreAdminPath(currentStoreSlug, 'promos/visuals');
 const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
@@ -53,7 +59,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Marketing | PowerZona</title>
+    <title>{promotionCreatePage ? 'Nueva promoción' : 'Marketing'} | PowerZona</title>
     <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
@@ -982,6 +988,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         gap: 10px;
         flex-wrap: wrap;
       }
+      .marketing-create-back-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+      .marketing-create-back-link { color: #2563eb; font-size: 13px; font-weight: 950; text-decoration: none; }
+      .marketing-create-back-link:hover, .marketing-create-back-link:focus-visible { color: #1d4ed8; text-decoration: underline; text-underline-offset: 3px; outline: none; }
+      .marketing-promotion-create-page .marketing-promos-panel { max-width: 980px; margin-inline: auto; }
       .marketing-settings-icon-btn { min-height: 48px; padding: 12px 16px; }
       .marketing-promos-form {
         display: grid;
@@ -2669,7 +2679,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       </style>
   </head>
-  <body>
+  <body class:list={[promotionCreatePage && 'marketing-promotion-create-page']}>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar
@@ -2680,7 +2690,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         storePlanValues={adminContext.store}
         activeSection="marketing"
-        mobileTitle="Marketing"
+        mobileTitle={promotionCreatePage ? 'Nueva promoción' : 'Marketing'}
       />
       <LastModificationMeta
         controllerOnly={true}
@@ -2690,10 +2700,15 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       />
 
       <main class="main-wrap pz-admin-content-inner">
+        {promotionCreatePage && (
+          <div class="marketing-create-back-row">
+            <a class="marketing-create-back-link" data-promotion-create-back href={`${adminPromosPath}#promociones`}>← Volver a Marketing</a>
+          </div>
+        )}
         <AdminSectionHeader
           kicker="Marketing"
-          title="Promociones"
-          description="Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda."
+          title={promotionCreatePage ? 'Nueva promoción' : 'Promociones'}
+          description={promotionCreatePage ? 'Configura la regla de descuento y guárdala cuando esté lista.' : 'Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda.'}
           titleId="marketing-featured-title"
           bellId="admin-marketing-bell"
         />
@@ -2727,13 +2742,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         </section>
 
         <section id="admin-view" class="hidden">
-          <div class="tabs">
+          {!promotionCreatePage && <div class="tabs">
             {canManagePromotions && <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>}
             {canManageCoupons && <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>}
             {canManageRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
             {!canManageRaffles && canShowRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
             {canManagePromotions && <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>}
-          </div>
+          </div>}
 
           <div class="stats-grid hidden" aria-hidden="true">
             <article class="stat-card"><p class="stat-label">Productos destacados</p><p id="stat-featured-old" class="stat-value">0</p></article>
@@ -3411,7 +3426,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           </section>
 
           <section id="tab-promociones" class:list={['panel-card tab-panel hidden marketing-promos-screen', !canManagePromotions && 'permission-hidden']}>
-            <section class="admin-compact-summary admin-compact-summary--marketing marketing-promos-summary-grid" aria-label="Resumen de promociones autom&aacute;ticas">
+            {!promotionCreatePage && <section class="admin-compact-summary admin-compact-summary--marketing marketing-promos-summary-grid" aria-label="Resumen de promociones autom&aacute;ticas">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
@@ -3443,7 +3458,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                   <p class="admin-compact-summary__hint marketing-summary-help">Vencidas o inactivas</p>
                 </article>
               </div>
-            </section>
+            </section>}
 
             <div class="marketing-featured-panel marketing-promos-panel">
               <div class="marketing-promos-panel-head">
@@ -3452,15 +3467,15 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     <svg viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8ZM7.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>
                   </span>
                   <div class="marketing-featured-copy">
-                    <h2>Promociones automáticas</h2>
-                    <p>Crea y gestiona reglas de descuento que se aplican automáticamente en el carrito.</p>
+                    <h2>{promotionCreatePage ? 'Crear promoción' : 'Promociones automáticas'}</h2>
+                    <p>{promotionCreatePage ? 'Completa los datos de la nueva regla de descuento.' : 'Crea y gestiona reglas de descuento que se aplican automáticamente en el carrito.'}</p>
                   </div>
                 </div>
                 <div class="marketing-promos-panel-actions">
-                  <button id="promotion-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                  {!promotionCreatePage && <a id="promotion-new-link" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" href={adminPromosNewPath}>
                     <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                     <span class="pz-admin-btn__label">Nueva promoción</span>
-                  </button>
+                  </a>}
                   <button id="promotion-readme-btn" class="pz-admin-btn pz-admin-btn--readme pz-admin-btn--full-mobile" type="button">
                     <span class="pz-admin-btn__icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z"/></svg>
@@ -3470,7 +3485,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 </div>
               </div>
 
-            <form id="promotion-form" class="marketing-promos-form hidden">
+            <form id="promotion-form" class:list={['marketing-promos-form', !promotionCreatePage && 'hidden']}>
               <input id="promotion-id" type="hidden" />
               <div class="marketing-promos-form-section">
                 <div class="marketing-promos-form-section-title">
@@ -3550,20 +3565,23 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
               </div>
             </form>
 
-            <div class="marketing-promos-list-head">
+            {!promotionCreatePage && <div class="marketing-promos-list-head">
               <div>
                 <h3>Promociones actuales</h3>
                 <p>Organizadas por tipo para revisar rápido qué reglas están activas.</p>
               </div>
-            </div>
+            </div>}
 
-            <div id="promotion-filters" class="promotion-filters marketing-promos-filters" aria-label="Filtrar promociones">
-              <button class="promotion-filter-btn active" data-promotion-filter="all" type="button">Todas</button>
-              <button class="promotion-filter-btn" data-promotion-filter="active" type="button">Activas</button>
-              <button class="promotion-filter-btn" data-promotion-filter="inactive" type="button">Inactivas</button>
-              <button class="promotion-filter-btn" data-promotion-filter="expired" type="button">Vencidas</button>
-            </div>
-            <div id="promotion-list" class="items-list marketing-promos-list"><div class="empty-state">Cargando promociones automáticas...</div></div>
+            {!promotionCreatePage && <label class="marketing-quick-filter-select" for="promotion-filter-select">
+              <span>Filtros</span>
+              <select id="promotion-filter-select" aria-label="Filtrar promociones actuales">
+                <option value="all">Todas</option>
+                <option value="active">Activas</option>
+                <option value="inactive">Inactivas</option>
+                <option value="expired">Vencidas</option>
+              </select>
+            </label>}
+            {!promotionCreatePage && <div id="promotion-list" class="items-list marketing-promos-list"><div class="empty-state">Cargando promociones automáticas...</div></div>}
             </div>
           </section>
 
@@ -3923,11 +3941,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       });
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, adminVisualEditorBasePath, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, adminVisualEditorBasePath, adminPromosPath, promotionCreatePage, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const ADMIN_VISUAL_EDITOR_BASE_PATH = String(adminVisualEditorBasePath || '/admin/promos/visuals').replace(/\/$/, '');
+      const ADMIN_PROMOS_PATH = String(adminPromosPath || '/admin/promos');
+      const PROMOTION_CREATE_PAGE = promotionCreatePage === true;
       const CAN_MANAGE_PROMOTIONS = canManagePromotions === true;
       const CAN_MANAGE_COUPONS = canManageCoupons === true;
       const CAN_MANAGE_RAFFLES = canManageRaffles === true;
@@ -4010,7 +4030,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       const visualCancelBtn = document.getElementById('visual-cancel-btn');
       const promotionForm = document.getElementById('promotion-form');
       const promotionList = document.getElementById('promotion-list');
-      const promotionFilters = document.getElementById('promotion-filters');
+      const promotionFilterSelect = document.getElementById('promotion-filter-select');
       const promotionAlert = document.getElementById('promotion-alert');
       const promotionNewBtn = document.getElementById('promotion-new-btn');
       const promotionSummaryTotal = document.getElementById('promotion-summary-total');
@@ -4945,9 +4965,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       function renderPromotions() {
         if (!promotionList) return;
         renderPromotionSummary();
-        promotionFilters?.querySelectorAll('.promotion-filter-btn').forEach((button) => {
-          button.classList.toggle('active', button.dataset.promotionFilter === promotionFilter);
-        });
+        if (promotionFilterSelect) promotionFilterSelect.value = promotionFilter;
         const filteredPromotions = automaticPromotions.filter(promotionMatchesFilter);
         if (!filteredPromotions.length) {
           promotionList.innerHTML = '<div class="empty-state">Todavía no hay promociones automáticas.</div>';
@@ -5821,6 +5839,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         promotionName?.focus();
       }
       function closePromotionForm() {
+        if (PROMOTION_CREATE_PAGE) {
+          window.location.assign(`${ADMIN_PROMOS_PATH}#promociones`);
+          return;
+        }
         promotionForm?.classList.add('hidden');
         setAdminButtonLabel(promotionNewBtn, 'Nueva promoción');
         promotionNewBtn?.querySelector('.pz-admin-btn__icon')?.classList.remove('hidden');
@@ -6062,6 +6084,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       };
 
       function updateMarketingSectionCopy(sectionKey = 'destacados') {
+        if (PROMOTION_CREATE_PAGE) {
+          const titleNode = document.getElementById('marketing-featured-title');
+          const subtitleNode = document.getElementById('admin-subtitle');
+          if (titleNode) titleNode.textContent = 'Nueva promoción';
+          if (subtitleNode) subtitleNode.textContent = 'Configura la regla de descuento y guárdala cuando esté lista.';
+          return;
+        }
         const copy = marketingSectionCopy[sectionKey] || marketingSectionCopy.destacados;
         const eyebrowNode = document.getElementById('marketing-mobile-eyebrow');
         const titleNode = document.getElementById('marketing-featured-title');
@@ -6108,7 +6137,14 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); marketingSummaryCard?.classList.add('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
+      async function showAdmin() {
+        loginView.classList.add('hidden');
+        adminView.classList.remove('hidden');
+        marketingSummaryCard?.classList.add('hidden');
+        if (PROMOTION_CREATE_PAGE) showTab('promociones');
+        await loadData();
+        if (PROMOTION_CREATE_PAGE) openPromotionForm();
+      }
       function showLogin() { adminView.classList.add('hidden'); marketingSummaryCard?.classList.add('hidden'); loginView.classList.remove('hidden'); }
 
       sidebarOpenBtn?.addEventListener('click', openSidebar);
@@ -6168,14 +6204,17 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       promotionDeleteConfirmBtn?.addEventListener('click', () => {
         deletePromotion(pendingPromotionDeleteId).catch(() => showPromotionNotice('No se pudo eliminar la promoción', 'error'));
       });
-      promotionFilters?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-promotion-filter]');
-        if (!button) return;
-        promotionFilter = button.dataset.promotionFilter || 'all';
+      promotionFilterSelect?.addEventListener('change', () => {
+        promotionFilter = promotionFilterSelect.value || 'all';
         expandedPromotionGroups.clear();
         renderPromotions();
       });
       promotionCancelBtn?.addEventListener('click', () => { requestClosePromotionForm(); });
+      document.querySelector('[data-promotion-create-back]')?.addEventListener('click', (event) => {
+        if (!PROMOTION_CREATE_PAGE) return;
+        event.preventDefault();
+        requestClosePromotionForm();
+      });
       promotionType?.addEventListener('change', updatePromotionFields);
       promotionCategory?.addEventListener('change', () => {
         renderPromotionSubcategoryOptions();
@@ -6439,8 +6478,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       });
       window.addEventListener('hashchange', hydrateMarketingHashState);
 
-      showAdmin();
-      hydrateMarketingHashState();
+      showAdmin().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error'));
+      if (!PROMOTION_CREATE_PAGE) hydrateMarketingHashState();
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, canManagePromotions, canManageStoreSettings }}>
       (() => {
