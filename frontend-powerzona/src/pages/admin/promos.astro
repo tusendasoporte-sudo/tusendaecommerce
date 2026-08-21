@@ -2696,12 +2696,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           description="Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda."
           titleId="marketing-featured-title"
           bellId="admin-marketing-bell"
-        >
-          <button id="promotion-new-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
-            <span aria-hidden="true">+</span>
-            <span>Nueva promocion</span>
-          </button>
-        </AdminSectionHeader>
+        />
 
         <section id="marketing-summary-card" class="marketing-summary-card hidden" aria-label="Resumen de marketing" aria-hidden="true">
           <div class="marketing-summary-grid">
@@ -3248,16 +3243,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
 
             <div class="marketing-featured-panel marketing-quick-panel">
               <div class="marketing-quick-panel-head">
-                <div class="marketing-featured-summary-main">
-                  <span class="marketing-featured-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
-                  </span>
-                  <div class="marketing-featured-copy">
-                    <h2>Accesos rápidos</h2>
-                    <p>Tarjetas visuales para WhatsApp, enlaces, categorías o archivos.</p>
-                  </div>
-                </div>
-
                 <div class="marketing-quick-panel-actions">
                   <button id="open-visual-form-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
                     <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
@@ -3472,13 +3457,16 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                   </div>
                 </div>
                 <div class="marketing-promos-panel-actions">
+                  <button id="promotion-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                    <span class="pz-admin-btn__label">Nueva promoción</span>
+                  </button>
                   <button id="promotion-readme-btn" class="pz-admin-btn pz-admin-btn--readme pz-admin-btn--full-mobile" type="button">
                     <span class="pz-admin-btn__icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z"/></svg>
                     </span>
                     <span class="pz-admin-btn__label">Léeme</span>
                   </button>
-
                 </div>
               </div>
 
