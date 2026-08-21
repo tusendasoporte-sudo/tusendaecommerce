@@ -489,8 +489,55 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       .featured-result-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 12px; }
       .featured-result-title { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; line-height: 1.25; }
       .featured-result-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; }
-      .promotion-product-selected { display: none; margin-top: 10px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; border-radius: 16px; padding: 10px 12px; font-size: 12px; font-weight: 950; }
+      .promotion-product-combobox { position: relative; }
+      .promotion-product-dropdown {
+        position: absolute;
+        z-index: 70;
+        inset: calc(100% + 6px) 0 auto;
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 5px;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
+      }
+      .promotion-product-option {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        border: 0;
+        border-bottom: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: transparent;
+        padding: 11px 10px;
+        color: #0f172a;
+        text-align: left;
+        cursor: pointer;
+      }
+      .promotion-product-option:last-child { border-bottom: 0; }
+      .promotion-product-option:hover,
+      .promotion-product-option:focus-visible,
+      .promotion-product-option[aria-selected="true"] { background: #eff6ff; outline: none; }
+      .promotion-product-option-name { display: block; font-size: 13px; font-weight: 950; line-height: 1.3; }
+      .promotion-product-option-meta { display: block; margin-top: 3px; color: #64748b; font-size: 11px; font-weight: 800; line-height: 1.3; }
+      .promotion-product-option-check { color: #2563eb; font-size: 18px; font-weight: 1000; }
+      .promotion-product-option-action {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
+      .promotion-product-dropdown-empty { padding: 12px; color: #64748b; font-size: 12px; font-weight: 850; line-height: 1.4; }
+      .promotion-product-selected { display: none; margin-top: 10px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e3a8a; border-radius: 14px; padding: 9px 10px 9px 12px; font-size: 12px; font-weight: 950; }
       .promotion-product-selected.show { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .promotion-product-selected-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .promotion-product-selected-clear { width: 30px; height: 30px; flex: 0 0 30px; display: inline-grid; place-items: center; border: 0; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-size: 20px; line-height: 1; font-weight: 900; cursor: pointer; }
+      .promotion-product-selected-clear:hover, .promotion-product-selected-clear:focus-visible { background: #bfdbfe; outline: 2px solid #60a5fa; outline-offset: 2px; }
       .promotion-guide-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
       .promotion-guide-list li { border: 1px solid #e2e8f0; border-radius: 18px; background: #f8fafc; padding: 12px; }
       .promotion-guide-list strong { display: block; color: #0f172a; font-size: 13px; font-weight: 1000; margin-bottom: 4px; }
@@ -3514,10 +3561,12 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 <div class="marketing-promos-form-grid">
                   <div class="field full" data-promo-field="product">
                     <label for="promotion-product-search">Producto</label>
-                    <input id="promotion-product-search" type="search" placeholder="Escribe el nombre del producto" autocomplete="off" />
+                    <div class="promotion-product-combobox" data-promotion-product-combobox>
+                      <input id="promotion-product-search" type="search" placeholder="Buscar producto…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="promotion-product-results" />
+                      <div id="promotion-product-results" class="promotion-product-dropdown hidden" role="listbox" aria-label="Resultados de productos"></div>
+                    </div>
                     <select id="promotion-product" class="hidden" aria-hidden="true"><option value="">Selecciona producto</option></select>
                     <div id="promotion-product-selected" class="promotion-product-selected"></div>
-                    <div id="promotion-product-results" class="featured-search-results"><div class="empty-state">Escribe para buscar productos.</div></div>
                   </div>
                   <div class="field" data-promo-field="category"><label for="promotion-category">Categoría</label><select id="promotion-category"><option value="">Selecciona categoría</option></select></div>
                   <div class="field" data-promo-field="subcategory"><label for="promotion-subcategory">Subcategoría</label><select id="promotion-subcategory"><option value="">Selecciona subcategoría</option></select></div>
@@ -4735,6 +4784,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       function getPromotionSelectedProduct() {
         return products.find((product) => product.id === promotionProduct?.value) || null;
       }
+      function setPromotionProductDropdown(open) {
+        const shouldOpen = Boolean(open && promotionProductResults?.innerHTML.trim());
+        promotionProductResults?.classList.toggle('hidden', !shouldOpen);
+        promotionProductSearch?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      }
       function renderPromotionProductSelected() {
         if (!promotionProductSelected) return;
         const product = getPromotionSelectedProduct();
@@ -4745,8 +4799,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         }
         promotionProductSelected.classList.add('show');
         promotionProductSelected.innerHTML = `
-          <span>Seleccionado: ${escapeHtml(product.name || 'Sin nombre')}</span>
-          <button class="mini-btn js-promotion-product-clear" type="button">Cambiar</button>
+          <span class="promotion-product-selected-name">${escapeHtml(product.name || 'Sin nombre')}</span>
+          <button class="promotion-product-selected-clear js-promotion-product-clear" type="button" aria-label="Quitar producto seleccionado">×</button>
         `;
       }
       function selectPromotionProduct(productId) {
@@ -4756,12 +4810,14 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         if (promotionProductSearch) promotionProductSearch.value = product?.name || '';
         renderPromotionProductSelected();
         renderPromotionProductResults();
+        setPromotionProductDropdown(false);
       }
       function renderPromotionProductResults() {
         if (!promotionProductResults) return;
         const query = normalizeSearchText(promotionProductSearch?.value || '');
         if (!query) {
-          promotionProductResults.innerHTML = '<div class="empty-state">Escribe para buscar productos.</div>';
+          promotionProductResults.innerHTML = '';
+          setPromotionProductDropdown(false);
           return;
         }
         const matches = products
@@ -4770,22 +4826,25 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
           .slice(0, 12);
         if (!matches.length) {
-          promotionProductResults.innerHTML = '<div class="empty-state">No se encontraron productos.</div>';
+          promotionProductResults.innerHTML = '<div class="promotion-product-dropdown-empty">No se encontraron productos.</div>';
+          setPromotionProductDropdown(document.activeElement === promotionProductSearch);
           return;
         }
         promotionProductResults.innerHTML = matches.map((product) => {
           const selected = product.id === promotionProduct?.value;
           const meta = [productCategoryText(product), product.active === false ? 'Oculto' : 'Visible'].filter(Boolean).join(' · ');
           return `
-            <article class="featured-result-row">
-              <div>
-                <p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p>
-                <p class="featured-result-meta">${escapeHtml(meta)}</p>
-              </div>
-              <button class="mini-btn ${selected ? '' : 'primary'} js-promotion-product-select" data-product-id="${product.id}" type="button">${selected ? 'Seleccionado' : 'Seleccionar'}</button>
-            </article>
+            <button class="promotion-product-option js-promotion-product-select" data-product-id="${product.id}" type="button" role="option" aria-selected="${selected ? 'true' : 'false'}">
+              <span>
+                <span class="promotion-product-option-name">${escapeHtml(product.name || 'Sin nombre')}</span>
+                <span class="promotion-product-option-meta">${escapeHtml(meta)}</span>
+              </span>
+              <span class="promotion-product-option-check" aria-hidden="true">${selected ? '✓' : ''}</span>
+              <span class="promotion-product-option-action">${selected ? 'Seleccionado' : 'Seleccionar'}</span>
+            </button>
           `;
         }).join('');
+        setPromotionProductDropdown(document.activeElement === promotionProductSearch);
       }
       function updatePromotionFields() {
         const type = promotionType?.value || '';
@@ -6236,6 +6295,12 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         scheduleMarketingProductSearch(promotionProductSearch, renderPromotionProductResults);
         updatePromotionFormState();
       });
+      promotionProductSearch?.addEventListener('focus', renderPromotionProductResults);
+      promotionProductSearch?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        setPromotionProductDropdown(false);
+        promotionProductSearch.blur();
+      });
       promotionProductResults?.addEventListener('click', (event) => {
         const button = event.target.closest('.js-promotion-product-select');
         if (!button) return;
@@ -6247,6 +6312,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         selectPromotionProduct('');
         promotionProductSearch?.focus();
         updatePromotionFormState();
+      });
+      document.addEventListener('click', (event) => {
+        if (event.target.closest('[data-promotion-product-combobox]')) return;
+        setPromotionProductDropdown(false);
       });
       couponNewBtn?.addEventListener('click', () => {
         const isOpen = couponFormPanel && !couponFormPanel.classList.contains('hidden');

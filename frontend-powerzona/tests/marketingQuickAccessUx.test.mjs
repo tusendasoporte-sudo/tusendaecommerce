@@ -49,3 +49,12 @@ test('crear promoción abre una página dedicada y regresa a la lista al cerrar'
   assert.match(promos, /if \(PROMOTION_CREATE_PAGE\) openPromotionForm\(\)/);
   assert.match(promos, /data-promotion-create-back[\s\S]*?requestClosePromotionForm\(\)/);
 });
+
+test('el producto de una promoción se elige desde una lista desplegable compacta', () => {
+  assert.match(promos, /data-promotion-product-combobox/);
+  assert.match(promos, /id="promotion-product-search"[\s\S]*?role="combobox"[\s\S]*?aria-controls="promotion-product-results"/);
+  assert.match(promos, /id="promotion-product-results" class="promotion-product-dropdown hidden" role="listbox"/);
+  assert.match(promos, /class="promotion-product-option js-promotion-product-select"[\s\S]*?role="option"/);
+  assert.match(promos, /setPromotionProductDropdown\(false\)/);
+  assert.doesNotMatch(promos, /featured-result-row[\s\S]{0,500}js-promotion-product-select/);
+});
