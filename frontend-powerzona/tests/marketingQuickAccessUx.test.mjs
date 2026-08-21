@@ -5,6 +5,8 @@ import test from 'node:test';
 const promos = readFileSync(new URL('../src/pages/admin/promos.astro', import.meta.url), 'utf8');
 const promotionCreate = readFileSync(new URL('../src/pages/admin/promos/new.astro', import.meta.url), 'utf8');
 const promotionCreateWrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promos/new.astro', import.meta.url), 'utf8');
+const couponCreate = readFileSync(new URL('../src/pages/admin/promos/coupons/new.astro', import.meta.url), 'utf8');
+const couponCreateWrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promos/coupons/new.astro', import.meta.url), 'utf8');
 const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
 
 test('Marketing evita repetir el encabezado de accesos rápidos antes de Crear tarjeta', () => {
@@ -38,6 +40,25 @@ test('los estados de promociones se filtran desde un selector desplegable', () =
   assert.match(promos, /<option value="all">Todas<\/option>[\s\S]*?<option value="active">Activas<\/option>[\s\S]*?<option value="inactive">Inactivas<\/option>[\s\S]*?<option value="expired">Vencidas<\/option>/);
   assert.match(promos, /promotionFilterSelect\?\.addEventListener\('change'/);
   assert.doesNotMatch(promos, /data-promotion-filter=/);
+});
+
+test('los cupones manuales usan un único filtro desplegable con conteos', () => {
+  assert.match(promos, /<select id="coupon-filter-select" aria-label="Filtrar cupones actuales">/);
+  assert.match(promos, /<option id="coupon-filter-all-count" value="all">Todos \(0\)<\/option>[\s\S]*?<option id="coupon-filter-active-count" value="active">Activos \(0\)<\/option>/);
+  assert.match(promos, /couponFilterSelect\?\.addEventListener\('change'/);
+  assert.match(promos, /couponFilterAllCount\.textContent = `Todos \(\$\{total\}\)`/);
+  assert.doesNotMatch(promos, /data-coupon-filter=/);
+});
+
+test('nuevo cupón abre una página dedicada y vuelve al listado al cerrar', () => {
+  assert.match(couponCreate, /<AdminPromos couponCreatePage=\{true\} \/>/);
+  assert.match(couponCreateWrapper, /<AdminCouponCreate \/>/);
+  assert.match(middleware, /normalized === 'promos\/coupons\/new'[\s\S]*?'coupons\.manage'/);
+  assert.match(promos, /id="coupon-new-link"[\s\S]*?href=\{adminCouponNewPath\}[\s\S]*?pz-admin-btn__label">Nuevo cupón/);
+  assert.match(promos, /COUPON_CREATE_PAGE = couponCreatePage === true/);
+  assert.match(promos, /window\.location\.assign\(`\$\{ADMIN_PROMOS_PATH\}#cupones`\)/);
+  assert.match(promos, /if \(COUPON_CREATE_PAGE\) openCouponForm\(\)/);
+  assert.match(promos, /data-coupon-create-back[\s\S]*?requestCloseCouponForm\(\)/);
 });
 
 test('crear promoción abre una página dedicada y regresa a la lista al cerrar', () => {

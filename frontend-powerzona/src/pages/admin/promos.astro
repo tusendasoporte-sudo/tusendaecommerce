@@ -12,9 +12,11 @@ import '../../styles/global.css';
 
 interface Props {
   promotionCreatePage?: boolean;
+  couponCreatePage?: boolean;
 }
 
-const { promotionCreatePage = false } = Astro.props;
+const { promotionCreatePage = false, couponCreatePage = false } = Astro.props;
+const marketingCreatePage = promotionCreatePage || couponCreatePage;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = Astro.locals.adminAuthPb
   ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -32,6 +34,7 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminPromosNewPath = getStoreAdminPath(currentStoreSlug, 'promos/new');
+const adminCouponNewPath = getStoreAdminPath(currentStoreSlug, 'promos/coupons/new');
 const adminVisualEditorBasePath = getStoreAdminPath(currentStoreSlug, 'promos/visuals');
 const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
@@ -59,7 +62,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{promotionCreatePage ? 'Nueva promoción' : 'Marketing'} | PowerZona</title>
+    <title>{promotionCreatePage ? 'Nueva promoción' : couponCreatePage ? 'Nuevo cupón' : 'Marketing'} | PowerZona</title>
     <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
@@ -1039,6 +1042,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       .marketing-create-back-link { color: #2563eb; font-size: 13px; font-weight: 950; text-decoration: none; }
       .marketing-create-back-link:hover, .marketing-create-back-link:focus-visible { color: #1d4ed8; text-decoration: underline; text-underline-offset: 3px; outline: none; }
       .marketing-promotion-create-page .marketing-promos-panel { max-width: 980px; margin-inline: auto; }
+      .marketing-coupon-create-page .marketing-coupons-panel { max-width: 980px; margin-inline: auto; }
       .marketing-settings-icon-btn { min-height: 48px; padding: 12px 16px; }
       .marketing-promos-form {
         display: grid;
@@ -1764,21 +1768,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         gap: 14px;
         flex-wrap: wrap;
       }
-      .marketing-coupons-filters { margin-top: 0; }
-      .marketing-coupons-filters .promotion-filter-btn { display: inline-flex; align-items: center; gap: 7px; }
-      .marketing-coupons-filters .promotion-filter-btn span {
-        min-width: 22px;
-        height: 22px;
-        padding: 0 7px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, .08);
-        color: currentColor;
-        font-size: 11px;
-        font-weight: 1000;
-      }
+      .marketing-coupons-toolbar .marketing-quick-filter-select { width: min(100%, 360px); }
       .marketing-coupons-results-count {
         margin: 0;
         color: #64748b;
@@ -2726,7 +2716,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       </style>
   </head>
-  <body class:list={[promotionCreatePage && 'marketing-promotion-create-page']}>
+  <body class:list={[promotionCreatePage && 'marketing-promotion-create-page', couponCreatePage && 'marketing-coupon-create-page']}>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar
@@ -2737,7 +2727,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         storePlanValues={adminContext.store}
         activeSection="marketing"
-        mobileTitle={promotionCreatePage ? 'Nueva promoción' : 'Marketing'}
+        mobileTitle={promotionCreatePage ? 'Nueva promoción' : couponCreatePage ? 'Nuevo cupón' : 'Marketing'}
       />
       <LastModificationMeta
         controllerOnly={true}
@@ -2747,15 +2737,20 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       />
 
       <main class="main-wrap pz-admin-content-inner">
-        {promotionCreatePage && (
+        {marketingCreatePage && (
           <div class="marketing-create-back-row">
-            <a class="marketing-create-back-link" data-promotion-create-back href={`${adminPromosPath}#promociones`}>← Volver a Marketing</a>
+            <a
+              class="marketing-create-back-link"
+              data-promotion-create-back={promotionCreatePage || undefined}
+              data-coupon-create-back={couponCreatePage || undefined}
+              href={`${adminPromosPath}#${couponCreatePage ? 'cupones' : 'promociones'}`}
+            >← Volver a Marketing</a>
           </div>
         )}
         <AdminSectionHeader
           kicker="Marketing"
-          title={promotionCreatePage ? 'Nueva promoción' : 'Promociones'}
-          description={promotionCreatePage ? 'Configura la regla de descuento y guárdala cuando esté lista.' : 'Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda.'}
+          title={promotionCreatePage ? 'Nueva promoción' : couponCreatePage ? 'Nuevo cupón' : 'Promociones'}
+          description={promotionCreatePage ? 'Configura la regla de descuento y guárdala cuando esté lista.' : couponCreatePage ? 'Configura el código, el descuento y su vigencia.' : 'Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda.'}
           titleId="marketing-featured-title"
           bellId="admin-marketing-bell"
         />
@@ -2789,7 +2784,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         </section>
 
         <section id="admin-view" class="hidden">
-          {!promotionCreatePage && <div class="tabs">
+          {!marketingCreatePage && <div class="tabs">
             {canManagePromotions && <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>}
             {canManageCoupons && <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>}
             {canManageRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
@@ -3676,7 +3671,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           </div>
 
           <section id="tab-cupones" class:list={['tab-panel hidden marketing-coupons-screen', !canManageCoupons && 'permission-hidden']}>
-            <section class="admin-compact-summary admin-compact-summary--marketing marketing-coupons-summary-grid" aria-label="Resumen de cupones manuales">
+            {!couponCreatePage && <section class="admin-compact-summary admin-compact-summary--marketing marketing-coupons-summary-grid" aria-label="Resumen de cupones manuales">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
@@ -3709,7 +3704,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                   <p class="admin-compact-summary__hint marketing-summary-help">Vencidos, inactivos o agotados</p>
                 </article>
               </div>
-            </section>
+            </section>}
 
             <div class="marketing-featured-panel marketing-coupons-panel">
               <div class="marketing-coupons-panel-head">
@@ -3718,12 +3713,12 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>
                   </span>
                   <div class="marketing-featured-copy">
-                    <h2>Cupones manuales</h2>
-                    <p>Crea y gestiona códigos para descuentos o envío gratis.</p>
+                    <h2>{couponCreatePage ? 'Crear cupón' : 'Cupones manuales'}</h2>
+                    <p>{couponCreatePage ? 'Completa los datos del nuevo código de descuento.' : 'Crea y gestiona códigos para descuentos o envío gratis.'}</p>
                   </div>
                 </div>
 
-                <div class="marketing-coupons-panel-actions">
+                {!couponCreatePage && <div class="marketing-coupons-panel-actions">
                   <button id="coupon-readme-btn" class="pz-admin-btn pz-admin-btn--readme pz-admin-btn--full-mobile" type="button">
                     <span class="pz-admin-btn__icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z"/></svg>
@@ -3731,16 +3726,16 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     <span class="pz-admin-btn__label">Léeme</span>
                   </button>
 
-                  <button id="coupon-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                  <a id="coupon-new-link" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" href={adminCouponNewPath}>
                     <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                     <span class="pz-admin-btn__label">Nuevo cupón</span>
-                  </button>
-                </div>
+                  </a>
+                </div>}
               </div>
 
               <div id="coupon-alert" class="alert alert-info hidden"></div>
 
-              <details id="coupon-form-panel" class="marketing-coupons-form-accordion hidden" open>
+              <details id="coupon-form-panel" class:list={['marketing-coupons-form-accordion', !couponCreatePage && 'hidden']} open>
                 <summary class="marketing-coupons-form-summary">
                   <span class="marketing-coupons-form-summary-main">
                     <span class="marketing-coupons-form-summary-icon" aria-hidden="true">⌄</span>
@@ -3749,7 +3744,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                   <span class="marketing-coupons-form-chevron" aria-hidden="true">⌄</span>
                 </summary>
 
-                <form id="coupon-form" class="marketing-coupons-form hidden">
+                <form id="coupon-form" class:list={['marketing-coupons-form', !couponCreatePage && 'hidden']}>
                   <input id="coupon-id" type="hidden" />
 
                   <div class="marketing-coupons-form-section">
@@ -3896,28 +3891,31 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 </form>
               </details>
 
-              <div class="marketing-coupons-list-head">
+              {!couponCreatePage && <div class="marketing-coupons-list-head">
                 <div>
                   <h3>Cupones actuales</h3>
                   <p>Revisa el estado, usos y vigencia de tus cupones.</p>
                 </div>
-              </div>
+              </div>}
 
-              <div class="marketing-coupons-toolbar">
-                <div id="coupon-filters" class="promotion-filters marketing-coupons-filters" aria-label="Filtrar cupones">
-                  <button class="promotion-filter-btn active" data-coupon-filter="all" type="button">Todos <span id="coupon-filter-all-count">0</span></button>
-                  <button class="promotion-filter-btn" data-coupon-filter="active" type="button">Activos <span id="coupon-filter-active-count">0</span></button>
-                  <button class="promotion-filter-btn" data-coupon-filter="inactive" type="button">Inactivos <span id="coupon-filter-inactive-count">0</span></button>
-                  <button class="promotion-filter-btn" data-coupon-filter="expired" type="button">Vencidos <span id="coupon-filter-expired-count">0</span></button>
-                  <button class="promotion-filter-btn" data-coupon-filter="soldout" type="button">Agotados <span id="coupon-filter-soldout-count">0</span></button>
-                </div>
+              {!couponCreatePage && <div class="marketing-coupons-toolbar">
+                <label class="marketing-quick-filter-select" for="coupon-filter-select">
+                  <span>Filtros</span>
+                  <select id="coupon-filter-select" aria-label="Filtrar cupones actuales">
+                    <option id="coupon-filter-all-count" value="all">Todos (0)</option>
+                    <option id="coupon-filter-active-count" value="active">Activos (0)</option>
+                    <option id="coupon-filter-inactive-count" value="inactive">Inactivos (0)</option>
+                    <option id="coupon-filter-expired-count" value="expired">Vencidos (0)</option>
+                    <option id="coupon-filter-soldout-count" value="soldout">Agotados (0)</option>
+                  </select>
+                </label>
 
                 <p id="coupon-results-count" class="marketing-coupons-results-count">0 cupones</p>
-              </div>
+              </div>}
 
-              <div id="coupon-list" class="items-list marketing-coupons-list coupon-list-scroll">
+              {!couponCreatePage && <div id="coupon-list" class="items-list marketing-coupons-list coupon-list-scroll">
                 <div class="empty-state">Cargando cupones...</div>
-              </div>
+              </div>}
             </div>
           </section>
 
@@ -3990,13 +3988,14 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       });
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, adminVisualEditorBasePath, adminPromosPath, promotionCreatePage, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, adminVisualEditorBasePath, adminPromosPath, promotionCreatePage, couponCreatePage, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const ADMIN_VISUAL_EDITOR_BASE_PATH = String(adminVisualEditorBasePath || '/admin/promos/visuals').replace(/\/$/, '');
       const ADMIN_PROMOS_PATH = String(adminPromosPath || '/admin/promos');
       const PROMOTION_CREATE_PAGE = promotionCreatePage === true;
+      const COUPON_CREATE_PAGE = couponCreatePage === true;
       const CAN_MANAGE_PROMOTIONS = canManagePromotions === true;
       const CAN_MANAGE_COUPONS = canManageCoupons === true;
       const CAN_MANAGE_RAFFLES = canManageRaffles === true;
@@ -4121,7 +4120,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       const couponSummaryTotal = document.getElementById('coupon-summary-total');
       const couponSummaryActive = document.getElementById('coupon-summary-active');
       const couponSummaryReview = document.getElementById('coupon-summary-review');
-      const couponFilters = document.getElementById('coupon-filters');
+      const couponFilterSelect = document.getElementById('coupon-filter-select');
       const couponResultsCount = document.getElementById('coupon-results-count');
       const couponFilterAllCount = document.getElementById('coupon-filter-all-count');
       const couponFilterActiveCount = document.getElementById('coupon-filter-active-count');
@@ -5138,11 +5137,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         if (couponSummaryActive) couponSummaryActive.textContent = String(active);
         if (couponSummaryReview) couponSummaryReview.textContent = String(review);
 
-        if (couponFilterAllCount) couponFilterAllCount.textContent = String(total);
-        if (couponFilterActiveCount) couponFilterActiveCount.textContent = String(active);
-        if (couponFilterInactiveCount) couponFilterInactiveCount.textContent = String(manualCoupons.filter((item) => item.active === false).length);
-        if (couponFilterExpiredCount) couponFilterExpiredCount.textContent = String(manualCoupons.filter(couponIsExpired).length);
-        if (couponFilterSoldoutCount) couponFilterSoldoutCount.textContent = String(manualCoupons.filter(couponIsSoldOut).length);
+        if (couponFilterAllCount) couponFilterAllCount.textContent = `Todos (${total})`;
+        if (couponFilterActiveCount) couponFilterActiveCount.textContent = `Activos (${active})`;
+        if (couponFilterInactiveCount) couponFilterInactiveCount.textContent = `Inactivos (${manualCoupons.filter((item) => item.active === false).length})`;
+        if (couponFilterExpiredCount) couponFilterExpiredCount.textContent = `Vencidos (${manualCoupons.filter(couponIsExpired).length})`;
+        if (couponFilterSoldoutCount) couponFilterSoldoutCount.textContent = `Agotados (${manualCoupons.filter(couponIsSoldOut).length})`;
       }
       function couponUsageLabel(item) {
         const used = Number(item.used_count || 0);
@@ -5299,9 +5298,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
 
         renderCouponSummary();
 
-        couponFilters?.querySelectorAll('[data-coupon-filter]').forEach((button) => {
-          button.classList.toggle('active', button.dataset.couponFilter === couponFilter);
-        });
+        if (couponFilterSelect) couponFilterSelect.value = couponFilter;
 
         const filteredCoupons = [...manualCoupons]
           .filter(couponMatchesFilter)
@@ -5464,6 +5461,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         couponCode?.focus();
       }
       function closeCouponForm() {
+        if (COUPON_CREATE_PAGE) {
+          window.location.assign(`${ADMIN_PROMOS_PATH}#cupones`);
+          return;
+        }
         couponForm?.classList.add('hidden');
         couponFormPanel?.classList.add('hidden');
         setCouponFormButtonOpen(false);
@@ -6150,6 +6151,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           if (subtitleNode) subtitleNode.textContent = 'Configura la regla de descuento y guárdala cuando esté lista.';
           return;
         }
+        if (COUPON_CREATE_PAGE) {
+          const titleNode = document.getElementById('marketing-featured-title');
+          const subtitleNode = document.getElementById('admin-subtitle');
+          if (titleNode) titleNode.textContent = 'Nuevo cupón';
+          if (subtitleNode) subtitleNode.textContent = 'Configura el código, el descuento y su vigencia.';
+          return;
+        }
         const copy = marketingSectionCopy[sectionKey] || marketingSectionCopy.destacados;
         const eyebrowNode = document.getElementById('marketing-mobile-eyebrow');
         const titleNode = document.getElementById('marketing-featured-title');
@@ -6201,8 +6209,10 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         adminView.classList.remove('hidden');
         marketingSummaryCard?.classList.add('hidden');
         if (PROMOTION_CREATE_PAGE) showTab('promociones');
+        if (COUPON_CREATE_PAGE) showTab('cupones');
         await loadData();
         if (PROMOTION_CREATE_PAGE) openPromotionForm();
+        if (COUPON_CREATE_PAGE) openCouponForm();
       }
       function showLogin() { adminView.classList.add('hidden'); marketingSummaryCard?.classList.add('hidden'); loginView.classList.remove('hidden'); }
 
@@ -6326,6 +6336,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         openCouponForm();
       });
       couponCancelBtn?.addEventListener('click', () => { requestCloseCouponForm(); });
+      document.querySelector('[data-coupon-create-back]')?.addEventListener('click', (event) => {
+        if (!COUPON_CREATE_PAGE) return;
+        event.preventDefault();
+        requestCloseCouponForm();
+      });
       window.addEventListener('pz:admin-back-request', (event) => {
         if (event.defaultPrevented) return;
         if (couponFormPanel && !couponFormPanel.classList.contains('hidden')) {
@@ -6382,10 +6397,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         couponProductSearch?.focus();
         updateCouponFormState();
       });
-      couponFilters?.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-coupon-filter]');
-        if (!button) return;
-        couponFilter = button.dataset.couponFilter || 'all';
+      couponFilterSelect?.addEventListener('change', () => {
+        couponFilter = couponFilterSelect.value || 'all';
         renderCoupons();
       });
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
@@ -6548,7 +6561,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       window.addEventListener('hashchange', hydrateMarketingHashState);
 
       showAdmin().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error'));
-      if (!PROMOTION_CREATE_PAGE) hydrateMarketingHashState();
+      if (!PROMOTION_CREATE_PAGE && !COUPON_CREATE_PAGE) hydrateMarketingHashState();
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, canManagePromotions, canManageStoreSettings }}>
       (() => {
