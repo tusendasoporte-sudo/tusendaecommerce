@@ -127,6 +127,7 @@ test('M7U2: Catalogo separa mutaciones de categorias de crear y editar productos
 test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   const source = read('../src/pages/admin/promos.astro');
   const visualEditor = read('../src/pages/admin/promos/visuals/[visualId].astro');
+  const visualEditorApi = read('../src/pages/api/admin/visual-items/[visualId].ts');
   const middleware = read('../src/middleware.ts');
   assert.doesNotMatch(source, /mobileActionLabel="Nueva promocion"/);
   assert.match(source, /<select id="visual-filter-select" aria-label="Filtrar tarjetas actuales">/);
@@ -145,7 +146,13 @@ test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   assert.match(visualEditor, /const adminPromosVisualsPath = `\$\{adminPromosPath\}#visuales`/);
   assert.match(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
   assert.match(visualEditor, /data-visual-editor-form/);
-  assert.match(visualEditor, /store_visual_items\/records\/\$\{encodeURIComponent\(visualId\)\}/);
+  assert.match(visualEditor, /\/api\/admin\/visual-items\/\$\{encodeURIComponent\(visualId\)\}/);
+  assert.doesNotMatch(visualEditor, /document\.cookie|Authorization = `Bearer/);
+  assert.match(visualEditorApi, /sameOriginMutation\(request\)/);
+  assert.match(visualEditorApi, /hasStorePermission\(permissionContext, 'promotions\.manage'\)/);
+  assert.match(visualEditorApi, /requireCurrentStoreForAdmin\(authPb, \{ storeSlug \}\)/);
+  assert.match(visualEditorApi, /relationId\(record\?\.store\) !== storeId/);
+  assert.match(visualEditorApi, /ALLOWED_FIELDS/);
   assert.match(middleware, /normalized\.startsWith\('promos\/visuals\/'\).*promotions\.manage/);
   for (const permission of [
     'promotions.manage',

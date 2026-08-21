@@ -111,8 +111,8 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
     <main
       class="visual-editor-page"
       data-visual-editor-root
-      data-pocketbase-url={pocketbaseUrl}
       data-store-id={currentStoreId}
+      data-store-slug={currentStoreSlug}
       data-visual-id={visualId}
       data-back-path={adminPromosVisualsPath}
     >
@@ -206,10 +206,11 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
         const saveButton = root.querySelector('[data-save]');
         const actionType = root.querySelector('[data-action-type]');
         const categorySelect = root.querySelector('[data-category]');
-        const baseUrl = String(root.dataset.pocketbaseUrl || '').replace(/\/$/, '');
         const storeId = String(root.dataset.storeId || '');
+        const storeSlug = String(root.dataset.storeSlug || '');
         const visualId = String(root.dataset.visualId || '');
         const backPath = String(root.dataset.backPath || '/admin/promos');
+        const apiPath = `/api/admin/visual-items/${encodeURIComponent(visualId)}?store=${encodeURIComponent(storeSlug)}`;
         let record = null;
 
         function relationId(value) {
@@ -221,18 +222,8 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
           if (Array.isArray(value)) return String(value[0] || '');
           return String(value || '');
         }
-        function getAdminToken() {
-          const cookie = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
-          if (!cookie) return '';
-          try { return String(JSON.parse(decodeURIComponent(cookie.slice(8)))?.token || ''); } catch { return ''; }
-        }
-        async function api(path, options = {}) {
-          const headers = { ...(options.headers || {}) };
-          const token = getAdminToken();
-          if (token) headers.Authorization = `Bearer ${token}`;
-          const supportStoreId = String(window.PZ_MASTER_SUPPORT_CONTEXT?.storeId || '');
-          if (supportStoreId) headers['X-PZ-Support-Store'] = supportStoreId;
-          const response = await fetch(`${baseUrl}${path}`, { ...options, headers });
+        async function api(options = {}) {
+          const response = await fetch(apiPath, { ...options, credentials: 'same-origin' });
           const result = await response.json().catch(() => null);
           if (!response.ok) throw new Error(String(result?.message || 'No se pudo completar la operación.'));
           return result;
@@ -246,13 +237,7 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
           const action = actionType.value;
           root.querySelectorAll('[data-action-field]').forEach((field) => { field.hidden = field.dataset.actionField !== action; });
         }
-        async function loadCategories(selectedId = '') {
-          const result = await api('/api/pz/store/marketing/selectors', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refs: selectedId ? [selectedId] : [], taxonomy_page: 1, taxonomy_per_page: 100 }),
-          });
-          const categories = Array.isArray(result?.categories) ? result.categories : [];
+        function loadCategories(categories, selectedId = '') {
           categorySelect.innerHTML = '<option value="">Selecciona categoría</option>' + categories.map((item) => {
             const id = String(item?.ref || '');
             const name = String(item?.name || 'Sin nombre').replace(/[&<>"']/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[char]));
@@ -278,11 +263,12 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
         }
         async function load() {
           try {
-            record = await api(`/api/collections/store_visual_items/records/${encodeURIComponent(visualId)}`);
+            const result = await api();
+            record = result?.item || null;
             if (relationId(record?.store) !== storeId) throw new Error('La tarjeta no pertenece a esta tienda.');
             const categoryId = relationId(record.category);
-            await loadCategories(categoryId);
             fillForm(record);
+            loadCategories(Array.isArray(result?.categories) ? result.categories : [], categoryId);
             saveButton.disabled = false;
             setAlert('');
           } catch (error) {
@@ -310,12 +296,11 @@ if (!hasStorePermission(permissionContext, 'promotions.manage')) {
             data.append('category', form.elements.category.value || '');
             data.append('sort_order', String(Number(form.elements.sort_order.value || 0)));
             data.append('active', form.elements.active.checked ? 'true' : 'false');
-            data.append('store', storeId);
             const image = form.elements.image.files?.[0];
             const attachment = form.elements.attachment.files?.[0];
             if (image) data.append('image', await optimizeStoreVisualImageFile(image));
             if (attachment) data.append('attachment', await optimizeAttachment(attachment));
-            await api(`/api/collections/store_visual_items/records/${encodeURIComponent(visualId)}`, { method: 'PATCH', body: data });
+            await api({ method: 'PATCH', body: data });
             setAlert('Cambios guardados correctamente.', 'success');
             window.setTimeout(() => window.location.assign(backPath), 350);
           } catch (error) {
