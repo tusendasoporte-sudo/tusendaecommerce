@@ -18,6 +18,7 @@ const responsivePaginationViews = [
   '../src/pages/admin/app-installation-details.astro',
   '../src/components/admin/SecurityMonitoringView.astro',
   '../src/components/admin/SecurityVisitorDetailView.astro',
+  '../src/components/admin/PushCampaignsView.astro',
   '../src/components/master/MasterStoreUsersView.astro',
   '../src/components/master/MasterStoresView.astro',
 ].map(read);
@@ -80,4 +81,13 @@ test('PAGINACION-GLOBAL: los controles móviles mantienen etiquetas de navegaci�
   assert.match(storeActivity, />Anterior<\/button>/);
   assert.match(storeActivity, />Siguiente<\/button>/);
   assert.ok(paginationViews.some((view) => view.includes('Mostrando')));
+});
+
+test('PAGINACION-GLOBAL: Campañas push muestra página de total y resumen completo', () => {
+  const pushCampaigns = read('../src/components/admin/PushCampaignsView.astro');
+  assert.match(pushCampaigns, /data-page-mobile-label[^>]*>1 de 1<\/span>/);
+  assert.match(pushCampaigns, /data-page-numbers data-pagination-mobile-visible="false"/);
+  assert.match(pushCampaigns, /pageMobileLabel\.textContent = `\$\{state\.page\} de \$\{state\.totalPages\}`/);
+  assert.match(pushCampaigns, /Mostrando \$\{pageStart\}.*de \$\{state\.totalItems\} campaña/);
+  assert.match(pushCampaigns, /--pz-admin-mobile-topbar-offset, 118px/);
 });

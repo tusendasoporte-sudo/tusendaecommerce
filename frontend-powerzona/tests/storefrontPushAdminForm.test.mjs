@@ -408,7 +408,7 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
     'data-select-all', 'data-select-campaign', 'data-delete-selected',
     'data-action="detail"', 'data-action="duplicate"', 'data-action="delete"',
     'pagination-bar push-pagination', 'pagination-summary', 'pagination-actions',
-    'data-page-previous', 'data-page-label', 'data-page-next',
+    'data-page-previous', 'data-page-numbers', 'data-page-mobile-label', 'data-page-next',
     'push-policy__premium-icon', 'push-policy__heading', 'push-policy__badge', 'push-policy__list',
   ]) assert.equal(source.includes(marker), true, marker);
   assert.match(source, /aria-live="polite"/);
@@ -448,7 +448,14 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /Actualizando automáticamente la audiencia elegible/);
   assert.match(source, /Se muestran hasta 10 campañas por página/);
   assert.match(source, /state\.hasMore = typeof result\.has_more === 'boolean'/);
-  assert.match(source, /nextButton\.disabled = state\.loading \|\| !state\.hasMore/);
+  assert.match(source, /state\.totalItems = Number\.isInteger\(Number\(result\.total_items\)\)/);
+  assert.match(source, /state\.totalPages = Number\.isInteger\(Number\(result\.total_pages\)\)/);
+  assert.match(source, /nextButton\.disabled = state\.loading \|\| state\.page >= state\.totalPages/);
+  assert.match(source, /function campaignDateMeta\(campaign\)/);
+  assert.match(source, /status === 'sent' && campaign\?\.completed_at[\s\S]*?label: 'Enviada'/);
+  assert.match(source, /\['partially_sent', 'failed'\]\.includes\(status\)[\s\S]*?label: 'Finalizada'/);
+  assert.match(source, /const fallback = campaign\?\.created \|\| campaign\?\.updated/);
+  assert.match(source, /class="push-campaign-card__date"/);
   assert.match(source, /\.push-campaign-card \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto;[^}]*align-items: center/);
   assert.match(source, /\.push-campaign-card__actions \{[^}]*align-self: center;[^}]*justify-content: flex-end/);
   assert.match(source, /target_section: targetType === 'section'/);

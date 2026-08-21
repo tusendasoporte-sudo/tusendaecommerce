@@ -120,8 +120,10 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       <p class="pagination-summary" data-page-summary>Mostrando 0 campañas · 10 por página</p>
       <div class="pagination-actions">
         <button class="page-button" type="button" data-page-previous disabled>Anterior</button>
-        <span class="pagination-mobile-status" data-page-mobile-label aria-label="Página actual: 1">Página 1</span>
-        <button class="page-button is-active" type="button" data-page-label data-pagination-mobile-visible="false" aria-current="page" tabindex="-1" aria-label="Página actual: 1">1</button>
+        <span class="pagination-mobile-status" data-page-mobile-label aria-label="Página 1 de 1">1 de 1</span>
+        <span class="pagination-pages" data-page-numbers data-pagination-mobile-visible="false">
+          <button class="page-button is-active" type="button" data-page-number="1" aria-current="page" aria-label="Página actual: 1">1</button>
+        </span>
         <button class="page-button" type="button" data-page-next disabled>Siguiente</button>
       </div>
     </nav>
@@ -562,7 +564,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     const deleteSelectedButton = one('[data-delete-selected]');
     const selectionCount = one('[data-selection-count]');
     const pageSummary = one('[data-page-summary]');
-    const pageLabel = one('[data-page-label]');
+    const pageNumbers = one('[data-page-numbers]');
     const pageMobileLabel = one('[data-page-mobile-label]');
     const previousButton = one('[data-page-previous]');
     const nextButton = one('[data-page-next]');
@@ -588,6 +590,8 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       targetsError: false,
       page: 1,
       hasMore: false,
+      totalItems: 0,
+      totalPages: 1,
       loading: false,
       editing: null,
       audience: null,
@@ -701,6 +705,26 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         country_region: 'País o región',
       })[type] || 'Audiencia';
     }
+    function campaignDateMeta(campaign) {
+      const status = String(campaign?.status || '');
+      if (status === 'sent' && campaign?.completed_at) {
+        return { label: 'Enviada', value: campaign.completed_at };
+      }
+      if (['partially_sent', 'failed'].includes(status) && campaign?.completed_at) {
+        return { label: 'Finalizada', value: campaign.completed_at };
+      }
+      if (status === 'canceled' && campaign?.canceled_at) {
+        return { label: 'Cancelada', value: campaign.canceled_at };
+      }
+      if (status === 'scheduled' && campaign?.scheduled_at) {
+        return { label: 'Programada', value: campaign.scheduled_at };
+      }
+      if (campaign?.started_at) {
+        return { label: 'Iniciada', value: campaign.started_at };
+      }
+      const fallback = campaign?.created || campaign?.updated;
+      return fallback ? { label: 'Creada', value: fallback } : null;
+    }
     function campaignTargetDetail(campaign) {
       const targetType = campaign?.target_type || 'home';
       if (targetType === 'home') return 'Portada de la tienda';
@@ -770,6 +794,28 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         ? `Borrar seleccionadas (${selectedCountValue})`
         : 'Borrar seleccionadas';
     }
+    function renderPageNumbers() {
+      if (!pageNumbers) return;
+      const totalPages = Math.max(1, Number(state.totalPages) || 1);
+      const windowSize = 5;
+      const firstPage = Math.min(
+        Math.max(1, state.page - Math.floor(windowSize / 2)),
+        Math.max(1, totalPages - windowSize + 1),
+      );
+      const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
+      pageNumbers.innerHTML = Array.from(
+        { length: Math.max(0, lastPage - firstPage + 1) },
+        (_, index) => firstPage + index,
+      ).map((page) => `
+        <button
+          class="page-button${page === state.page ? ' is-active' : ''}"
+          type="button"
+          data-page-number="${page}"
+          ${page === state.page ? 'aria-current="page"' : ''}
+          aria-label="${page === state.page ? `Página actual: ${page}` : `Ir a página ${page}`}"
+        >${page}</button>
+      `).join('');
+    }
     function renderCampaigns() {
       const campaigns = visibleCampaigns();
       updateSelectionToolbar(campaigns);
@@ -779,8 +825,10 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         list.innerHTML = campaigns.map((campaign) => {
           const actions = storefrontPushCampaignActions(campaign.status);
           const selected = state.selectedCampaignIds.has(campaign.id);
-          const scheduled = campaign.status === 'scheduled' && campaign.scheduled_at
-            ? `<span><strong>Programada:</strong> ${escapeHtml(formatDate(campaign.scheduled_at))}</span>` : '';
+          const dateMeta = campaignDateMeta(campaign);
+          const campaignDate = dateMeta
+            ? `<span class="push-campaign-card__date"><strong>${escapeHtml(dateMeta.label)}:</strong> ${escapeHtml(formatDate(dateMeta.value))}</span>`
+            : '';
           const failure = campaign.failure_code
             ? `<span class="push-campaign-card__failure"><strong>Aviso:</strong> ${escapeHtml(storefrontPushAdminErrorMessage(campaign.failure_code))}</span>` : '';
           return `<article class="push-campaign-card" data-campaign-id="${campaign.id}" data-selected="${selected ? 'true' : 'false'}">
@@ -795,7 +843,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
                 <div class="push-campaign-card__meta">
                   <span><strong>${escapeHtml(campaignTargetLabel(campaign))}:</strong> ${escapeHtml(campaign.target_path || 'ruta privada/pendiente')}</span>
                   <span><strong>Audiencia:</strong> ${escapeHtml(campaignAudienceLabel(campaign.audience_type))}</span>
-                  ${scheduled}${failure}
+                  ${campaignDate}${failure}
                 </div>
               </div>
             </div>
@@ -817,15 +865,14 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
       const searchActive = String(searchInput?.value || '').trim().length > 0;
       pageSummary.textContent = searchActive
         ? `${campaigns.length} coincidencia${campaigns.length === 1 ? '' : 's'} en esta página · ${STOREFRONT_PUSH_PAGE_SIZE} por página`
-        : `Mostrando ${pageStart}${pageEnd > pageStart ? ` a ${pageEnd}` : ''} campaña${state.campaigns.length === 1 ? '' : 's'} · ${STOREFRONT_PUSH_PAGE_SIZE} por página`;
-      pageLabel.textContent = String(state.page);
-      pageLabel.setAttribute('aria-label', `Página actual: ${state.page}`);
+        : `Mostrando ${pageStart}${pageEnd > pageStart ? `–${pageEnd}` : ''} de ${state.totalItems} campaña${state.totalItems === 1 ? '' : 's'} · ${STOREFRONT_PUSH_PAGE_SIZE} por página`;
+      renderPageNumbers();
       if (pageMobileLabel) {
-        pageMobileLabel.textContent = `Página ${state.page}`;
-        pageMobileLabel.setAttribute('aria-label', `Página actual: ${state.page}`);
+        pageMobileLabel.textContent = `${state.page} de ${state.totalPages}`;
+        pageMobileLabel.setAttribute('aria-label', `Página ${state.page} de ${state.totalPages}`);
       }
       previousButton.disabled = state.loading || state.page <= 1;
-      nextButton.disabled = state.loading || !state.hasMore;
+      nextButton.disabled = state.loading || state.page >= state.totalPages;
       list.setAttribute('aria-busy', 'false');
     }
     function renderQuota(quota) {
@@ -869,12 +916,20 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
         state.hasMore = typeof result.has_more === 'boolean'
           ? result.has_more
           : state.campaigns.length >= STOREFRONT_PUSH_PAGE_SIZE;
+        state.totalItems = Number.isInteger(Number(result.total_items))
+          ? Math.max(0, Number(result.total_items))
+          : ((state.page - 1) * STOREFRONT_PUSH_PAGE_SIZE) + state.campaigns.length + (state.hasMore ? 1 : 0);
+        state.totalPages = Number.isInteger(Number(result.total_pages))
+          ? Math.max(1, Number(result.total_pages))
+          : Math.max(1, state.page + (state.hasMore ? 1 : 0));
         state.quotaTimezone = resolveStorefrontPushQuotaTimezone(state.campaigns, result.quota_timezone);
         renderQuota(result.quota);
         loaded = true;
       } catch (error) {
         state.campaigns = [];
         state.hasMore = false;
+        state.totalItems = 0;
+        state.totalPages = 1;
         renderQuota(null);
         list.innerHTML = `<div class="push-empty push-empty--error"><strong>No pudimos cargar las campañas</strong><p>${escapeHtml(storefrontPushAdminErrorMessage(error?.code || error?.message))}</p></div>`;
         live.textContent = 'Error al cargar campañas.';
@@ -1649,7 +1704,14 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     });
     deleteSelectedButton?.addEventListener('click', () => deleteCampaignSelection([...state.selectedCampaignIds]));
     previousButton?.addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadCampaigns(); } });
-    nextButton?.addEventListener('click', () => { state.page += 1; loadCampaigns(); });
+    nextButton?.addEventListener('click', () => { if (state.page < state.totalPages) { state.page += 1; loadCampaigns(); } });
+    pageNumbers?.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-page-number]');
+      const page = Number(button?.dataset.pageNumber || 0);
+      if (!button || !Number.isInteger(page) || page < 1 || page > state.totalPages || page === state.page) return;
+      state.page = page;
+      loadCampaigns();
+    });
     list?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-action]');
       const card = button?.closest('[data-campaign-id]');
@@ -1816,6 +1878,7 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
   .push-campaign-card h3 { margin: 1px 0 0; font-size: 17px; line-height: 1.3; font-weight: 1000; overflow-wrap: anywhere; }
   .push-campaign-card__copy > p { display: -webkit-box; margin: 6px 0 0; overflow: hidden; color: #475569; font-size: 13px; line-height: 1.48; font-weight: 680; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .push-campaign-card__meta { display: flex; flex-wrap: wrap; gap: 7px 13px; margin-top: 10px; color: #64748b; font-size: 11px; line-height: 1.45; }
+  .push-campaign-card__date { color: #334155; }
   .push-campaign-card__failure { color: #b45309; }
   .push-campaign-card__actions { align-self: center; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
   .push-link-btn { min-height: 34px; border: 0; border-radius: 10px; background: #eff6ff; color: #1d4ed8; padding: 7px 10px; font-size: 11px; font-weight: 950; }
@@ -1988,7 +2051,10 @@ const defaultTimezone = STOREFRONT_PUSH_TIME_ZONE;
     .android-device { width: min(390px, 100%); margin: 0 auto; }
   }
   @media (max-width: 720px) {
-    .push-admin { width: min(100% - 20px, 1220px); padding: 14px 0 92px; }
+    .push-admin {
+      width: min(100% - 20px, 1220px);
+      padding: calc(var(--pz-admin-mobile-topbar-offset, 118px) + env(safe-area-inset-top, 0px)) 0 92px;
+    }
     .push-intro { display: grid; padding: 0; }
     .push-intro__action { width: 100%; }
     .push-policy { border-radius: 16px; }

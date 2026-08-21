@@ -1316,7 +1316,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       .marketing-quick-actions {
         grid-area: actions;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
         align-items: center;
         gap: 0;
         padding-top: 10px;
@@ -1345,8 +1345,19 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         border-left: 1px solid #e2e8f0;
       }
       .marketing-quick-actions .visual-menu-wrap {
-        width: 100%;
-        justify-content: stretch;
+        width: auto;
+        margin-left: 10px;
+        justify-self: end;
+        justify-content: flex-end;
+        border-left: 0;
+      }
+      .marketing-quick-actions .visual-kebab-btn {
+        width: 46px;
+        min-width: 46px;
+        padding-inline: 7px;
+        border: 1px solid #dbe5f1;
+        border-radius: 13px;
+        background: #fff;
       }
       .marketing-quick-actions .visual-kebab-btn > span:first-child {
         font-size: 17px;
@@ -3357,16 +3368,11 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     <span class="marketing-quick-form-icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24"><path d="M7 4h10v2H7V4Zm0 14h10v2H7v-2Zm-3-7h16v2H4v-2Z"/></svg>
                     </span>
-                    <strong>Estado y orden</strong>
+                    <strong>Estado</strong>
                   </div>
 
                   <div class="marketing-quick-form-grid">
-                    <div class="field">
-                      <label for="visual-order">Orden visual</label>
-                      <input id="visual-order" type="number" min="0" step="1" placeholder="0" />
-                    </div>
-
-                    <div class="field marketing-quick-switch-field">
+                    <div class="field marketing-quick-switch-field full">
                       <label>Estado</label>
                       <label class="marketing-quick-switch">
                         <input id="visual-active" type="checkbox" checked />
@@ -4007,7 +4013,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       const visualCurrentImage = document.getElementById('visual-current-image');
       const visualButtonText = document.getElementById('visual-button-text');
       const visualActionType = document.getElementById('visual-action-type');
-      const visualOrder = document.getElementById('visual-order');
       const visualUrl = document.getElementById('visual-url');
       const visualWhatsappMessage = document.getElementById('visual-whatsapp-message');
       const visualCategory = document.getElementById('visual-category');
@@ -4368,7 +4373,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
               ${thumbMarkup(visualImageUrl(item), 'TAG')}
               <div>
                 <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
-                <p class="item-meta">Promo visual · Orden ${Number(item.sort_order || 0)} · ${item.active !== false ? 'Visible' : 'Oculta'}</p>
+                <p class="item-meta">Promo visual · ${item.active !== false ? 'Visible' : 'Oculta'}</p>
               </div>
             </div>
             <div class="item-actions"><span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${item.active !== false ? 'Visible' : 'Oculta'}</span></div>
@@ -4647,7 +4652,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                 <div class="marketing-quick-main">
                   <p class="marketing-quick-title">${escapeHtml(item.title || 'Sin título')}</p>
                   <p class="marketing-quick-meta">
-                    ${escapeHtml(typeLabel)} · Acción: ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}
+                    ${escapeHtml(typeLabel)} · Acción: ${escapeHtml(actionLabel)}
                     ${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}
                   </p>
                   <span class="marketing-quick-status ${item.active !== false ? 'is-visible' : 'is-hidden'}">${escapeHtml(statusLabel)}</span>
@@ -4664,7 +4669,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
 
                   <div class="visual-menu-wrap">
                     <button class="visual-kebab-btn js-visual-menu pz-admin-btn pz-admin-btn--icon pz-admin-btn--compact" type="button" aria-label="Abrir opciones" aria-expanded="false">
-                      <span aria-hidden="true">•••</span><span>Más</span>
+                      <span aria-hidden="true">•••</span>
                     </button>
                     <div class="visual-floating-menu" role="menu">
                       <button class="js-visual-edit" type="button">Editar</button>
@@ -5607,7 +5612,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           apiRequest(`/api/collections/store_visual_items/records/${current.id}`, { method: 'PATCH', body: currentData }),
           apiRequest(`/api/collections/store_visual_items/records/${target.id}`, { method: 'PATCH', body: targetData }),
         ]);
-        showAlert(alertTarget, 'Orden visual actualizado.', 'success');
+        showAlert(alertTarget, 'Posición actualizada.', 'success');
         await loadData();
       }
       async function toggleVisualActive(itemId, alertTarget = visualAlert) {
@@ -5654,7 +5659,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         visualId.value = '';
         visualType.value = 'promo_visual';
         visualActionType.value = 'whatsapp';
-        visualOrder.value = String(nextVisualOrder());
         visualActive.checked = true;
         visualCurrentImage.textContent = '';
         visualCurrentAttachment.textContent = '';
@@ -5672,7 +5676,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           visualDescription.value = item.description || '';
           visualButtonText.value = item.button_text || '';
           visualActionType.value = item.action_type || 'whatsapp';
-          visualOrder.value = String(Number(item.sort_order || 0));
           visualUrl.value = item.target_url || '';
           visualWhatsappMessage.value = item.whatsapp_message || '';
           visualCategory.value = item.category || '';
@@ -5735,6 +5738,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           visualSaveBtn.innerHTML = '<span class="pz-admin-btn__label">Guardando...</span>';
         }
         try {
+          const id = visualId.value;
           const formData = new FormData();
           formData.append('type', visualType.value);
           formData.append('title', title);
@@ -5744,14 +5748,13 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           formData.append('target_url', visualUrl.value.trim());
           formData.append('whatsapp_message', visualWhatsappMessage.value.trim());
           formData.append('category', visualCategory.value || '');
-          formData.append('sort_order', String(Number(visualOrder.value || 0)));
+          if (!id) formData.append('sort_order', String(nextVisualOrder()));
           formData.append('active', visualActive.checked ? 'true' : 'false');
           formData.append('store', CURRENT_STORE_ID);
           const imageFile = visualImage.files?.[0];
           const attachmentFile = visualAttachment.files?.[0];
           if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
           if (attachmentFile) formData.append('attachment', await optimizeVisualAttachmentFileIfImage(attachmentFile));
-          const id = visualId.value;
           if (id) {
             await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData });
             showAlert(visualAlert, 'Guardado correctamente.', 'success');

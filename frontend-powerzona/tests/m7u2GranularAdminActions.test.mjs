@@ -135,7 +135,12 @@ test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   assert.match(source, /\.marketing-quick-row \{[\s\S]*?grid-template-areas:[\s\S]*?'actions actions';/);
   assert.match(source, /<span aria-hidden="true">↑<\/span><span>Subir<\/span>/);
   assert.match(source, /<span aria-hidden="true">↓<\/span><span>Bajar<\/span>/);
-  assert.match(source, /<span aria-hidden="true">•••<\/span><span>Más<\/span>/);
+  assert.match(source, /<span aria-hidden="true">•••<\/span>\s*<\/button>/);
+  assert.doesNotMatch(source, /<span aria-hidden="true">•••<\/span><span>Más<\/span>/);
+  assert.match(source, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) auto;/);
+  assert.match(source, /\.marketing-quick-actions \.visual-menu-wrap \{[\s\S]*?justify-self: end;/);
+  assert.doesNotMatch(source, /\$\{escapeHtml\(typeLabel\)\} · Acción: \$\{escapeHtml\(actionLabel\)\} · Orden/);
+  assert.doesNotMatch(source, /<label for="visual-order">Orden visual<\/label>/);
   assert.match(source, /data-visual-id="\$\{item\.id\}" tabindex="0" aria-label="Editar tarjeta/);
   assert.match(source, /function openVisualEditorById\(id\)/);
   assert.match(source, /ADMIN_VISUAL_EDITOR_BASE_PATH/);
@@ -144,7 +149,11 @@ test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   assert.match(source, /visualList\?\.addEventListener\('keydown',[\s\S]*?openVisualEditorById\(row\.dataset\.visualId\)/);
   assert.match(visualEditor, /mobileTitle="Editar tarjeta"/);
   assert.match(visualEditor, /const adminPromosVisualsPath = `\$\{adminPromosPath\}#visuales`/);
-  assert.match(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
+  assert.doesNotMatch(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
+  assert.match(visualEditor, /class="visual-editor-back"[\s\S]*?<span aria-hidden="true">←<\/span>Volver a Marketing/);
+  assert.match(visualEditor, /\.visual-editor-heading > \.visual-editor-back \{ order: -1; justify-self: end; \}/);
+  assert.match(visualEditor, /<h2>Estado<\/h2>/);
+  assert.doesNotMatch(visualEditor, /Orden visual|name="sort_order"|form\.elements\.sort_order/);
   assert.match(visualEditor, /data-visual-editor-form/);
   assert.match(visualEditor, /\/api\/admin\/visual-items\/\$\{encodeURIComponent\(visualId\)\}/);
   assert.doesNotMatch(visualEditor, /document\.cookie|Authorization = `Bearer/);

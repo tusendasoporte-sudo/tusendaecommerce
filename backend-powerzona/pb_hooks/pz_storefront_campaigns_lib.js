@@ -375,6 +375,20 @@ function findAllRecordsStrict(app, collection, filter, sort, params, limitValue)
   return records;
 }
 
+function countCampaignRecords(app, storeId, status) {
+  const filter = status
+    ? 'store = {:store} && status = {:status} && redacted_at = ""'
+    : 'store = {:store} && redacted_at = ""';
+  const params = { store: storeId, ...(status ? { status } : {}) };
+  let total = 0;
+  for (let offset = 0; ; offset += 500) {
+    const records = findRecordsStrict(app, CAMPAIGNS_COLLECTION, filter, "id", 500, offset, params);
+    total += records.length;
+    if (records.length < 500) break;
+  }
+  return total;
+}
+
 function runTransaction(app, callback) {
   let result;
   if (app && typeof app.runInTransaction === "function") {
@@ -1828,11 +1842,15 @@ function handleList(e) {
     );
     const hasMore = pageRecords.length > CAMPAIGN_PAGE_SIZE;
     const records = pageRecords.slice(0, CAMPAIGN_PAGE_SIZE);
+    const totalItems = countCampaignRecords(request.app, request.context.storeId, status);
+    const totalPages = Math.max(1, Math.ceil(totalItems / CAMPAIGN_PAGE_SIZE));
     const quota = campaignQuotaUsage(request.app, request.context.storeId, new Date());
     return e.json(200, {
       ok: true,
       page,
       per_page: CAMPAIGN_PAGE_SIZE,
+      total_items: totalItems,
+      total_pages: totalPages,
       has_more: hasMore,
       quota_timezone: quota.timezone,
       quota,

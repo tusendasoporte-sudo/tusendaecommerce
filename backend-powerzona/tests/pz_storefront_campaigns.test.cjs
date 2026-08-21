@@ -425,6 +425,8 @@ test('listado devuelve diez campañas por página e informa si existe la siguien
     monthly: { limit: 310, used: 0, remaining: 310 },
   });
   assert.equal(first.body.campaigns.length, 10);
+  assert.equal(first.body.total_items, 21);
+  assert.equal(first.body.total_pages, 3);
   assert.equal(first.body.has_more, true);
   assert.equal(second.body.campaigns.length, 10);
   assert.equal(second.body.has_more, true);
@@ -434,6 +436,8 @@ test('listado devuelve diez campañas por página e informa si existe la siguien
   app.delete(app.findRecordById('push_campaigns', 'campaign0000021'));
   const exactLast = listPage(2);
   assert.equal(exactLast.body.campaigns.length, 10);
+  assert.equal(exactLast.body.total_items, 20);
+  assert.equal(exactLast.body.total_pages, 2);
   assert.equal(exactLast.body.has_more, false);
 });
 
