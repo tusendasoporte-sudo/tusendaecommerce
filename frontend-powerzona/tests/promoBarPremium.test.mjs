@@ -25,7 +25,19 @@ test('el carrusel premium presenta una oferta por turno y ofrece efectos discret
   assert.match(promoBar, /\.promo-bar-item\.is-link:active/);
   assert.match(promoBar, /\.promo-bar-shine/);
   assert.match(promoBar, /prefers-reduced-motion: reduce/);
-  assert.match(promoBar, /bar\.addEventListener\('focusin', stop\)/);
+  assert.match(promoBar, /bar\.addEventListener\('focusin', \(event\) =>/);
+});
+
+test('la salida usa chispas ligeras y el toque móvil se reanuda sin segundo clic', () => {
+  assert.match(promoBar, /class="promo-bar-sparks" aria-hidden="true"/);
+  assert.match(promoBar, /function triggerDeparture\(index: number\)/);
+  assert.match(promoBar, /slide\.classList\.add\('is-leaving'\)/);
+  assert.match(promoBar, /@keyframes promo-bar-sparks-out/);
+  assert.match(promoBar, /\(hover: hover\) and \(pointer: fine\)/);
+  assert.match(promoBar, /if \(finePointer\.matches\) stop\(\)/);
+  assert.match(promoBar, /if \(event\.pointerType === 'touch'\) pauseTemporarilyForTouch\(\)/);
+  assert.match(promoBar, /touchResumeTimer = window\.setTimeout\([\s\S]*?2000\)/);
+  assert.match(promoBar, /target\?\.matches\(':focus-visible'\)/);
 });
 
 test('el máximo de tres ofertas queda visible y deshabilitado hasta liberar espacio', () => {

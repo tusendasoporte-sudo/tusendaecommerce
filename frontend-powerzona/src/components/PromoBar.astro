@@ -101,6 +101,7 @@ const renderedItems = isMarquee
           <span class="promo-bar-decor promo-bar-decor-two" aria-hidden="true"></span>
           <span class="promo-bar-lines" aria-hidden="true"></span>
           <span class="promo-bar-shine" aria-hidden="true"></span>
+          <span class="promo-bar-sparks" aria-hidden="true"></span>
 
           <span class="promo-bar-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" /></svg>
@@ -142,6 +143,7 @@ const renderedItems = isMarquee
   <script>
     (() => {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
 
       document.querySelectorAll('[data-promo-bar="carousel"]').forEach((bar) => {
         const count = Number(bar.getAttribute('data-promo-count') || 0);
@@ -153,6 +155,7 @@ const renderedItems = isMarquee
         let activeIndex = 0;
         let timer: number | null = null;
         let resetTimer: number | null = null;
+        let touchResumeTimer: number | null = null;
         let clonedItem: HTMLElement | null = null;
 
         function normalizedIndex(index: number) {
@@ -188,9 +191,7 @@ const renderedItems = isMarquee
 
         function stop() {
           if (timer) window.clearInterval(timer);
-          if (resetTimer) window.clearTimeout(resetTimer);
           timer = null;
-          resetTimer = null;
         }
 
         function schedule() {
@@ -199,7 +200,18 @@ const renderedItems = isMarquee
           timer = window.setInterval(tick, 4800);
         }
 
+        function triggerDeparture(index: number) {
+          if (reduceMotion) return;
+          const slide = originalSlides[normalizedIndex(index)];
+          if (!slide) return;
+          slide.classList.remove('is-leaving');
+          void slide.offsetWidth;
+          slide.classList.add('is-leaving');
+          window.setTimeout(() => slide.classList.remove('is-leaving'), 520);
+        }
+
         function tick() {
+          triggerDeparture(activeIndex);
           activeIndex += 1;
           setIndex(activeIndex, true);
 
@@ -222,10 +234,25 @@ const renderedItems = isMarquee
         }
 
         function selectIndex(index: number) {
+          const nextIndex = normalizedIndex(index);
+          if (touchResumeTimer) window.clearTimeout(touchResumeTimer);
+          if (resetTimer) window.clearTimeout(resetTimer);
+          touchResumeTimer = null;
+          resetTimer = null;
           stop();
-          activeIndex = normalizedIndex(index);
+          if (nextIndex !== normalizedIndex(activeIndex)) triggerDeparture(activeIndex);
+          activeIndex = nextIndex;
           setIndex(activeIndex, true);
           schedule();
+        }
+
+        function pauseTemporarilyForTouch() {
+          stop();
+          if (touchResumeTimer) window.clearTimeout(touchResumeTimer);
+          touchResumeTimer = window.setTimeout(() => {
+            touchResumeTimer = null;
+            schedule();
+          }, 2000);
         }
 
         ensureClone();
@@ -233,9 +260,19 @@ const renderedItems = isMarquee
         schedule();
 
         dots.forEach((dot, index) => dot.addEventListener('click', () => selectIndex(index)));
-        bar.addEventListener('mouseenter', stop);
-        bar.addEventListener('mouseleave', schedule);
-        bar.addEventListener('focusin', stop);
+        bar.addEventListener('mouseenter', () => {
+          if (finePointer.matches) stop();
+        });
+        bar.addEventListener('mouseleave', () => {
+          if (finePointer.matches) schedule();
+        });
+        bar.addEventListener('pointerdown', (event) => {
+          if (event.pointerType === 'touch') pauseTemporarilyForTouch();
+        });
+        bar.addEventListener('focusin', (event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.matches(':focus-visible')) stop();
+        });
         bar.addEventListener('focusout', (event) => {
           if (!bar.contains(event.relatedTarget as Node | null)) schedule();
         });
@@ -353,7 +390,8 @@ const renderedItems = isMarquee
 
   .promo-bar-decor,
   .promo-bar-lines,
-  .promo-bar-shine {
+  .promo-bar-shine,
+  .promo-bar-sparks {
     position: absolute;
     pointer-events: none;
   }
@@ -397,6 +435,54 @@ const renderedItems = isMarquee
   .promo-bar-item.is-link:focus-visible .promo-bar-shine {
     opacity: .8;
     transform: translateX(650%) skewX(-18deg);
+  }
+
+  .promo-bar-sparks {
+    z-index: 3;
+    top: 50%;
+    left: 4px;
+    width: 58px;
+    height: 82px;
+    opacity: 0;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255, 255, 255, .98) 0 2px, transparent 3px),
+      radial-gradient(circle at 42% 42%, rgba(255, 255, 255, .88) 0 1.5px, transparent 2.5px),
+      radial-gradient(circle at 12% 68%, rgba(255, 255, 255, .92) 0 2.5px, transparent 3.5px),
+      radial-gradient(circle at 54% 82%, rgba(255, 255, 255, .72) 0 1.5px, transparent 2.5px);
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, .72));
+    transform: translate(4px, -50%) scale(.56);
+  }
+
+  .promo-bar-sparks::before,
+  .promo-bar-sparks::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    width: 24px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, .95), transparent);
+    transform-origin: left center;
+  }
+
+  .promo-bar-sparks::before {
+    top: 31px;
+    transform: rotate(-12deg);
+  }
+
+  .promo-bar-sparks::after {
+    top: 52px;
+    transform: rotate(14deg) scaleX(.72);
+  }
+
+  .promo-bar-item.is-leaving .promo-bar-sparks {
+    animation: promo-bar-sparks-out .48s cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .promo-bar-item.is-leaving .promo-bar-icon,
+  .promo-bar-item.is-leaving .promo-bar-copy,
+  .promo-bar-item.is-leaving .promo-bar-button {
+    animation: promo-bar-content-out .46s ease-out both;
   }
 
   .promo-bar-icon,
@@ -520,10 +606,39 @@ const renderedItems = isMarquee
     }
   }
 
+  @keyframes promo-bar-sparks-out {
+    0% {
+      opacity: 0;
+      transform: translate(8px, -50%) scale(.5);
+    }
+
+    28% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+      transform: translate(42px, -54%) rotate(7deg) scale(1.22);
+    }
+  }
+
+  @keyframes promo-bar-content-out {
+    from {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+
+    to {
+      opacity: .86;
+      transform: translateX(-6px) scale(.99);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .promo-bar-track,
     .promo-bar-item,
     .promo-bar-shine,
+    .promo-bar-sparks,
     .promo-bar-dots button {
       animation: none !important;
       transition: none !important;
