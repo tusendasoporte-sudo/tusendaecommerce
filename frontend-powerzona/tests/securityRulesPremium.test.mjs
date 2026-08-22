@@ -61,7 +61,7 @@ test('Seguridad: Resumen usa el mismo sistema visual compacto de Productos', () 
 test('Seguridad: el estilo compacto global cubre tienda, Master y detalle de visitante', () => {
   const globalCss = read('../src/styles/global.css');
 
-  assert.match(globalCss, /:is\(\.pz-admin-content, \.security-monitoring, \.visitor-detail\) \.admin-compact-summary \{/);
+  assert.match(globalCss, /:is\(\.pz-admin-content, \.security-monitoring, \.visitor-detail, \.store-team-page\) \.admin-compact-summary \{/);
   assert.match(globalCss, /\.admin-compact-summary__head \{/);
   assert.match(globalCss, /\.admin-compact-summary__item \{/);
   assert.match(globalCss, /\.admin-compact-summary__item\.is-danger \.admin-compact-summary__value/);

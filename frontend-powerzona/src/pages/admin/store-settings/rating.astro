@@ -318,13 +318,25 @@ const ratingHomePath = `${getStoreAdminPath(currentStoreSlug, 'store-settings')}
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, currentStorePrefix, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, currentStorePrefix }}>
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
         const CURRENT_STORE_NAME = String(currentStoreName || '').trim() || 'Mi tienda 84';
         const CURRENT_STORE_PREFIX = String(currentStorePrefix || '').trim() || 'MT';
-        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const ADMIN_AUTH_TOKEN = (() => {
+          try {
+            const pair = String(document.cookie || '')
+              .split(';')
+              .map((value) => value.trim())
+              .find((value) => value.startsWith('pb_auth='));
+            if (!pair) return '';
+            const auth = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+            return typeof auth?.token === 'string' ? auth.token : '';
+          } catch (_) {
+            return '';
+          }
+        })();
         const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente}\n\nGracias por tu compra en {tienda}.\n\nNos ayudaria mucho si puedes dejar una resena sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqui:\n{link_reseña}\n\nGracias\n{tienda}";
         const form = document.getElementById('rating-config-form');
         const status = document.getElementById('rating-settings-save-status');
