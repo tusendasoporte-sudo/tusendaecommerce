@@ -38,6 +38,7 @@ test('las barras moviles globales quedan ancladas a los bordes seguros', () => {
   assert.match(dockedStyles, /\.pz-admin-content\s*\{[\s\S]*?padding-top:[\s\S]*?padding-bottom:/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-topbar/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-bottom-nav/);
+  assert.match(sidebar, /\.pz-admin-mobile-back-link\s*\{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?z-index:\s*2995\s*!important;/);
 });
 
 test('el editor de categoria muestra un solo regreso al catalogo en movil', () => {
@@ -45,6 +46,12 @@ test('el editor de categoria muestra un solo regreso al catalogo en movil', () =
   assert.match(categoryEditor, /mobileBackLabel="Volver a Categorías"/);
   assert.doesNotMatch(categoryEditor, /class="square-back"/);
   assert.doesNotMatch(categoryEditor, /\.square-back\s*\{/);
+});
+
+test('los listados internos usan solo el regreso superior fijo en movil', () => {
+  assert.match(categoryEditor, /@media \(max-width: 1023px\)\s*\{\s*\.category-management-back-row \{ display: none; \}/);
+  assert.match(categoryEditor, /id="category-subcategories-view"[\s\S]*?data-category-list-back/);
+  assert.match(categoryEditor, /id="category-products-view"[\s\S]*?data-category-list-back/);
 });
 
 test('Resumen ofrece una tarjeta contextual que activa el permiso Android', () => {
