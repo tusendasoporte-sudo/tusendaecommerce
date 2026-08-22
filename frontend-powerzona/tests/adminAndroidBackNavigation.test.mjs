@@ -74,13 +74,16 @@ test('las rutas de detalle declaran su padre aunque se abran desde enlace direct
   assert.match(productHistory, /mobileBackHref=\{returnPath\}/);
   assert.match(teamActivity, /mobileBackHref=\{teamPath\}/);
   assert.match(visitorDetail, /mobileBackHref=\{visitorsBackHref\}/);
-  assert.match(visualEditor, /mobileBackHref=\{adminPromosVisualsPath\}/);
+  assert.match(visualEditor, /data-back-path=\{adminPromosVisualsPath\}/);
+  assert.match(visualEditor, /class="visual-editor-back" href=\{adminPromosVisualsPath\}/);
   assert.match(notifications, /mobileBackHref=\{adminBasePath\}/);
   assert.match(pageviews, /mobileBackHref=\{adminBasePath\}/);
   assert.match(profits, /mobileBackHref=\{adminBasePath\}/);
-  assert.match(raffles, /mobileBackHref=\{adminPromosPath\}/);
-  assert.match(accountHistory, /mobileBackHref=\{backPath\}/);
-  assert.match(accountHistory, /mobileBackLabel=\{backLabel\}/);
+  assert.doesNotMatch(raffles, /mobileBackLabel="Volver a Promociones"/);
+  assert.match(raffles, /const ADMIN_PROMOS_PATH = String\(adminPromosPath/);
+  assert.match(raffles, /window\.addEventListener\('pz:admin-back-request'[\s\S]*?window\.location\.assign\(ADMIN_PROMOS_PATH\)/);
+  assert.match(accountHistory, /class="pz-account-heading__back" href=\{backPath\}/);
+  assert.match(accountHistory, /← \{backLabel\}/);
   assert.match(accountHistory, /backPath = returnToTeam \? getStoreAdminPath\(storeSlug, 'team'\) : accountPath/);
 });
 

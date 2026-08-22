@@ -12,6 +12,14 @@ type PromoBarItem = {
   url?: string;
 };
 
+type PublicPromoBarItem = {
+  text: string;
+  buttonText: string;
+  url: string;
+  isExternal: boolean;
+  subtext: string;
+};
+
 const allowedThemes = ['black', 'gold', 'green', 'red', 'blue'];
 const theme = allowedThemes.includes(String(settings?.marketing_bar_theme || ''))
   ? String(settings?.marketing_bar_theme)
@@ -30,6 +38,14 @@ function parseItems(value: any): PromoBarItem[] {
   }
 }
 
+function getPromoSubtext(item: PromoBarItem): string {
+  const text = String(item?.text || '');
+  const buttonText = String(item?.button_text || '').trim();
+  if (/env[ií]o/i.test(text) || /env[ií]o/i.test(buttonText)) return 'Beneficio especial disponible en tu pedido';
+  if (/off|descuento|rebaja|ahorra/i.test(text)) return 'Descuento disponible por tiempo limitado';
+  return 'Promoción disponible por tiempo limitado';
+}
+
 const configuredItems = parseItems(settings?.marketing_bar_items_json);
 const legacyItem: PromoBarItem = {
   active: true,
@@ -38,62 +54,87 @@ const legacyItem: PromoBarItem = {
   url: String(settings?.marketing_bar_url || '').trim(),
 };
 const sourceItems = configuredItems.length > 0 ? configuredItems : [legacyItem];
-const items = sourceItems
+const items: PublicPromoBarItem[] = sourceItems
   .filter((item) => item?.active !== false && String(item?.text || '').trim().length > 0)
   .slice(0, 3)
   .map((item) => ({
     text: String(item.text || '').trim(),
-    buttonText: String(item.button_text || '').trim(),
+    buttonText: String(item.button_text || '').trim() || 'Ver oferta',
     url: String(item.url || '').trim(),
     isExternal: /^https?:\/\//i.test(String(item.url || '').trim()),
+    subtext: getPromoSubtext(item),
   }));
 
 const isVisible = settings?.marketing_bar_active === true && items.length > 0;
 const isMarquee = motion === 'marquee' && items.length > 1;
 const isCarousel = !isMarquee;
+const renderedItems = isMarquee
+  ? [
+      ...items.map((item, index) => ({ ...item, originalIndex: index, duplicate: false })),
+      ...items.map((item, index) => ({ ...item, originalIndex: index, duplicate: true })),
+    ]
+  : items.map((item, index) => ({ ...item, originalIndex: index, duplicate: false }));
 ---
 
 {isVisible && (
   <aside
     class={`promo-bar promo-bar-${theme} ${isMarquee ? 'promo-bar-marquee' : 'promo-bar-carousel'}`}
-    style={`--promo-columns: ${items.length};`}
-    aria-label="Ofertas"
+    aria-label="Ofertas destacadas"
     data-promo-bar={isCarousel ? 'carousel' : undefined}
     data-promo-count={items.length}
   >
     <div class="promo-bar-track">
-      {items.map((item) => (
-        <article class="promo-bar-item">
-          <p class="promo-bar-text">{item.text}</p>
-          {item.buttonText && item.url && (
-            <a
-              class="promo-bar-button"
-              href={item.url}
-              target={item.isExternal ? '_blank' : undefined}
-              rel={item.isExternal ? 'noreferrer' : undefined}
-            >
+      {renderedItems.map((item) => (
+        <a
+          class={`promo-bar-item ${item.url ? 'is-link' : 'is-static'} ${isCarousel && item.originalIndex === 0 ? 'is-active' : ''}`}
+          href={item.url || undefined}
+          target={item.url && item.isExternal ? '_blank' : undefined}
+          rel={item.url && item.isExternal ? 'noopener noreferrer' : undefined}
+          role={!item.url ? 'group' : undefined}
+          aria-label={item.url ? `${item.text}. ${item.buttonText}` : undefined}
+          aria-hidden={item.duplicate || (isCarousel && item.originalIndex !== 0) ? 'true' : undefined}
+          tabindex={item.duplicate || (isCarousel && item.originalIndex !== 0) ? '-1' : undefined}
+          data-promo-slide={isCarousel ? item.originalIndex : undefined}
+          data-promo-duplicate={item.duplicate ? 'true' : undefined}
+        >
+          <span class="promo-bar-decor promo-bar-decor-one" aria-hidden="true"></span>
+          <span class="promo-bar-decor promo-bar-decor-two" aria-hidden="true"></span>
+          <span class="promo-bar-lines" aria-hidden="true"></span>
+          <span class="promo-bar-shine" aria-hidden="true"></span>
+
+          <span class="promo-bar-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" /></svg>
+          </span>
+
+          <span class="promo-bar-copy">
+            <span class="promo-bar-kicker">Oferta destacada</span>
+            <strong>{item.text}</strong>
+            <span class="promo-bar-subtext">{item.subtext}</span>
+          </span>
+
+          {item.url && (
+            <span class="promo-bar-button" aria-hidden="true">
               {item.buttonText}
-            </a>
+              <svg viewBox="0 0 24 24"><path d="M13 5 20 12l-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6L13 5Z" /></svg>
+            </span>
           )}
-        </article>
-      ))}
-      {isMarquee && items.map((item) => (
-        <article class="promo-bar-item" aria-hidden="true">
-          <p class="promo-bar-text">{item.text}</p>
-          {item.buttonText && item.url && (
-            <a
-              class="promo-bar-button"
-              href={item.url}
-              target={item.isExternal ? '_blank' : undefined}
-              rel={item.isExternal ? 'noreferrer' : undefined}
-              tabindex="-1"
-            >
-              {item.buttonText}
-            </a>
-          )}
-        </article>
+        </a>
       ))}
     </div>
+
+    {isCarousel && items.length > 1 && (
+      <div class="promo-bar-dots" aria-label="Seleccionar oferta">
+        {items.map((item, index) => (
+          <button
+            class={index === 0 ? 'is-active' : ''}
+            type="button"
+            aria-label={`Ver oferta ${index + 1}: ${item.text}`}
+            aria-current={index === 0 ? 'true' : undefined}
+            data-promo-dot={index}
+          ></button>
+        ))}
+      </div>
+    )}
   </aside>
 )}
 
@@ -101,23 +142,44 @@ const isCarousel = !isMarquee;
   <script>
     (() => {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (reduceMotion) return;
 
-      document.querySelectorAll('[data-promo-bar]').forEach((bar) => {
+      document.querySelectorAll('[data-promo-bar="carousel"]').forEach((bar) => {
         const count = Number(bar.getAttribute('data-promo-count') || 0);
         const track = bar.querySelector('.promo-bar-track') as HTMLElement | null;
-        if (!track || count <= 1) return;
+        const originalSlides = Array.from(bar.querySelectorAll('[data-promo-slide]:not([data-promo-duplicate])')) as HTMLElement[];
+        const dots = Array.from(bar.querySelectorAll('[data-promo-dot]')) as HTMLButtonElement[];
+        if (!track || count <= 1 || originalSlides.length <= 1) return;
 
-        const mobileQuery = window.matchMedia('(max-width: 640px)');
         let activeIndex = 0;
         let timer: number | null = null;
         let resetTimer: number | null = null;
         let clonedItem: HTMLElement | null = null;
 
-        function setIndex(index, animated = true) {
-          track.style.transition = animated ? '' : 'none';
+        function normalizedIndex(index: number) {
+          return ((index % count) + count) % count;
+        }
+
+        function updateActiveState(index: number) {
+          const currentIndex = normalizedIndex(index);
+          originalSlides.forEach((slide, slideIndex) => {
+            const isActive = slideIndex === currentIndex;
+            slide.classList.toggle('is-active', isActive);
+            slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+            if (slide.matches('a[href]')) slide.tabIndex = isActive ? 0 : -1;
+          });
+          dots.forEach((dot, dotIndex) => {
+            const isActive = dotIndex === currentIndex;
+            dot.classList.toggle('is-active', isActive);
+            if (isActive) dot.setAttribute('aria-current', 'true');
+            else dot.removeAttribute('aria-current');
+          });
+        }
+
+        function setIndex(index: number, animated = true) {
+          track.style.transition = animated && !reduceMotion ? '' : 'none';
           track.style.setProperty('--promo-index', String(index));
-          if (!animated) {
+          updateActiveState(index);
+          if (!animated || reduceMotion) {
             window.requestAnimationFrame(() => {
               track.style.transition = '';
             });
@@ -131,11 +193,10 @@ const isCarousel = !isMarquee;
           resetTimer = null;
         }
 
-        function removeClone() {
-          if (clonedItem) {
-            clonedItem.remove();
-            clonedItem = null;
-          }
+        function schedule() {
+          if (reduceMotion || document.hidden) return;
+          if (timer) window.clearInterval(timer);
+          timer = window.setInterval(tick, 4800);
         }
 
         function tick() {
@@ -150,30 +211,38 @@ const isCarousel = !isMarquee;
           }
         }
 
-        function start() {
-          stop();
-          if (!mobileQuery.matches) {
-            activeIndex = 0;
-            setIndex(0, false);
-            removeClone();
-            return;
-          }
-
-          if (!clonedItem && track.firstElementChild) {
-            clonedItem = track.firstElementChild.cloneNode(true) as HTMLElement;
-            clonedItem.setAttribute('aria-hidden', 'true');
-            track.appendChild(clonedItem);
-          }
-
-          activeIndex = 0;
-          setIndex(0, false);
-          timer = window.setInterval(tick, 4000);
+        function ensureClone() {
+          if (clonedItem || !track.firstElementChild) return;
+          clonedItem = track.firstElementChild.cloneNode(true) as HTMLElement;
+          clonedItem.setAttribute('aria-hidden', 'true');
+          clonedItem.setAttribute('data-promo-duplicate', 'true');
+          clonedItem.removeAttribute('data-promo-slide');
+          clonedItem.tabIndex = -1;
+          track.appendChild(clonedItem);
         }
 
+        function selectIndex(index: number) {
+          stop();
+          activeIndex = normalizedIndex(index);
+          setIndex(activeIndex, true);
+          schedule();
+        }
+
+        ensureClone();
+        setIndex(0, false);
+        schedule();
+
+        dots.forEach((dot, index) => dot.addEventListener('click', () => selectIndex(index)));
         bar.addEventListener('mouseenter', stop);
-        bar.addEventListener('mouseleave', start);
-        mobileQuery.addEventListener('change', start);
-        start();
+        bar.addEventListener('mouseleave', schedule);
+        bar.addEventListener('focusin', stop);
+        bar.addEventListener('focusout', (event) => {
+          if (!bar.contains(event.relatedTarget as Node | null)) schedule();
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) stop();
+          else schedule();
+        });
       });
     })();
   </script>
@@ -183,98 +252,262 @@ const isCarousel = !isMarquee;
   .promo-bar {
     width: 100%;
     margin: 0 0 18px;
-    border: 1px solid rgba(226, 232, 240, .95);
-    border-radius: 22px;
-    color: #ffffff;
-    padding: 9px;
-    box-shadow: 0 16px 38px rgba(15, 23, 42, .12);
+    padding: 5px 4px 10px;
     overflow: hidden;
   }
 
-  .promo-bar-black {
-    background: linear-gradient(135deg, #111827, #1f2937);
-  }
-
-  .promo-bar-gold {
-    background: linear-gradient(135deg, #78350f, #b7791f);
-  }
-
-  .promo-bar-green {
-    background: linear-gradient(135deg, #14532d, #16a34a);
-  }
-
-  .promo-bar-red {
-    background: linear-gradient(135deg, #7f1d1d, #dc2626);
-  }
-
-  .promo-bar-blue {
-    background: linear-gradient(135deg, #1e3a8a, #2563eb);
-  }
-
   .promo-bar-track {
-    display: grid;
-    grid-template-columns: repeat(var(--promo-columns, 3), minmax(0, 1fr));
-    gap: 8px;
+    min-width: 0;
+  }
+
+  .promo-bar-carousel .promo-bar-track {
+    display: flex;
+    gap: 0;
+    transform: translateX(calc(var(--promo-index, 0) * -100%));
+    transition: transform .52s cubic-bezier(.22, 1, .36, 1);
+    will-change: transform;
   }
 
   .promo-bar-marquee .promo-bar-track {
     display: flex;
     width: max-content;
-    gap: 8px;
-    animation: promo-bar-marquee 24s linear infinite;
+    gap: 12px;
+    animation: promo-bar-marquee 26s linear infinite;
     will-change: transform;
   }
 
-  .promo-bar-marquee:hover .promo-bar-track {
+  .promo-bar-marquee:hover .promo-bar-track,
+  .promo-bar-marquee:focus-within .promo-bar-track {
     animation-play-state: paused;
   }
 
   .promo-bar-item {
+    position: relative;
     min-width: 0;
-    min-height: 46px;
-    display: flex;
+    min-height: 132px;
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, .08);
-    border: 1px solid rgba(255, 255, 255, .12);
-    padding: 8px 10px;
-  }
-
-  .promo-bar-text {
-    margin: 0;
-    min-width: 0;
-    font-size: 13px;
-    line-height: 1.35;
-    font-weight: 900;
-    text-align: left;
+    gap: 18px;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    padding: 20px 22px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 24px;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 24px 58px rgba(37, 99, 235, .24);
+    transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
+    isolation: isolate;
   }
 
-  .promo-bar-button {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 36px;
-    border-radius: 999px;
-    background: #ffffff;
-    color: #111827;
-    padding: 0 13px;
-    font-size: 12px;
-    font-weight: 1000;
-    text-decoration: none;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, .16);
-    white-space: nowrap;
+  .promo-bar-carousel .promo-bar-item {
+    flex: 0 0 100%;
   }
 
   .promo-bar-marquee .promo-bar-item {
-    flex: 0 0 auto;
-    min-width: min(78vw, 320px);
+    flex: 0 0 min(82vw, 760px);
+  }
+
+  .promo-bar-blue .promo-bar-item {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb 52%, #06b6d4);
+  }
+
+  .promo-bar-black .promo-bar-item {
+    background: linear-gradient(135deg, #020617, #334155 55%, #0f172a);
+    box-shadow: 0 24px 58px rgba(15, 23, 42, .28);
+  }
+
+  .promo-bar-gold .promo-bar-item {
+    background: linear-gradient(135deg, #92400e, #d97706 50%, #fbbf24);
+    box-shadow: 0 24px 58px rgba(217, 119, 6, .24);
+  }
+
+  .promo-bar-green .promo-bar-item {
+    background: linear-gradient(135deg, #14532d, #16a34a 55%, #22c55e);
+    box-shadow: 0 24px 58px rgba(22, 163, 74, .22);
+  }
+
+  .promo-bar-red .promo-bar-item {
+    background: linear-gradient(135deg, #7f1d1d, #dc2626 55%, #fb7185);
+    box-shadow: 0 24px 58px rgba(220, 38, 38, .22);
+  }
+
+  .promo-bar-item.is-link {
+    cursor: pointer;
+  }
+
+  .promo-bar-item.is-link:hover {
+    transform: translateY(-3px) scale(1.006);
+    filter: saturate(1.06);
+    box-shadow: 0 30px 68px rgba(15, 23, 42, .26);
+  }
+
+  .promo-bar-item.is-link:active {
+    transform: translateY(0) scale(.988);
+  }
+
+  .promo-bar-item.is-link:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .34);
+    outline-offset: 3px;
+  }
+
+  .promo-bar-decor,
+  .promo-bar-lines,
+  .promo-bar-shine {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .promo-bar-decor {
+    width: 150px;
+    height: 150px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .16);
+  }
+
+  .promo-bar-decor-one {
+    top: -68px;
+    right: 80px;
+  }
+
+  .promo-bar-decor-two {
+    right: -60px;
+    bottom: -76px;
+  }
+
+  .promo-bar-lines {
+    inset: 0;
+    background: repeating-linear-gradient(120deg, rgba(255, 255, 255, .1) 0 1px, transparent 1px 18px);
+    opacity: .42;
+  }
+
+  .promo-bar-shine {
+    z-index: 2;
+    top: -40%;
+    bottom: -40%;
+    left: -38%;
+    width: 22%;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .26), transparent);
+    transform: skewX(-18deg);
+    transition: transform .7s cubic-bezier(.22, 1, .36, 1), opacity .2s ease;
+  }
+
+  .promo-bar-item.is-link:hover .promo-bar-shine,
+  .promo-bar-item.is-link:focus-visible .promo-bar-shine {
+    opacity: .8;
+    transform: translateX(650%) skewX(-18deg);
+  }
+
+  .promo-bar-icon,
+  .promo-bar-copy,
+  .promo-bar-button {
+    position: relative;
+    z-index: 1;
+  }
+
+  .promo-bar-icon {
+    width: 70px;
+    height: 70px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .18);
+    backdrop-filter: blur(12px);
+  }
+
+  .promo-bar-icon svg {
+    width: 34px;
+    height: 34px;
+    fill: currentColor;
+  }
+
+  .promo-bar-copy {
+    min-width: 0;
+  }
+
+  .promo-bar-kicker {
+    display: inline-flex;
+    margin-bottom: 7px;
+    color: rgba(255, 255, 255, .78);
+    font-size: 12px;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .promo-bar-copy strong {
+    display: block;
+    overflow: hidden;
+    color: #fff;
+    font-size: 24px;
+    line-height: 1.08;
+    font-weight: 1000;
+    letter-spacing: -.025em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .promo-bar-subtext {
+    display: block;
+    margin-top: 7px;
+    color: rgba(255, 255, 255, .82);
+    font-size: 14px;
+    font-weight: 850;
+  }
+
+  .promo-bar-button {
+    min-height: 42px;
+    padding: 10px 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, .96);
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, .12);
+    white-space: nowrap;
+  }
+
+  .promo-bar-button svg {
+    width: 17px;
+    height: 17px;
+    fill: currentColor;
+  }
+
+  .promo-bar-dots {
+    min-height: 18px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .promo-bar-dots button {
+    width: 8px;
+    height: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    cursor: pointer;
+    transition: width .18s ease, background .18s ease, transform .18s ease;
+  }
+
+  .promo-bar-dots button:hover,
+  .promo-bar-dots button:focus-visible {
+    transform: scale(1.18);
+    outline: none;
+  }
+
+  .promo-bar-dots button.is-active {
+    width: 22px;
+    background: #2563eb;
   }
 
   @keyframes promo-bar-marquee {
@@ -283,53 +516,73 @@ const isCarousel = !isMarquee;
     }
 
     to {
-      transform: translateX(calc(-50% - 4px));
+      transform: translateX(calc(-50% - 6px));
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .promo-bar-marquee .promo-bar-track {
-      animation: none;
+    .promo-bar-track,
+    .promo-bar-item,
+    .promo-bar-shine,
+    .promo-bar-dots button {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    .promo-bar-item.is-link:hover {
       transform: none;
     }
   }
 
   @media (max-width: 640px) {
     .promo-bar {
+      padding-inline: 2px;
+    }
+
+    .promo-bar-item {
+      min-height: 158px;
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 14px;
+      padding: 18px;
       border-radius: 20px;
-      padding: 8px;
-    }
-
-    .promo-bar-carousel .promo-bar-track {
-      display: flex;
-      gap: 0;
-      transform: translateX(calc(var(--promo-index, 0) * -100%));
-      transition: transform .52s cubic-bezier(.22, 1, .36, 1);
-      will-change: transform;
-    }
-
-    .promo-bar-carousel .promo-bar-item {
-      flex: 0 0 100%;
-      justify-content: space-between;
-    }
-
-    .promo-bar-marquee .promo-bar-track {
-      gap: 8px;
-      animation-duration: 22s;
     }
 
     .promo-bar-marquee .promo-bar-item {
-      min-width: min(82vw, 330px);
-      justify-content: space-between;
+      flex-basis: min(88vw, 430px);
     }
 
-    .promo-bar-text {
-      font-size: 12px;
+    .promo-bar-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 20px;
+    }
+
+    .promo-bar-icon svg {
+      width: 29px;
+      height: 29px;
+    }
+
+    .promo-bar-copy strong {
+      font-size: 21px;
+      white-space: normal;
+    }
+
+    .promo-bar-subtext {
+      font-size: 13px;
     }
 
     .promo-bar-button {
-      min-height: 34px;
-      padding: 0 12px;
+      grid-column: 1 / -1;
+      width: 100%;
+      min-height: 44px;
+    }
+
+    .promo-bar-item.is-link:hover {
+      transform: none;
+    }
+
+    .promo-bar-item.is-link:active {
+      transform: scale(.985);
     }
   }
 </style>

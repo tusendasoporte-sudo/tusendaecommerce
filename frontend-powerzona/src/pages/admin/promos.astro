@@ -870,6 +870,14 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       .marketing-bar-offers-actions .marketing-bar-available-hint {
         margin: 0;
       }
+      #marketing-add-offer-btn:disabled {
+        opacity: 1;
+        border-color: #cbd5e1;
+        background: #e2e8f0;
+        color: #64748b;
+        box-shadow: none;
+        cursor: not-allowed;
+      }
       .marketing-bar-panel .marketing-offers-list {
         display: grid;
         gap: 10px;
@@ -6746,7 +6754,9 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           if (marketingBarSummaryPresentation) marketingBarSummaryPresentation.textContent = marketingMotionLabel(motion);
           if (marketingBarSummaryTheme) marketingBarSummaryTheme.textContent = `Estilo: ${marketingThemeLabel(theme)}`;
           if (marketingBarAvailableHint) {
-            marketingBarAvailableHint.textContent = remaining > 0 ? `Puedes agregar ${remaining} oferta${remaining === 1 ? '' : 's'} más` : 'Máximo 3 ofertas configuradas';
+            marketingBarAvailableHint.textContent = remaining > 0
+              ? `${items.length} de 3 ofertas · Puedes agregar ${remaining} más`
+              : '3 de 3 ofertas';
           }
           if (marketingBarPreview) {
             marketingBarPreview.classList.remove('theme-black', 'theme-gold', 'theme-green', 'theme-red', 'theme-blue');
@@ -6841,7 +6851,16 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         function renderMarketingOffers() {
           if (!marketingOffersList) return;
           const items = currentMarketingItems();
-          if (marketingAddOfferBtn) marketingAddOfferBtn.classList.toggle('hidden', items.length >= 3);
+          if (marketingAddOfferBtn) {
+            const limitReached = items.length >= 3;
+            marketingAddOfferBtn.disabled = limitReached;
+            marketingAddOfferBtn.setAttribute('aria-disabled', String(limitReached));
+            marketingAddOfferBtn.classList.toggle('is-limit-reached', limitReached);
+            const buttonLabel = marketingAddOfferBtn.querySelector('.pz-admin-btn__label');
+            const buttonIcon = marketingAddOfferBtn.querySelector('.pz-admin-btn__icon');
+            if (buttonLabel) buttonLabel.textContent = limitReached ? 'Límite alcanzado' : 'Agregar oferta';
+            if (buttonIcon) buttonIcon.textContent = limitReached ? '✓' : '+';
+          }
           if (!items.length) {
             marketingOffersList.innerHTML = '<div class="empty-state">Todavía no hay ofertas en el cintillo.</div>';
             updateMarketingBarVisualState();

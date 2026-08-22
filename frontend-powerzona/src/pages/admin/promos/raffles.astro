@@ -1659,8 +1659,6 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
         storePlanValues={adminContext.store}
         activeSection="marketing"
         mobileTitle="Rifas"
-        mobileBackHref={adminPromosPath}
-        mobileBackLabel="Volver a Promociones"
         mobileActionLabel={canRenderRafflesEditor ? 'Actualizar' : undefined}
         mobileActionTarget={canRenderRafflesEditor ? '#raffle-new-btn' : undefined}
       />
@@ -2207,11 +2205,12 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, currentStoreName, raffleTimeZone, adminTeamActivityPath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, currentStoreName, raffleTimeZone, adminTeamActivityPath, adminPromosPath }}>
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
         const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
+        const ADMIN_PROMOS_PATH = String(adminPromosPath || '/admin/promos');
         const ADMIN_AUTH_TOKEN = (() => {
           try {
             const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
@@ -4785,6 +4784,11 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
           }
           closeOpenMenus();
           closeSidebar();
+        });
+        window.addEventListener('pz:admin-back-request', (event) => {
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          window.location.assign(ADMIN_PROMOS_PATH);
         });
         newBtn?.addEventListener('click', () => {
           const feedback = window.PZAdminRefreshFeedback;
