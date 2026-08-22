@@ -38,19 +38,20 @@ test('las barras moviles globales quedan ancladas a los bordes seguros', () => {
   assert.match(dockedStyles, /\.pz-admin-content\s*\{[\s\S]*?padding-top:[\s\S]*?padding-bottom:/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-topbar/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-bottom-nav/);
-  assert.match(sidebar, /<header class=\{mobileTopbarClass\}[\s\S]*?data-pz-admin-mobile-back[\s\S]*?<\/header>/);
-  assert.match(sidebar, /\.pz-admin-mobile-back-link\s*\{[\s\S]*?position:\s*absolute\s*!important;[\s\S]*?top:\s*calc\(100% \+ 4px\)\s*!important;/);
+  assert.match(sidebar, /\.pz-admin-mobile-back-link\s*\{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?z-index:\s*2995\s*!important;/);
 });
 
 test('el editor de categoria muestra un solo regreso al catalogo en movil', () => {
-  assert.match(categoryEditor, /mobileBackHref=\{adminCatalogPath\}/);
-  assert.match(categoryEditor, /mobileBackLabel="Volver a Categorías"/);
+  assert.match(categoryEditor, /data-category-flow-back/);
+  assert.match(categoryEditor, /href=\{adminCatalogPath\}[^>]*data-category-flow-back>[\s\S]*?<span>Volver a categorías<\/span>/);
+  assert.doesNotMatch(categoryEditor, /mobileBackHref=\{adminCatalogPath\}/);
   assert.doesNotMatch(categoryEditor, /class="square-back"/);
   assert.doesNotMatch(categoryEditor, /\.square-back\s*\{/);
 });
 
-test('los listados internos usan solo el regreso superior fijo en movil', () => {
+test('los listados internos usan un regreso superior que desplaza con el contenido en movil', () => {
   assert.match(categoryEditor, /@media \(max-width: 1023px\)\s*\{\s*\.category-management-back-row \{ display: none; \}/);
+  assert.match(categoryEditor, /\.category-flow-back-row\s*\{[\s\S]*?display: flex;[\s\S]*?justify-content: flex-end;/);
   assert.match(categoryEditor, /id="category-subcategories-view"[\s\S]*?data-category-list-back/);
   assert.match(categoryEditor, /id="category-products-view"[\s\S]*?data-category-list-back/);
 });

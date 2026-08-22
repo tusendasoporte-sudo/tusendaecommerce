@@ -80,6 +80,11 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
       .subcategory-app { min-height: 100vh; }
       .subcategory-shell { width: min(1180px, 100%); margin: 0 auto; padding: 24px; }
       .subcategory-content { display: grid; gap: 18px; }
+      .subcategory-flow-back-row { display: none; }
+      .subcategory-flow-back {
+        min-height: 42px; padding: 7px 2px; display: inline-flex; align-items: center;
+        color: #2563eb; text-decoration: none; font-size: 13px; font-weight: 1000;
+      }
       .subcategory-breadcrumb {
         display: flex; align-items: center; gap: 8px; min-width: 0;
         color: var(--subcategory-muted); font-size: 13px; font-weight: 850;
@@ -172,6 +177,9 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
       .subcategory-alert.success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
       .subcategory-alert.error { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }
       .subcategory-loading { padding: 28px; text-align: center; color: var(--subcategory-muted); font-weight: 900; }
+      @media (max-width: 1023px) {
+        .subcategory-flow-back-row { display: flex; justify-content: flex-end; }
+      }
       @media (max-width: 760px) {
         .subcategory-shell { padding: 14px; }
         .subcategory-overview { grid-template-columns: 82px minmax(0, 1fr); padding: 15px; }
@@ -201,9 +209,6 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
         storePlanValues={adminContext.store}
         activeSection="catalog"
         mobileTitle="Subcategoría"
-        mobileBackHref={parentCategoryPath}
-        mobileBackLabel="Volver a categoría"
-        mobileBackVariant="plain-end"
       />
 
       <div class="subcategory-shell pz-admin-content">
@@ -220,6 +225,10 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
             </button>
           )}
         </AdminSectionHeader>
+
+        <div class="subcategory-flow-back-row">
+          <a class="subcategory-flow-back" href={parentCategoryPath} data-subcategory-back>← Volver a categoría</a>
+        </div>
 
         <main id="subcategory-view" class="subcategory-content hidden">
           <nav class="subcategory-breadcrumb" aria-label="Ruta de navegación">

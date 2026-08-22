@@ -65,8 +65,8 @@ test('los botones Ver todas abren vistas internas buscables sin nuevas cargas', 
 });
 
 test('la página dedicada conserva edición, productos, permisos y regreso a la categoría padre', () => {
-  assert.match(subcategory, /mobileBackHref=\{parentCategoryPath\}/);
-  assert.match(subcategory, /mobileBackLabel="Volver a categoría"/);
+  assert.match(subcategory, /class="subcategory-flow-back" href=\{parentCategoryPath\} data-subcategory-back/);
+  assert.doesNotMatch(subcategory, /mobileBackHref=\{parentCategoryPath\}/);
   assert.match(subcategory, /\?view=subcategories/);
   assert.match(subcategory, /id="subcategory-form"/);
   assert.match(subcategory, /id="subcategory-create-product"/);
