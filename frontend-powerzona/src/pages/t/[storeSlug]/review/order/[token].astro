@@ -185,14 +185,74 @@ const storeMarkText = getStoreInitials(publicStoreName);
       return Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
     }
 
+    function parseJsonArray(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value.filter(Boolean);
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function getExpandedRecord(value) {
+      return Array.isArray(value) ? (value[0] || {}) : (value || {});
+    }
+
+    function getOrderedProductImages(product) {
+      const images = normalizeFileValue(product?.images);
+      const imageOrder = parseJsonArray(product?.image_order);
+      const ordered = imageOrder.filter((name) => images.includes(name));
+      images.forEach((name) => {
+        if (!ordered.includes(name)) ordered.push(name);
+      });
+      return ordered;
+    }
+
     function getProductImageUrl(product) {
-      const image = normalizeFileValue(product?.images)[0] || normalizeFileValue(product?.image)[0] || '';
+      const image = getOrderedProductImages(product)[0] || normalizeFileValue(product?.image)[0] || '';
       if (!product?.id || !image || !POCKETBASE_URL) return '';
-      return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(image)}?thumb=180x180`;
+      return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(image)}`;
+    }
+
+    function getVariationImageUrl(variation) {
+      const image = normalizeFileValue(variation?.image)[0] || '';
+      if (!variation?.id || !image || !POCKETBASE_URL) return '';
+      return `${POCKETBASE_URL}/api/files/product_variations/${encodeURIComponent(variation.id)}/${encodeURIComponent(image)}`;
+    }
+
+    function ensureReviewThumbnailUrl(url) {
+      const raw = String(url || '').trim();
+      if (!raw || !POCKETBASE_URL) return '';
+
+      try {
+        const pocketBaseOrigin = new URL(`${POCKETBASE_URL}/`);
+        let parsed = new URL(raw, pocketBaseOrigin);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+
+        if (parsed.pathname.startsWith('/api/files/')) {
+          parsed = new URL(`${parsed.pathname}${parsed.search}`, pocketBaseOrigin);
+          parsed.searchParams.set('thumb', '480x480');
+        }
+        return parsed.toString();
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function getReviewItemImages(item) {
+      const snapshot = String(item?.item_image_url || '').trim();
+      const variation = getExpandedRecord(item?.expand?.variation);
+      const product = getExpandedRecord(item?.expand?.product);
+      return [snapshot, getVariationImageUrl(variation), getProductImageUrl(product)]
+        .map(ensureReviewThumbnailUrl)
+        .filter((url, index, urls) => url && urls.indexOf(url) === index);
     }
 
     function getVariationName(item) {
-      return item?.variation_label || item?.variation_name || item?.expand?.variation?.value || item?.expand?.variation?.name || '';
+      const variation = getExpandedRecord(item?.expand?.variation);
+      return item?.variation_label || item?.variation_name || variation?.value || variation?.name || '';
     }
 
     function showError(message) {
@@ -230,14 +290,17 @@ const storeMarkText = getStoreInitials(publicStoreName);
       const products = [];
       items.forEach((item) => {
         if (item?.is_gift === true || !item?.product || !item?.id) return;
-        const product = item.expand?.product || {};
+        const product = getExpandedRecord(item?.expand?.product);
+        const imageUrls = getReviewItemImages(item);
         products.push({
           orderItemId: item.id,
           productId: item.product,
           name: item.product_name || product.name || 'Producto',
+          imageAlt: item.item_image_alt || item.product_name || product.name || 'Producto',
           variation: getVariationName(item),
           quantity: Math.max(1, Number(item.quantity || 1)),
-          imageUrl: getProductImageUrl(product),
+          imageUrl: imageUrls[0] || '',
+          imageFallbackUrls: imageUrls.slice(1),
         });
       });
       return products;
@@ -262,13 +325,45 @@ const storeMarkText = getStoreInitials(publicStoreName);
       });
     }
 
+    function showReviewProductImageFallback(image) {
+      let imageFallbackUrls = [];
+      try {
+        const parsed = JSON.parse(image.dataset.imageFallbacks || '[]');
+        imageFallbackUrls = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch (_) {
+        imageFallbackUrls = [];
+      }
+
+      const nextImageUrl = imageFallbackUrls.shift();
+      if (nextImageUrl) {
+        image.dataset.imageFallbacks = JSON.stringify(imageFallbackUrls);
+        image.src = nextImageUrl;
+        return;
+      }
+
+      image.hidden = true;
+      const media = image.closest('.review-product-media');
+      const fallback = media?.querySelector('.review-product-fallback');
+      if (fallback) fallback.hidden = false;
+      media?.classList.remove('has-image');
+      media?.classList.add('is-fallback');
+    }
+
+    function bindProductImageFallbacks(root = document) {
+      root.querySelectorAll('[data-review-product-image]').forEach((image) => {
+        image.addEventListener('error', () => showReviewProductImageFallback(image));
+        if (image.complete && image.naturalWidth === 0) showReviewProductImageFallback(image);
+      });
+    }
+
     function renderProducts() {
       productsBox.innerHTML = reviewProducts.length ? reviewProducts.map((product) => {
         const meta = [product.variation, product.quantity > 1 ? `Cantidad: ${product.quantity}` : ''].filter(Boolean).map(escapeHtml).join(' · ');
+        const initial = String(product.name || 'P').trim().slice(0, 1).toUpperCase() || 'P';
         return `
           <article class="review-product-card" data-order-item-id="${escapeHtml(product.orderItemId)}">
-            <div class="review-product-media">
-              ${product.imageUrl ? `<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy" />` : `<span>${escapeHtml(product.name.slice(0, 1).toUpperCase())}</span>`}
+            <div class="review-product-media ${product.imageUrl ? 'has-image' : 'is-fallback'}">
+              ${product.imageUrl ? `<img data-review-product-image data-image-fallbacks="${escapeHtml(JSON.stringify(product.imageFallbackUrls))}" src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.imageAlt)}" width="120" height="120" loading="lazy" decoding="async" /><span class="review-product-fallback" hidden>${escapeHtml(initial)}</span>` : `<span class="review-product-fallback">${escapeHtml(initial)}</span>`}
             </div>
             <div class="review-product-body">
               <div class="review-product-main">
@@ -292,6 +387,7 @@ const storeMarkText = getStoreInitials(publicStoreName);
         `;
       }).join('') : '<div class="review-empty-products">No hay productos calificables en esta orden.</div>';
       bindRatingButtons(productsBox);
+      bindProductImageFallbacks(productsBox);
     }
 
     async function loadReviewOrder() {
@@ -534,9 +630,11 @@ const storeMarkText = getStoreInitials(publicStoreName);
     :global(.review-rating button.active), :global(.review-rating button.is-active) { color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
     :global(.review-rating button:hover) { transform: translateY(-1px); border-color: #fbbf24; }
     :global(.review-products) { display: grid; gap: 12px; min-width: 0; }
-    :global(.review-product-card) { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 12px; min-width: 0; }
-    :global(.review-product-media) { width: 92px; height: 92px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #e2e8f0; color: #334155; font-size: 28px; font-weight: 1000; }
-    :global(.review-product-media img) { width: 100%; height: 100%; object-fit: contain; }
+    :global(.review-product-card) { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; align-items: start; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 14px; min-width: 0; }
+    :global(.review-product-media) { width: 120px; height: 120px; border: 1px solid #dbe3ee; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #e2e8f0; color: #334155; font-size: 28px; font-weight: 1000; }
+    :global(.review-product-media.has-image) { background: #fff; }
+    :global(.review-product-media img) { box-sizing: border-box; width: 100%; height: 100%; padding: 6px; object-fit: contain; background: #fff; }
+    :global(.review-product-fallback[hidden]) { display: none; }
     :global(.review-product-body) { display: grid; gap: 10px; min-width: 0; }
     :global(.review-product-main) { min-width: 0; }
     :global(.review-product-name) { margin: 0; color: #0f172a; font-size: 18px; line-height: 1.15; font-weight: 1000; overflow-wrap: anywhere; }
@@ -554,8 +652,12 @@ const storeMarkText = getStoreInitials(publicStoreName);
     @media (max-width: 640px) {
       .review-hero { grid-template-columns: 1fr; }
       .review-order-summary { grid-template-columns: 1fr; }
-      :global(.review-product-card) { grid-template-columns: 1fr; }
-      :global(.review-product-media) { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+      :global(.review-product-card) { grid-template-columns: 96px minmax(0, 1fr); gap: 12px; padding: 10px; }
+      :global(.review-product-media) { width: 96px; height: 96px; }
+      :global(.review-product-body) { display: contents; }
+      :global(.review-product-main) { align-self: center; }
+      :global(.review-product-rating), :global(.review-product-comment) { grid-column: 1 / -1; }
+      :global(.review-product-name) { font-size: 16px; }
       :global(.review-rating button) { width: 38px; height: 38px; font-size: 23px; }
     }
   </style>
