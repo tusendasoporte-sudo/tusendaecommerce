@@ -420,23 +420,33 @@ function getProductOfferView(product: any) {
     .public-reviews-toggle[aria-expanded="true"] .public-reviews-toggle-chevron { transform: rotate(180deg); }
     .public-reviews-viewer {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      min-width: 0;
+      max-width: 100%;
       gap: 16px;
       margin-bottom: 18px;
     }
     .public-reviews-carousel-shell,
     .public-reviews-results {
+      width: 100%;
       min-width: 0;
+      max-width: 100%;
       animation: publicReviewsReveal .24s ease both;
     }
     .public-reviews-carousel-shell[hidden],
     .public-reviews-results[hidden] { display: none !important; }
     .public-reviews-carousel-viewport {
+      width: 100%;
       min-width: 0;
+      max-width: 100%;
       overflow: hidden;
       border-radius: 18px;
       touch-action: pan-y;
     }
     .public-reviews-carousel-track {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       display: flex;
       align-items: stretch;
       transform: translate3d(0, 0, 0);
@@ -445,7 +455,9 @@ function getProductOfferView(product: any) {
     }
     .public-review-carousel-card {
       flex: 0 0 100%;
-      min-width: 100%;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
       min-height: 154px;
       box-sizing: border-box;
     }
@@ -480,6 +492,8 @@ function getProductOfferView(product: any) {
     }
     .public-reviews-view-toggle {
       width: 100%;
+      min-width: 0;
+      max-width: 100%;
       min-height: 62px;
       display: flex;
       align-items: center;
