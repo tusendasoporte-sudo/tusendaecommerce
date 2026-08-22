@@ -2494,6 +2494,7 @@ const audienceSubClass = (subsection: string) => {
 
       const path = window.location.pathname.replace(/\/+$/, '');
       const isSettings = /\/admin\/store-settings$/.test(path);
+      const isRatingSettings = /\/admin\/store-settings\/rating$/.test(path);
       const isPushCampaigns = /\/admin\/push-campaigns$/.test(path);
       const hashMap = {
         '#rating': 'rating',
@@ -2502,7 +2503,9 @@ const audienceSubClass = (subsection: string) => {
       };
       const activeKey = isPushCampaigns
         ? 'push-campaigns'
-        : (isSettings ? (hashMap[window.location.hash] || '') : '');
+        : isRatingSettings
+          ? 'rating'
+          : (isSettings ? (hashMap[window.location.hash] || '') : '');
 
       items.forEach((item) => {
         item.classList.toggle(

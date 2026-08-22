@@ -50,6 +50,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   if (normalized === 'push-campaigns') return { any: ['marketing.push.manage'] };
   if (normalized === 'notifications') return { any: ['notifications.view'] };
   if (normalized === 'security' || normalized.startsWith('security/')) return { any: ['security.view'] };
+  if (normalized === 'store-settings/rating') return { any: ['reviews.manage'] };
   if (normalized === 'store-settings') {
     return { any: ['store.settings.manage', 'reviews.manage', 'landing_qr.manage'] };
   }

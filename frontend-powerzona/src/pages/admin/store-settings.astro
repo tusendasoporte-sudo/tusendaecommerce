@@ -29,6 +29,7 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const ratingConfigPath = getStoreAdminPath(currentStoreSlug, 'store-settings/rating');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const currentStoreOwnerPhone = String(adminContext.store.owner_phone || '').trim();
@@ -409,21 +410,33 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       .rating-moderation-note input { position: absolute; right: 16px; top: 18px; width: 18px; height: 18px; margin: 0; }
       .rating-moderation-note .switch-control { position: absolute; right: 14px; top: 14px; }
       .rating-moderation-note .switch-control input { position: absolute; opacity: 0; pointer-events: none; width: auto; height: auto; margin: 0; }
-      .rating-summary-list,
+      .rating-summary-list {
+        display: grid;
+        gap: 0;
+        overflow: hidden;
+      }
       .rating-metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
       .rating-summary-row {
         display: grid;
         grid-template-columns: 42px minmax(0, 1fr);
-        gap: 12px;
+        gap: 14px;
         align-items: center;
-        min-height: 104px;
-        padding: 16px;
-        border: 1px solid #e2e8f0;
-        border-radius: 20px;
-        background: #fff;
+        min-height: 78px;
+        padding: 13px 4px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
       }
-      .rating-summary-row span { color: #475569; font-size: 12px; font-weight: 950; line-height: 1.35; }
-      .rating-summary-row strong { display: block; margin-top: 4px; color: #0f172a; font-size: 26px; font-weight: 1000; letter-spacing: -.04em; white-space: nowrap; }
+      .rating-summary-row + .rating-summary-row { border-top: 1px solid #e2e8f0; }
+      .rating-summary-row > div {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+      }
+      .rating-summary-row span { color: #475569; font-size: 14px; font-weight: 950; line-height: 1.35; }
+      .rating-summary-row strong { display: block; margin: 0; color: #0f172a; font-size: 28px; font-weight: 1000; letter-spacing: -.04em; white-space: nowrap; text-align: right; }
       .rating-extra-metric { display: none; }
       .rating-stat-icon.blue { background: #dbeafe; color: #2563eb; }
       .rating-stat-icon.green { background: #dcfce7; color: #16a34a; }
@@ -521,7 +534,6 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         .rating-pending-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 1023px) {
-        .rating-summary-list,
         .rating-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .rating-control-foot { padding-left: 0; }
         .rating-reviews-table-wrap { display: none; }
@@ -533,7 +545,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid, .settings-image-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } .settings-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
       @media (max-width: 900px) { .main-wrap { max-width: 100%; } }
-      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } .rating-section-head, .rating-control-head, .rating-control-foot { flex-direction: column; align-items: stretch; } .rating-control-head { gap: 12px; } .rating-main-toggle { justify-content: space-between; width: 100%; } .rating-control-foot .mini-btn, .rating-section-head .mini-btn { width: 100%; } .rating-filter-field { width: 100%; } .rating-summary-row { min-height: 96px; padding: 14px; grid-template-columns: 36px minmax(0, 1fr); } .rating-stat-icon, .rating-system-icon { width: 36px; height: 36px; border-radius: 14px; } .rating-review-row-head { grid-template-columns: minmax(0, 1fr) auto auto; } .rating-review-row-head .rating-row-actions { grid-column: 1 / -1; justify-content: flex-start; } }
+      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } .rating-section-head, .rating-control-head, .rating-control-foot { flex-direction: column; align-items: stretch; } .rating-control-head { gap: 12px; } .rating-main-toggle { justify-content: space-between; width: 100%; } .rating-control-foot .mini-btn, .rating-section-head .mini-btn { width: 100%; } .rating-filter-field { width: 100%; } .rating-summary-row { min-height: 72px; padding: 12px 0; grid-template-columns: 36px minmax(0, 1fr); } .rating-summary-row > div { gap: 10px; } .rating-summary-row span { font-size: 13px; } .rating-summary-row strong { font-size: 25px; } .rating-stat-icon, .rating-system-icon { width: 36px; height: 36px; border-radius: 14px; } .rating-review-row-head { grid-template-columns: minmax(0, 1fr) auto auto; } .rating-review-row-head .rating-row-actions { grid-column: 1 / -1; justify-content: flex-start; } }
       .nav-group { margin: 14px 0 !important; }
       .nav-list { display: grid !important; gap: 6px !important; }
       .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
@@ -3964,7 +3976,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                   </div>
                   <div class="rating-control-foot">
                     <p id="rating-settings-summary" class="rating-summary-text">Activo &middot; Tienda y productos &middot; Solicitud despu&eacute;s de 1 d&iacute;a</p>
-                    <button id="rating-config-toggle-btn" class="mini-btn" type="button" aria-expanded="false" aria-controls="rating-config-panel">Editar configuraci&oacute;n</button>
+                    <a class="mini-btn" href={ratingConfigPath}>Editar configuraci&oacute;n</a>
                   </div>
                   <div id="rating-disabled-note" class="rating-disabled-note hidden">
                     <strong>Sistema de rating desactivado</strong>

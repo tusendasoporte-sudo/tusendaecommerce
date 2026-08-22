@@ -1,0 +1,487 @@
+---
+import { refreshAuthFromCookie } from '../../../lib/auth';
+import { getStoreAdminPath } from '../../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
+import { getStoreOrderPrefix } from '../../../lib/storeIdentity';
+import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
+import '../../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tu tienda';
+const currentStorePrefix = getStoreOrderPrefix(currentStoreName);
+const ratingHomePath = `${getStoreAdminPath(currentStoreSlug, 'store-settings')}#rating`;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{`Configuraci&oacute;n de rating | ${currentStoreName}`}</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 7% 18%, rgba(37, 99, 235, .11), transparent 32%),
+          radial-gradient(circle at 94% 12%, rgba(16, 185, 129, .08), transparent 28%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 54%, #e8eef7 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled, input:disabled { cursor: not-allowed; opacity: .65; }
+      .hidden { display: none !important; }
+      .rating-config-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .rating-config-main { width: min(1120px, 100%); margin: 0 auto; padding: 2px 0 54px; }
+      .rating-config-back-row { display: flex; justify-content: flex-end; margin: 0 0 18px; }
+      .rating-config-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 42px;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .rating-config-back:hover { color: #1d4ed8; }
+      .rating-config-back:focus-visible { outline: 3px solid rgba(37, 99, 235, .2); outline-offset: 4px; border-radius: 10px; }
+      .rating-config-intro,
+      .rating-config-card {
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, .95);
+        box-shadow: 0 16px 38px rgba(15, 23, 42, .07);
+      }
+      .rating-config-intro {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 18px;
+        margin-bottom: 16px;
+      }
+      .rating-config-intro strong { display: block; font-size: 14px; font-weight: 1000; }
+      .rating-config-intro p { margin: 4px 0 0; color: var(--muted); font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .rating-save-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+      .rating-save-status.saving { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .rating-save-status.saved { background: #ecfdf5; color: #166534; border-color: #bbf7d0; }
+      .rating-save-status.error { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .rating-config-form { display: grid; gap: 16px; }
+      .rating-config-grid { display: grid; gap: 16px; }
+      .rating-config-card { display: grid; gap: 15px; padding: 20px; align-content: start; }
+      .rating-config-card h2 { margin: 0; font-size: 19px; font-weight: 1000; letter-spacing: -.025em; }
+      .rating-config-card > p { margin: -7px 0 0; color: var(--muted); font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .rating-setting-group { display: grid; gap: 10px; padding: 0 0 15px; border-bottom: 1px solid #e2e8f0; }
+      .rating-setting-group:last-child { padding-bottom: 0; border-bottom: 0; }
+      .rating-setting-group h3 { margin: 0; color: #0f172a; font-size: 12px; font-weight: 1000; letter-spacing: .045em; text-transform: uppercase; }
+      .rating-setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        min-height: 40px;
+        padding: 6px 0;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 950;
+      }
+      .switch-control { position: relative; cursor: pointer; }
+      .switch-control input { position: absolute; opacity: 0; pointer-events: none; }
+      .switch-track { width: 48px; height: 28px; border-radius: 999px; background: #cbd5e1; border: 1px solid rgba(148, 163, 184, .5); position: relative; transition: background .18s ease, border-color .18s ease; flex: 0 0 auto; }
+      .switch-track::after { content: ""; position: absolute; width: 22px; height: 22px; top: 2px; left: 2px; border-radius: 999px; background: #fff; box-shadow: 0 4px 10px rgba(15,23,42,.18); transition: transform .18s ease; }
+      .switch-control input:checked + .switch-track { background: #2563eb; border-color: #2563eb; }
+      .switch-control input:checked + .switch-track::after { transform: translateX(20px); }
+      .switch-control input:focus-visible + .switch-track { box-shadow: 0 0 0 4px rgba(37,99,235,.16); }
+      .field { display: grid; gap: 8px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; }
+      .field select,
+      .field textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        color: var(--text);
+        padding: 12px 13px;
+        outline: none;
+        font-weight: 850;
+      }
+      .field select { min-height: 48px; }
+      .field textarea { min-height: 160px; resize: vertical; line-height: 1.5; }
+      .field select:focus,
+      .field textarea:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.11); }
+      .form-help { margin: 0; color: #64748b; font-size: 11px; font-weight: 750; line-height: 1.45; }
+      .rating-number-field { max-width: 280px; }
+      .rating-moderation-note {
+        display: grid;
+        gap: 4px;
+        position: relative;
+        padding: 14px 72px 14px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #f8fafc;
+      }
+      .rating-moderation-note strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
+      .rating-moderation-note span { color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .rating-moderation-note .switch-control { position: absolute; right: 14px; top: 14px; }
+      .rating-secondary-button {
+        width: max-content;
+        min-height: 40px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #fff;
+        color: #1d4ed8;
+        padding: 9px 13px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .rating-secondary-button:hover { background: #eff6ff; border-color: #bfdbfe; }
+      .rating-alert { padding: 13px 15px; border-radius: 18px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-size: 12px; font-weight: 850; line-height: 1.45; }
+      .rating-alert.error { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+      .rating-config-form.is-loading { opacity: .62; pointer-events: none; }
+      @media (min-width: 900px) {
+        .rating-config-grid { grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr); align-items: start; }
+      }
+      @media (max-width: 720px) {
+        .rating-config-shell { padding: 14px; }
+        .rating-config-main { padding-bottom: 124px; }
+        .rating-config-back-row { margin-top: 4px; }
+        .rating-config-intro { align-items: flex-start; flex-direction: column; }
+        .rating-save-status { white-space: normal; }
+        .rating-config-card { padding: 17px; border-radius: 22px; }
+        .rating-number-field { max-width: none; }
+        .rating-secondary-button { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+    <div class="rating-config-shell pz-admin-content">
+      <AdminSidebar
+        storeId={currentStoreId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={adminAuthToken}
+        storeSlug={currentStoreSlug}
+        storeName={currentStoreName}
+        storePlanValues={adminContext.store}
+        activeSection="settings"
+        mobileTitle="Configurar rating"
+        mobileBackHref={ratingHomePath}
+        mobileBackLabel="Volver"
+      />
+
+      <main class="rating-config-main pz-admin-content-inner">
+        <div class="rating-config-back-row">
+          <a class="rating-config-back" href={ratingHomePath}><span aria-hidden="true">&larr;</span> Volver a Rating y rese&ntilde;as</a>
+        </div>
+
+        <AdminSectionHeader
+          kicker="Audiencia"
+          title="Configuraci&oacute;n de rating"
+          description="Controla la visibilidad, las solicitudes verificadas y el mensaje para pedir rese&ntilde;as."
+          bellId="admin-rating-config-bell"
+        />
+
+        <section class="rating-config-intro" aria-label="Estado del guardado">
+          <div>
+            <strong>Guardado autom&aacute;tico</strong>
+            <p>Cada cambio se aplica a esta tienda sin necesidad de un bot&oacute;n adicional.</p>
+          </div>
+          <span id="rating-settings-save-status" class="rating-save-status" aria-live="polite">Cargando configuraci&oacute;n...</span>
+        </section>
+
+        <form id="rating-config-form" class="rating-config-form is-loading">
+          <div class="rating-config-grid">
+            <section class="rating-config-card">
+              <h2>Configuraci&oacute;n r&aacute;pida</h2>
+              <p>Elige d&oacute;nde se muestran las calificaciones y cu&aacute;ndo solicitar una rese&ntilde;a.</p>
+
+              <div class="rating-setting-group">
+                <h3>Tienda</h3>
+                <label class="rating-setting-row switch-control" for="rating-show-store-rating">
+                  <span>Mostrar rating en la portada</span>
+                  <input id="rating-show-store-rating" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+                <label class="rating-setting-row switch-control" for="rating-store-reviews-enabled">
+                  <span>Permitir rese&ntilde;as de tienda</span>
+                  <input id="rating-store-reviews-enabled" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+              </div>
+
+              <div class="rating-setting-group">
+                <h3>Productos</h3>
+                <label class="rating-setting-row switch-control" for="rating-show-product-rating">
+                  <span>Mostrar rating en productos</span>
+                  <input id="rating-show-product-rating" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+                <label class="rating-setting-row switch-control" for="rating-product-reviews-enabled">
+                  <span>Permitir rese&ntilde;as de productos</span>
+                  <input id="rating-product-reviews-enabled" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+              </div>
+
+              <div class="rating-setting-group">
+                <h3>&Oacute;rdenes entregadas</h3>
+                <label class="rating-setting-row switch-control" for="rating-verified-order-reviews-enabled">
+                  <span>Solicitar rese&ntilde;as verificadas</span>
+                  <input id="rating-verified-order-reviews-enabled" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+                <div class="field rating-number-field">
+                  <label for="rating-review-request-delay-hours">Pedir despu&eacute;s de</label>
+                  <select id="rating-review-request-delay-hours">
+                    <option value="1">1 d&iacute;a</option>
+                    <option value="2">2 d&iacute;as</option>
+                    <option value="3">3 d&iacute;as</option>
+                    <option value="4">4 d&iacute;as</option>
+                    <option value="5">5 d&iacute;as</option>
+                    <option value="6">6 d&iacute;as</option>
+                    <option value="7">7 d&iacute;as</option>
+                  </select>
+                  <p class="form-help">La solicitud se puede enviar entre 1 y 7 d&iacute;as despu&eacute;s de entregar la orden.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="rating-config-card">
+              <h2>Mensaje y moderaci&oacute;n</h2>
+              <p>Personaliza la solicitud por WhatsApp y la identificaci&oacute;n de compras verificadas.</p>
+
+              <div class="rating-setting-group">
+                <h3>WhatsApp</h3>
+                <div class="field">
+                  <label for="rating-review-whatsapp-message">Mensaje para pedir rese&ntilde;a</label>
+                  <textarea id="rating-review-whatsapp-message" placeholder="Hola &#123;cliente&#125;, gracias por tu compra en &#123;tienda&#125;. Puedes dejar tu rese&ntilde;a aqu&iacute;: &#123;link_rese&ntilde;a&#125;"></textarea>
+                  <p class="form-help">Variables: &#123;cliente&#125;, &#123;tienda&#125;, &#123;link_rese&ntilde;a&#125;, &#123;numero_orden&#125;.</p>
+                </div>
+                <button id="rating-restore-message-btn" class="rating-secondary-button" type="button">Restaurar mensaje predeterminado</button>
+              </div>
+
+              <div class="rating-setting-group">
+                <h3>Moderaci&oacute;n</h3>
+                <div class="rating-moderation-note">
+                  <strong>Moderaci&oacute;n manual activa</strong>
+                  <span>Las rese&ntilde;as requieren aprobaci&oacute;n antes de publicarse.</span>
+                  <label class="switch-control" for="rating-reviews-require-approval">
+                    <input id="rating-reviews-require-approval" type="checkbox" checked disabled />
+                    <span class="switch-track" aria-hidden="true"></span>
+                  </label>
+                </div>
+                <label class="rating-setting-row switch-control" for="rating-show-verified-badge">
+                  <span>Mostrar insignia Compra verificada</span>
+                  <input id="rating-show-verified-badge" type="checkbox" checked />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div id="rating-settings-alert" class="rating-alert hidden" role="alert"></div>
+        </form>
+      </main>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, currentStorePrefix, adminAuthToken }}>
+      (() => {
+        const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const CURRENT_STORE_ID = String(currentStoreId || '');
+        const CURRENT_STORE_NAME = String(currentStoreName || '').trim() || 'Mi tienda 84';
+        const CURRENT_STORE_PREFIX = String(currentStorePrefix || '').trim() || 'MT';
+        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente}\n\nGracias por tu compra en {tienda}.\n\nNos ayudaria mucho si puedes dejar una resena sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqui:\n{link_reseña}\n\nGracias\n{tienda}";
+        const form = document.getElementById('rating-config-form');
+        const status = document.getElementById('rating-settings-save-status');
+        const alertBox = document.getElementById('rating-settings-alert');
+        const restoreButton = document.getElementById('rating-restore-message-btn');
+        const fields = {
+          showStoreRating: document.getElementById('rating-show-store-rating'),
+          storeReviewsEnabled: document.getElementById('rating-store-reviews-enabled'),
+          showProductRating: document.getElementById('rating-show-product-rating'),
+          productReviewsEnabled: document.getElementById('rating-product-reviews-enabled'),
+          verifiedOrderReviewsEnabled: document.getElementById('rating-verified-order-reviews-enabled'),
+          reviewRequestDelayHours: document.getElementById('rating-review-request-delay-hours'),
+          reviewWhatsappMessage: document.getElementById('rating-review-whatsapp-message'),
+          reviewsRequireApproval: document.getElementById('rating-reviews-require-approval'),
+          showVerifiedBadge: document.getElementById('rating-show-verified-badge'),
+        };
+        let settingsRecord = null;
+        let rendering = true;
+        let saveTimer = 0;
+
+        function setStatus(message, state = '') {
+          if (!status) return;
+          status.textContent = message;
+          status.className = `rating-save-status${state ? ` ${state}` : ''}`;
+        }
+
+        function showAlert(message = '', state = 'error') {
+          if (!alertBox) return;
+          alertBox.textContent = message;
+          alertBox.className = `rating-alert${state === 'error' ? ' error' : ''}${message ? '' : ' hidden'}`;
+        }
+
+        async function api(path, options = {}) {
+          if (!ADMIN_AUTH_TOKEN) throw new Error('No se pudo validar la sesión administrativa.');
+          const response = await fetch(POCKETBASE_URL + path, {
+            ...options,
+            headers: { Authorization: ADMIN_AUTH_TOKEN, ...(options.headers || {}) },
+          });
+          const data = response.status === 204 ? null : await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const fieldMessage = data?.data && typeof data.data === 'object'
+              ? Object.values(data.data).map((item) => item?.message).find(Boolean)
+              : '';
+            throw new Error(fieldMessage || data?.message || 'No se pudo guardar la configuración.');
+          }
+          return data;
+        }
+
+        function setChecked(input, value, fallback = true) {
+          if (!input) return;
+          input.checked = value === undefined || value === null ? fallback : value !== false;
+        }
+
+        function delayDaysValue() {
+          const value = Number(fields.reviewRequestDelayHours?.value || 1);
+          return Number.isFinite(value) ? Math.min(7, Math.max(1, Math.round(value))) : 1;
+        }
+
+        function hoursToDays(hours) {
+          const value = Number(hours);
+          return Number.isFinite(value) ? Math.min(7, Math.max(1, Math.round(value / 24))) : 1;
+        }
+
+        function payload() {
+          return {
+            store: CURRENT_STORE_ID,
+            store_reviews_enabled: fields.storeReviewsEnabled?.checked === true,
+            product_reviews_enabled: fields.productReviewsEnabled?.checked === true,
+            verified_order_reviews_enabled: fields.verifiedOrderReviewsEnabled?.checked === true,
+            reviews_require_approval: true,
+            show_store_rating: fields.showStoreRating?.checked === true,
+            show_product_rating: fields.showProductRating?.checked === true,
+            show_verified_badge: fields.showVerifiedBadge?.checked === true,
+            review_request_delay_hours: delayDaysValue() * 24,
+            review_whatsapp_message: fields.reviewWhatsappMessage?.value?.trim() || DEFAULT_REVIEW_WHATSAPP_MESSAGE,
+          };
+        }
+
+        async function load() {
+          const query = new URLSearchParams({
+            filter: `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" && active=true`,
+            sort: '-updated',
+            page: '1',
+            perPage: '1',
+          });
+          const result = await api('/api/collections/settings/records?' + query.toString());
+          settingsRecord = result?.items?.[0] || null;
+          const record = settingsRecord || {};
+          setChecked(fields.showStoreRating, record.show_store_rating, true);
+          setChecked(fields.storeReviewsEnabled, record.store_reviews_enabled, true);
+          setChecked(fields.showProductRating, record.show_product_rating, true);
+          setChecked(fields.productReviewsEnabled, record.product_reviews_enabled, true);
+          setChecked(fields.verifiedOrderReviewsEnabled, record.verified_order_reviews_enabled, true);
+          setChecked(fields.reviewsRequireApproval, true, true);
+          setChecked(fields.showVerifiedBadge, record.show_verified_badge, true);
+          if (fields.reviewRequestDelayHours) fields.reviewRequestDelayHours.value = String(hoursToDays(record.review_request_delay_hours));
+          if (fields.reviewWhatsappMessage) fields.reviewWhatsappMessage.value = record.review_whatsapp_message || DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+          rendering = false;
+          form?.classList.remove('is-loading');
+          setStatus('Guardado automáticamente', 'saved');
+        }
+
+        async function ensureRecord() {
+          if (settingsRecord?.id) return settingsRecord;
+          settingsRecord = await api('/api/collections/settings/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stored_name: CURRENT_STORE_NAME,
+              store_name: CURRENT_STORE_NAME,
+              order_prefix: CURRENT_STORE_PREFIX,
+              active: true,
+              reviews_enabled: true,
+              notify_review_pending: true,
+              ...payload(),
+            }),
+          });
+          return settingsRecord;
+        }
+
+        async function save() {
+          if (rendering) return;
+          setStatus('Guardando...', 'saving');
+          showAlert('');
+          try {
+            const record = await ensureRecord();
+            settingsRecord = await api('/api/collections/settings/records/' + encodeURIComponent(record.id), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload()),
+            });
+            setStatus('Guardado automáticamente', 'saved');
+          } catch (error) {
+            setStatus('Error al guardar', 'error');
+            showAlert(error?.message || 'No se pudo guardar la configuración.');
+          }
+        }
+
+        function scheduleSave(delay = 260) {
+          window.clearTimeout(saveTimer);
+          saveTimer = window.setTimeout(save, delay);
+        }
+
+        form?.addEventListener('change', () => scheduleSave());
+        fields.reviewWhatsappMessage?.addEventListener('input', () => scheduleSave(850));
+        restoreButton?.addEventListener('click', () => {
+          if (fields.reviewWhatsappMessage) fields.reviewWhatsappMessage.value = DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+          scheduleSave(0);
+        });
+
+        load().catch((error) => {
+          rendering = false;
+          form?.classList.remove('is-loading');
+          setStatus('No se pudo cargar', 'error');
+          showAlert(error?.message || 'No se pudo cargar la configuración.');
+        });
+      })();
+    </script>
+  </body>
+</html>

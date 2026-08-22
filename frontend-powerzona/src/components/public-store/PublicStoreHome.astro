@@ -418,6 +418,144 @@ function getProductOfferView(product: any) {
       transition: transform .2s ease;
     }
     .public-reviews-toggle[aria-expanded="true"] .public-reviews-toggle-chevron { transform: rotate(180deg); }
+    .public-reviews-viewer {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .public-reviews-carousel-shell,
+    .public-reviews-results {
+      min-width: 0;
+      animation: publicReviewsReveal .24s ease both;
+    }
+    .public-reviews-carousel-shell[hidden],
+    .public-reviews-results[hidden] { display: none !important; }
+    .public-reviews-carousel-viewport {
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      touch-action: pan-y;
+    }
+    .public-reviews-carousel-track {
+      display: flex;
+      align-items: stretch;
+      transform: translate3d(0, 0, 0);
+      transition: transform .48s cubic-bezier(.22,.8,.24,1);
+      will-change: transform;
+    }
+    .public-review-carousel-card {
+      flex: 0 0 100%;
+      min-width: 100%;
+      min-height: 154px;
+      box-sizing: border-box;
+    }
+    .public-review-carousel-card .public-review-comment {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+    .public-reviews-carousel-dots {
+      min-height: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 12px;
+    }
+    .public-reviews-carousel-dots:empty { display: none; }
+    .public-reviews-carousel-dot {
+      width: 7px;
+      height: 7px;
+      border: 0;
+      border-radius: 999px;
+      background: #c4d4e8;
+      padding: 0;
+      cursor: pointer;
+      transition: width .2s ease, background-color .2s ease;
+    }
+    .public-reviews-carousel-dot.active {
+      width: 22px;
+      background: #0b63f6;
+    }
+    .public-reviews-view-toggle {
+      width: 100%;
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border: 1px solid #cfe0f6;
+      border-radius: 18px;
+      background: rgba(255,255,255,.96);
+      color: #08133f;
+      padding: 11px 16px;
+      font: inherit;
+      cursor: pointer;
+      box-shadow: 0 14px 34px rgba(37,99,235,.08);
+    }
+    .public-reviews-view-toggle-main {
+      min-width: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .public-reviews-view-toggle-icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #eaf4ff;
+      color: #0b63f6;
+    }
+    .public-reviews-view-toggle-icon svg { width: 21px; height: 21px; }
+    .public-reviews-view-toggle-label {
+      overflow: hidden;
+      color: #08133f;
+      font-size: 16px;
+      line-height: 1.2;
+      font-weight: 1000;
+      text-align: left;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .public-reviews-view-toggle-side {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    .public-reviews-view-count {
+      min-width: 38px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #0b63f6;
+      color: #fff;
+      padding: 0 10px;
+      font-size: 13px;
+      font-weight: 1000;
+    }
+    .public-reviews-view-chevron {
+      width: 22px;
+      height: 22px;
+      color: #071345;
+      transition: transform .2s ease;
+    }
+    .public-reviews-view-toggle[aria-expanded="true"] .public-reviews-view-chevron { transform: rotate(180deg); }
+    @keyframes publicReviewsReveal {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .public-reviews-carousel-track { transition: none; }
+      .public-reviews-carousel-shell,
+      .public-reviews-results { animation: none; }
+    }
     .public-review-form-shell {
       display: none;
       margin: -2px 0 20px;
@@ -612,6 +750,7 @@ function getProductOfferView(product: any) {
         align-items: flex-start;
         flex-direction: column;
       }
+      .public-reviews-view-toggle-label { font-size: 15px; }
     }
     .store-info-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.46); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .store-info-overlay[hidden] { display: none; }
@@ -2508,6 +2647,99 @@ function getProductOfferView(product: any) {
         </div>
       </div>
 
+      {storeReviews.length > 0 && (
+        <div class="public-reviews-viewer">
+          <div class="public-reviews-carousel-shell" data-public-reviews-carousel>
+            <div class="public-reviews-carousel-viewport" data-public-reviews-carousel-viewport aria-label="Ratings destacados de la tienda">
+              <div class="public-reviews-carousel-track" data-public-reviews-carousel-track>
+                {storeReviews.map((review) => (
+                  <article class="public-review-card public-review-carousel-card" data-public-review-carousel-card>
+                    <div class="public-review-person">
+                      <div class="public-review-avatar" aria-hidden="true">{reviewInitials(review.customer_name || 'Cliente')}</div>
+                      <div>
+                        <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
+                        {formatReviewDate(review.created) && <p class="public-review-date">{formatReviewDate(review.created)}</p>}
+                      </div>
+                    </div>
+                    <div class="public-review-body">
+                      <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
+                      {review.comment && <p class="public-review-comment">{review.comment}</p>}
+                    </div>
+                    <span class="public-review-badge" aria-label="Reseña aprobada" title="Reseña aprobada">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+                        <path d="m9 12 2 2 4-5"></path>
+                      </svg>
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div class="public-reviews-carousel-dots" data-public-reviews-carousel-dots aria-label="Posición del carrusel"></div>
+          </div>
+
+          <button
+            class="public-reviews-view-toggle"
+            type="button"
+            data-public-reviews-view-toggle
+            aria-expanded="false"
+            aria-controls="public-reviews-results"
+            aria-label={`Ver los ${storeReviewSummary.count} ratings de la tienda`}
+          >
+            <span class="public-reviews-view-toggle-main">
+              <span class="public-reviews-view-toggle-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </span>
+              <span class="public-reviews-view-toggle-label" data-public-reviews-view-label>Ver ratings de la tienda</span>
+            </span>
+            <span class="public-reviews-view-toggle-side">
+              <span class="public-reviews-view-count">{storeReviewSummary.count}</span>
+              <svg class="public-reviews-view-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+            </span>
+          </button>
+
+          <div id="public-reviews-results" class="public-reviews-results" data-public-reviews-results hidden>
+            <div class="public-reviews-list" data-public-reviews-list data-page-size={publicReviewsPageSize}>
+              {storeReviews.map((review, index) => (
+                <article class="public-review-card" data-review-card data-review-index={index} hidden={index >= publicReviewsPageSize}>
+                  <div class="public-review-person">
+                    <div class="public-review-avatar" aria-hidden="true">{reviewInitials(review.customer_name || 'Cliente')}</div>
+                    <div>
+                      <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
+                      {formatReviewDate(review.created) && <p class="public-review-date">{formatReviewDate(review.created)}</p>}
+                    </div>
+                  </div>
+                  <div class="public-review-body">
+                    <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
+                    {review.comment && <p class="public-review-comment">{review.comment}</p>}
+                  </div>
+                  <span class="public-review-badge" aria-label="Reseña aprobada" title="Reseña aprobada">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+                      <path d="m9 12 2 2 4-5"></path>
+                    </svg>
+                  </span>
+                  {showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge" hidden>Compra verificada</span>}
+                </article>
+              ))}
+            </div>
+            {storeReviews.length > publicReviewsPageSize && (
+              <div class="public-reviews-pagination" data-public-reviews-pagination>
+                <span data-public-reviews-range>Mostrando 1-5 de {reviewCountLabel(storeReviews.length)}</span>
+                <div class="public-reviews-pages" aria-label="Paginación de reseñas">
+                  <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">Anterior</button>
+                  <span class="pagination-mobile-status" data-public-reviews-page-status>1 de {Math.ceil(storeReviews.length / publicReviewsPageSize)}</span>
+                  {Array.from({ length: Math.ceil(storeReviews.length / publicReviewsPageSize) }).map((_, index) => (
+                    <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} data-pagination-mobile-visible="false" aria-label={`Página ${index + 1}`}>{index + 1}</button>
+                  ))}
+                  <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página siguiente">Siguiente</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {storeReviewsEnabled && (
         <div class="public-review-form-shell-wrap">
           <button id="public-review-toggle" class="public-reviews-toggle" type="button" aria-expanded="false" aria-controls="public-review-form-shell">
@@ -2556,47 +2788,6 @@ function getProductOfferView(product: any) {
         </div>
       )}
 
-      {storeReviews.length > 0 && (
-        <>
-          <div class="public-reviews-list" data-public-reviews-list data-page-size={publicReviewsPageSize}>
-            {storeReviews.map((review, index) => (
-              <article class="public-review-card" data-review-card data-review-index={index} hidden={index >= publicReviewsPageSize}>
-                <div class="public-review-person">
-                  <div class="public-review-avatar" aria-hidden="true">{reviewInitials(review.customer_name || 'Cliente')}</div>
-                  <div>
-                    <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
-                    {formatReviewDate(review.created) && <p class="public-review-date">{formatReviewDate(review.created)}</p>}
-                  </div>
-                </div>
-                <div class="public-review-body">
-                  <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
-                  {review.comment && <p class="public-review-comment">{review.comment}</p>}
-                </div>
-                <span class="public-review-badge" aria-label="Reseña aprobada" title="Reseña aprobada">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
-                    <path d="m9 12 2 2 4-5"></path>
-                  </svg>
-                </span>
-                {showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge" hidden>Compra verificada</span>}
-              </article>
-            ))}
-          </div>
-          {storeReviews.length > publicReviewsPageSize && (
-            <div class="public-reviews-pagination" data-public-reviews-pagination>
-              <span data-public-reviews-range>Mostrando 1-5 de {reviewCountLabel(storeReviews.length)}</span>
-              <div class="public-reviews-pages" aria-label="Paginación de reseñas">
-                <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">Anterior</button>
-                <span class="pagination-mobile-status" data-public-reviews-page-status>1 de {Math.ceil(storeReviews.length / publicReviewsPageSize)}</span>
-                {Array.from({ length: Math.ceil(storeReviews.length / publicReviewsPageSize) }).map((_, index) => (
-                  <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} data-pagination-mobile-visible="false" aria-label={`Página ${index + 1}`}>{index + 1}</button>
-                ))}
-                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página siguiente">Siguiente</button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
     </section>
   )}
   <StoreAnalyticsTracker storeId={currentStoreId} pageType="store_home" />
@@ -2621,7 +2812,104 @@ function getProductOfferView(product: any) {
         setReviewFormOpen(reviewToggle.getAttribute('aria-expanded') !== 'true');
       });
 
+      const reviewCarouselShell = document.querySelector('[data-public-reviews-carousel]');
+      const reviewCarouselViewport = document.querySelector('[data-public-reviews-carousel-viewport]');
+      const reviewCarouselTrack = document.querySelector('[data-public-reviews-carousel-track]');
+      const reviewCarouselDots = document.querySelector('[data-public-reviews-carousel-dots]');
+      const reviewResults = document.querySelector('[data-public-reviews-results]');
+      const reviewViewToggle = document.querySelector('[data-public-reviews-view-toggle]');
+      const reviewViewLabel = document.querySelector('[data-public-reviews-view-label]');
+      const reduceReviewMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let reviewCarouselSlides = Array.from(document.querySelectorAll('[data-public-review-carousel-card]'));
+      let reviewCarouselDotButtons = [];
+      let reviewCarouselIndex = 0;
+      let reviewCarouselTimer = null;
+      let reviewPointerStartX = null;
+
+      function shuffledReviews(items) {
+        const shuffled = [...items];
+        for (let index = shuffled.length - 1; index > 0; index -= 1) {
+          const randomIndex = Math.floor(Math.random() * (index + 1));
+          [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+        }
+        return shuffled;
+      }
+
+      function updateReviewCarousel(index) {
+        if (!reviewCarouselTrack || !reviewCarouselSlides.length) return;
+        reviewCarouselIndex = (Number(index || 0) + reviewCarouselSlides.length) % reviewCarouselSlides.length;
+        reviewCarouselTrack.style.transform = `translate3d(-${reviewCarouselIndex * 100}%, 0, 0)`;
+        reviewCarouselDotButtons.forEach((button, dotIndex) => {
+          const isActive = dotIndex === reviewCarouselIndex;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-current', isActive ? 'true' : 'false');
+        });
+      }
+
+      function stopReviewCarousel() {
+        if (reviewCarouselTimer) window.clearTimeout(reviewCarouselTimer);
+        reviewCarouselTimer = null;
+      }
+
+      function startReviewCarousel(delay = 5500) {
+        stopReviewCarousel();
+        if (reduceReviewMotion.matches || reviewCarouselSlides.length < 2 || reviewCarouselShell?.hidden) return;
+        reviewCarouselTimer = window.setTimeout(() => {
+          updateReviewCarousel(reviewCarouselIndex + 1);
+          startReviewCarousel();
+        }, delay);
+      }
+
+      if (reviewCarouselTrack && reviewCarouselSlides.length) {
+        reviewCarouselSlides = shuffledReviews(reviewCarouselSlides).slice(0, 8);
+        reviewCarouselTrack.replaceChildren(...reviewCarouselSlides);
+        if (reviewCarouselDots && reviewCarouselSlides.length > 1) {
+          reviewCarouselDotButtons = reviewCarouselSlides.map((_, index) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.className = 'public-reviews-carousel-dot';
+            dot.setAttribute('aria-label', `Mostrar rating ${index + 1}`);
+            dot.addEventListener('click', () => {
+              updateReviewCarousel(index);
+              startReviewCarousel();
+            });
+            reviewCarouselDots.append(dot);
+            return dot;
+          });
+        }
+        updateReviewCarousel(0);
+        startReviewCarousel();
+      }
+
+      reviewCarouselShell?.addEventListener('mouseenter', stopReviewCarousel);
+      reviewCarouselShell?.addEventListener('mouseleave', () => startReviewCarousel(1200));
+      reviewCarouselShell?.addEventListener('focusin', stopReviewCarousel);
+      reviewCarouselShell?.addEventListener('focusout', () => startReviewCarousel(1200));
+      reviewCarouselViewport?.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'mouse') return;
+        reviewPointerStartX = event.clientX;
+        stopReviewCarousel();
+        reviewCarouselViewport.setPointerCapture?.(event.pointerId);
+      });
+      reviewCarouselViewport?.addEventListener('pointerup', (event) => {
+        if (reviewPointerStartX === null) return;
+        const distance = event.clientX - reviewPointerStartX;
+        reviewPointerStartX = null;
+        if (Math.abs(distance) >= 44) updateReviewCarousel(reviewCarouselIndex + (distance < 0 ? 1 : -1));
+        startReviewCarousel(2000);
+      });
+      reviewCarouselViewport?.addEventListener('pointercancel', () => {
+        reviewPointerStartX = null;
+        startReviewCarousel(2000);
+      });
+      reduceReviewMotion.addEventListener?.('change', () => startReviewCarousel());
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopReviewCarousel();
+        else startReviewCarousel(1200);
+      });
+
       const reviewCards = Array.from(document.querySelectorAll('[data-review-card]'));
+      const reviewTotalCount = Math.max(reviewCards.length, Number(document.querySelector('.public-reviews-view-count')?.textContent || 0));
       const reviewPagination = document.querySelector('[data-public-reviews-pagination]');
       const reviewRange = document.querySelector('[data-public-reviews-range]');
       const reviewPageStatus = document.querySelector('[data-public-reviews-page-status]');
@@ -2653,6 +2941,24 @@ function getProductOfferView(product: any) {
       reviewPrev?.addEventListener('click', () => renderReviewPage(currentReviewPage - 1));
       reviewNext?.addEventListener('click', () => renderReviewPage(currentReviewPage + 1));
       if (reviewCards.length) renderReviewPage(1);
+
+      function setReviewsViewOpen(open) {
+        if (!reviewViewToggle || !reviewCarouselShell || !reviewResults) return;
+        reviewViewToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        reviewViewToggle.setAttribute('aria-label', open ? 'Cerrar ratings de la tienda' : `Ver los ${reviewTotalCount} ratings de la tienda`);
+        if (reviewViewLabel) reviewViewLabel.textContent = open ? 'Cerrar ratings' : 'Ver ratings de la tienda';
+        reviewCarouselShell.hidden = open;
+        reviewResults.hidden = !open;
+        if (open) {
+          stopReviewCarousel();
+          renderReviewPage(1);
+        } else {
+          startReviewCarousel(1200);
+        }
+      }
+      reviewViewToggle?.addEventListener('click', () => {
+        setReviewsViewOpen(reviewViewToggle.getAttribute('aria-expanded') !== 'true');
+      });
 
       const form = document.getElementById('public-store-review-form');
       if (!form) return;
