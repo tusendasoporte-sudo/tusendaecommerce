@@ -74,14 +74,14 @@ const contextualUtility = formattedBusinessHours
       ? { id: 'location', label: 'Ubicación', detail: 'Ver dirección', icon: 'location', kind: 'modal' }
       : aboutStoreText
         ? { id: 'about', label: 'Información', detail: 'Sobre la tienda', icon: 'info', kind: 'modal' }
-        : null;
+        : { id: 'catalog', label: 'Catálogo', detail: 'Ver productos', icon: 'bag', kind: 'link', href: homePath, external: false };
 const utilityItems = [
   paymentCurrencies.length
     ? { id: 'payments', label: 'Formas de pago', detail: 'Métodos disponibles', icon: 'payment', kind: 'modal' }
     : null,
   contextualUtility,
   whatsappStoreHref
-    ? { id: 'whatsapp', label: 'WhatsApp', detail: 'Atención directa', icon: 'whatsapp', kind: 'link', href: whatsappStoreHref }
+    ? { id: 'whatsapp', label: 'WhatsApp', detail: 'Atención directa', icon: 'whatsapp', kind: 'link', href: whatsappStoreHref, external: true }
     : null,
 ].filter(Boolean);
 const footerTagline = storeDescription || 'Todo lo que necesitas, en un solo lugar.';
@@ -222,6 +222,20 @@ function currencyView(currency: any) {
 }
 
 function iconSvg(name: string) {
+  const premiumUtilityImages: Record<string, string> = {
+    payment: '/brand/footer-icon-payment-v2.webp',
+    bag: '/brand/footer-icon-catalog-v2.webp',
+    whatsapp: '/brand/footer-icon-whatsapp-v2.webp',
+  };
+  if (premiumUtilityImages[name]) {
+    return `<img src="${premiumUtilityImages[name]}" alt="" aria-hidden="true" width="256" height="256" loading="lazy" decoding="async" />`;
+  }
+  const premiumUtilityIcons: Record<string, string> = {
+    payment: '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pz-payment-gradient" x1="15" y1="12" x2="50" y2="51" gradientUnits="userSpaceOnUse"><stop stop-color="#75c9ff"/><stop offset=".28" stop-color="#429eff"/><stop offset=".66" stop-color="#1768e7"/><stop offset="1" stop-color="#0b3cae"/></linearGradient><linearGradient id="pz-payment-edge" x1="32" y1="14" x2="32" y2="51" gradientUnits="userSpaceOnUse"><stop stop-color="#bce9ff"/><stop offset=".16" stop-color="#4aa7ff"/><stop offset=".78" stop-color="#0a45be"/><stop offset="1" stop-color="#062b84"/></linearGradient><filter id="pz-payment-depth" x="-35%" y="-35%" width="170%" height="190%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#020817" flood-opacity=".86"/><feDropShadow dx="0" dy="0" stdDeviation="2.4" flood-color="#268cff" flood-opacity=".72"/></filter></defs><g filter="url(#pz-payment-depth)"><rect x="9" y="13" width="46" height="37" rx="8" fill="#061b55" stroke="#1765dc" stroke-width="2.4"/><rect x="11.5" y="11" width="43" height="35" rx="7" fill="url(#pz-payment-gradient)" stroke="url(#pz-payment-edge)" stroke-width="2"/><path d="M11.5 20.5h43v10.2h-43z" fill="#082b78"/><path d="M12.5 21.5h41" stroke="#0b1d50" stroke-width="3" opacity=".82"/><path d="M16 14.7h28" stroke="#d6f2ff" stroke-width="1.5" stroke-linecap="round" opacity=".72"/><rect x="16" y="35.5" width="14.5" height="5.2" rx="2.1" fill="#061944" stroke="#5eb4ff" stroke-width="1.1"/><circle cx="47" cy="38.2" r="2.5" fill="#65beff" opacity=".82"/><path d="M14 43.5h36" stroke="#083386" stroke-width="1.5" opacity=".7"/></g></svg>',
+    bag: '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pz-catalog-gradient" x1="18" y1="14" x2="47" y2="53" gradientUnits="userSpaceOnUse"><stop stop-color="#8bd5ff"/><stop offset=".26" stop-color="#4da8ff"/><stop offset=".68" stop-color="#1c6de5"/><stop offset="1" stop-color="#0b43b5"/></linearGradient><linearGradient id="pz-catalog-side" x1="30" y1="26" x2="45" y2="51" gradientUnits="userSpaceOnUse"><stop stop-color="#3e95f4"/><stop offset="1" stop-color="#0a358e"/></linearGradient><filter id="pz-catalog-depth" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#020817" flood-opacity=".86"/><feDropShadow dx="0" dy="0" stdDeviation="2.2" flood-color="#2e8cff" flood-opacity=".66"/></filter></defs><g filter="url(#pz-catalog-depth)"><path d="M14.5 24.5h35l-2.8 28H17.3l-2.8-28Z" fill="#061b55" stroke="#1765dc" stroke-width="2.2"/><path d="M16.5 22h31.2l-2.5 27.5H19L16.5 22Z" fill="url(#pz-catalog-gradient)" stroke="#70bdff" stroke-width="1.7"/><path d="M36.5 22h11.2l-2.5 27.5H34.8L36.5 22Z" fill="url(#pz-catalog-side)" opacity=".68"/><path d="M23 23v-4.8a9 9 0 0 1 18 0V23" fill="none" stroke="#9edcff" stroke-width="4.2" stroke-linecap="round"/><path d="M25.5 22v-3.4a6.5 6.5 0 0 1 13 0V22" fill="none" stroke="#0b3c9b" stroke-width="1.7" stroke-linecap="round"/><path d="M21 26.5h20" stroke="#d9f3ff" stroke-width="1.6" stroke-linecap="round" opacity=".68"/><path d="M24 34c2 2.4 4.7 3.6 8 3.6s6-1.2 8-3.6" fill="none" stroke="#07245e" stroke-width="3" stroke-linecap="round"/></g></svg>',
+    whatsapp: '<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="pz-whatsapp-gradient" x1="18" y1="10" x2="47" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#8affca"/><stop offset=".28" stop-color="#48f59a"/><stop offset=".7" stop-color="#17cb6c"/><stop offset="1" stop-color="#07964c"/></linearGradient><linearGradient id="pz-whatsapp-highlight" x1="20" y1="13" x2="38" y2="38" gradientUnits="userSpaceOnUse"><stop stop-color="#e1fff1"/><stop offset="1" stop-color="#6fffb4" stop-opacity="0"/></linearGradient><filter id="pz-whatsapp-depth" x="-40%" y="-40%" width="180%" height="200%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#020817" flood-opacity=".9"/><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#28f58a" flood-opacity=".72"/></filter></defs><g filter="url(#pz-whatsapp-depth)"><path d="M32 7.5c-13 0-23.5 10.2-23.5 22.8 0 4.3 1.2 8.4 3.4 11.9L8.2 56.5l14.9-3.8A24 24 0 0 0 32 54.4c13 0 23.5-10.2 23.5-22.8S45 7.5 32 7.5Z" fill="#041d24" stroke="#0c8a50" stroke-width="2.4"/><path d="M32 9.8c-11.7 0-21.2 9.2-21.2 20.5 0 4 1.2 7.7 3.3 10.8l-3 11.5 12-3a21.7 21.7 0 0 0 8.9 1.9c11.7 0 21.2-9.2 21.2-20.6C53.2 19.3 43.7 9.8 32 9.8Zm0 5.3c8.6 0 15.7 6.9 15.7 15.5S40.6 46 32 46c-3 0-5.8-.8-8.2-2.2l-6.2 1.6 1.6-6a15.2 15.2 0 0 1-2.8-8.8c0-8.6 7-15.5 15.6-15.5Z" fill="url(#pz-whatsapp-gradient)"/><path d="M31.8 12.2c-7.7 0-14.2 5.6-15.3 12.9 3.3-5.5 9.4-9.2 16.4-9.2 4.8 0 9.1 1.7 12.4 4.6a15.8 15.8 0 0 0-13.5-8.3Z" fill="url(#pz-whatsapp-highlight)" opacity=".72"/><path d="M24.4 21.5c-.8 0-1.5.3-2.1 1.1-.8 1-2 2.6-2 5.1 0 2.6 2 5.1 2.3 5.5.3.4 4 6.3 10 8.7 5.1 2 6.1 1.6 7.2 1.5 1.1-.1 3.4-1.3 3.9-2.7.5-1.3.5-2.5.3-2.7-.2-.3-.8-.5-1.7-.9l-3.8-1.8c-.6-.3-1.2-.2-1.7.5l-1.5 1.9c-.5.5-1 .5-1.8.2-1-.4-3.2-1.2-5.8-3.5-2.2-1.9-3.6-4.2-4-5-.5-.7 0-1.1.3-1.5l1.1-1.3c.3-.4.5-.8.7-1.2.2-.5.1-.9-.1-1.4l-1.6-3.8c-.3-.6-.8-.8-1.5-.8h-2.2Z" fill="#eafff4" stroke="#b6ffda" stroke-width=".5"/></g></svg>',
+  };
+  if (premiumUtilityIcons[name]) return premiumUtilityIcons[name];
   const paths: Record<string, string> = {
     payment: '<path d="M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 4h18V7H3v2Zm2 5v2h6v-2H5Z"/>',
     clock: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm1 3h-2v6l4.6 2.7 1-1.7-3.6-2.1V7Z"/>',
@@ -243,7 +257,7 @@ function iconSvg(name: string) {
     tiktok: '<path d="M15 3c.4 2.5 1.8 4 4 4.3V11a7 7 0 0 1-4-1.3V16a6 6 0 1 1-6-6c.4 0 .7 0 1 .1v4.1A2 2 0 1 0 11 16V3h4Z"/>',
     youtube: '<path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.6 4.6 12 4.6 12 4.6s-5.6 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.9.5 7.5.5 7.5.5s5.6 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8ZM10 15.2V8.8l5.5 3.2-5.5 3.2Z"/>',
   };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.check}</svg>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">${paths[name] || paths.check}</svg>`;
 }
 ---
 
@@ -288,17 +302,15 @@ function iconSvg(name: string) {
         {utilityItems.map((item) => (
           item.kind === 'link'
             ? (
-              <a class={`pz-footer-utility is-${item.id}`} href={item.href} target="_blank" rel="noreferrer">
+              <a class={`pz-footer-utility is-${item.id}`} href={item.href} target={item.external ? '_blank' : undefined} rel={item.external ? 'noreferrer' : undefined}>
                 <span class="pz-footer-utility-icon" set:html={iconSvg(item.icon)} />
-                <span class="pz-footer-utility-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
-                <span class="pz-footer-utility-arrow" aria-hidden="true">›</span>
+                <span class="pz-footer-utility-copy"><strong>{item.label}</strong></span>
               </a>
             )
             : (
               <button class={`pz-footer-utility is-${item.id}`} type="button" data-pz-footer-modal-open={item.id}>
                 <span class="pz-footer-utility-icon" set:html={iconSvg(item.icon)} />
-                <span class="pz-footer-utility-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
-                <span class="pz-footer-utility-arrow" aria-hidden="true">›</span>
+                <span class="pz-footer-utility-copy"><strong>{item.label}</strong></span>
               </button>
             )
         ))}
@@ -321,23 +333,20 @@ function iconSvg(name: string) {
         <p>Conoce la plataforma de Tu Senda 84 y crea tu propio espacio para vender.</p>
       </div>
       <div class="pz-platform-visual" aria-hidden="true">
-        <span class="pz-platform-orbit pz-platform-orbit-one"></span>
-        <span class="pz-platform-orbit pz-platform-orbit-two"></span>
-        <div class="pz-platform-window">
-          <span class="pz-platform-window-top"><i></i><i></i><i></i></span>
-          <span class="pz-platform-shop"><i></i></span>
-          <span class="pz-platform-chart"></span>
-          <span class="pz-platform-product"></span>
-        </div>
+        <img src="/brand/tusenda84-storefront-platform-v2.webp" alt="" loading="lazy" decoding="async" width="840" height="1050" />
       </div>
       <a class="pz-platform-button" href={creatorStoreHref} target={creatorStoreTarget} rel="noopener noreferrer">Quiero crear mi tienda</a>
-      <div class="pz-platform-backed">
+      <button class="pz-platform-learn" type="button" data-pz-footer-modal-open="creator-info">
+        Ver cómo funciona <span aria-hidden="true">›</span>
+      </button>
+    </section>}
+
+    {showPlatformCta && <div class="pz-footer-platform-backed" aria-label="Tecnología de Tu Senda 84">
         <span class="pz-tusenda-mark" aria-hidden="true">
           <img src="/brand/tusenda84-bazzar-logo.webp" alt="" loading="lazy" />
         </span>
         <span><small>Tecnología de</small><strong>Tu Senda 84</strong></span>
-      </div>
-    </section>}
+    </div>}
 
   </div>
 </footer>
@@ -393,6 +402,17 @@ function iconSvg(name: string) {
         {paymentCurrencies.map((currency) => <li>{currency.label}</li>)}
       </ul>
       <p>El pago se coordina directamente con la tienda al confirmar el pedido.</p>
+    </section>
+  </div>
+)}
+
+{showPlatformCta && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="creator-info" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-creator-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-creator-title">Cómo crear tu tienda</h2>
+      <p>Cuéntanos sobre tu negocio y el equipo de Tu Senda 84 te explicará el proceso, las herramientas disponibles y los próximos pasos.</p>
+      <a class="pz-footer-modal-action" href={creatorStoreHref} target={creatorStoreTarget} rel="noopener noreferrer">Hablar por WhatsApp</a>
     </section>
   </div>
 )}
@@ -781,5 +801,223 @@ function iconSvg(name: string) {
     .pz-footer-utility { min-height: 116px; padding-inline: 7px; }
     .pz-footer-utility-copy small { display: none; }
     .pz-platform-window { transform: scale(.94); }
+  }
+
+  /* Composición final basada en el concepto premium aprobado. */
+  .pz-footer-utilities {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgba(59,130,246,.38);
+    border-radius: 26px;
+    background: linear-gradient(145deg, rgba(5,26,68,.88), rgba(2,14,39,.76));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 42px rgba(0,0,0,.18), 0 0 34px rgba(37,99,235,.08);
+  }
+  .pz-footer-utility {
+    min-height: 174px;
+    place-items: center;
+    align-content: center;
+    grid-template-rows: auto auto;
+    gap: 17px;
+    padding: 24px 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: center;
+    box-shadow: none;
+  }
+  .pz-footer-utility:not(:first-child) { border-left: 1px solid rgba(96,165,250,.24); }
+  .pz-footer-utility:hover {
+    transform: none;
+    border-color: rgba(96,165,250,.24);
+    background: linear-gradient(180deg, rgba(37,99,235,.16), rgba(37,99,235,.04));
+    box-shadow: inset 0 0 34px rgba(37,99,235,.10);
+  }
+  .pz-footer-utility-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    color: #60a5fa;
+    background: linear-gradient(145deg, rgba(13,53,128,.94), rgba(6,30,82,.92));
+    border-color: rgba(96,165,250,.20);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 0 20px rgba(37,99,235,.10), 0 12px 28px rgba(0,0,0,.18);
+  }
+  .pz-footer-utility-icon svg {
+    width: 32px;
+    height: 32px;
+    overflow: visible;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,.30)) drop-shadow(0 0 5px color-mix(in srgb, currentColor 38%, transparent));
+  }
+  .pz-footer-utility-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 7px 9px rgba(0,0,0,.26));
+  }
+  .pz-footer-utility-copy { padding: 0; display: block; }
+  .pz-footer-utility-copy strong { font-size: clamp(14px, 1.7vw, 18px); line-height: 1.18; }
+  .pz-footer-utility.is-whatsapp .pz-footer-utility-icon {
+    color: #52f39a;
+    background: linear-gradient(145deg, rgba(6,78,74,.82), rgba(4,43,62,.94));
+    border-color: rgba(82,243,154,.28);
+  }
+  .pz-footer-utility-arrow { display: none; }
+
+  .pz-footer-platform-cta {
+    grid-template-columns: minmax(0, 1.02fr) minmax(260px, .98fr);
+    grid-template-areas:
+      'copy visual'
+      'button button'
+      'learn learn';
+    gap: 22px clamp(18px, 3vw, 42px);
+    border: 2px solid rgba(52,125,255,.84);
+    background:
+      radial-gradient(circle at 78% 38%, rgba(37,99,235,.30), transparent 30%),
+      linear-gradient(138deg, rgba(4,31,80,.99), rgba(1,13,37,.99));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 24px 56px rgba(0,0,0,.28), 0 0 28px rgba(37,99,235,.20);
+  }
+  .pz-platform-visual {
+    min-height: 330px;
+    overflow: visible;
+  }
+  .pz-platform-visual::before {
+    width: 90%;
+    background: radial-gradient(circle, rgba(37,99,235,.30), rgba(37,99,235,.04) 58%, transparent 72%);
+  }
+  .pz-platform-visual img {
+    position: relative;
+    z-index: 1;
+    width: min(112%, 430px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 28px 34px rgba(0,0,0,.30));
+  }
+  .pz-platform-button {
+    width: 100%;
+    max-width: none;
+    min-height: 72px;
+    border-radius: 18px;
+    font-size: clamp(17px, 2vw, 21px);
+  }
+  .pz-platform-learn {
+    grid-area: learn;
+    justify-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    border: 0;
+    padding: 5px 12px;
+    background: transparent;
+    color: #38bdf8;
+    font: inherit;
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  .pz-platform-learn span { font-size: 30px; line-height: .7; transition: transform .18s ease; }
+  .pz-platform-learn:hover span { transform: translateX(4px); }
+  .pz-platform-learn:focus-visible { outline: 3px solid rgba(56,189,248,.48); outline-offset: 5px; border-radius: 8px; }
+  .pz-footer-platform-backed {
+    grid-column: 1 / -1;
+    min-height: 132px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+    border: 1px solid rgba(59,130,246,.30);
+    border-radius: 24px;
+    color: #fff;
+    background: linear-gradient(145deg, rgba(5,25,64,.88), rgba(2,14,39,.80));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 38px rgba(0,0,0,.16);
+  }
+  .pz-footer-platform-backed::before,
+  .pz-footer-platform-backed::after {
+    content: '';
+    position: absolute;
+    bottom: -28px;
+    width: 240px;
+    height: 78px;
+    opacity: .24;
+    background: repeating-radial-gradient(ellipse at center, transparent 0 7px, #2563eb 8px 9px, transparent 10px 15px);
+  }
+  .pz-footer-platform-backed::before { left: -72px; transform: rotate(8deg); }
+  .pz-footer-platform-backed::after { right: -72px; transform: rotate(-8deg); }
+  .pz-footer-platform-backed > span:last-child { position: relative; z-index: 1; display: grid; gap: 3px; text-align: left; }
+  .pz-footer-platform-backed small { color: rgba(219,234,254,.78); font-size: 15px; line-height: 1.2; }
+  .pz-footer-platform-backed strong { color: #fff; font-size: 24px; line-height: 1.15; font-weight: 1000; }
+  .pz-footer-platform-backed .pz-tusenda-mark { position: relative; z-index: 1; width: 70px; height: 70px; border-radius: 18px; }
+  .pz-footer-modal-action {
+    min-height: 50px;
+    margin-top: 8px;
+    padding: 13px 18px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #0b63f6;
+    color: #fff;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 1000;
+  }
+
+  @media (max-width: 980px) {
+    .pz-footer-platform-cta {
+      grid-template-columns: minmax(0, 1fr) minmax(230px, .92fr);
+      grid-template-areas: 'copy visual' 'button button' 'learn learn';
+    }
+  }
+  @media (max-width: 720px) {
+    .pz-footer-main { padding: 28px 20px; gap: 25px; }
+    .pz-footer-store { grid-template-columns: 78px minmax(0, 1fr); gap: 17px; }
+    .pz-footer-logo-link { width: 76px; height: 76px; border-radius: 20px; }
+    .pz-footer-brand-copy h2 { font-size: 32px; }
+    .pz-footer-description { margin-top: 16px; font-size: 16px; line-height: 1.5; }
+    .pz-footer-utilities { gap: 0; border-radius: 22px; }
+    .pz-footer-utility {
+      min-height: 146px;
+      gap: 13px;
+      padding: 18px 7px;
+      border-radius: 0;
+    }
+    .pz-footer-utility:not(:first-child) { border-left: 1px solid rgba(96,165,250,.24); }
+    .pz-footer-utility-icon { width: 54px; height: 54px; border-radius: 50%; }
+    .pz-footer-utility-icon svg { width: 28px; height: 28px; }
+    .pz-footer-utility-icon img { width: 100%; height: 100%; }
+    .pz-footer-utility-copy strong { font-size: clamp(11px, 3.25vw, 14px); }
+    .pz-footer-platform-cta {
+      padding: 27px 20px;
+      grid-template-columns: minmax(0, .98fr) minmax(0, 1.02fr);
+      grid-template-areas: 'copy visual' 'button button' 'learn learn';
+      justify-items: stretch;
+      text-align: left;
+      gap: 20px 10px;
+      border-radius: 24px;
+    }
+    .pz-platform-copy { align-self: center; }
+    .pz-platform-copy h3 { font-size: clamp(28px, 8vw, 35px); line-height: 1.06; }
+    .pz-platform-copy p { margin-top: 15px; font-size: 13px; line-height: 1.55; }
+    .pz-platform-eyebrow { margin-bottom: 11px; font-size: 10px; }
+    .pz-platform-visual { min-height: 260px; align-self: center; }
+    .pz-platform-visual img { width: 118%; max-width: 245px; transform: translateX(2%); }
+    .pz-platform-button { min-height: 62px; font-size: 17px; }
+    .pz-platform-learn { font-size: 15px; }
+    .pz-footer-platform-backed { min-height: 118px; border-radius: 22px; }
+    .pz-footer-platform-backed .pz-tusenda-mark { width: 60px; height: 60px; border-radius: 16px; }
+    .pz-footer-platform-backed small { font-size: 13px; }
+    .pz-footer-platform-backed strong { font-size: 21px; }
+  }
+  @media (max-width: 380px) {
+    .pz-footer-main { padding-inline: 15px; }
+    .pz-footer-utility { min-height: 132px; padding-inline: 5px; }
+    .pz-footer-utility-icon { width: 48px; height: 48px; }
+    .pz-footer-platform-cta { padding-inline: 16px; }
+    .pz-platform-copy h3 { font-size: 27px; }
+    .pz-platform-visual { min-height: 235px; }
   }
 </style>
