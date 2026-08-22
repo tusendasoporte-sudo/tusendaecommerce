@@ -3295,76 +3295,223 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         }
       }
 
-      .notification-priority-config {
+      .notification-settings-shell {
         display: grid;
-        gap: 14px;
-        padding: 14px;
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
+        gap: 12px;
       }
 
-      .notification-priority-config__head strong {
+      .notification-master-row {
+        padding: 14px 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #eff6ff, #ffffff);
+      }
+
+      .notification-settings-groups {
+        display: grid;
+        gap: 10px;
+      }
+
+      .notification-settings-group {
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #fff;
+        transition: border-color .18s ease, box-shadow .18s ease;
+      }
+
+      .notification-settings-group[open] {
+        border-color: #bfdbfe;
+        box-shadow: 0 12px 28px rgba(37,99,235,.08);
+      }
+
+      .notification-settings-group__summary {
+        list-style: none;
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 11px;
+        padding: 14px;
+        cursor: pointer;
+      }
+
+      .notification-settings-group__summary::-webkit-details-marker { display: none; }
+
+      .notification-settings-group__icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        color: #2563eb;
+      }
+
+      .notification-settings-group__icon svg {
+        width: 19px;
+        height: 19px;
+        fill: currentColor;
+      }
+
+      .notification-settings-group--priority .notification-settings-group__icon {
+        background: #fff7ed;
+        color: #ea580c;
+      }
+
+      .notification-settings-group--inventory .notification-settings-group__icon {
+        background: #ecfdf5;
+        color: #059669;
+      }
+
+      .notification-settings-group--cleanup .notification-settings-group__icon {
+        background: #f8fafc;
+        color: #64748b;
+      }
+
+      .notification-settings-group__copy { min-width: 0; }
+
+      .notification-settings-group__copy strong {
         display: block;
         color: #0f172a;
         font-size: 14px;
         font-weight: 1000;
+        line-height: 1.25;
       }
 
-      .notification-priority-config__head p {
-        margin: 4px 0 0;
+      .notification-settings-group__copy small {
+        display: block;
+        margin-top: 3px;
         color: #64748b;
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 750;
         line-height: 1.35;
       }
 
-      .notification-inventory-config {
-        display: grid;
-        gap: 14px;
-        padding: 14px;
-        border-radius: 20px;
+      .notification-settings-group__meta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .notification-settings-group__state {
+        min-height: 26px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+
+      .notification-settings-group__chevron {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 1px solid #e2e8f0;
         background: #f8fafc;
+        color: #475569;
+        transition: transform .18s ease;
       }
 
-      .notification-inventory-config__head strong {
-        display: block;
-        color: #0f172a;
-        font-size: 14px;
-        font-weight: 1000;
+      .notification-settings-group__chevron svg {
+        width: 15px;
+        height: 15px;
+        fill: currentColor;
       }
 
-      .notification-inventory-config__head p {
-        margin: 4px 0 0;
-        color: #64748b;
-        font-size: 12px;
-        font-weight: 750;
-        line-height: 1.35;
+      .notification-settings-group[open] > .notification-settings-group__summary .notification-settings-group__chevron {
+        transform: rotate(180deg);
       }
 
-      .notification-cleanup-config {
+      .notification-settings-group__body {
         display: grid;
-        gap: 14px;
-        padding: 14px;
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
+        gap: 2px;
+        padding: 0 14px 14px;
       }
 
-      .notification-cleanup-config__head strong {
+      .notification-setting-row {
+        min-height: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 2px;
+        border-top: 1px solid #eef2f7;
+        color: #334155;
+        cursor: pointer;
+      }
+
+      .notification-setting-row:first-child { border-top: 0; }
+      .notification-setting-row > span:first-child { min-width: 0; }
+      .notification-setting-row strong {
         display: block;
-        color: #0f172a;
-        font-size: 14px;
-        font-weight: 1000;
+        color: #1e293b;
+        font-size: 13px;
+        font-weight: 950;
+        line-height: 1.3;
       }
 
-      .notification-cleanup-config__head p {
-        margin: 4px 0 0;
+      .notification-setting-row small {
+        display: block;
+        margin-top: 3px;
         color: #64748b;
-        font-size: 12px;
-        font-weight: 750;
-        line-height: 1.35;
+        font-size: 11.5px;
+        font-weight: 700;
+        line-height: 1.4;
+      }
+
+      .notification-dependent-fields {
+        display: grid;
+        gap: 12px;
+        padding: 10px 0 12px;
+        border-top: 1px solid #eef2f7;
+      }
+
+      .notification-dependent-fields[hidden] { display: none !important; }
+      .notification-dependent-fields .general-settings-grid { gap: 12px; }
+
+      .notification-cleanup-warning {
+        margin: 2px 0 0;
+        padding: 10px 12px;
+        border: 1px solid #fed7aa;
+        border-radius: 14px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 11.5px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 720px) {
+        .notification-master-row { padding: 13px 12px; }
+        .notification-settings-group__summary {
+          grid-template-columns: 36px minmax(0, 1fr) auto;
+          gap: 9px;
+          padding: 12px;
+        }
+        .notification-settings-group__icon { width: 36px; height: 36px; }
+        .notification-settings-group__copy small { display: none; }
+        .notification-settings-group__meta { gap: 6px; }
+        .notification-settings-group__state { padding: 5px 8px; }
+        .notification-settings-group__chevron { width: 28px; height: 28px; }
+        .notification-settings-group__body { padding: 0 12px 12px; }
+        .notification-setting-row {
+          min-height: 66px;
+          align-items: flex-start;
+          gap: 12px;
+          padding: 12px 0;
+        }
+        .notification-setting-row .switch-control { margin-top: 2px; flex: 0 0 auto; }
+        .notification-dependent-fields { padding: 8px 0 12px; }
       }
 
       @media (max-width: 1023px) {
@@ -3563,116 +3710,86 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
 
               <details class="general-settings-accordion">
                 <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2H9.3A2.8 2.8 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span><div><h3>Notificaciones del admin</h3><p>Recibe avisos dentro del panel cuando ocurra algo importante en la tienda.</p><span id="settings-notifications-last-modification" class="pz-last-modification" data-pz-last-modification data-settings-last-modification data-resource-type="settings" data-resource-id={settingsResourceId} data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando &uacute;ltima modificaci&oacute;n&hellip;</span></span></div></div><div class="general-settings-summary-meta"><span id="general-status-notifications" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
-                <div class="general-settings-body"><div class="general-settings-grid">
-                  <label class="rating-setting-row full" for="settings-notifications-enabled"><span><strong>Activar notificaciones</strong><small>Mostrar avisos dentro del admin.</small></span><span class="switch-control"><input id="settings-notifications-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
-                  <label class="rating-setting-row full" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
-                  <label class="rating-setting-row full" for="settings-notify-pending-order"><span><strong>Pedido pendiente sin atender</strong><small>Avisar si un pedido sigue pendiente demasiado tiempo.</small></span><span class="switch-control"><input id="settings-notify-pending-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
-                  <label class="rating-setting-row full" for="settings-notify-review-pending"><span><strong>Nueva rese&ntilde;a pendiente</strong><small>Avisar cuando un cliente deje una rese&ntilde;a que necesita aprobaci&oacute;n.</small></span><span class="switch-control"><input id="settings-notify-review-pending" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
-                  <div class="field"><label for="settings-pending-order-hours">Avisar despu&eacute;s de X horas</label><input id="settings-pending-order-hours" type="number" min="1" step="1" value="2" /></div>
-                  <div class="field full">
-                    <div class="notification-priority-config">
-                      <div class="notification-priority-config__head">
-                        <div>
-                          <strong>Prioridad por valor del pedido</strong>
-                          <p>Calcula la prioridad usando productos en USD, sin incluir envio.</p>
+                <div class="general-settings-body">
+                  <div class="notification-settings-shell">
+                    <label class="notification-setting-row notification-master-row" for="settings-notifications-enabled">
+                      <span><strong>Activar notificaciones</strong><small>Control principal de todos los avisos dentro del admin.</small></span>
+                      <span class="switch-control"><input id="settings-notifications-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                    </label>
+
+                    <div class="notification-settings-groups">
+                      <details class="notification-settings-group notification-settings-group--orders">
+                        <summary class="notification-settings-group__summary">
+                          <span class="notification-settings-group__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 2h10v3h3v17H4V5h3V2Zm2 3h6V4H9v1Zm-2 3v11h10V8H7Zm2 2h6v2H9v-2Zm0 4h6v2H9v-2Z"/></svg></span>
+                          <span class="notification-settings-group__copy"><strong>Pedidos y rese&ntilde;as</strong><small>Avisos de actividad que necesitan atenci&oacute;n.</small></span>
+                          <span class="notification-settings-group__meta"><span id="notification-orders-summary" class="notification-settings-group__state">3 activos</span><span class="notification-settings-group__chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5 1.5 1.5L12 17l-6.5-6.5L7 9Z"/></svg></span></span>
+                        </summary>
+                        <div class="notification-settings-group__body">
+                          <label class="notification-setting-row" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          <label class="notification-setting-row" for="settings-notify-pending-order"><span><strong>Pedido pendiente sin atender</strong><small>Avisar si un pedido sigue pendiente demasiado tiempo.</small></span><span class="switch-control"><input id="settings-notify-pending-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          <div id="settings-pending-order-hours-field" class="notification-dependent-fields">
+                            <div class="field"><label for="settings-pending-order-hours">Avisar despu&eacute;s de X horas</label><input id="settings-pending-order-hours" type="number" min="1" step="1" value="2" /></div>
+                          </div>
+                          <label class="notification-setting-row" for="settings-notify-review-pending"><span><strong>Nueva rese&ntilde;a pendiente</strong><small>Avisar cuando una rese&ntilde;a necesite aprobaci&oacute;n.</small></span><span class="switch-control"><input id="settings-notify-review-pending" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                         </div>
-                      </div>
+                      </details>
 
-                      <label class="rating-setting-row full" for="settings-notification-priority-enabled">
-                        <span><strong>Activar prioridad automatica</strong><small>Los pedidos grandes se mostraran como importantes o alta prioridad.</small></span>
-                        <span class="switch-control"><input id="settings-notification-priority-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <div class="general-settings-grid">
-                        <div class="field">
-                          <label for="settings-notification-priority-important-min">Importante desde USD</label>
-                          <input id="settings-notification-priority-important-min" type="number" min="0" step="1" value="50" />
-                          <p class="form-help">Ejemplo: desde $50 se marca como importante.</p>
+                      <details class="notification-settings-group notification-settings-group--priority">
+                        <summary class="notification-settings-group__summary">
+                          <span class="notification-settings-group__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.1 3.4 9.8 8 11 4.6-1.2 8-5.9 8-11V5l-8-3Zm1 5v5h3l-5 5v-5H8l5-5Z"/></svg></span>
+                          <span class="notification-settings-group__copy"><strong>Prioridad de pedidos</strong><small>Destaca autom&aacute;ticamente los pedidos de mayor valor.</small></span>
+                          <span class="notification-settings-group__meta"><span id="notification-priority-summary" class="notification-settings-group__state">Configurada</span><span class="notification-settings-group__chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5 1.5 1.5L12 17l-6.5-6.5L7 9Z"/></svg></span></span>
+                        </summary>
+                        <div class="notification-settings-group__body">
+                          <label class="notification-setting-row" for="settings-notification-priority-enabled"><span><strong>Activar prioridad autom&aacute;tica</strong><small>Marca los pedidos grandes como importantes o de alta prioridad.</small></span><span class="switch-control"><input id="settings-notification-priority-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          <div id="settings-notification-priority-fields" class="notification-dependent-fields">
+                            <div class="general-settings-grid">
+                              <div class="field"><label for="settings-notification-priority-important-min">Importante desde USD</label><input id="settings-notification-priority-important-min" type="number" min="0" step="1" value="50" /><p class="form-help">Desde este valor se marca como importante.</p></div>
+                              <div class="field"><label for="settings-notification-priority-critical-min">Alta prioridad desde USD</label><input id="settings-notification-priority-critical-min" type="number" min="0" step="1" value="100" /><p class="form-help">Desde este valor se marca en rojo.</p></div>
+                            </div>
+                            <label class="notification-setting-row" for="settings-notification-show-order-subtotal"><span><strong>Mostrar subtotal sin env&iacute;o</strong><small>La campana mostrar&aacute; el subtotal de productos en USD.</small></span><span class="switch-control"><input id="settings-notification-show-order-subtotal" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                            <label class="notification-setting-row" for="settings-notification-bell-priority-colors"><span><strong>Color de campana por prioridad</strong><small>Colorea la campana solo para avisos importantes o de alta prioridad.</small></span><span class="switch-control"><input id="settings-notification-bell-priority-colors" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          </div>
                         </div>
+                      </details>
 
-                        <div class="field">
-                          <label for="settings-notification-priority-critical-min">Alta prioridad desde USD</label>
-                          <input id="settings-notification-priority-critical-min" type="number" min="0" step="1" value="100" />
-                          <p class="form-help">Ejemplo: desde $100 se marca en rojo.</p>
+                      <details class="notification-settings-group notification-settings-group--inventory">
+                        <summary class="notification-settings-group__summary">
+                          <span class="notification-settings-group__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 6 8-4 8 4v12l-8 4-8-4V6Zm8-1.8L7.6 6.4 12 8.6l4.4-2.2L12 4.2ZM6 8v8.8l5 2.5v-8.9L6 8Zm7 11.3 5-2.5V8l-5 2.4v8.9Z"/></svg></span>
+                          <span class="notification-settings-group__copy"><strong>Inventario y vencimientos</strong><small>Alertas de stock, agotados y fechas de vencimiento.</small></span>
+                          <span class="notification-settings-group__meta"><span id="notification-inventory-summary" class="notification-settings-group__state">Activas</span><span class="notification-settings-group__chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5 1.5 1.5L12 17l-6.5-6.5L7 9Z"/></svg></span></span>
+                        </summary>
+                        <div class="notification-settings-group__body">
+                          {expirationFeatureVisible ? (
+                            expirationToolsEnabled ? (
+                              <label class="notification-setting-row" for="settings-notify-expiration-alerts"><span><strong>Alertas de vencimiento</strong><small>Recibe avisos a 90, 60 y 30 d&iacute;as, y el d&iacute;a del vencimiento.</small></span><span class="switch-control"><input id="settings-notify-expiration-alerts" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                            ) : (
+                              <StoreCapabilityGate access={expirationToolsAccess} compact featureName="Vencimiento de productos" featureDescription="Gestiona fechas de vencimiento y recibe alertas con el plan Premium." preservationMessage="Disponible exclusivamente para tiendas Premium." />
+                            )
+                          ) : null}
+                          <label class="notification-setting-row" for="settings-notify-low-stock"><span><strong>Stock bajo</strong><small>Avisa cuando un producto o variaci&oacute;n tenga pocas unidades.</small></span><span class="switch-control"><input id="settings-notify-low-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          <div id="settings-low-stock-threshold-field" class="notification-dependent-fields"><div class="field"><label for="settings-low-stock-threshold">Umbral de stock bajo</label><input id="settings-low-stock-threshold" type="number" min="1" step="1" value="3" /><p class="form-help">Ejemplo: con 3, se avisa cuando queden 1, 2 o 3 unidades.</p></div></div>
+                          <label class="notification-setting-row" for="settings-notify-out-of-stock"><span><strong>Productos o variaciones agotadas</strong><small>Avisa cuando el stock llegue a 0.</small></span><span class="switch-control"><input id="settings-notify-out-of-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                         </div>
-                      </div>
+                      </details>
 
-                      <label class="rating-setting-row full" for="settings-notification-show-order-subtotal">
-                        <span><strong>Mostrar subtotal sin envio</strong><small>La campana mostrara Productos: $X USD sin envio.</small></span>
-                        <span class="switch-control"><input id="settings-notification-show-order-subtotal" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <label class="rating-setting-row full" for="settings-notification-bell-priority-colors">
-                        <span><strong>Color de campana por prioridad</strong><small>Solo colorea la campana cuando hay una notificación importante o de alta prioridad. Las normales mantienen la campana blanca con contador.</small></span>
-                        <span class="switch-control"><input id="settings-notification-bell-priority-colors" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
+                      <details class="notification-settings-group notification-settings-group--cleanup">
+                        <summary class="notification-settings-group__summary">
+                          <span class="notification-settings-group__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4V2h10v2h5v2H2V4h5Zm-2 4h14l-1 14H6L5 8Zm4 2v9h2v-9H9Zm4 0v9h2v-9h-2Z"/></svg></span>
+                          <span class="notification-settings-group__copy"><strong>Limpieza autom&aacute;tica</strong><small>Elimina &uacute;nicamente las notificaciones archivadas antiguas.</small></span>
+                          <span class="notification-settings-group__meta"><span id="notification-cleanup-summary" class="notification-settings-group__state">15 d&iacute;as</span><span class="notification-settings-group__chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5 1.5 1.5L12 17l-6.5-6.5L7 9Z"/></svg></span></span>
+                        </summary>
+                        <div class="notification-settings-group__body">
+                          <label class="notification-setting-row" for="settings-notification-cleanup-enabled"><span><strong>Borrar archivadas autom&aacute;ticamente</strong><small>Las elimina permanentemente al cumplir los d&iacute;as configurados.</small></span><span class="switch-control"><input id="settings-notification-cleanup-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                          <div id="settings-notification-cleanup-days-field" class="notification-dependent-fields">
+                            <div class="field"><label for="settings-notification-cleanup-days">Borrar archivadas despu&eacute;s de</label><input id="settings-notification-cleanup-days" type="number" min="1" max="365" step="1" value="15" /><p class="form-help">Recomendado: 15 d&iacute;as.</p></div>
+                            <p class="notification-cleanup-warning">Esta acci&oacute;n es permanente, pero solo afecta notificaciones que ya fueron archivadas. Las no le&iacute;das y le&iacute;das se conservan.</p>
+                          </div>
+                        </div>
+                      </details>
                     </div>
                   </div>
-                  <div class="field full">
-                    <div class="notification-inventory-config">
-                      <div class="notification-inventory-config__head">
-                        <div>
-                          <strong>Inventario y vencimientos</strong>
-                          <p>Recibe alertas por productos proximos a vencer, vencidos, stock bajo y agotados.</p>
-                        </div>
-                      </div>
-
-                      {expirationFeatureVisible ? (
-                        expirationToolsEnabled ? (
-                          <label class="rating-setting-row full" for="settings-notify-expiration-alerts">
-                            <span><strong>Alertas de vencimiento</strong><small>Recibe avisos a 90, 60 y 30 días, y el día del vencimiento.</small></span>
-                            <span class="switch-control"><input id="settings-notify-expiration-alerts" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                          </label>
-                        ) : (
-                          <StoreCapabilityGate
-                            access={expirationToolsAccess}
-                            compact
-                            featureName="Vencimiento de productos"
-                            featureDescription="Gestiona fechas de vencimiento y recibe alertas con el plan Premium."
-                            preservationMessage="Disponible exclusivamente para tiendas Premium."
-                          />
-                        )
-                      ) : null}
-
-                      <label class="rating-setting-row full" for="settings-notify-low-stock">
-                        <span><strong>Stock bajo</strong><small>Avisa cuando un producto o variacion tenga pocas unidades.</small></span>
-                        <span class="switch-control"><input id="settings-notify-low-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <div class="field">
-                        <label for="settings-low-stock-threshold">Umbral de stock bajo</label>
-                        <input id="settings-low-stock-threshold" type="number" min="1" step="1" value="3" />
-                        <p class="form-help">Ejemplo: con 3, se avisa cuando queden 1, 2 o 3 unidades.</p>
-                      </div>
-
-                      <label class="rating-setting-row full" for="settings-notify-out-of-stock">
-                        <span><strong>Productos o variaciones agotadas</strong><small>Avisa cuando el stock llegue a 0.</small></span>
-                        <span class="switch-control"><input id="settings-notify-out-of-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-                    </div>
-                  </div>
-                  <div class="field full">
-                    <div class="notification-cleanup-config">
-                      <div class="notification-cleanup-config__head">
-                        <div>
-                          <strong>Limpieza automatica</strong>
-                          <p>Borra fisicamente solo las notificaciones archivadas antiguas. Las no leidas y leidas se conservan.</p>
-                        </div>
-                      </div>
-
-                      <label class="rating-setting-row full" for="settings-notification-cleanup-enabled">
-                        <span><strong>Borrar archivadas automaticamente</strong><small>Despues de archivarlas, se eliminaran permanentemente al cumplir los dias configurados.</small></span>
-                        <span class="switch-control"><input id="settings-notification-cleanup-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <div class="field">
-                        <label for="settings-notification-cleanup-days">Borrar archivadas despues de</label>
-                        <input id="settings-notification-cleanup-days" type="number" min="1" max="365" step="1" value="15" />
-                        <p class="form-help">Recomendado: 15 dias. Solo aplica a notificaciones archivadas.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div></div>
+                </div>
               </details>
 
               <details class="general-settings-accordion">
@@ -5367,6 +5484,16 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           shippingDeliveryInfo: document.getElementById('settings-shipping-delivery-info'),
           footerTrustEditor: document.getElementById('footer-trust-editor')
         };
+        const notificationUi = {
+          ordersSummary: document.getElementById('notification-orders-summary'),
+          prioritySummary: document.getElementById('notification-priority-summary'),
+          inventorySummary: document.getElementById('notification-inventory-summary'),
+          cleanupSummary: document.getElementById('notification-cleanup-summary'),
+          pendingOrderHoursField: document.getElementById('settings-pending-order-hours-field'),
+          priorityFields: document.getElementById('settings-notification-priority-fields'),
+          lowStockThresholdField: document.getElementById('settings-low-stock-threshold-field'),
+          cleanupDaysField: document.getElementById('settings-notification-cleanup-days-field'),
+        };
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerSaveBtn = document.getElementById('footer-settings-save-btn');
@@ -5800,6 +5927,54 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           badge.classList.toggle('pending', !ready);
         }
 
+        function syncNotificationSettingsUi() {
+          const notificationsEnabled = fields.notificationsEnabled?.checked !== false;
+          const pendingOrdersEnabled = fields.notifyPendingOrder?.checked !== false;
+          const priorityEnabled = fields.notificationPriorityEnabled?.checked !== false;
+          const lowStockEnabled = fields.notifyLowStock?.checked !== false;
+          const cleanupEnabled = fields.notificationCleanupEnabled?.checked !== false;
+
+          if (notificationUi.pendingOrderHoursField) notificationUi.pendingOrderHoursField.hidden = !pendingOrdersEnabled;
+          if (notificationUi.priorityFields) notificationUi.priorityFields.hidden = !priorityEnabled;
+          if (notificationUi.lowStockThresholdField) notificationUi.lowStockThresholdField.hidden = !lowStockEnabled;
+          if (notificationUi.cleanupDaysField) notificationUi.cleanupDaysField.hidden = !cleanupEnabled;
+
+          const orderInputs = [fields.notifyNewOrder, fields.notifyPendingOrder, fields.notifyReviewPending].filter(Boolean);
+          const activeOrders = orderInputs.filter((input) => input.checked).length;
+          const inventoryInputs = [fields.notifyExpirationAlerts, fields.notifyLowStock, fields.notifyOutOfStock].filter(Boolean);
+          const activeInventory = inventoryInputs.filter((input) => input.checked).length;
+          const importantMin = Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50));
+          const criticalMin = Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100));
+          const cleanupDays = Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 15)));
+
+          if (notificationUi.ordersSummary) {
+            notificationUi.ordersSummary.textContent = notificationsEnabled
+              ? `${activeOrders} ${activeOrders === 1 ? 'activo' : 'activos'}`
+              : 'Pausadas';
+          }
+          if (notificationUi.prioritySummary) {
+            notificationUi.prioritySummary.textContent = !notificationsEnabled
+              ? 'Pausada'
+              : priorityEnabled
+                ? `$${importantMin} / $${criticalMin}`
+                : 'Desactivada';
+          }
+          if (notificationUi.inventorySummary) {
+            notificationUi.inventorySummary.textContent = !notificationsEnabled
+              ? 'Pausadas'
+              : activeInventory === 0
+                ? 'Sin alertas'
+                : `${activeInventory} ${activeInventory === 1 ? 'activa' : 'activas'}`;
+          }
+          if (notificationUi.cleanupSummary) {
+            notificationUi.cleanupSummary.textContent = !notificationsEnabled
+              ? 'Pausada'
+              : cleanupEnabled
+                ? `${cleanupDays} ${cleanupDays === 1 ? 'día' : 'días'}`
+                : 'Desactivada';
+          }
+        }
+
         function syncGeneralStatusBadges() {
           const hasMainInfo = Boolean(fields.storeName?.value?.trim() && fields.orderPrefix?.value?.trim());
           const hasLogo = Boolean(fileName('logo_image') || fields.logo?.files?.[0]);
@@ -5822,6 +5997,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         }
 
         function syncSettingsSubmitState() {
+          syncNotificationSettingsUi();
           syncGeneralStatusBadges();
           const canSubmit = hasSettingsChanges() && !settingsSaving;
           getSettingsSubmitButtons().forEach((button) => {
