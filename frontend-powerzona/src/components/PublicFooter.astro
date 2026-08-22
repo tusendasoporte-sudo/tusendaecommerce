@@ -2,6 +2,7 @@
 import { getCurrencies } from '../lib/api';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../lib/businessTypes';
+import { formatBusinessHours, getBusinessHoursStatus } from '../lib/businessHours';
 
 const { settings = {}, showPlatformCta = true } = Astro.props;
 
@@ -35,6 +36,8 @@ const addressText = addressDetail || (!province && !municipality ? legacyAddress
 const storeDescription = String(settings?.store_description || settings?.footer_text || settings?.welcome_text || '').trim();
 const aboutStoreText = String(settings?.business_notes || settings?.footer_extra_text || '').trim();
 const shippingDeliveryInfo = String(settings?.shipping_delivery_info || '').trim();
+const formattedBusinessHours = formatBusinessHours(settings);
+const businessHoursStatus = getBusinessHoursStatus(settings);
 const businessTypeLabels = new Map(BUSINESS_TYPE_GROUPS.flatMap((group) => group.options.map((option) => [option.slug, option.label])));
 const publicBusinessTypes = parseJsonList(settings?.business_types)
   .map((slug) => businessTypeLabels.get(slug) || slug)
@@ -52,12 +55,36 @@ const defaultCurrency = Array.isArray(settings?.expand?.default_currency)
   : settings?.expand?.default_currency;
 const paymentCurrencies = normalizeCurrencies(activeCurrencies, defaultCurrency);
 
-const infoLinks = [
-  aboutStoreText ? { id: 'about', label: 'Sobre la tienda' } : null,
-  shippingDeliveryInfo ? { id: 'shipping', label: 'Envíos y entregas' } : null,
-  paymentCurrencies.length ? { id: 'payments', label: 'Formas de pago' } : null,
-  whatsappStoreHref ? { id: 'contact', label: 'Contáctanos' } : null,
+const locationDescription = [locationText, addressText].filter(Boolean).join(' - ');
+const contextualUtility = formattedBusinessHours
+  ? {
+      id: 'hours',
+      label: 'Horarios',
+      detail: businessHoursStatus.mode === 'temporarily_closed'
+        ? 'Cerrado temporalmente'
+        : businessHoursStatus.isAvailable
+          ? 'Disponible ahora'
+          : 'Ver horario semanal',
+      icon: 'clock',
+      kind: 'modal',
+    }
+  : shippingDeliveryInfo
+    ? { id: 'shipping', label: 'Envíos', detail: 'Opciones de entrega', icon: 'truck', kind: 'modal' }
+    : locationDescription
+      ? { id: 'location', label: 'Ubicación', detail: 'Ver dirección', icon: 'location', kind: 'modal' }
+      : aboutStoreText
+        ? { id: 'about', label: 'Información', detail: 'Sobre la tienda', icon: 'info', kind: 'modal' }
+        : null;
+const utilityItems = [
+  paymentCurrencies.length
+    ? { id: 'payments', label: 'Formas de pago', detail: 'Métodos disponibles', icon: 'payment', kind: 'modal' }
+    : null,
+  contextualUtility,
+  whatsappStoreHref
+    ? { id: 'whatsapp', label: 'WhatsApp', detail: 'Atención directa', icon: 'whatsapp', kind: 'link', href: whatsappStoreHref }
+    : null,
 ].filter(Boolean);
+const footerTagline = storeDescription || 'Todo lo que necesitas, en un solo lugar.';
 
 function cleanPhone(value: any) {
   return String(value || '').replace(/[^0-9]/g, '');
@@ -196,6 +223,9 @@ function currencyView(currency: any) {
 
 function iconSvg(name: string) {
   const paths: Record<string, string> = {
+    payment: '<path d="M3 5h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 4h18V7H3v2Zm2 5v2h6v-2H5Z"/>',
+    clock: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm1 3h-2v6l4.6 2.7 1-1.7-3.6-2.1V7Z"/>',
+    info: '<path d="M11 10h2v8h-2v-8Zm1-6a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm0-2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z"/>',
     shield: '<path d="M12 3 5 6v5c0 4.4 2.8 8.4 7 10 4.2-1.6 7-5.6 7-10V6l-7-3Zm0 4.4 4 1.7v2c0 2.9-1.5 5.6-4 7-2.5-1.4-4-4.1-4-7v-2l4-1.7Zm3.5 3.1-4.2 4.2-2-2 1.4-1.4.6.6 2.8-2.8 1.4 1.4Z"/>',
     lock: '<path d="M17 9V7a5 5 0 0 0-10 0v2H5v12h14V9h-2Zm-8 0V7a3 3 0 0 1 6 0v2H9Zm4 7.7V18h-2v-1.3a2 2 0 1 1 2 0Z"/>',
     truck: '<path d="M3 6h11v8h2.2l1.8 2H21v-5.2L18.2 8H16V6h3l4 5v7h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-4h2V8H3V6Zm3 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm12 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>',
@@ -243,7 +273,7 @@ function iconSvg(name: string) {
         <h2>{storeName}</h2>
         {publicBusinessTypes.length > 0 && <p class="pz-footer-types">{publicBusinessTypes.join(' • ')}</p>}
       </div>
-      {storeDescription && <p class="pz-footer-description">{storeDescription}</p>}
+      <p class="pz-footer-description">{footerTagline}</p>
       {socialItems.length > 0 && (
         <div class="pz-footer-social" aria-label="Redes sociales">
           {socialItems.map((item) => (
@@ -253,54 +283,59 @@ function iconSvg(name: string) {
       )}
     </section>
 
-    {infoLinks.length > 0 && (
-      <section class="pz-footer-info" aria-label="Información">
-        <h3>Información</h3>
-        <nav>
-          {infoLinks.map((item) => (
-            item.id === 'contact'
-              ? <a href={whatsappStoreHref} target="_blank" rel="noreferrer">{item.label}</a>
-              : <button type="button" data-pz-footer-modal-open={item.id}>{item.label}</button>
-          ))}
-        </nav>
+    {utilityItems.length > 0 && (
+      <section class={`pz-footer-utilities count-${utilityItems.length}`} aria-label="Información útil">
+        {utilityItems.map((item) => (
+          item.kind === 'link'
+            ? (
+              <a class={`pz-footer-utility is-${item.id}`} href={item.href} target="_blank" rel="noreferrer">
+                <span class="pz-footer-utility-icon" set:html={iconSvg(item.icon)} />
+                <span class="pz-footer-utility-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
+                <span class="pz-footer-utility-arrow" aria-hidden="true">›</span>
+              </a>
+            )
+            : (
+              <button class={`pz-footer-utility is-${item.id}`} type="button" data-pz-footer-modal-open={item.id}>
+                <span class="pz-footer-utility-icon" set:html={iconSvg(item.icon)} />
+                <span class="pz-footer-utility-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
+                <span class="pz-footer-utility-arrow" aria-hidden="true">›</span>
+              </button>
+            )
+        ))}
       </section>
     )}
 
-    <section class="pz-footer-contact" aria-label="Contacto">
-      <h3>Contacto</h3>
-      {(locationText || addressText) && (
-        <p class="pz-footer-contact-line pz-contact-location">
-          <span class="pz-footer-contact-icon" set:html={iconSvg('location')} />
-          <span class="pz-footer-contact-copy">{[locationText, addressText].filter(Boolean).join(' - ')}</span>
-        </p>
-      )}
-      {whatsappStoreHref && <a class="pz-footer-whatsapp-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer"><span set:html={iconSvg('whatsapp')} /> WhatsApp</a>}
-      {extraLinks.length > 0 && (
-        <div class="pz-footer-extra-links" aria-label="Enlaces adicionales">
-          {extraLinks.map((item) => (
-            <a class="pz-footer-extra-link" href={item.href} target="_blank" rel="noreferrer">{item.label}</a>
-          ))}
-        </div>
-      )}
-    </section>
+    {(extraLinks.length > 0 || (aboutStoreText && contextualUtility?.id !== 'about')) && (
+      <nav class="pz-footer-secondary-links" aria-label="Más información">
+        {aboutStoreText && contextualUtility?.id !== 'about' && <button type="button" data-pz-footer-modal-open="about">Sobre la tienda</button>}
+        {extraLinks.map((item) => (
+          <a href={item.href} target="_blank" rel="noreferrer">{item.label}</a>
+        ))}
+      </nav>
+    )}
 
     {showPlatformCta && <section class="pz-footer-platform-cta" aria-label="Crear tienda en Tu Senda 84">
-      <div class="pz-platform-icon" aria-hidden="true">
-        <span></span>
-      </div>
       <div class="pz-platform-copy">
-        <h3>¿Le gustaría crear su propia tienda?</h3>
-        <p>Únase a Tu Senda 84 y comience hoy mismo su tienda online.</p>
+        <span class="pz-platform-eyebrow">Para emprendedores</span>
+        <h3>Convierte tu negocio en una tienda online</h3>
+        <p>Conoce la plataforma de Tu Senda 84 y crea tu propio espacio para vender.</p>
       </div>
-      <a class="pz-platform-button" href={creatorStoreHref} target={creatorStoreTarget} rel="noopener noreferrer">Crear mi tienda</a>
-      <div class="pz-platform-backed">
-        <small>Con el respaldo de</small>
-        <div class="pz-platform-brand-lockup">
-          <span class="pz-tusenda-mark" aria-hidden="true">
-            <img src="/brand/tusenda84-bazzar-logo.webp" alt="" loading="lazy" />
-          </span>
-          <strong>Tu Senda 84</strong>
+      <div class="pz-platform-visual" aria-hidden="true">
+        <span class="pz-platform-orbit pz-platform-orbit-one"></span>
+        <span class="pz-platform-orbit pz-platform-orbit-two"></span>
+        <div class="pz-platform-window">
+          <span class="pz-platform-window-top"><i></i><i></i><i></i></span>
+          <span class="pz-platform-shop"><i></i></span>
+          <span class="pz-platform-chart"></span>
+          <span class="pz-platform-product"></span>
         </div>
+      </div>
+      <a class="pz-platform-button" href={creatorStoreHref} target={creatorStoreTarget} rel="noopener noreferrer">Quiero crear mi tienda</a>
+      <div class="pz-platform-backed">
+        <span class="pz-tusenda-mark" aria-hidden="true">
+          <img src="/brand/tusenda84-bazzar-logo.webp" alt="" loading="lazy" />
+        </span>
+        <span><small>Tecnología de</small><strong>Tu Senda 84</strong></span>
       </div>
     </section>}
 
@@ -323,6 +358,27 @@ function iconSvg(name: string) {
       <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
       <h2 id="pz-footer-shipping-title">Envíos y entregas</h2>
       <p>{shippingDeliveryInfo}</p>
+    </section>
+  </div>
+)}
+
+{formattedBusinessHours && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="hours" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-hours-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-hours-title">Horarios</h2>
+      {businessHoursStatus.title && <p><strong>{businessHoursStatus.title}</strong></p>}
+      <p>{formattedBusinessHours}</p>
+    </section>
+  </div>
+)}
+
+{locationDescription && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="location" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-location-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-location-title">Ubicación</h2>
+      <p>{locationDescription}</p>
     </section>
   </div>
 )}
@@ -458,5 +514,272 @@ function iconSvg(name: string) {
     .pz-platform-button { width: 100%; }
     .pz-platform-backed { text-align: center; }
     .pz-platform-brand-lockup { justify-content: center; }
+  }
+
+  /* Footer premium: navegación útil + captación de nuevas tiendas. */
+  .pz-public-footer {
+    position: relative;
+    isolation: isolate;
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at 88% 12%, rgba(37,99,235,.34), transparent 29%),
+      radial-gradient(circle at 8% 94%, rgba(14,165,233,.13), transparent 30%),
+      linear-gradient(145deg, #020b1f 0%, #061b45 46%, #03112f 100%);
+    box-shadow: 0 30px 90px rgba(3,19,47,.34), inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .pz-public-footer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .18;
+    background-image: radial-gradient(circle, rgba(96,165,250,.7) 1px, transparent 1.5px);
+    background-size: 22px 22px;
+    mask-image: linear-gradient(135deg, transparent 16%, #000 52%, transparent 88%);
+  }
+  .pz-footer-main {
+    position: relative;
+    z-index: 1;
+    padding: clamp(28px, 4vw, 48px);
+    grid-template-columns: minmax(250px, .78fr) minmax(0, 1.42fr);
+    gap: clamp(24px, 3.5vw, 44px);
+  }
+  .pz-footer-store {
+    align-self: stretch;
+    align-content: start;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 15px;
+  }
+  .pz-footer-logo-link {
+    width: 66px;
+    height: 66px;
+    border-radius: 18px;
+    background: rgba(255,255,255,.97);
+    border-color: rgba(191,219,254,.48);
+    box-shadow: 0 16px 34px rgba(0,0,0,.28), 0 0 28px rgba(59,130,246,.16);
+  }
+  .pz-footer-brand-copy h2 { font-size: clamp(27px, 3vw, 38px); }
+  .pz-footer-description {
+    margin: 16px 0 0;
+    color: rgba(219,234,254,.82);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .pz-footer-social { margin-top: 17px; gap: 9px; }
+  .pz-footer-social a { width: 42px; height: 42px; }
+  .pz-footer-utilities {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-self: start;
+  }
+  .pz-footer-utilities.count-1 { grid-template-columns: 1fr; }
+  .pz-footer-utilities.count-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pz-footer-utility {
+    min-width: 0;
+    min-height: 132px;
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
+    gap: 13px;
+    border: 1px solid rgba(96,165,250,.25);
+    border-radius: 20px;
+    padding: 18px 16px;
+    background: linear-gradient(145deg, rgba(8,29,71,.80), rgba(4,20,52,.66));
+    color: #fff;
+    text-align: left;
+    text-decoration: none;
+    font: inherit;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 16px 34px rgba(0,0,0,.14);
+    transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  }
+  .pz-footer-utility:hover {
+    transform: translateY(-3px);
+    border-color: rgba(96,165,250,.55);
+    background: linear-gradient(145deg, rgba(15,49,111,.92), rgba(5,28,70,.82));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 20px 42px rgba(0,0,0,.20);
+  }
+  .pz-footer-utility:focus-visible { outline: 3px solid rgba(96,165,250,.46); outline-offset: 3px; }
+  .pz-footer-utility-icon {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 15px;
+    color: #60a5fa;
+    background: rgba(37,99,235,.16);
+    border: 1px solid rgba(96,165,250,.24);
+  }
+  .pz-footer-utility-icon svg { width: 25px; height: 25px; fill: currentColor; }
+  .pz-footer-utility-copy { min-width: 0; display: grid; gap: 5px; padding-right: 12px; }
+  .pz-footer-utility-copy strong { color: #fff; font-size: 15px; line-height: 1.18; font-weight: 1000; overflow-wrap: anywhere; }
+  .pz-footer-utility-copy small { color: rgba(191,219,254,.72); font-size: 11px; line-height: 1.35; font-weight: 800; overflow-wrap: anywhere; }
+  .pz-footer-utility-arrow { position: absolute; right: 14px; bottom: 16px; color: rgba(147,197,253,.68); font-size: 24px; line-height: 1; font-weight: 900; }
+  .pz-footer-utility.is-whatsapp .pz-footer-utility-icon { color: #4ade80; background: rgba(34,197,94,.13); border-color: rgba(74,222,128,.28); }
+  .pz-footer-secondary-links {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px 22px;
+    padding-top: 2px;
+  }
+  .pz-footer-secondary-links a, .pz-footer-secondary-links button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: rgba(191,219,254,.80);
+    text-decoration: none;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 850;
+    cursor: pointer;
+  }
+  .pz-footer-secondary-links a:hover, .pz-footer-secondary-links button:hover { color: #fff; }
+  .pz-footer-platform-cta {
+    grid-area: auto;
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding: clamp(24px, 4vw, 44px);
+    border-radius: 25px;
+    border: 1px solid rgba(59,130,246,.72);
+    background:
+      radial-gradient(circle at 76% 38%, rgba(37,99,235,.27), transparent 28%),
+      linear-gradient(135deg, rgba(6,34,86,.97), rgba(2,16,45,.98));
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr);
+    grid-template-areas:
+      'copy visual'
+      'button visual'
+      'backed backed';
+    gap: 22px clamp(24px, 4vw, 54px);
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 22px 52px rgba(0,0,0,.25), 0 0 0 1px rgba(37,99,235,.08);
+  }
+  .pz-platform-copy { grid-area: copy; align-self: end; }
+  .pz-platform-eyebrow {
+    display: block;
+    margin-bottom: 12px;
+    color: #38bdf8;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 1000;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+  .pz-platform-copy h3 { max-width: 560px; font-size: clamp(28px, 4vw, 46px); line-height: 1.05; letter-spacing: -.025em; }
+  .pz-platform-copy p { max-width: 540px; margin-top: 15px; color: rgba(219,234,254,.82); font-size: clamp(14px, 1.5vw, 17px); line-height: 1.58; }
+  .pz-platform-button {
+    grid-area: button;
+    width: min(100%, 430px);
+    min-height: 62px;
+    border-radius: 16px;
+    background: #fff;
+    color: #073b9b;
+    font-size: 17px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.25), inset 0 -2px 0 rgba(15,23,42,.06);
+  }
+  .pz-platform-visual {
+    grid-area: visual;
+    min-height: 260px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    align-self: stretch;
+  }
+  .pz-platform-visual::before {
+    content: '';
+    position: absolute;
+    width: 72%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,.34), rgba(37,99,235,.04) 58%, transparent 70%);
+    filter: blur(2px);
+  }
+  .pz-platform-orbit { position: absolute; width: 74%; aspect-ratio: 1.7; border: 1px solid rgba(56,189,248,.24); border-radius: 50%; transform: rotate(-18deg); }
+  .pz-platform-orbit-two { width: 58%; transform: rotate(24deg); border-color: rgba(96,165,250,.18); }
+  .pz-platform-window {
+    width: min(310px, 88%);
+    height: 210px;
+    position: relative;
+    z-index: 1;
+    border-radius: 24px;
+    background: linear-gradient(145deg, rgba(21,64,145,.98), rgba(5,25,66,.98));
+    border: 1px solid rgba(96,165,250,.48);
+    box-shadow: 0 28px 60px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.10), 0 0 38px rgba(37,99,235,.18);
+    transform: perspective(700px) rotateY(-7deg) rotateX(3deg);
+  }
+  .pz-platform-window-top { height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-bottom: 1px solid rgba(147,197,253,.20); }
+  .pz-platform-window-top i { width: 7px; height: 7px; border-radius: 50%; background: rgba(147,197,253,.52); }
+  .pz-platform-shop { position: absolute; left: 22px; top: 64px; width: 116px; height: 112px; border-radius: 12px; background: linear-gradient(180deg, #0b63f6, #0647b8); box-shadow: 0 15px 30px rgba(0,0,0,.24); }
+  .pz-platform-shop::before { content: ''; position: absolute; left: -5px; right: -5px; top: -20px; height: 25px; border-radius: 9px 9px 5px 5px; background: repeating-linear-gradient(90deg, #fff 0 20px, #1d7cff 20px 40px); box-shadow: 0 8px 16px rgba(0,0,0,.16); }
+  .pz-platform-shop i { position: absolute; left: 45px; bottom: 0; width: 30px; height: 55px; border-radius: 7px 7px 0 0; background: #031c4e; }
+  .pz-platform-chart { position: absolute; right: 20px; top: 62px; width: 126px; height: 62px; border-radius: 12px; background: linear-gradient(135deg, rgba(14,165,233,.20), rgba(37,99,235,.13)); border: 1px solid rgba(56,189,248,.22); }
+  .pz-platform-chart::before { content: ''; position: absolute; left: 16px; right: 15px; top: 31px; height: 3px; background: linear-gradient(100deg, transparent 0 7%, #38bdf8 8% 32%, #60a5fa 33% 56%, #22d3ee 57% 100%); clip-path: polygon(0 78%, 22% 35%, 45% 60%, 67% 10%, 100% 40%, 100% 100%, 0 100%); }
+  .pz-platform-product { position: absolute; right: 31px; bottom: 22px; width: 100px; height: 55px; border-radius: 12px; background: rgba(219,234,254,.10); border: 1px solid rgba(147,197,253,.20); }
+  .pz-platform-product::before { content: ''; position: absolute; left: 11px; top: 10px; width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(145deg, #60a5fa, #1d4ed8); }
+  .pz-platform-product::after { content: ''; position: absolute; left: 54px; right: 10px; top: 17px; height: 5px; border-radius: 5px; background: rgba(219,234,254,.72); box-shadow: 0 12px 0 rgba(147,197,253,.36); }
+  .pz-platform-backed {
+    grid-area: backed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(96,165,250,.16);
+  }
+  .pz-platform-backed > span:last-child { display: grid; gap: 2px; text-align: left; }
+  .pz-platform-backed small { color: rgba(191,219,254,.70); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .pz-platform-backed strong { font-size: 16px; }
+  .pz-tusenda-mark { width: 44px; height: 44px; border-radius: 13px; }
+
+  @media (max-width: 980px) {
+    .pz-footer-main { grid-template-columns: 1fr; }
+    .pz-footer-utilities { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .pz-footer-platform-cta {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr);
+      grid-template-areas: 'copy visual' 'button visual' 'backed backed';
+    }
+  }
+  @media (max-width: 720px) {
+    .pz-public-footer { border-radius: 24px; }
+    .pz-footer-main { padding: 24px 16px; gap: 24px; }
+    .pz-footer-store { grid-template-columns: 58px minmax(0, 1fr); }
+    .pz-footer-logo-link { width: 54px; height: 54px; border-radius: 15px; }
+    .pz-footer-brand-copy h2 { font-size: 27px; }
+    .pz-footer-description { margin-top: 12px; font-size: 13px; }
+    .pz-footer-utilities { gap: 8px; }
+    .pz-footer-utility { min-height: 124px; padding: 13px 10px; border-radius: 17px; justify-items: center; text-align: center; }
+    .pz-footer-utility-icon { width: 42px; height: 42px; border-radius: 14px; }
+    .pz-footer-utility-copy { padding-right: 0; }
+    .pz-footer-utility-copy strong { font-size: 12px; }
+    .pz-footer-utility-copy small { font-size: 9px; }
+    .pz-footer-utility-arrow { display: none; }
+    .pz-footer-secondary-links { gap: 9px 16px; }
+    .pz-footer-platform-cta {
+      padding: 24px 18px;
+      grid-template-columns: 1fr;
+      grid-template-areas: 'copy' 'visual' 'button' 'backed';
+      justify-items: stretch;
+      text-align: left;
+      gap: 20px;
+    }
+    .pz-platform-copy h3 { font-size: clamp(29px, 9vw, 39px); }
+    .pz-platform-copy p { font-size: 14px; }
+    .pz-platform-visual { min-height: 220px; }
+    .pz-platform-window { width: min(300px, 94%); height: 195px; }
+    .pz-platform-button { width: 100%; }
+    .pz-platform-backed { justify-content: flex-start; text-align: left; }
+  }
+  @media (max-width: 380px) {
+    .pz-footer-utility { min-height: 116px; padding-inline: 7px; }
+    .pz-footer-utility-copy small { display: none; }
+    .pz-platform-window { transform: scale(.94); }
   }
 </style>
