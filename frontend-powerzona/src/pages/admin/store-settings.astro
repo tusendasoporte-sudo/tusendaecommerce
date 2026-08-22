@@ -5494,6 +5494,26 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           lowStockThresholdField: document.getElementById('settings-low-stock-threshold-field'),
           cleanupDaysField: document.getElementById('settings-notification-cleanup-days-field'),
         };
+        function bindExclusiveAccordions(items) {
+          items.forEach((current) => {
+            current.addEventListener('toggle', () => {
+              if (!current.open) return;
+              const topBeforeClosingSiblings = current.getBoundingClientRect().top;
+              items.forEach((sibling) => {
+                if (sibling !== current && sibling.open) sibling.open = false;
+              });
+              const scrollAdjustment = current.getBoundingClientRect().top - topBeforeClosingSiblings;
+              if (Math.abs(scrollAdjustment) > 1) window.scrollBy(0, scrollAdjustment);
+            });
+          });
+        }
+        const generalSettingsAccordions = Array.from(form?.children || [])
+          .filter((element) => element.matches?.('details.general-settings-accordion'));
+        const notificationSettingsAccordions = Array.from(
+          document.querySelectorAll('.notification-settings-groups > details.notification-settings-group'),
+        );
+        bindExclusiveAccordions(generalSettingsAccordions);
+        bindExclusiveAccordions(notificationSettingsAccordions);
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerSaveBtn = document.getElementById('footer-settings-save-btn');

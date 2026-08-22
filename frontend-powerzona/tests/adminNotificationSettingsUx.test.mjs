@@ -62,3 +62,12 @@ test('los campos dependientes se ocultan sin borrar ni deshabilitar sus valores'
   assert.doesNotMatch(source, /lowStockThresholdField\.disabled/);
   assert.doesNotMatch(source, /cleanupDaysField\.disabled/);
 });
+
+test('cada nivel de ajustes mantiene abierto un solo acordeon', () => {
+  assert.match(source, /function bindExclusiveAccordions\(items\)/);
+  assert.match(source, /element\.matches\?\.\('details\.general-settings-accordion'\)/);
+  assert.match(source, /\.notification-settings-groups > details\.notification-settings-group/);
+  assert.match(source, /if \(sibling !== current && sibling\.open\) sibling\.open = false/);
+  assert.equal((source.match(/bindExclusiveAccordions\(/g) || []).length, 3);
+  assert.match(source, /window\.scrollBy\(0, scrollAdjustment\)/);
+});
