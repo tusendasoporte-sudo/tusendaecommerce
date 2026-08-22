@@ -38,7 +38,8 @@ test('las barras moviles globales quedan ancladas a los bordes seguros', () => {
   assert.match(dockedStyles, /\.pz-admin-content\s*\{[\s\S]*?padding-top:[\s\S]*?padding-bottom:/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-topbar/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-bottom-nav/);
-  assert.match(sidebar, /\.pz-admin-mobile-back-link\s*\{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?z-index:\s*2995\s*!important;/);
+  assert.match(sidebar, /<header class=\{mobileTopbarClass\}[\s\S]*?data-pz-admin-mobile-back[\s\S]*?<\/header>/);
+  assert.match(sidebar, /\.pz-admin-mobile-back-link\s*\{[\s\S]*?position:\s*absolute\s*!important;[\s\S]*?top:\s*calc\(100% \+ 4px\)\s*!important;/);
 });
 
 test('el editor de categoria muestra un solo regreso al catalogo en movil', () => {

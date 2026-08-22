@@ -597,6 +597,18 @@ const audienceSubClass = (subsection: string) => {
     </svg>
     <span class="pz-admin-notification-count hidden" data-pz-admin-notification-count></span>
   </button>}
+
+  {hasMobileBack && (
+    <a
+      class={mobileBackClass}
+      href={mobileBackHref}
+      data-pz-admin-mobile-back
+      aria-label={mobileBackLabel}
+    >
+      <span class="pz-admin-mobile-back-link__icon" aria-hidden="true">←</span>
+      <span>{mobileBackLabel}</span>
+    </a>
+  )}
 </header>
 
 {canShowNotificationsNav && <section
@@ -640,18 +652,6 @@ const audienceSubClass = (subsection: string) => {
     <p class="pz-admin-notifications-empty">Cargando notificaciones...</p>
   </div>
 </section>}
-
-{hasMobileBack && (
-  <a
-    class={mobileBackClass}
-    href={mobileBackHref}
-    data-pz-admin-mobile-back
-    aria-label={mobileBackLabel}
-  >
-    <span class="pz-admin-mobile-back-link__icon" aria-hidden="true">←</span>
-    <span>{mobileBackLabel}</span>
-  </a>
-)}
 
 <nav class="pz-admin-mobile-bottom-nav" aria-label="Navegación móvil principal del admin">
   {mobileBottomItems.map((item) => <a
@@ -4120,11 +4120,11 @@ const audienceSubClass = (subsection: string) => {
 
   @media (max-width: 1023px) {
     .pz-admin-mobile-back-link {
-      position: fixed !important;
-      top: 92px !important;
+      position: absolute !important;
+      top: calc(100% + 4px) !important;
       left: 14px !important;
       right: 14px !important;
-      z-index: 2995 !important;
+      z-index: 1 !important;
       min-height: 48px !important;
       padding: 12px 16px !important;
       display: inline-flex !important;
@@ -5155,9 +5155,7 @@ const audienceSubClass = (subsection: string) => {
       max-height: calc(100dvh - 178px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
     }
 
-    .pz-admin-mobile-back-link {
-      top: calc(80px + env(safe-area-inset-top, 0px)) !important;
-    }
+    .pz-admin-mobile-back-link { top: calc(100% + 4px) !important; }
 
     .pz-admin-mobile-bottom-nav {
       left: 0 !important;
@@ -5238,8 +5236,7 @@ const audienceSubClass = (subsection: string) => {
       border-radius: 22px 22px 0 0 !important;
     }
 
-    .pz-admin-notifications-panel,
-    .pz-admin-mobile-back-link {
+    .pz-admin-notifications-panel {
       top: calc(76px + env(safe-area-inset-top, 0px)) !important;
     }
 
