@@ -87,7 +87,6 @@ const currentAdminPath = Astro.url.pathname.replace(/\/+$/, '');
 const adminAppPolicy = Astro.locals.adminAppPolicy;
 const showAdminAppUpdate = !isMasterSupportMode && adminAppPolicy?.update_available === true;
 const isMarketingRafflesPath = /\/admin\/promos\/raffles$/.test(currentAdminPath);
-const isMarketingPushCampaignsPath = /\/admin\/push-campaigns$/.test(currentAdminPath);
 
 const defaultMobileTitleBySection: Record<string, string> = {
   overview: 'Resumen',
@@ -162,13 +161,16 @@ const mobileBottomClass = (target: MobileBottomTarget) => {
   return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
 };
 
+const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
 const isSettingsActive = activeSection === 'settings';
+const isAudienceSettingsActive = isSettingsActive && ['rating', 'landing'].includes(normalizedSubsection);
+const isStoreSettingsActive = isSettingsActive && !isAudienceSettingsActive;
 const isMarketingVisualActive = activeSection === 'marketing' || activeSection === 'organization';
 const isPushCampaignsActive = activeSection === 'push-campaigns';
+const isAudienceSectionActive = isPushCampaignsActive || isAudienceSettingsActive;
 const isPrincipalSectionActive = ['overview', 'orders'].includes(activeSection || '');
-const isStoreSectionActive = ['catalog', 'products', 'gifts', 'shipping', 'security', 'settings'].includes(activeSection || '');
+const isStoreSectionActive = ['catalog', 'products', 'gifts', 'shipping', 'security'].includes(activeSection || '') || isStoreSettingsActive;
 const isPersonalDataActive = ['team', 'account'].includes(activeSection || '');
-const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
 const supportContactResult = isMasterSupportMode
   ? null
   : await getAdminSupportContact({ baseUrl: pocketbaseUrl, token: authToken });
@@ -219,7 +221,7 @@ const landingQrAccess = resolveStoreCapabilityAccess(
 );
 const canShowLandingQrNav = canShowModule('landing_qr.manage')
   || (isPrimaryAdmin && !landingQrAccess.allowed);
-const canShowSettingsGroup = canShowStoreSettingsNav || canShowReviewsNav || canShowLandingQrNav;
+const canShowSettingsGroup = canShowStoreSettingsNav;
 const canShowPromotionsNav = canShowModule('promotions.manage');
 const canShowCouponsNav = canShowModule('coupons.manage');
 const rafflesAccess = resolveStoreCapabilityAccess(
@@ -239,6 +241,7 @@ const canManagePushCampaigns = canShowModule('marketing.push.manage');
 const canShowPushCampaignsNav = canManagePushCampaigns
   || isMasterSupportMode
   || (isPrimaryAdmin && !pushCampaignsAccess.allowed);
+const canShowAudienceGroup = canShowReviewsNav || canShowLandingQrNav || canShowPushCampaignsNav;
 const canGenerateRaffleNotifications = isPrimaryAdmin
   && rafflesAccess.allowed
   && canManageRaffles;
@@ -364,22 +367,27 @@ const mobileBottomItems = mobileBottomCandidates
   .slice(0, 4);
 
 const navClass = (section: string) => `pz-admin-sidebar__nav-item${activeSection === section ? ' is-active' : ''}`;
-const settingsToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isSettingsActive ? ' is-active' : ''}`;
-const settingsSubnavClass = `pz-admin-sidebar__settings-subnav${isSettingsActive ? '' : ' is-collapsed'}`;
+const settingsToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isStoreSettingsActive ? ' is-active' : ''}`;
+const settingsSubnavClass = `pz-admin-sidebar__settings-subnav${isStoreSettingsActive ? '' : ' is-collapsed'}`;
 const sectionToggleClass = (isActive: boolean) => `pz-admin-sidebar__section-toggle${isActive ? ' is-active' : ''}`;
 const sectionPanelClass = (isOpen: boolean) => `pz-admin-sidebar__section-panel${isOpen ? '' : ' is-collapsed'}`;
 const subClass = (subsection: string) => {
   const isGeneral = subsection === 'generales' && ['general', 'generales', ''].includes(normalizedSubsection);
-  return `pz-admin-sidebar__settings-subitem${isSettingsActive && (normalizedSubsection === subsection || isGeneral) ? ' is-active' : ''}`;
+  return `pz-admin-sidebar__settings-subitem${isStoreSettingsActive && (normalizedSubsection === subsection || isGeneral) ? ' is-active' : ''}`;
 };
 const marketingVisualSubClass = (subsection: string) => {
   const isActive =
     isMarketingVisualActive &&
     (
       (subsection === 'rifas' && isMarketingRafflesPath) ||
-      (subsection === 'push-campaigns' && isMarketingPushCampaignsPath) ||
-      (subsection === 'destacados' && !isMarketingRafflesPath && !isMarketingPushCampaignsPath)
+      (subsection === 'destacados' && !isMarketingRafflesPath)
     );
+  return `pz-admin-sidebar__settings-subitem${isActive ? ' is-active' : ''}`;
+};
+const audienceSubClass = (subsection: string) => {
+  const isActive = subsection === 'push-campaigns'
+    ? isPushCampaignsActive
+    : isSettingsActive && normalizedSubsection === subsection;
   return `pz-admin-sidebar__settings-subitem${isActive ? ' is-active' : ''}`;
 };
 ---
@@ -430,7 +438,7 @@ const marketingVisualSubClass = (subsection: string) => {
       <StorePlanIndicator presentation={planPresentation} variant="store-sidebar" />
     </div>
 
-    {canShowPrincipalGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPrincipalSectionActive }]}>
+    {canShowPrincipalGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPrincipalSectionActive }]} data-sidebar-section-group="principal">
       <button class={sectionToggleClass(isPrincipalSectionActive)} type="button" title="Principal" aria-expanded={isPrincipalSectionActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-principal" data-sidebar-section-toggle>
         <span class="pz-admin-sidebar__section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span>
         <span>Principal</span>
@@ -444,7 +452,7 @@ const marketingVisualSubClass = (subsection: string) => {
       </div>
     </section>}
 
-    {canShowStoreGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isStoreSectionActive }]}>
+    {canShowStoreGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isStoreSectionActive }]} data-sidebar-section-group="store">
       <button class={sectionToggleClass(isStoreSectionActive)} type="button" title="Tienda" aria-expanded={isStoreSectionActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-store" data-sidebar-section-toggle>
         <span class="pz-admin-sidebar__section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16l1 5H3l1-5Zm0 7h16v9h-6v-6h-4v6H4v-9Z"/></svg></span>
         <span>Tienda</span>
@@ -461,21 +469,19 @@ const marketingVisualSubClass = (subsection: string) => {
       )}
 
       {canShowSettingsGroup && <div class="pz-admin-sidebar__settings-group">
-        <button class={settingsToggleClass} type="button" title="Ajustes de tienda" aria-expanded={isSettingsActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-settings-subnav" data-settings-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
+        <button class={settingsToggleClass} type="button" title="Ajustes de tienda" aria-expanded={isStoreSettingsActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-settings-subnav" data-settings-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-settings-subnav" class={settingsSubnavClass} aria-label="Secciones de ajustes de tienda">
           {canShowStoreSettingsNav && <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`} data-astro-prefetch={fastPrefetchStrategy(`${adminStoreSettingsPath}#generales`)}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('footer')} data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer público</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('monedas')} data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('horario')} data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>}
-          {canShowReviewsNav && <a class={subClass('rating')} data-settings-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y reseñas</span></a>}
-          {canShowLandingQrNav && <a class={subClass('landing')} data-settings-subitem="landing" href={`${adminStoreSettingsPath}#landing`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg></span><span>Landing QR</span></a>}
         </div>
       </div>}
         </nav>
       </div>
     </section>}
 
-    {canShowMarketingGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isMarketingVisualActive }]}>
+    {canShowMarketingGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isMarketingVisualActive }]} data-sidebar-section-group="promos">
       <button class={sectionToggleClass(isMarketingVisualActive)} type="button" title="Promos" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-promos" data-sidebar-section-toggle>
         <span class="pz-admin-sidebar__section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span>
         <span>Promos</span>
@@ -493,13 +499,22 @@ const marketingVisualSubClass = (subsection: string) => {
       </div>
     </section>}
 
-    {canShowPushCampaignsNav && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPushCampaignsActive }]}>
-      <nav class="pz-admin-sidebar__nav-list" aria-label="Campañas push">
-        <a class={navClass('push-campaigns')} href={adminPushCampaignsPath} data-astro-prefetch={fastPrefetchStrategy(adminPushCampaignsPath)} title="Campañas push"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13.5V9a8 8 0 0 1 16 0v4.5l2 2V18H2v-2.5l2-2ZM9.4 20h5.2a2.8 2.8 0 0 1-5.2 0ZM6 13l-2 2h16l-2-2V9a6 6 0 0 0-12 0v4Z"/></svg></span><span>Campañas push</span></a>
-      </nav>
+    {canShowAudienceGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isAudienceSectionActive }]} data-sidebar-section-group="audience">
+      <button class={sectionToggleClass(isAudienceSectionActive)} type="button" title="Audiencia" aria-expanded={isAudienceSectionActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-audience" data-sidebar-section-toggle>
+        <span class="pz-admin-sidebar__section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+        <span>Audiencia</span>
+        <span class="pz-admin-sidebar__section-chevron" aria-hidden="true">v</span>
+      </button>
+      <div id="pz-admin-sidebar-audience" class={sectionPanelClass(isAudienceSectionActive)} data-sidebar-section-panel>
+        <nav class="pz-admin-sidebar__section-subnav" aria-label="Herramientas de Audiencia">
+          {canShowReviewsNav && <a class={audienceSubClass('rating')} data-audience-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y reseñas</span></a>}
+          {canShowPushCampaignsNav && <a class={audienceSubClass('push-campaigns')} data-audience-subitem="push-campaigns" href={adminPushCampaignsPath} data-astro-prefetch={fastPrefetchStrategy(adminPushCampaignsPath)}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13.5V9a8 8 0 0 1 16 0v4.5l2 2V18H2v-2.5l2-2ZM9.4 20h5.2a2.8 2.8 0 0 1-5.2 0ZM6 13l-2 2h16l-2-2V9a6 6 0 0 0-12 0v4Z"/></svg></span><span>Campañas push</span></a>}
+          {canShowLandingQrNav && <a class={audienceSubClass('landing')} data-audience-subitem="landing" href={`${adminStoreSettingsPath}#landing`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg></span><span>Landing QR</span></a>}
+        </nav>
+      </div>
     </section>}
 
-    <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPersonalDataActive }]}>
+    <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPersonalDataActive }]} data-sidebar-section-group="personal">
       <button class={sectionToggleClass(isPersonalDataActive)} type="button" title="Mis datos" aria-expanded={isPersonalDataActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-personal" data-sidebar-section-toggle>
         <span class="pz-admin-sidebar__section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1 21v-2a6 6 0 0 1 12 0v2H1Zm12.5 0v-2a7.5 7.5 0 0 0-1.1-3.9A5.5 5.5 0 0 1 23 17v4h-9.5Z"/></svg></span>
         <span>Mis datos</span>
@@ -2458,12 +2473,12 @@ const marketingVisualSubClass = (subsection: string) => {
         '#monedas': 'monedas',
         '#horario': 'horario',
         '#schedule': 'horario',
-        '#rating': 'rating',
-        '#rating-pending': 'rating',
-        '#landing': 'landing',
       };
 
-      const activeKey = isSettings ? (hashMap[window.location.hash] || 'generales') : '';
+      const audienceHashes = new Set(['#rating', '#rating-pending', '#landing']);
+      const activeKey = isSettings && !audienceHashes.has(window.location.hash)
+        ? (hashMap[window.location.hash] || 'generales')
+        : '';
 
       items.forEach((item) => {
         item.classList.toggle(
@@ -2473,10 +2488,61 @@ const marketingVisualSubClass = (subsection: string) => {
       });
     };
 
+    const syncAudienceActiveItem = () => {
+      const items = document.querySelectorAll('[data-audience-subitem]');
+      if (!items.length) return;
+
+      const path = window.location.pathname.replace(/\/+$/, '');
+      const isSettings = /\/admin\/store-settings$/.test(path);
+      const isPushCampaigns = /\/admin\/push-campaigns$/.test(path);
+      const hashMap = {
+        '#rating': 'rating',
+        '#rating-pending': 'rating',
+        '#landing': 'landing',
+      };
+      const activeKey = isPushCampaigns
+        ? 'push-campaigns'
+        : (isSettings ? (hashMap[window.location.hash] || '') : '');
+
+      items.forEach((item) => {
+        item.classList.toggle(
+          'is-active',
+          item.getAttribute('data-audience-subitem') === activeKey
+        );
+      });
+
+      if (!activeKey) {
+        if (isSettings) {
+          const storeToggle = document.querySelector('[aria-controls="pz-admin-sidebar-store"]');
+          if (storeToggle) {
+            sidebarSectionToggles.forEach((candidate) => setSidebarSectionOpen(candidate, candidate === storeToggle));
+            document.querySelectorAll('[data-sidebar-section-group]').forEach((group) => {
+              group.classList.toggle('is-current', group.getAttribute('data-sidebar-section-group') === 'store');
+            });
+            settingsToggle?.classList.add('is-active');
+            settingsSubnav?.classList.remove('is-collapsed');
+            settingsToggle?.setAttribute('aria-expanded', 'true');
+          }
+        }
+        return;
+      }
+      const audienceToggle = document.querySelector('[aria-controls="pz-admin-sidebar-audience"]');
+      if (!audienceToggle) return;
+      sidebarSectionToggles.forEach((candidate) => setSidebarSectionOpen(candidate, candidate === audienceToggle));
+      document.querySelectorAll('[data-sidebar-section-group]').forEach((group) => {
+        group.classList.toggle('is-current', group.getAttribute('data-sidebar-section-group') === 'audience');
+      });
+      settingsToggle?.classList.remove('is-active');
+      settingsSubnav?.classList.add('is-collapsed');
+      settingsToggle?.setAttribute('aria-expanded', 'false');
+    };
+
     syncMarketingVisualActiveItem();
     syncSettingsActiveItem();
+    syncAudienceActiveItem();
     window.addEventListener('hashchange', syncMarketingVisualActiveItem);
     window.addEventListener('hashchange', syncSettingsActiveItem);
+    window.addEventListener('hashchange', syncAudienceActiveItem);
 
   })();
 </script>

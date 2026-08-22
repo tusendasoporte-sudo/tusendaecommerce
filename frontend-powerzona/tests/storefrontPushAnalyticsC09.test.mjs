@@ -97,13 +97,25 @@ test('Ver más presenta agregados por versión, privacidad explícita y los mism
   assert.doesNotMatch(backendAnalytics, /package_name:/);
 });
 
-test('Campañas push queda como entrada independiente inmediatamente después de Promos y conserva la puerta Premium', () => {
+test('Audiencia agrupa reseñas, campañas push y Landing QR después de Promos sin cambiar sus puertas', () => {
   const sidebar = read('../src/components/admin/AdminSidebar.astro');
   const promos = sidebar.indexOf('title="Promos"');
-  const push = sidebar.indexOf('aria-label="Campañas push"');
+  const audience = sidebar.indexOf('title="Audiencia"');
   const personal = sidebar.indexOf('title="Mis datos"');
-  assert.ok(promos >= 0 && push > promos && personal > push);
+  const audiencePanelStart = sidebar.indexOf('id="pz-admin-sidebar-audience"');
+  const audiencePanelEnd = sidebar.indexOf('</section>}', audiencePanelStart);
+  const audiencePanel = sidebar.slice(audiencePanelStart, audiencePanelEnd);
+  const settingsPanelStart = sidebar.indexOf('id="pz-admin-sidebar-settings-subnav"');
+  const settingsPanelEnd = sidebar.indexOf('</div>', settingsPanelStart);
+  const settingsPanel = sidebar.slice(settingsPanelStart, settingsPanelEnd);
+  assert.ok(promos >= 0 && audience > promos && personal > audience);
+  assert.match(sidebar, /title="Audiencia"[\s\S]*?<circle cx="12" cy="12" r="9"/);
+  assert.match(audiencePanel, /data-audience-subitem="rating"[\s\S]*Rating y reseñas/);
+  assert.match(audiencePanel, /data-audience-subitem="push-campaigns"[\s\S]*Campañas push/);
+  assert.match(audiencePanel, /data-audience-subitem="landing"[\s\S]*Landing QR/);
+  assert.doesNotMatch(settingsPanel, /Rating y reseñas|Landing QR/);
   assert.match(sidebar, /canShowPushCampaignsNav/);
+  assert.match(sidebar, /canShowAudienceGroup/);
   assert.match(sidebar, /push_campaigns_enabled/);
   assert.match(sidebar, /marketing\.push\.manage/);
 
