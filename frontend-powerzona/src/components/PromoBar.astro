@@ -251,6 +251,7 @@ const renderedItems = isMarquee
           if (touchResumeTimer) window.clearTimeout(touchResumeTimer);
           touchResumeTimer = window.setTimeout(() => {
             touchResumeTimer = null;
+            tick();
             schedule();
           }, 2000);
         }
@@ -285,6 +286,66 @@ const renderedItems = isMarquee
   </script>
 )}
 
+{isVisible && isMarquee && items.length > 1 && (
+  <script>
+    (() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      document.querySelectorAll('.promo-bar-marquee').forEach((bar) => {
+        const slides = Array.from(bar.querySelectorAll('.promo-bar-item')) as HTMLElement[];
+        let touchResumeTimer: number | null = null;
+
+        function resumeAfterTouch() {
+          bar.classList.add('is-touch-paused');
+          if (touchResumeTimer) window.clearTimeout(touchResumeTimer);
+          touchResumeTimer = window.setTimeout(() => {
+            touchResumeTimer = null;
+            bar.classList.remove('is-touch-paused');
+          }, 2000);
+        }
+
+        function triggerDeparture(slide: HTMLElement) {
+          if (reduceMotion) return;
+          slide.classList.remove('is-leaving');
+          void slide.offsetWidth;
+          slide.classList.add('is-leaving');
+          window.setTimeout(() => slide.classList.remove('is-leaving'), 520);
+        }
+
+        bar.addEventListener('pointerdown', (event) => {
+          if (event.pointerType === 'touch') resumeAfterTouch();
+        });
+        bar.addEventListener('focusin', (event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.matches(':focus-visible')) bar.classList.add('is-keyboard-paused');
+        });
+        bar.addEventListener('focusout', (event) => {
+          if (!bar.contains(event.relatedTarget as Node | null)) bar.classList.remove('is-keyboard-paused');
+        });
+
+        if (reduceMotion || !('IntersectionObserver' in window)) return;
+
+        const visibleSlides = new WeakSet<Element>();
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.intersectionRatio >= .72) {
+              visibleSlides.add(entry.target);
+              return;
+            }
+            const exitsLeft = Boolean(entry.rootBounds) && entry.boundingClientRect.left < (entry.rootBounds?.left || 0);
+            if (entry.intersectionRatio <= .4 && exitsLeft && visibleSlides.has(entry.target)) {
+              visibleSlides.delete(entry.target);
+              triggerDeparture(entry.target as HTMLElement);
+            }
+          });
+        }, { root: bar, threshold: [.4, .72] });
+
+        slides.forEach((slide) => observer.observe(slide));
+      });
+    })();
+  </script>
+)}
+
 <style>
   .promo-bar {
     width: 100%;
@@ -313,8 +374,8 @@ const renderedItems = isMarquee
     will-change: transform;
   }
 
-  .promo-bar-marquee:hover .promo-bar-track,
-  .promo-bar-marquee:focus-within .promo-bar-track {
+  .promo-bar-marquee.is-touch-paused .promo-bar-track,
+  .promo-bar-marquee.is-keyboard-paused .promo-bar-track {
     animation-play-state: paused;
   }
 
@@ -646,6 +707,12 @@ const renderedItems = isMarquee
 
     .promo-bar-item.is-link:hover {
       transform: none;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .promo-bar-marquee:hover .promo-bar-track {
+      animation-play-state: paused;
     }
   }
 

@@ -36,8 +36,13 @@ test('la salida usa chispas ligeras y el toque móvil se reanuda sin segundo cli
   assert.match(promoBar, /\(hover: hover\) and \(pointer: fine\)/);
   assert.match(promoBar, /if \(finePointer\.matches\) stop\(\)/);
   assert.match(promoBar, /if \(event\.pointerType === 'touch'\) pauseTemporarilyForTouch\(\)/);
-  assert.match(promoBar, /touchResumeTimer = window\.setTimeout\([\s\S]*?2000\)/);
+  assert.match(promoBar, /touchResumeTimer = window\.setTimeout\([\s\S]*?tick\(\);[\s\S]*?schedule\(\);[\s\S]*?2000\)/);
   assert.match(promoBar, /target\?\.matches\(':focus-visible'\)/);
+  assert.match(promoBar, /bar\.classList\.add\('is-touch-paused'\)/);
+  assert.match(promoBar, /bar\.classList\.remove\('is-touch-paused'\)/);
+  assert.match(promoBar, /new IntersectionObserver\(\(entries\) =>/);
+  assert.match(promoBar, /triggerDeparture\(entry\.target as HTMLElement\)/);
+  assert.match(promoBar, /@media \(hover: hover\) and \(pointer: fine\)/);
 });
 
 test('el máximo de tres ofertas queda visible y deshabilitado hasta liberar espacio', () => {
