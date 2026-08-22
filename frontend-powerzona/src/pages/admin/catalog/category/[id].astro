@@ -655,7 +655,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         position: relative;
       }
       .category-subcategory-card {
-        grid-template-columns: 76px minmax(0, 1fr) auto;
+        grid-template-columns: 76px minmax(0, 1fr);
       }
       .category-subcategory-card .row-thumb {
         width: 76px;
@@ -856,6 +856,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .category-product-card {
           grid-template-columns: 58px minmax(0, 1fr) auto;
           box-shadow: none;
+        }
+        .category-subcategory-card {
+          grid-template-columns: 58px minmax(0, 1fr);
         }
         .category-subcategory-card .row-thumb,
         .category-product-card .row-thumb {
@@ -1077,7 +1080,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
                 <button id="new-product-btn" class:list={['pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact', !canCreateProducts && 'permission-hidden']} type="button" disabled={!canCreateProducts}>
                   <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                  <span class="pz-admin-btn__label">Nuevo producto directo</span>
+                  <span class="pz-admin-btn__label">Crear producto directo</span>
                 </button>
               </div>
             </div>
@@ -1089,21 +1092,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             </button>
           </section>
 
-          <section class="category-section-card">
-            <div class="category-section-head">
-              <div class="category-section-title-wrap">
-                <span class="category-section-icon purple" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 6h4v4H4V6Zm6 0h10v4H10V6ZM4 14h4v4H4v-4Zm6 0h10v4H10v-4Z"/></svg>
-                </span>
-                <div>
-                  <h2>Productos por subcategoria</h2>
-                  <p>Explora los productos agrupados por cada subcategoria.</p>
-                </div>
-              </div>
-            </div>
-
-            <div id="subcategory-products-list" class="category-subcategory-product-groups"></div>
-          </section>
         </main>
       </section>
     <div id="subcategory-actions-menu" class:list={['subcategory-actions-menu hidden', !canManageCategories && 'permission-hidden']} role="menu" aria-hidden="true"></div>
@@ -1155,10 +1143,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         writable: false,
       });
     </script>
-    <script define:vars={{ pocketbaseUrl, categoryId, currentStoreId, adminProductsPath, canManageCategories, canCreateProducts, canEditProducts }}>
+    <script define:vars={{ pocketbaseUrl, categoryId, currentStoreId, adminCatalogPath, adminProductsPath, canManageCategories, canCreateProducts, canEditProducts }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CATEGORY_ID = String(categoryId || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_CATALOG_PATH = String(adminCatalogPath || '/admin/catalog');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const CAN_MANAGE_CATEGORIES = canManageCategories === true;
@@ -1191,7 +1180,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productsCount = document.getElementById('products-count');
       const newProductBtn = document.getElementById('new-product-btn');
       const contentSummaryGrid = document.getElementById('content-summary-grid');
-      const subcategoryProductsList = document.getElementById('subcategory-products-list');
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -1237,7 +1225,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let directProductQuery = '';
       let directProductsExpanded = false;
       let subcategoriesExpanded = false;
-      let expandedSubcategoryProductId = '';
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -1569,6 +1556,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_CREATE_PRODUCTS) return '';
         const params = new URLSearchParams();
         params.set('new', '1');
+        params.set('from', 'category');
         if (categoryId) params.set('category', categoryId);
         if (subcategoryId) params.set('subcategory', subcategoryId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
@@ -1578,7 +1566,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_EDIT_PRODUCTS) return '';
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
+        params.set('from', 'category');
+        params.set('category', CATEGORY_ID);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
+      }
+
+      function subcategoryDetailUrl(subcategoryId = '') {
+        if (!subcategoryId) return `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(CATEGORY_ID)}`;
+        return `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(CATEGORY_ID)}/subcategory/${encodeURIComponent(subcategoryId)}`;
       }
 
       function isMobileViewport() {
@@ -1823,16 +1818,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <p class="category-subcategory-card-title">${escapeHtml(subcategory.name || 'Subcategoria sin nombre')}</p>
                 <p class="category-subcategory-card-meta">${count} ${count === 1 ? 'producto' : 'productos'} · ${escapeHtml(statusText)}</p>
                 <div class="category-subcategory-actions">
-                  ${CAN_MANAGE_CATEGORIES ? `<button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-subcategory-edit-direct" type="button">
-                    <span class="pz-admin-btn__label">Editar</span>
-                  </button>` : ''}
-                  ${CAN_CREATE_PRODUCTS ? `<button class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact js-subcategory-products" type="button">
-                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                    <span class="pz-admin-btn__label">Agregar producto</span>
-                  </button>` : ''}
+                  <a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href="${escapeHtml(subcategoryDetailUrl(subcategory.id))}">
+                    <span class="pz-admin-btn__label">${CAN_MANAGE_CATEGORIES ? 'Editar subcategoría' : 'Abrir subcategoría'}</span>
+                  </a>
                 </div>
               </div>
-              ${CAN_MANAGE_CATEGORIES ? `<button class="subcategory-menu-button js-subcategory-menu" type="button" aria-label="Mas acciones" aria-expanded="${activeSubcategoryMenuId === subcategory.id ? 'true' : 'false'}">⋯</button>` : ''}
             </article>
           `;
         }).join('');
@@ -1867,59 +1857,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         productsList.innerHTML = visibleItems.map(renderCategoryProductCard).join('');
       }
-      function renderSubcategoryProducts() {
-        if (!subcategoryProductsList) return;
-        const ordered = [...subcategories].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.name || '').localeCompare(String(b.name || '')));
-        if (!ordered.length) {
-          subcategoryProductsList.innerHTML = '<div class="empty">No hay subcategorias para agrupar productos todavia.</div>';
-          return;
-        }
-        subcategoryProductsList.innerHTML = ordered.map((subcategory) => {
-          const items = productsForSubcategory(subcategory.id).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-          const isOpen = expandedSubcategoryProductId === subcategory.id;
-          const previewItems = items.slice(0, 4);
-
-          return `
-            <section class="category-subcategory-group ${isOpen ? 'is-open' : ''}" data-subcategory-id="${subcategory.id}">
-              <div class="category-subcategory-group-head">
-                <div>
-                  <p class="category-subcategory-group-title">${escapeHtml(subcategory.name || 'Subcategoria')}</p>
-                  <p class="category-subcategory-group-count">${items.length} ${items.length === 1 ? 'producto' : 'productos'}</p>
-                </div>
-
-                <button class="category-subcategory-group-toggle js-subcategory-products-toggle" type="button" data-subcategory-id="${subcategory.id}">
-                  ${isOpen ? 'Ocultar productos' : 'Ver productos'}
-                </button>
-
-                <span class="category-subcategory-group-chevron" aria-hidden="true">⌄</span>
-              </div>
-
-              ${isOpen ? `
-                <div class="category-subcategory-group-body">
-                  ${items.length ? `
-                    <div class="category-subcategory-preview-grid">
-                      ${previewItems.map(renderCategoryProductCard).join('')}
-                    </div>
-                  ` : '<div class="empty">Sin productos todavia.</div>'}
-
-                  ${CAN_CREATE_PRODUCTS ? `<div class="category-subcategory-group-actions">
-                    <button class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact js-subcategory-group-product" type="button" data-subcategory-id="${subcategory.id}">
-                      <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                      <span class="pz-admin-btn__label">Agregar producto</span>
-                    </button>
-                  </div>` : ''}
-                </div>
-              ` : ''}
-            </section>
-          `;
-        }).join('');
-      }
       function renderAll() {
         renderHero();
         renderSummary();
         renderSubcategories();
         renderProducts();
-        renderSubcategoryProducts();
       }
 
       async function loadPage() {
@@ -2324,25 +2266,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const button = event.target.closest('.js-product-edit');
         const row = button?.closest('[data-product-id]');
         if (CAN_EDIT_PRODUCTS && row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
-      });
-      subcategoryProductsList?.addEventListener('click', (event) => {
-        const toggleButton = event.target.closest('.js-subcategory-products-toggle');
-        if (toggleButton?.dataset?.subcategoryId) {
-          expandedSubcategoryProductId = expandedSubcategoryProductId === toggleButton.dataset.subcategoryId ? '' : toggleButton.dataset.subcategoryId;
-          renderSubcategoryProducts();
-          return;
-        }
-
-        const productButton = event.target.closest('.js-product-edit');
-        const productRow = productButton?.closest('[data-product-id]');
-        if (CAN_EDIT_PRODUCTS && productRow?.dataset?.productId) {
-          window.location.href = productEditUrl(productRow.dataset.productId);
-          return;
-        }
-        const addButton = event.target.closest('.js-subcategory-group-product');
-        if (CAN_CREATE_PRODUCTS && addButton?.dataset?.subcategoryId) {
-          window.location.href = productCreateUrl(CATEGORY_ID, addButton.dataset.subcategoryId);
-        }
       });
       window.addEventListener('resize', () => {
         renderSubcategories();

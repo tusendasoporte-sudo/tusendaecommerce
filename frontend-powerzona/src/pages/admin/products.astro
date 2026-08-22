@@ -3818,6 +3818,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       currentStoreId,
       currentStoreName,
       currentStoreSlug,
+      adminCatalogPath,
       activeImageLimit,
       expirationToolsEnabled,
       canCreateProducts,
@@ -3831,6 +3832,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
     }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_CATALOG_PATH = String(adminCatalogPath || '/admin/catalog');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
       const CAN_CREATE_PRODUCTS = canCreateProducts === true;
@@ -3881,6 +3883,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let isMobileVariationManagerExpanded = false;
       let productInitialSnapshot = "";
       let variationInitialSnapshot = "";
+      let productEditorReturnHref = '';
       let productManualActive = true;
       let variationManualActive = true;
       let currentVariationImageUrl = "";
@@ -6284,6 +6287,45 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productEditorLastModification.removeAttribute('data-last-modification-loaded');
         if (!available) productEditorLastModification.replaceChildren();
       }
+      function resolveProductEditorReturnContext(params) {
+        const source = params.get('from') || '';
+        const categoryId = params.get('category') || '';
+        const subcategoryId = params.get('subcategory') || '';
+        if (source === 'subcategory') {
+          const categoryExists = categories.some((item) => item.id === categoryId && isCurrentStoreRecord(item));
+          const subcategoryExists = subcategories.some((item) => (
+            item.id === subcategoryId
+            && item.category === categoryId
+            && isCurrentStoreRecord(item)
+          ));
+          if (!categoryExists || !subcategoryExists) return null;
+          return {
+            href: `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(categoryId)}/subcategory/${encodeURIComponent(subcategoryId)}`,
+            label: 'Volver a subcategoría',
+          };
+        }
+        if (source === 'category') {
+          const categoryExists = categories.some((item) => item.id === categoryId && isCurrentStoreRecord(item));
+          if (!categoryExists) return null;
+          return {
+            href: `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(categoryId)}`,
+            label: 'Volver a categoría',
+          };
+        }
+        if (source === 'catalog') {
+          return {
+            href: ADMIN_CATALOG_PATH,
+            label: 'Volver a categorías',
+          };
+        }
+        return null;
+      }
+      function syncProductEditorReturnContext(context = null) {
+        productEditorReturnHref = String(context?.href || '');
+        const label = String(context?.label || 'Volver a productos');
+        if (editorCloseBtn) editorCloseBtn.textContent = `← ${label}`;
+        if (editorSideBackBtn) editorSideBackBtn.textContent = `← ${label}`;
+      }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
         productEditor.classList.remove('has-mobile-save-action', 'has-mobile-inline-save');
@@ -6321,11 +6363,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           });
           if (!confirmed) return false;
         }
+        if (productEditorReturnHref) {
+          window.location.assign(productEditorReturnHref);
+          return true;
+        }
         closeProductEditor();
         return true;
       }
-      function openNewProductEditor() {
+      function openNewProductEditor(returnContext = null) {
         if (!CAN_CREATE_PRODUCTS) return;
+        syncProductEditorReturnContext(returnContext);
         resetProductForm();
         editorTitle.textContent = 'Nuevo producto';
         editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
@@ -6359,8 +6406,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return cached;
         }
       }
-      async function openEditProductEditor(productId) {
+      async function openEditProductEditor(productId, returnContext = null) {
         if (!canMutateExistingProduct()) return;
+        syncProductEditorReturnContext(returnContext);
         const product = await freshProductForEditor(productId);
         if (!product) return;
         resetProductForm();
@@ -6754,6 +6802,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       async function declinePostSaveVariationChoice() {
         hidePostSaveVariationNotice();
         setFormAlert('Producto creado correctamente.', 'success');
+        if (productEditorReturnHref) {
+          window.location.assign(productEditorReturnHref);
+          return;
+        }
         closeProductEditor();
         await loadProducts();
       }
@@ -7068,12 +7120,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const shouldCreate = params.get('new') === '1';
         const categoryId = params.get('category') || '';
         const subcategoryId = params.get('subcategory') || '';
+        const returnContext = resolveProductEditorReturnContext(params);
         if (editProductId) {
-          openEditProductEditor(editProductId);
+          openEditProductEditor(editProductId, returnContext);
           return;
         }
         if (shouldCreate) {
-          openNewProductEditor();
+          openNewProductEditor(returnContext);
           if (categoryId && categories.some((item) => item.id === categoryId)) {
             productCategoryInput.value = categoryId;
             renderProductSubcategoryOptions(subcategoryId);
@@ -7401,7 +7454,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         currentProductPage = Math.min(Math.max(1, currentProductPage), totalPages);
         renderProducts();
       });
-      newProductBtn?.addEventListener('click', openNewProductEditor);
+      newProductBtn?.addEventListener('click', () => openNewProductEditor());
       editorCloseBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
       productCancelBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
       editorSideSaveBtn?.addEventListener('click', () => productSaveBtn?.click());

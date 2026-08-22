@@ -2571,6 +2571,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_CREATE_PRODUCTS) return '';
         const params = new URLSearchParams();
         params.set('new', '1');
+        params.set('from', 'catalog');
         if (categoryId) params.set('category', categoryId);
         if (subcategoryId) params.set('subcategory', subcategoryId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
@@ -2579,6 +2580,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_EDIT_PRODUCTS) return '';
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
+        params.set('from', 'catalog');
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
       catalogSearch?.addEventListener('input', renderCategories);

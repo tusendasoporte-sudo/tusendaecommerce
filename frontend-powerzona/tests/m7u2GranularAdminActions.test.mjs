@@ -94,6 +94,7 @@ test('M7U2: Catalogo separa mutaciones de categorias de crear y editar productos
   for (const relative of [
     '../src/pages/admin/catalog.astro',
     '../src/pages/admin/catalog/category/[id].astro',
+    '../src/pages/admin/catalog/category/[categoryId]/subcategory/[subcategoryId].astro',
   ]) {
     const source = read(relative);
     for (const permission of [
@@ -110,7 +111,7 @@ test('M7U2: Catalogo separa mutaciones de categorias de crear y editar productos
     assert.match(source, /CAN_MANAGE_CATEGORIES = canManageCategories === true/);
     assert.match(source, /CAN_CREATE_PRODUCTS = canCreateProducts === true/);
     assert.match(source, /CAN_EDIT_PRODUCTS = canEditProducts === true/);
-    assert.match(source, /assert(?:Catalog|Category)MutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
+    assert.match(source, /assert(?:Catalog|Category|Subcategory)MutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
   }
 
   const catalog = read('../src/pages/admin/catalog.astro');

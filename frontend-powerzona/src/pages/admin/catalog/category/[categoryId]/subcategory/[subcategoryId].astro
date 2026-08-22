@@ -1,0 +1,811 @@
+---
+export const prerender = false;
+
+import { refreshAuthFromCookie } from '../../../../../../lib/auth';
+import { getStoreAdminPath } from '../../../../../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../../../../../lib/storeContext';
+import { getStoreAccessContext } from '../../../../../../lib/storeTeam';
+import { hasStorePermission } from '../../../../../../lib/storeTeamPermissions';
+import AdminSidebar from '../../../../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../../../../components/admin/AdminSectionHeader.astro';
+import LastModificationMeta from '../../../../../../components/admin/LastModificationMeta.astro';
+import '../../../../../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const categoryId = String(Astro.params.categoryId || '').trim();
+const subcategoryId = String(Astro.params.subcategoryId || '').trim();
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({
+    baseUrl: pocketbaseUrl,
+    token: adminAuthToken,
+    supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+  }).catch(() => null);
+const permissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canManageCategories = hasStorePermission(permissionContext, 'catalog.categories.manage');
+const canCreateProducts = hasStorePermission(permissionContext, 'catalog.products.create');
+const canEditProducts = hasStorePermission(permissionContext, 'catalog.products.edit');
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const parentCategoryPath = getStoreAdminPath(currentStoreSlug, `catalog/category/${encodeURIComponent(categoryId)}`);
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Subcategoría | Tu Senda 84</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --subcategory-page: #eef3f9;
+        --subcategory-surface: #fff;
+        --subcategory-text: #0f172a;
+        --subcategory-muted: #64748b;
+        --subcategory-border: #dbe4ef;
+        --subcategory-blue: #2563eb;
+        --subcategory-green: #16a34a;
+        --subcategory-red: #dc2626;
+      }
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        color: var(--subcategory-text);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(37, 99, 235, .13), transparent 30%),
+          linear-gradient(180deg, #f8fbff 0%, var(--subcategory-page) 58%, #e8eef7 100%);
+      }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .62; }
+      .hidden { display: none !important; }
+      .subcategory-app { min-height: 100vh; }
+      .subcategory-shell { width: min(1180px, 100%); margin: 0 auto; padding: 24px; }
+      .subcategory-content { display: grid; gap: 18px; }
+      .subcategory-breadcrumb {
+        display: flex; align-items: center; gap: 8px; min-width: 0;
+        color: var(--subcategory-muted); font-size: 13px; font-weight: 850;
+      }
+      .subcategory-breadcrumb a { color: #1d4ed8; text-decoration: none; }
+      .subcategory-breadcrumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .subcategory-overview,
+      .subcategory-panel {
+        border: 1px solid rgba(219, 228, 239, .96);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, .97);
+        box-shadow: 0 18px 48px rgba(15, 23, 42, .07);
+      }
+      .subcategory-overview {
+        display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 18px; align-items: center;
+        padding: 20px;
+      }
+      .subcategory-overview-image,
+      .subcategory-image-preview {
+        display: grid; place-items: center; overflow: hidden;
+        border: 1px solid var(--subcategory-border); background: #f8fafc;
+        color: #64748b; font-size: 32px; font-weight: 1000;
+      }
+      .subcategory-overview-image { width: 112px; height: 112px; border-radius: 18px; }
+      .subcategory-overview-image img,
+      .subcategory-image-preview img { width: 100%; height: 100%; object-fit: contain; }
+      .subcategory-overview-copy { min-width: 0; }
+      .subcategory-overview-copy h2 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.05; font-weight: 1000; overflow-wrap: anywhere; }
+      .subcategory-overview-copy p { margin: 8px 0 0; color: var(--subcategory-muted); font-size: 14px; font-weight: 780; }
+      .subcategory-status {
+        display: inline-flex; align-items: center; justify-content: center; min-height: 34px;
+        border-radius: 999px; padding: 0 12px; background: #dcfce7; color: #166534;
+        font-size: 12px; font-weight: 1000; white-space: nowrap;
+      }
+      .subcategory-status.is-hidden { background: #fee2e2; color: #991b1b; }
+      .subcategory-panel { padding: 22px; }
+      .subcategory-panel-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px;
+      }
+      .subcategory-panel-head h2 { margin: 0; font-size: 22px; font-weight: 1000; }
+      .subcategory-panel-head p { margin: 6px 0 0; color: var(--subcategory-muted); font-size: 14px; font-weight: 750; }
+      .subcategory-form { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 20px; }
+      .subcategory-form-fields { display: grid; gap: 16px; align-content: start; }
+      .subcategory-field { display: grid; gap: 7px; }
+      .subcategory-field label { color: #334155; font-size: 13px; font-weight: 950; }
+      .subcategory-field input[type="text"] {
+        width: 100%; min-height: 46px; border: 1px solid #cbd5e1; border-radius: 12px;
+        padding: 11px 13px; color: var(--subcategory-text); background: #fff; outline: none;
+      }
+      .subcategory-field input:focus { border-color: var(--subcategory-blue); box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+      .subcategory-switch { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 900; }
+      .subcategory-switch input { width: 20px; height: 20px; accent-color: var(--subcategory-green); }
+      .subcategory-image-card { display: grid; gap: 10px; align-content: start; }
+      .subcategory-image-preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; }
+      .subcategory-image-card input { width: 100%; color: #475569; font-size: 12px; }
+      .subcategory-help { margin: 0; color: var(--subcategory-muted); font-size: 12px; line-height: 1.45; font-weight: 700; }
+      .subcategory-form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }
+      .subcategory-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px;
+        border: 1px solid var(--subcategory-border); border-radius: 12px; padding: 10px 14px;
+        background: #fff; color: #1e293b; text-decoration: none; font-size: 13px; font-weight: 950;
+      }
+      .subcategory-btn.primary { border-color: var(--subcategory-blue); background: var(--subcategory-blue); color: #fff; }
+      .subcategory-btn.danger { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
+      .subcategory-toolbar { display: flex; align-items: center; gap: 10px; }
+      .subcategory-search {
+        display: flex; align-items: center; min-width: min(310px, 44vw); min-height: 42px;
+        border: 1px solid var(--subcategory-border); border-radius: 12px; background: #f8fafc; padding: 0 12px;
+      }
+      .subcategory-search input { width: 100%; border: 0; outline: none; background: transparent; color: var(--subcategory-text); }
+      .subcategory-products { display: grid; gap: 10px; }
+      .subcategory-product {
+        display: grid; grid-template-columns: 66px minmax(0, 1fr) auto auto; gap: 14px; align-items: center;
+        border: 1px solid #e2e8f0; border-radius: 16px; background: #f8fafc; padding: 11px;
+      }
+      .subcategory-product-image {
+        width: 66px; height: 66px; display: grid; place-items: center; overflow: hidden;
+        border: 1px solid #dbe4ef; border-radius: 13px; background: #fff; color: #64748b; font-weight: 1000;
+      }
+      .subcategory-product-image img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+      .subcategory-product-copy { min-width: 0; }
+      .subcategory-product-copy strong { display: block; overflow-wrap: anywhere; }
+      .subcategory-product-copy span { display: block; margin-top: 4px; color: var(--subcategory-muted); font-size: 12px; font-weight: 800; }
+      .subcategory-product-price { color: #1e293b; font-size: 13px; font-weight: 1000; white-space: nowrap; }
+      .subcategory-empty { border: 1px dashed #cbd5e1; border-radius: 16px; padding: 24px; color: var(--subcategory-muted); text-align: center; font-weight: 850; }
+      .subcategory-danger { border-color: #fecaca; background: rgba(255, 247, 247, .98); }
+      .subcategory-danger .subcategory-panel-head { margin-bottom: 0; align-items: center; }
+      .subcategory-alert { grid-column: 1 / -1; border-radius: 12px; padding: 11px 13px; font-size: 13px; font-weight: 850; }
+      .subcategory-alert.info { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+      .subcategory-alert.success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
+      .subcategory-alert.error { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }
+      .subcategory-loading { padding: 28px; text-align: center; color: var(--subcategory-muted); font-weight: 900; }
+      @media (max-width: 760px) {
+        .subcategory-shell { padding: 14px; }
+        .subcategory-overview { grid-template-columns: 82px minmax(0, 1fr); padding: 15px; }
+        .subcategory-overview-image { width: 82px; height: 82px; border-radius: 15px; }
+        .subcategory-status { grid-column: 1 / -1; justify-self: start; }
+        .subcategory-panel { padding: 16px; border-radius: 18px; }
+        .subcategory-panel-head { flex-direction: column; }
+        .subcategory-form { grid-template-columns: 1fr; }
+        .subcategory-form-actions { grid-column: 1; }
+        .subcategory-toolbar { width: 100%; flex-direction: column; align-items: stretch; }
+        .subcategory-search { width: 100%; min-width: 0; }
+        .subcategory-product { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; }
+        .subcategory-product-image { width: 58px; height: 58px; }
+        .subcategory-product-price { display: none; }
+        .subcategory-product .subcategory-btn { padding: 9px 11px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="subcategory-app">
+      <AdminSidebar
+        storeId={currentStoreId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={adminAuthToken}
+        storeSlug={currentStoreSlug}
+        storeName={currentStoreName}
+        storePlanValues={adminContext.store}
+        activeSection="catalog"
+        mobileTitle="Subcategoría"
+        mobileBackHref={parentCategoryPath}
+        mobileBackLabel="Volver a categoría"
+      />
+
+      <div class="subcategory-shell pz-admin-content">
+        <AdminSectionHeader
+          kicker="Catálogo"
+          title="Editar subcategoría"
+          description="Administra esta subcategoría y los productos que pertenecen a ella."
+          titleId="subcategory-page-title"
+          bellId="admin-subcategory-bell"
+        >
+          {canManageCategories && (
+            <button id="subcategory-header-save" class="admin-primary-action admin-header-primary-action" type="submit" form="subcategory-form" slot="action">
+              <span>Guardar cambios</span>
+            </button>
+          )}
+        </AdminSectionHeader>
+
+        <main id="subcategory-view" class="subcategory-content hidden">
+          <nav class="subcategory-breadcrumb" aria-label="Ruta de navegación">
+            <a href={adminCatalogPath}>Categorías</a>
+            <span aria-hidden="true">›</span>
+            <a id="subcategory-parent-link" href={parentCategoryPath}>Categoría</a>
+            <span aria-hidden="true">›</span>
+            <span id="subcategory-breadcrumb-name">Subcategoría</span>
+          </nav>
+
+          <section class="subcategory-overview">
+            <div id="subcategory-overview-image" class="subcategory-overview-image">+</div>
+            <div class="subcategory-overview-copy">
+              <h2 id="subcategory-overview-name">Cargando subcategoría...</h2>
+              <p id="subcategory-overview-parent">Categoría padre</p>
+              <LastModificationMeta
+                resourceType="subcategory"
+                resourceId={subcategoryId}
+                pocketbaseUrl={pocketbaseUrl}
+                showActor={true}
+                usefulEmptyState={false}
+              />
+            </div>
+            <span id="subcategory-overview-status" class="subcategory-status">Visible en tienda</span>
+          </section>
+
+          <section class="subcategory-panel">
+            <div class="subcategory-panel-head">
+              <div>
+                <h2>Datos de la subcategoría</h2>
+                <p>Actualiza el nombre, la imagen y la visibilidad sin salir de esta pantalla.</p>
+              </div>
+            </div>
+
+            <form id="subcategory-form" class="subcategory-form">
+              <div class="subcategory-form-fields">
+                <div class="subcategory-field">
+                  <label for="subcategory-name">Nombre de la subcategoría *</label>
+                  <input id="subcategory-name" type="text" maxlength="160" required disabled={!canManageCategories} />
+                </div>
+                <label class="subcategory-switch">
+                  <input id="subcategory-active" type="checkbox" disabled={!canManageCategories} />
+                  <span>Visible en tienda</span>
+                </label>
+              </div>
+
+              <div class="subcategory-image-card">
+                <div id="subcategory-image-preview" class="subcategory-image-preview">+</div>
+                <div class="subcategory-field">
+                  <label for="subcategory-image">Cambiar imagen</label>
+                  <input id="subcategory-image" type="file" accept="image/*" disabled={!canManageCategories} />
+                </div>
+                <p class="subcategory-help">PNG, JPG o WEBP. Recomendado: formato horizontal 16:9.</p>
+              </div>
+
+              <div id="subcategory-alert" class="subcategory-alert info hidden" role="status"></div>
+
+              {canManageCategories && (
+                <div class="subcategory-form-actions">
+                  <a class="subcategory-btn" href={parentCategoryPath} data-subcategory-back>Cancelar</a>
+                  <button id="subcategory-save" class="subcategory-btn primary" type="submit">Guardar subcategoría</button>
+                </div>
+              )}
+            </form>
+          </section>
+
+          <section class="subcategory-panel">
+            <div class="subcategory-panel-head">
+              <div>
+                <h2>Productos de esta subcategoría</h2>
+                <p id="subcategory-products-count">Cargando productos...</p>
+              </div>
+              <div class="subcategory-toolbar">
+                <label class="subcategory-search">
+                  <input id="subcategory-products-search" type="search" placeholder="Buscar producto..." />
+                </label>
+                <a id="subcategory-create-product" class:list={['subcategory-btn primary', !canCreateProducts && 'hidden']} href="#">
+                  + Crear producto
+                </a>
+              </div>
+            </div>
+            <div id="subcategory-products" class="subcategory-products"></div>
+          </section>
+
+          {canManageCategories && (
+            <section class="subcategory-panel subcategory-danger">
+              <div class="subcategory-panel-head">
+                <div>
+                  <h2>Eliminar subcategoría</h2>
+                  <p>Los productos no se borrarán: pasarán a ser productos directos de la categoría padre.</p>
+                </div>
+                <button id="subcategory-delete" class="subcategory-btn danger" type="button">Eliminar subcategoría</button>
+              </div>
+            </section>
+          )}
+        </main>
+
+        <div id="subcategory-loading" class="subcategory-panel subcategory-loading">Cargando subcategoría...</div>
+        <section id="subcategory-error" class="subcategory-panel subcategory-loading hidden">
+          <p id="subcategory-error-text">No se pudo abrir esta subcategoría.</p>
+          <a class="subcategory-btn" href={parentCategoryPath}>Volver a categoría</a>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      import { optimizeTaxonomyImageFile } from '../../../../../../lib/taxonomyImageOptimizationCore.js';
+
+      Object.defineProperty(globalThis, 'pzSubcategoryImageOptimizer', {
+        value: Object.freeze({ optimizeTaxonomyImageFile }),
+        configurable: true,
+        enumerable: false,
+        writable: false,
+      });
+    </script>
+    <script define:vars={{
+      pocketbaseUrl,
+      categoryId,
+      subcategoryId,
+      currentStoreId,
+      parentCategoryPath,
+      adminProductsPath,
+      canManageCategories,
+      canCreateProducts,
+      canEditProducts,
+    }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CATEGORY_ID = String(categoryId || '');
+      const SUBCATEGORY_ID = String(subcategoryId || '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const PARENT_CATEGORY_PATH = String(parentCategoryPath || '/admin/catalog');
+      const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
+      const CAN_MANAGE_CATEGORIES = canManageCategories === true;
+      const CAN_CREATE_PRODUCTS = canCreateProducts === true;
+      const CAN_EDIT_PRODUCTS = canEditProducts === true;
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+      const view = document.getElementById('subcategory-view');
+      const loading = document.getElementById('subcategory-loading');
+      const errorBox = document.getElementById('subcategory-error');
+      const errorText = document.getElementById('subcategory-error-text');
+      const parentLink = document.getElementById('subcategory-parent-link');
+      const breadcrumbName = document.getElementById('subcategory-breadcrumb-name');
+      const overviewImage = document.getElementById('subcategory-overview-image');
+      const overviewName = document.getElementById('subcategory-overview-name');
+      const overviewParent = document.getElementById('subcategory-overview-parent');
+      const overviewStatus = document.getElementById('subcategory-overview-status');
+      const form = document.getElementById('subcategory-form');
+      const nameInput = document.getElementById('subcategory-name');
+      const activeInput = document.getElementById('subcategory-active');
+      const imageInput = document.getElementById('subcategory-image');
+      const imagePreview = document.getElementById('subcategory-image-preview');
+      const saveButton = document.getElementById('subcategory-save');
+      const headerSaveButton = document.getElementById('subcategory-header-save');
+      const alertBox = document.getElementById('subcategory-alert');
+      const productsCount = document.getElementById('subcategory-products-count');
+      const productsBox = document.getElementById('subcategory-products');
+      const productsSearch = document.getElementById('subcategory-products-search');
+      const createProductLink = document.getElementById('subcategory-create-product');
+      const deleteButton = document.getElementById('subcategory-delete');
+
+      let category = null;
+      let subcategory = null;
+      let siblingSubcategories = [];
+      let products = [];
+      let initialSnapshot = null;
+      let imageChanged = false;
+      let previewObjectUrl = '';
+      let saving = false;
+      let deleting = false;
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function slugify(value) {
+        return String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+
+      function normalizeName(value) {
+        return String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, ' ');
+      }
+
+      function getAdminToken() {
+        const authCookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!authCookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+          return String(auth?.token || '');
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function assertSubcategoryMutationAllowed(path, options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (/^\/api\/collections\/subcategories\/records\/[a-z0-9]+$/.test(path)) {
+          if (!CAN_MANAGE_CATEGORIES) throw new Error('No tienes permiso para gestionar categorías.');
+          return;
+        }
+        if (/^\/api\/collections\/products\/records\/[a-z0-9]+$/.test(path) && method === 'PATCH') {
+          if (!CAN_EDIT_PRODUCTS) throw new Error('No tienes permiso para mover productos.');
+          return;
+        }
+        throw new Error('Esta acción no está habilitada para tu perfil.');
+      }
+
+      async function apiRequest(path, options = {}) {
+        assertSubcategoryMutationAllowed(path, options);
+        const headers = { ...(options.headers || {}) };
+        const token = getAdminToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
+        return result;
+      }
+
+      async function loadAllRecords(collection, params = '') {
+        let page = 1;
+        let totalPages = 1;
+        const items = [];
+        do {
+          const query = new URLSearchParams(params || '');
+          query.set('page', String(page));
+          query.set('perPage', '200');
+          const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
+          items.push(...(result?.items || []));
+          totalPages = Math.max(1, Number(result?.totalPages || 1));
+          page += 1;
+        } while (page <= totalPages);
+        return items;
+      }
+
+      function recordsParams(filter, sort = '') {
+        const params = new URLSearchParams();
+        params.set('filter', `(${filter}) && ${STORE_FILTER}`);
+        if (sort) params.set('sort', sort);
+        return params.toString();
+      }
+
+      function isCurrentStoreRecord(record) {
+        const value = record?.store;
+        return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
+      }
+
+      function setAlert(message = '', type = 'info') {
+        if (!alertBox) return;
+        alertBox.textContent = message;
+        alertBox.className = `subcategory-alert ${type}`;
+        alertBox.classList.toggle('hidden', !message);
+      }
+
+      function recordImageUrl(collection, record, thumb = '') {
+        const image = Array.isArray(record?.image) ? record.image.filter(Boolean)[0] : record?.image;
+        if (!record?.id || !image) return '';
+        const base = `${POCKETBASE_URL}/api/files/${collection}/${encodeURIComponent(record.id)}/${encodeURIComponent(image)}`;
+        return thumb ? `${base}?thumb=${encodeURIComponent(thumb)}` : base;
+      }
+
+      function orderedProductImages(product) {
+        const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
+        let order = [];
+        try {
+          const parsed = JSON.parse(product?.image_order || '[]');
+          order = Array.isArray(parsed) ? parsed.filter((name) => images.includes(name)) : [];
+        } catch (_) {
+          order = [];
+        }
+        images.forEach((name) => { if (!order.includes(name)) order.push(name); });
+        return order;
+      }
+
+      function productImageUrl(product) {
+        const image = orderedProductImages(product)[0] || '';
+        if (!product?.id || !image) return '';
+        return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(image)}?thumb=240x240`;
+      }
+
+      function productCreateUrl() {
+        const params = new URLSearchParams();
+        params.set('new', '1');
+        params.set('from', 'subcategory');
+        params.set('category', CATEGORY_ID);
+        params.set('subcategory', SUBCATEGORY_ID);
+        return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
+      }
+
+      function productEditUrl(productId) {
+        const params = new URLSearchParams();
+        params.set('product', String(productId || ''));
+        params.set('from', 'subcategory');
+        params.set('category', CATEGORY_ID);
+        params.set('subcategory', SUBCATEGORY_ID);
+        return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
+      }
+
+      function currentSnapshot() {
+        return {
+          name: String(nameInput?.value || '').trim(),
+          active: Boolean(activeInput?.checked),
+          imageChanged: Boolean(imageChanged),
+        };
+      }
+
+      function hasChanges() {
+        if (!initialSnapshot) return false;
+        const current = currentSnapshot();
+        return current.name !== initialSnapshot.name
+          || current.active !== initialSnapshot.active
+          || current.imageChanged;
+      }
+
+      function syncSaveState() {
+        [saveButton, headerSaveButton].filter(Boolean).forEach((button) => {
+          button.disabled = saving || !hasChanges();
+          const label = button.querySelector('span');
+          if (label) label.textContent = saving ? 'Guardando...' : 'Guardar cambios';
+          else button.textContent = saving ? 'Guardando...' : 'Guardar subcategoría';
+        });
+      }
+
+      function clearPreviewObjectUrl() {
+        if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = '';
+      }
+
+      function renderImagePreview(url = '') {
+        const alt = escapeHtml(nameInput?.value || subcategory?.name || 'Subcategoría');
+        const markup = url ? `<img src="${escapeHtml(url)}" alt="${alt}" />` : '+';
+        if (imagePreview) imagePreview.innerHTML = markup;
+        if (overviewImage) overviewImage.innerHTML = markup;
+      }
+
+      function renderProducts() {
+        const query = normalizeName(productsSearch?.value || '');
+        const filtered = products.filter((product) => !query || normalizeName(product.name).includes(query));
+        if (productsCount) {
+          productsCount.textContent = query
+            ? `${filtered.length} de ${products.length} productos`
+            : `${products.length} ${products.length === 1 ? 'producto' : 'productos'} en esta subcategoría`;
+        }
+        if (!productsBox) return;
+        if (!filtered.length) {
+          productsBox.innerHTML = `<div class="subcategory-empty">${products.length ? 'No hay productos que coincidan con la búsqueda.' : 'Esta subcategoría todavía no tiene productos.'}</div>`;
+          return;
+        }
+        productsBox.innerHTML = filtered.map((product) => {
+          const imageUrl = productImageUrl(product);
+          const image = imageUrl
+            ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name || 'Producto')}" loading="lazy" />`
+            : 'P';
+          return `
+            <article class="subcategory-product" data-product-id="${escapeHtml(product.id)}">
+              <div class="subcategory-product-image">${image}</div>
+              <div class="subcategory-product-copy">
+                <strong>${escapeHtml(product.name || 'Producto sin nombre')}</strong>
+                <span>${product.active === false ? 'Oculto' : 'Visible'}${product.track_stock === true ? ` · Stock: ${Math.max(0, Number(product.stock || 0))}` : ''}</span>
+              </div>
+              <span class="subcategory-product-price">${Number(product.base_price_usd || 0).toFixed(2)} USD</span>
+              ${CAN_EDIT_PRODUCTS ? `<a class="subcategory-btn" href="${escapeHtml(productEditUrl(product.id))}">Editar</a>` : ''}
+            </article>
+          `;
+        }).join('');
+      }
+
+      function renderPage() {
+        const imageUrl = recordImageUrl('subcategories', subcategory);
+        if (parentLink) parentLink.textContent = category?.name || 'Categoría';
+        if (breadcrumbName) breadcrumbName.textContent = subcategory?.name || 'Subcategoría';
+        if (overviewName) overviewName.textContent = subcategory?.name || 'Subcategoría sin nombre';
+        if (overviewParent) overviewParent.textContent = `Dentro de ${category?.name || 'la categoría padre'}`;
+        if (overviewStatus) {
+          const visible = category?.active !== false && subcategory?.active === true;
+          overviewStatus.textContent = visible ? 'Visible en tienda' : (category?.active === false ? 'Oculta por categoría' : 'Oculta en tienda');
+          overviewStatus.classList.toggle('is-hidden', !visible);
+        }
+        nameInput.value = subcategory?.name || '';
+        activeInput.checked = subcategory?.active === true;
+        imageChanged = false;
+        clearPreviewObjectUrl();
+        renderImagePreview(imageUrl);
+        initialSnapshot = currentSnapshot();
+        syncSaveState();
+        if (createProductLink) createProductLink.href = productCreateUrl();
+        renderProducts();
+      }
+
+      async function loadPage() {
+        try {
+          if (!POCKETBASE_URL || !CATEGORY_ID || !SUBCATEGORY_ID) throw new Error('La ruta de la subcategoría no está completa.');
+          const categoryFilter = `category="${CATEGORY_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+          const productFilter = `${categoryFilter} && subcategory="${SUBCATEGORY_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+          const [categoryRecord, subcategoryRecord, siblings, productRecords] = await Promise.all([
+            apiRequest(`/api/collections/categories/records/${encodeURIComponent(CATEGORY_ID)}`),
+            apiRequest(`/api/collections/subcategories/records/${encodeURIComponent(SUBCATEGORY_ID)}`),
+            loadAllRecords('subcategories', recordsParams(categoryFilter, 'order,name')),
+            loadAllRecords('products', recordsParams(productFilter, 'name')),
+          ]);
+          if (!isCurrentStoreRecord(categoryRecord)) throw new Error('Esta categoría no pertenece a tu tienda.');
+          if (!isCurrentStoreRecord(subcategoryRecord) || String(subcategoryRecord.category || '') !== CATEGORY_ID) {
+            throw new Error('Esta subcategoría no pertenece a la categoría indicada.');
+          }
+          category = categoryRecord;
+          subcategory = subcategoryRecord;
+          siblingSubcategories = siblings.filter((item) => isCurrentStoreRecord(item) && String(item.category || '') === CATEGORY_ID);
+          products = productRecords.filter((item) => (
+            isCurrentStoreRecord(item)
+            && String(item.category || '') === CATEGORY_ID
+            && String(item.subcategory || '') === SUBCATEGORY_ID
+          ));
+          renderPage();
+          loading?.classList.add('hidden');
+          errorBox?.classList.add('hidden');
+          view?.classList.remove('hidden');
+        } catch (error) {
+          loading?.classList.add('hidden');
+          view?.classList.add('hidden');
+          if (errorText) errorText.textContent = error?.message || 'No se pudo abrir esta subcategoría.';
+          errorBox?.classList.remove('hidden');
+        }
+      }
+
+      async function requestBack() {
+        if (saving || deleting) {
+          setAlert('Espera a que termine la operación antes de salir.', 'info');
+          return false;
+        }
+        if (hasChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en esta subcategoría. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Seguir editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        window.location.assign(PARENT_CATEGORY_PATH);
+        return true;
+      }
+
+      form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES || saving || !subcategory || !hasChanges()) return;
+        const name = String(nameInput.value || '').trim();
+        if (!name) {
+          setAlert('Escribe el nombre de la subcategoría.', 'error');
+          return;
+        }
+        const duplicate = siblingSubcategories.some((item) => item.id !== SUBCATEGORY_ID && normalizeName(item.name) === normalizeName(name));
+        if (duplicate) {
+          setAlert(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
+          return;
+        }
+        saving = true;
+        syncSaveState();
+        setAlert('Guardando subcategoría...', 'info');
+        try {
+          const formData = new FormData();
+          formData.append('category', CATEGORY_ID);
+          formData.append('name', name);
+          formData.append('slug', slugify(name));
+          formData.append('active', activeInput.checked ? 'true' : 'false');
+          formData.append('store', CURRENT_STORE_ID);
+          const imageFile = imageInput.files?.[0];
+          if (imageFile) {
+            formData.append('image', await globalThis.pzSubcategoryImageOptimizer.optimizeTaxonomyImageFile(imageFile));
+          }
+          subcategory = await apiRequest(`/api/collections/subcategories/records/${encodeURIComponent(SUBCATEGORY_ID)}`, {
+            method: 'PATCH',
+            body: formData,
+          });
+          imageInput.value = '';
+          imageChanged = false;
+          siblingSubcategories = siblingSubcategories.map((item) => item.id === SUBCATEGORY_ID ? subcategory : item);
+          renderPage();
+          document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
+          setAlert('Subcategoría guardada correctamente.', 'success');
+        } catch (error) {
+          setAlert(error?.message || 'No se pudo guardar la subcategoría.', 'error');
+        } finally {
+          saving = false;
+          syncSaveState();
+        }
+      });
+
+      [nameInput, activeInput].forEach((field) => {
+        field?.addEventListener('input', syncSaveState);
+        field?.addEventListener('change', syncSaveState);
+      });
+
+      imageInput?.addEventListener('change', () => {
+        clearPreviewObjectUrl();
+        const file = imageInput.files?.[0];
+        imageChanged = Boolean(file);
+        if (file) {
+          previewObjectUrl = URL.createObjectURL(file);
+          renderImagePreview(previewObjectUrl);
+        } else {
+          renderImagePreview(recordImageUrl('subcategories', subcategory));
+        }
+        syncSaveState();
+      });
+
+      productsSearch?.addEventListener('input', renderProducts);
+
+      document.querySelectorAll('[data-subcategory-back]').forEach((link) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          requestBack();
+        });
+      });
+
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || view?.classList.contains('hidden')) return;
+        event.preventDefault();
+        requestBack();
+      });
+
+      window.addEventListener('beforeunload', (event) => {
+        if (!hasChanges() || saving) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+
+      deleteButton?.addEventListener('click', async () => {
+        if (!CAN_MANAGE_CATEGORIES || deleting || !subcategory) return;
+        if (products.length > 0 && !CAN_EDIT_PRODUCTS) {
+          setAlert('Necesitas permiso para editar productos antes de moverlos fuera de esta subcategoría.', 'error');
+          return;
+        }
+        const count = products.length;
+        const confirmed = await window.AdminDialog.confirm({
+          title: count ? `Esta subcategoría tiene ${count} productos` : 'Eliminar subcategoría',
+          message: count
+            ? `Los productos no se borrarán. Pasarán a la categoría principal "${category?.name || 'Categoría'}" sin subcategoría.`
+            : 'Esta acción no se puede deshacer.',
+          confirmText: count ? 'Eliminar y mover productos' : 'Eliminar subcategoría',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
+        if (!confirmed) return;
+        deleting = true;
+        deleteButton.disabled = true;
+        deleteButton.textContent = 'Eliminando...';
+        setAlert('Eliminando subcategoría...', 'info');
+        try {
+          for (const product of products) {
+            const formData = new FormData();
+            formData.append('category', CATEGORY_ID);
+            formData.append('subcategory', '');
+            formData.append('store', CURRENT_STORE_ID);
+            await apiRequest(`/api/collections/products/records/${encodeURIComponent(product.id)}`, { method: 'PATCH', body: formData });
+          }
+          await apiRequest(`/api/collections/subcategories/records/${encodeURIComponent(SUBCATEGORY_ID)}`, { method: 'DELETE' });
+          window.location.assign(PARENT_CATEGORY_PATH);
+        } catch (error) {
+          deleting = false;
+          deleteButton.disabled = false;
+          deleteButton.textContent = 'Eliminar subcategoría';
+          setAlert(error?.message || 'No se pudo eliminar la subcategoría.', 'error');
+          await loadPage();
+        }
+      });
+
+      loadPage();
+    </script>
+  </body>
+</html>

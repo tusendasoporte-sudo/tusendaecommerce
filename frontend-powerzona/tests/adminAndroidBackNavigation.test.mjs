@@ -9,6 +9,7 @@ const sidebar = read('../src/components/admin/AdminSidebar.astro');
 const products = read('../src/pages/admin/products.astro');
 const catalog = read('../src/pages/admin/catalog.astro');
 const category = read('../src/pages/admin/catalog/category/[id].astro');
+const subcategory = read('../src/pages/admin/catalog/category/[categoryId]/subcategory/[subcategoryId].astro');
 const orders = read('../src/pages/admin/orders.astro');
 const shipping = read('../src/pages/admin/shipping.astro');
 const organization = read('../src/pages/admin/organization.astro');
@@ -64,6 +65,9 @@ test('catalogo y pedidos regresan de sus vistas internas antes de abandonar la s
   assert.match(catalog, /closeContentView\(\)/);
   assert.match(category, /function requestCloseCategoryEditPanel/);
   assert.match(category, /if \(hasCategoryChanges\(\)\)/);
+  assert.match(subcategory, /mobileBackHref=\{parentCategoryPath\}/);
+  assert.match(subcategory, /function hasChanges\(\)/);
+  assert.match(subcategory, /window\.addEventListener\('pz:admin-back-request'/);
   assert.match(orders, /if \(selectedOrder\) \{\s*event\.preventDefault\(\);\s*clearDetail\(\);/);
   assert.match(orders, /setAddProductPanel\(false\)/);
   assert.match(orders, /setEditOrderPanel\(false\)/);
