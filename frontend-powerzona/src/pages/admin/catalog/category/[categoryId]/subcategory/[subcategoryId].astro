@@ -39,7 +39,7 @@ const canManageCategories = hasStorePermission(permissionContext, 'catalog.categ
 const canCreateProducts = hasStorePermission(permissionContext, 'catalog.products.create');
 const canEditProducts = hasStorePermission(permissionContext, 'catalog.products.edit');
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
-const parentCategoryPath = getStoreAdminPath(currentStoreSlug, `catalog/category/${encodeURIComponent(categoryId)}`);
+const parentCategoryPath = `${getStoreAdminPath(currentStoreSlug, `catalog/category/${encodeURIComponent(categoryId)}`)}?view=subcategories`;
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 ---
 
@@ -203,6 +203,7 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
         mobileTitle="Subcategoría"
         mobileBackHref={parentCategoryPath}
         mobileBackLabel="Volver a categoría"
+        mobileBackVariant="plain-end"
       />
 
       <div class="subcategory-shell pz-admin-content">

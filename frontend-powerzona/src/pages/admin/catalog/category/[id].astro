@@ -414,6 +414,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         gap: 18px;
         min-width: 0;
       }
+      .category-view-grid,
+      .category-management-view {
+        display: grid;
+        gap: 18px;
+        min-width: 0;
+      }
       .category-overview-card,
       .category-edit-panel,
       .category-section-card {
@@ -636,6 +642,86 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         justify-content: center;
         gap: 7px;
       }
+      .category-summary-card .category-section-head {
+        align-items: center;
+        margin-bottom: 0;
+      }
+      .category-summary-actions {
+        display: grid;
+        grid-template-columns: minmax(0, auto) auto;
+        align-items: center;
+        justify-content: end;
+        gap: 10px;
+      }
+      .category-management-view {
+        padding: 20px;
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 26px;
+        background: rgba(255, 255, 255, .96);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
+      }
+      .category-management-back-row {
+        display: flex;
+        justify-content: flex-end;
+      }
+      .category-management-back {
+        min-height: 42px;
+        padding: 7px 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 0;
+        background: transparent;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .category-management-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .category-management-head h1 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(24px, 3.4vw, 34px);
+        line-height: 1.08;
+        font-weight: 1000;
+        letter-spacing: -.04em;
+      }
+      .category-management-head p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .category-management-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .category-subcategory-grid.category-management-list,
+      .category-products-grid.category-management-list {
+        grid-template-columns: 1fr;
+      }
+      .category-management-list .category-subcategory-card {
+        grid-template-columns: 66px minmax(0, 1fr) auto;
+      }
+      .category-management-list .category-subcategory-card .row-thumb {
+        width: 66px;
+        height: 66px;
+        min-width: 66px;
+      }
+      .category-management-list .category-subcategory-card-meta {
+        margin-bottom: 0;
+      }
+      .category-management-list .category-subcategory-actions {
+        justify-content: flex-end;
+      }
       .category-subcategory-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -831,6 +917,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .category-overview-stat-icon { display: none; }
         .category-overview-actions,
         .category-products-tools,
+        .category-management-tools,
         .category-edit-actions {
           display: grid;
           grid-template-columns: 1fr;
@@ -841,6 +928,22 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           border-radius: 22px;
         }
         .category-section-head {
+          flex-direction: column;
+        }
+        .category-summary-card .category-section-head {
+          align-items: stretch;
+        }
+        .category-summary-actions {
+          width: 100%;
+          grid-template-columns: minmax(0, 1.2fr) auto;
+          justify-content: stretch;
+        }
+        .category-management-view {
+          padding: 16px;
+          border-radius: 22px;
+        }
+        .category-management-head {
+          align-items: stretch;
           flex-direction: column;
         }
         .category-search {
@@ -859,6 +962,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         .category-subcategory-card {
           grid-template-columns: 58px minmax(0, 1fr);
+        }
+        .category-management-list .category-subcategory-card {
+          grid-template-columns: 58px minmax(0, 1fr) auto;
         }
         .category-subcategory-card .row-thumb,
         .category-product-card .row-thumb {
@@ -901,6 +1007,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             mobileTitle="Categoría"
             mobileBackHref={adminCatalogPath}
             mobileBackLabel="Volver a Categorías"
+            mobileBackVariant="plain-end"
           />
     <div class="app-shell pz-admin-content">
       <AdminSectionHeader
@@ -930,6 +1037,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             <div id="rail-summary-list"></div>
           </div>
 
+          <div id="category-summary-view" class="category-view-grid">
           <section class="category-overview-card">
             <div id="category-overview-image" class="category-overview-image">+</div>
 
@@ -976,15 +1084,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </article>
             </div>
 
-            <div class:list={['category-overview-actions', !canManageCategories && !canCreateProducts && 'permission-hidden']}>
+            <div class:list={['category-overview-actions', !canManageCategories && 'permission-hidden']}>
               <button id="category-edit-toggle-btn" class:list={['pz-admin-btn pz-admin-btn--secondary', !canManageCategories && 'permission-hidden']} type="button" disabled={!canManageCategories}>
                 <span class="pz-admin-btn__icon" aria-hidden="true">✎</span>
                 <span class="pz-admin-btn__label">Editar categoria</span>
-              </button>
-
-              <button id="quick-new-subcategory-btn" class:list={['pz-admin-btn pz-admin-btn--primary', !canManageCategories && 'permission-hidden']} type="button" disabled={!canManageCategories}>
-                <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                <span class="pz-admin-btn__label">Nueva subcategoria</span>
               </button>
             </div>
           </section>
@@ -1039,7 +1142,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
           <div id="content-summary-grid" class="summary-grid hidden"></div>
 
-          <section class="category-section-card">
+          <section class="category-section-card category-summary-card">
             <div class="category-section-head">
               <div class="category-section-title-wrap">
                 <span class="category-section-icon blue" aria-hidden="true">
@@ -1051,16 +1154,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
 
-              <button id="subcategories-view-all-btn" class="category-link-btn" type="button">
-                Ver todas
-                <span aria-hidden="true">›</span>
-              </button>
+              <div class="category-summary-actions">
+                <button class:list={['pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact', !canManageCategories && 'permission-hidden']} type="button" data-action="new-subcategory" disabled={!canManageCategories}>
+                  <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                  <span class="pz-admin-btn__label">Crear subcategoría</span>
+                </button>
+                <button id="subcategories-view-all-btn" class="category-link-btn" type="button">
+                  Ver todas <span aria-hidden="true">→</span>
+                </button>
+              </div>
             </div>
-
-            <div id="subcategories-list" class="category-subcategory-grid"></div>
           </section>
 
-          <section class="category-section-card">
+          <section class="category-section-card category-summary-card">
             <div class="category-section-head">
               <div class="category-section-title-wrap">
                 <span class="category-section-icon green" aria-hidden="true">
@@ -1072,24 +1178,63 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
 
-              <div class="category-products-tools">
+              <div class="category-summary-actions">
+                <button id="new-product-btn" class:list={['pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact', !canCreateProducts && 'permission-hidden']} type="button" disabled={!canCreateProducts}>
+                  <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                  <span class="pz-admin-btn__label">Crear producto directo</span>
+                </button>
+                <button id="direct-products-view-all-btn" class="category-link-btn" type="button">
+                  Ver todos <span aria-hidden="true">→</span>
+                </button>
+              </div>
+            </div>
+          </section>
+          </div>
+
+          <section id="category-subcategories-view" class="category-management-view hidden" aria-labelledby="category-subcategories-title">
+            <div class="category-management-back-row">
+              <button class="category-management-back" type="button" data-category-list-back>← Volver a categoría</button>
+            </div>
+            <div class="category-management-head">
+              <div>
+                <h1 id="category-subcategories-title">Subcategorías de <span data-category-view-name>esta categoría</span></h1>
+                <p id="subcategories-list-count">Cargando subcategorías...</p>
+              </div>
+              <div class="category-management-tools">
                 <label class="category-search">
                   <span aria-hidden="true">⌕</span>
-                  <input id="direct-products-search" type="search" placeholder="Buscar productos directos..." />
+                  <input id="subcategories-search" type="search" placeholder="Buscar subcategoría..." />
                 </label>
+                <button class:list={['pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact', !canManageCategories && 'permission-hidden']} type="button" data-action="new-subcategory" disabled={!canManageCategories}>
+                  <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                  <span class="pz-admin-btn__label">Crear subcategoría</span>
+                </button>
+              </div>
+            </div>
+            <div id="subcategories-list" class="category-subcategory-grid category-management-list"></div>
+          </section>
 
-                <button id="new-product-btn" class:list={['pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact', !canCreateProducts && 'permission-hidden']} type="button" disabled={!canCreateProducts}>
+          <section id="category-products-view" class="category-management-view hidden" aria-labelledby="category-products-title">
+            <div class="category-management-back-row">
+              <button class="category-management-back" type="button" data-category-list-back>← Volver a categoría</button>
+            </div>
+            <div class="category-management-head">
+              <div>
+                <h1 id="category-products-title">Productos directos de <span data-category-view-name>esta categoría</span></h1>
+                <p id="products-list-count">Cargando productos...</p>
+              </div>
+              <div class="category-management-tools">
+                <label class="category-search">
+                  <span aria-hidden="true">⌕</span>
+                  <input id="direct-products-search" type="search" placeholder="Buscar producto..." />
+                </label>
+                <button id="list-new-product-btn" class:list={['pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact', !canCreateProducts && 'permission-hidden']} type="button" disabled={!canCreateProducts}>
                   <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                   <span class="pz-admin-btn__label">Crear producto directo</span>
                 </button>
               </div>
             </div>
-
-            <div id="products-list" class="category-products-grid"></div>
-
-            <button id="direct-products-more-btn" class="category-show-more-btn hidden" type="button">
-              Ver mas productos
-            </button>
+            <div id="products-list" class="category-products-grid category-management-list"></div>
           </section>
 
         </main>
@@ -1174,11 +1319,21 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const subcategoryActive = document.getElementById('subcategory-active');
       const subcategoryAlert = document.getElementById('subcategory-alert');
       const subcategorySubmit = document.getElementById('subcategory-submit');
+      const categorySummaryView = document.getElementById('category-summary-view');
+      const categorySubcategoriesView = document.getElementById('category-subcategories-view');
+      const categoryProductsView = document.getElementById('category-products-view');
+      const categoryListBackButtons = document.querySelectorAll('[data-category-list-back]');
+      const categoryViewNameLabels = document.querySelectorAll('[data-category-view-name]');
+      const mobileBackLink = document.querySelector('[data-pz-admin-mobile-back]');
       const subcategoriesList = document.getElementById('subcategories-list');
-      const subcategoriesCount = document.getElementById('subcategories-count');
+      const subcategoriesSummaryCount = document.getElementById('subcategories-count');
+      const subcategoriesListCount = document.getElementById('subcategories-list-count');
+      const subcategoriesSearch = document.getElementById('subcategories-search');
       const productsList = document.getElementById('products-list');
-      const productsCount = document.getElementById('products-count');
+      const productsSummaryCount = document.getElementById('products-count');
+      const productsListCount = document.getElementById('products-list-count');
       const newProductBtn = document.getElementById('new-product-btn');
+      const listNewProductBtn = document.getElementById('list-new-product-btn');
       const contentSummaryGrid = document.getElementById('content-summary-grid');
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -1207,7 +1362,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const categoryEditPanel = document.getElementById('category-edit-panel');
       const categoryEditCloseBtn = document.getElementById('category-edit-close-btn');
       const directProductsSearch = document.getElementById('direct-products-search');
-      const directProductsMoreBtn = document.getElementById('direct-products-more-btn');
+      const directProductsViewAllBtn = document.getElementById('direct-products-view-all-btn');
       const subcategoriesViewAllBtn = document.getElementById('subcategories-view-all-btn');
 
       let category = null;
@@ -1222,9 +1377,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let categorySaving = false;
       let categoryInitialSnapshot = null;
       let categoryAlertTimer = null;
+      let activeCategoryView = 'summary';
+      let subcategoryQuery = '';
       let directProductQuery = '';
-      let directProductsExpanded = false;
-      let subcategoriesExpanded = false;
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -1552,11 +1707,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return Math.max(...items.map((item) => Number(item.order || 0))) + 1;
       }
 
-      function productCreateUrl(categoryId = '', subcategoryId = '') {
+      function productCreateUrl(categoryId = '', subcategoryId = '', source = 'category') {
         if (!CAN_CREATE_PRODUCTS) return '';
         const params = new URLSearchParams();
         params.set('new', '1');
         params.set('from', 'category');
+        if (source === 'category-products') params.set('from', 'category-products');
         if (categoryId) params.set('category', categoryId);
         if (subcategoryId) params.set('subcategory', subcategoryId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
@@ -1566,7 +1722,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_EDIT_PRODUCTS) return '';
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
-        params.set('from', 'category');
+        params.set('from', 'category-products');
         params.set('category', CATEGORY_ID);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
@@ -1576,16 +1732,63 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(CATEGORY_ID)}/subcategory/${encodeURIComponent(subcategoryId)}`;
       }
 
-      function isMobileViewport() {
-        return window.matchMedia('(max-width: 720px)').matches;
+      function normalizeCategoryView(value = '') {
+        return ['subcategories', 'products'].includes(value) ? value : 'summary';
       }
 
-      function directProductLimit() {
-        return isMobileViewport() ? 3 : 6;
+      function categoryViewFromUrl() {
+        return normalizeCategoryView(new URL(window.location.href).searchParams.get('view') || '');
       }
 
-      function subcategoryLimit() {
-        return isMobileViewport() ? 3 : 4;
+      function categoryViewUrl(view = 'summary') {
+        const url = new URL(window.location.href);
+        const normalized = normalizeCategoryView(view);
+        if (normalized === 'summary') url.searchParams.delete('view');
+        else url.searchParams.set('view', normalized);
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+
+      function syncMobileBackForCategoryView() {
+        if (!mobileBackLink) return;
+        const label = activeCategoryView === 'summary' ? 'Volver a categorías' : 'Volver a categoría';
+        mobileBackLink.setAttribute('aria-label', label);
+        const labelNode = mobileBackLink.lastElementChild;
+        if (labelNode) labelNode.textContent = label;
+      }
+
+      function applyCategoryView(view = 'summary', options = {}) {
+        const normalized = normalizeCategoryView(view);
+        const historyMode = options.historyMode || 'none';
+        activeCategoryView = normalized;
+        categorySummaryView?.classList.toggle('hidden', normalized !== 'summary');
+        categorySubcategoriesView?.classList.toggle('hidden', normalized !== 'subcategories');
+        categoryProductsView?.classList.toggle('hidden', normalized !== 'products');
+        syncMobileBackForCategoryView();
+
+        if (historyMode === 'push') {
+          window.history.pushState({ ...(window.history.state || {}), pzCategoryView: normalized, pzCategoryViewPushed: true }, '', categoryViewUrl(normalized));
+        } else if (historyMode === 'replace') {
+          window.history.replaceState({ ...(window.history.state || {}), pzCategoryView: normalized, pzCategoryViewPushed: false }, '', categoryViewUrl(normalized));
+        }
+
+        if (options.scroll !== false) window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      async function openCategoryView(view) {
+        if (!(await requestCloseCategoryEditPanel())) return;
+        closeSubcategoryMenu();
+        closeSubcategoryModal();
+        applyCategoryView(view, { historyMode: 'push' });
+      }
+
+      function closeCategoryView() {
+        if (activeCategoryView === 'summary') return false;
+        if (window.history.state?.pzCategoryViewPushed === true) {
+          window.history.back();
+        } else {
+          applyCategoryView('summary', { historyMode: 'replace' });
+        }
+        return true;
       }
 
       function openCategoryEditPanel() {
@@ -1692,6 +1895,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         if (categoryOverviewImage) categoryOverviewImage.innerHTML = overviewImageHtml;
         if (categoryOverviewTitle) categoryOverviewTitle.textContent = category?.name || 'Categoria sin nombre';
+        categoryViewNameLabels.forEach((label) => {
+          label.textContent = category?.name || 'esta categoría';
+        });
 
         if (categoryOverviewStatus) {
           const visible = category?.active === true;
@@ -1793,17 +1999,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       function renderSubcategories() {
         const ordered = [...subcategories].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.name || '').localeCompare(String(b.name || '')));
-        const visibleItems = subcategoriesExpanded ? ordered : ordered.slice(0, subcategoryLimit());
+        const query = normalizeName(subcategoryQuery);
+        const visibleItems = ordered.filter((subcategory) => (
+          !query || normalizeName(subcategory.name || '').includes(query)
+        ));
 
-        subcategoriesCount.textContent = `${ordered.length} subcategorias · ${ordered.filter((item) => item.active).length} visibles`;
-
-        if (subcategoriesViewAllBtn) {
-          subcategoriesViewAllBtn.classList.toggle('hidden', ordered.length <= subcategoryLimit());
-          subcategoriesViewAllBtn.innerHTML = `${subcategoriesExpanded ? 'Mostrar menos' : `Ver todas (${ordered.length})`} <span aria-hidden="true">›</span>`;
+        if (subcategoriesSummaryCount) {
+          subcategoriesSummaryCount.textContent = `${ordered.length} subcategorías · ${ordered.filter((item) => item.active).length} visibles`;
+        }
+        if (subcategoriesListCount) {
+          subcategoriesListCount.textContent = query
+            ? `${visibleItems.length} de ${ordered.length} subcategorías`
+            : `${ordered.length} subcategorías · ${ordered.filter((item) => item.active).length} visibles`;
         }
 
-        if (!ordered.length) {
-          subcategoriesList.innerHTML = '<div class="empty">Esta categoria todavia no tiene subcategorias.</div>';
+        if (subcategoriesViewAllBtn) {
+          subcategoriesViewAllBtn.innerHTML = `Ver todas (${ordered.length}) <span aria-hidden="true">→</span>`;
+        }
+
+        if (!visibleItems.length) {
+          subcategoriesList.innerHTML = `<div class="empty">${ordered.length ? 'No hay subcategorías que coincidan con la búsqueda.' : 'Esta categoría todavía no tiene subcategorías.'}</div>`;
           return;
         }
 
@@ -1817,11 +2032,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div style="min-width:0;">
                 <p class="category-subcategory-card-title">${escapeHtml(subcategory.name || 'Subcategoria sin nombre')}</p>
                 <p class="category-subcategory-card-meta">${count} ${count === 1 ? 'producto' : 'productos'} · ${escapeHtml(statusText)}</p>
-                <div class="category-subcategory-actions">
-                  <a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href="${escapeHtml(subcategoryDetailUrl(subcategory.id))}">
-                    <span class="pz-admin-btn__label">${CAN_MANAGE_CATEGORIES ? 'Editar subcategoría' : 'Abrir subcategoría'}</span>
-                  </a>
-                </div>
+              </div>
+              <div class="category-subcategory-actions">
+                <a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href="${escapeHtml(subcategoryDetailUrl(subcategory.id))}">
+                  <span class="pz-admin-btn__label">${CAN_MANAGE_CATEGORIES ? 'Editar' : 'Abrir'}</span>
+                </a>
               </div>
             </article>
           `;
@@ -1839,23 +2054,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             return normalizeName([product.name, product.description, product.short_description, product.internal_ref].join(' ')).includes(query);
           });
 
-        const limit = directProductLimit();
-        const visibleItems = directProductsExpanded ? items : items.slice(0, limit);
-
-        productsCount.textContent = `${items.length} productos directos en esta categoria`;
-
-        if (directProductsMoreBtn) {
-          const remaining = Math.max(0, items.length - limit);
-          directProductsMoreBtn.classList.toggle('hidden', remaining <= 0);
-          directProductsMoreBtn.textContent = directProductsExpanded ? 'Mostrar menos productos' : `Ver ${remaining} productos mas`;
+        const totalItems = directProducts().length;
+        if (productsSummaryCount) productsSummaryCount.textContent = `${totalItems} productos directos`;
+        if (productsListCount) {
+          productsListCount.textContent = query ? `${items.length} de ${totalItems} productos directos` : `${totalItems} productos directos`;
         }
+        if (directProductsViewAllBtn) directProductsViewAllBtn.innerHTML = `Ver todos (${totalItems}) <span aria-hidden="true">→</span>`;
 
         if (!items.length) {
-          productsList.innerHTML = '<div class="empty">No hay productos directos en esta categoria.</div>';
+          productsList.innerHTML = `<div class="empty">${totalItems ? 'No hay productos que coincidan con la búsqueda.' : 'No hay productos directos en esta categoría.'}</div>`;
           return;
         }
 
-        productsList.innerHTML = visibleItems.map(renderCategoryProductCard).join('');
+        productsList.innerHTML = items.map(renderCategoryProductCard).join('');
       }
       function renderAll() {
         renderHero();
@@ -2118,26 +2329,47 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       categoryEditCloseBtn?.addEventListener('click', () => { requestCloseCategoryEditPanel(); });
       window.addEventListener('pz:admin-back-request', (event) => {
-        if (event.defaultPrevented || categoryEditPanel?.classList.contains('hidden')) return;
-        event.preventDefault();
-        requestCloseCategoryEditPanel();
+        if (event.defaultPrevented) return;
+        if (!categoryEditPanel?.classList.contains('hidden')) {
+          event.preventDefault();
+          requestCloseCategoryEditPanel();
+          return;
+        }
+        if (activeCategoryView !== 'summary') {
+          event.preventDefault();
+          closeCategoryView();
+        }
+      });
+      subcategoriesSearch?.addEventListener('input', () => {
+        subcategoryQuery = subcategoriesSearch.value || '';
+        renderSubcategories();
       });
       directProductsSearch?.addEventListener('input', () => {
         directProductQuery = directProductsSearch.value || '';
-        directProductsExpanded = false;
-        renderProducts();
-      });
-      directProductsMoreBtn?.addEventListener('click', () => {
-        directProductsExpanded = !directProductsExpanded;
         renderProducts();
       });
       subcategoriesViewAllBtn?.addEventListener('click', () => {
-        subcategoriesExpanded = !subcategoriesExpanded;
-        renderSubcategories();
+        openCategoryView('subcategories');
+      });
+      directProductsViewAllBtn?.addEventListener('click', () => {
+        openCategoryView('products');
+      });
+      categoryListBackButtons.forEach((button) => button.addEventListener('click', closeCategoryView));
+      mobileBackLink?.addEventListener('click', (event) => {
+        if (activeCategoryView === 'summary') return;
+        event.preventDefault();
+        closeCategoryView();
+      });
+      window.addEventListener('popstate', () => {
+        applyCategoryView(categoryViewFromUrl(), { historyMode: 'none', scroll: false });
       });
       newProductBtn?.addEventListener('click', () => {
         if (!CAN_CREATE_PRODUCTS) return;
         window.location.href = productCreateUrl(CATEGORY_ID, '');
+      });
+      listNewProductBtn?.addEventListener('click', () => {
+        if (!CAN_CREATE_PRODUCTS) return;
+        window.location.href = productCreateUrl(CATEGORY_ID, '', 'category-products');
       });
       subcategoryCreateClose?.addEventListener('click', closeSubcategoryModal);
       subcategoryModalCancel?.addEventListener('click', closeSubcategoryModal);
@@ -2267,10 +2499,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const row = button?.closest('[data-product-id]');
         if (CAN_EDIT_PRODUCTS && row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
       });
-      window.addEventListener('resize', () => {
-        renderSubcategories();
-        renderProducts();
-      });
+      applyCategoryView(categoryViewFromUrl(), { historyMode: 'replace', scroll: false });
       showAdmin();
       if (POCKETBASE_URL && getAdminToken()) {
         loadPage();

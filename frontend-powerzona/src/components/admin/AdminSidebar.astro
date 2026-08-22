@@ -28,6 +28,7 @@ interface Props {
   mobileActionAriaLabel?: string;
   mobileBackHref?: string;
   mobileBackLabel?: string;
+  mobileBackVariant?: 'card' | 'plain-end';
   storeId?: string;
   pocketbaseUrl?: string;
   authToken?: string;
@@ -48,6 +49,7 @@ const {
   mobileActionAriaLabel = '',
   mobileBackHref = '',
   mobileBackLabel = '',
+  mobileBackVariant = 'card',
   storeId = '',
   pocketbaseUrl = '',
   authToken = '',
@@ -116,6 +118,7 @@ const hasMobileAction = Boolean(
 const mobileTopbarClass = `pz-admin-mobile-topbar${hasMobileAction ? ' has-action' : ' no-action'}`;
 const resolvedMobileActionAriaLabel = mobileActionAriaLabel || mobileActionLabel || 'Acción principal';
 const hasMobileBack = Boolean(mobileBackHref && mobileBackLabel);
+const mobileBackClass = `pz-admin-mobile-back-link${mobileBackVariant === 'plain-end' ? ' is-plain-end' : ''}`;
 
 type MobileBottomTarget =
   | 'overview'
@@ -640,7 +643,7 @@ const audienceSubClass = (subsection: string) => {
 
 {hasMobileBack && (
   <a
-    class="pz-admin-mobile-back-link"
+    class={mobileBackClass}
     href={mobileBackHref}
     data-pz-admin-mobile-back
     aria-label={mobileBackLabel}
@@ -4155,6 +4158,27 @@ const audienceSubClass = (subsection: string) => {
       font-size: 16px !important;
       font-weight: 1000 !important;
       flex: 0 0 auto !important;
+    }
+
+    .pz-admin-mobile-back-link.is-plain-end {
+      left: auto !important;
+      right: max(14px, env(safe-area-inset-right, 0px)) !important;
+      width: auto !important;
+      min-height: 44px !important;
+      padding: 6px 2px !important;
+      justify-content: flex-end !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+    }
+
+    .pz-admin-mobile-back-link.is-plain-end .pz-admin-mobile-back-link__icon {
+      width: 24px !important;
+      height: 24px !important;
+      border-radius: 0 !important;
+      background: transparent !important;
     }
 
     body.sidebar-open .pz-admin-mobile-back-link {

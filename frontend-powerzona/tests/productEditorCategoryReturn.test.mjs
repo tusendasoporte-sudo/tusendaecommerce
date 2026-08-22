@@ -36,9 +36,38 @@ test('la categoría deja una sola acción por subcategoría y separa sus product
   assert.doesNotMatch(category, /js-subcategory-group-product/);
 });
 
+test('el resumen de categoría queda limpio y delega el contenido a listados completos', () => {
+  const summaryStart = category.indexOf('id="category-summary-view"');
+  const summaryEnd = category.indexOf('id="category-subcategories-view"', summaryStart);
+  const summary = category.slice(summaryStart, summaryEnd);
+
+  assert.ok(summaryStart >= 0 && summaryEnd > summaryStart);
+  assert.match(summary, />Crear subcategoría</);
+  assert.match(summary, /id="subcategories-view-all-btn"/);
+  assert.match(summary, />Crear producto directo</);
+  assert.match(summary, /id="direct-products-view-all-btn"/);
+  assert.doesNotMatch(summary, /id="subcategories-list"/);
+  assert.doesNotMatch(summary, /id="products-list"/);
+  assert.doesNotMatch(summary, /Buscar subcategoría|Buscar producto/);
+});
+
+test('los botones Ver todas abren vistas internas buscables sin nuevas cargas', () => {
+  assert.match(category, /id="category-subcategories-view"/);
+  assert.match(category, /id="category-products-view"/);
+  assert.match(category, /id="subcategories-search"/);
+  assert.match(category, /id="direct-products-search"/);
+  assert.match(category, /function normalizeCategoryView/);
+  assert.match(category, /\['subcategories', 'products'\]\.includes\(value\)/);
+  assert.match(category, /window\.history\.pushState/);
+  assert.match(category, /window\.addEventListener\('popstate'/);
+  assert.match(category, /activeCategoryView !== 'summary'/);
+  assert.doesNotMatch(category, /subcategoriesExpanded|directProductsExpanded/);
+});
+
 test('la página dedicada conserva edición, productos, permisos y regreso a la categoría padre', () => {
   assert.match(subcategory, /mobileBackHref=\{parentCategoryPath\}/);
   assert.match(subcategory, /mobileBackLabel="Volver a categoría"/);
+  assert.match(subcategory, /\?view=subcategories/);
   assert.match(subcategory, /id="subcategory-form"/);
   assert.match(subcategory, /id="subcategory-create-product"/);
   assert.match(subcategory, /id="subcategory-products"/);
@@ -85,6 +114,9 @@ test('Productos valida categoría y subcategoría antes de construir el regreso'
   assert.match(resolver, /category\/\$\{encodeURIComponent\(categoryId\)\}\/subcategory\/\$\{encodeURIComponent\(subcategoryId\)\}/);
   assert.match(resolver, /label: 'Volver a subcategoría'/);
   assert.match(resolver, /source === 'category'/);
+  assert.match(resolver, /source === 'category-products'/);
+  assert.match(resolver, /\?view=products/);
+  assert.match(resolver, /label: 'Volver a productos directos'/);
   assert.match(resolver, /source === 'catalog'/);
   assert.doesNotMatch(resolver, /returnUrl|returnTo|redirect|location/);
 });

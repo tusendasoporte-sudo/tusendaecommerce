@@ -6304,6 +6304,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             label: 'Volver a subcategoría',
           };
         }
+        if (source === 'category-products') {
+          const categoryExists = categories.some((item) => item.id === categoryId && isCurrentStoreRecord(item));
+          if (!categoryExists) return null;
+          return {
+            href: `${ADMIN_CATALOG_PATH}/category/${encodeURIComponent(categoryId)}?view=products`,
+            label: 'Volver a productos directos',
+          };
+        }
         if (source === 'category') {
           const categoryExists = categories.some((item) => item.id === categoryId && isCurrentStoreRecord(item));
           if (!categoryExists) return null;

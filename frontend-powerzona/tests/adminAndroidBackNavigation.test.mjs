@@ -65,7 +65,10 @@ test('catalogo y pedidos regresan de sus vistas internas antes de abandonar la s
   assert.match(catalog, /closeContentView\(\)/);
   assert.match(category, /function requestCloseCategoryEditPanel/);
   assert.match(category, /if \(hasCategoryChanges\(\)\)/);
+  assert.match(category, /if \(activeCategoryView !== 'summary'\)[\s\S]*?event\.preventDefault\(\);[\s\S]*?closeCategoryView\(\)/);
   assert.match(subcategory, /mobileBackHref=\{parentCategoryPath\}/);
+  assert.match(subcategory, /mobileBackVariant="plain-end"/);
+  assert.match(sidebar, /pz-admin-mobile-back-link\.is-plain-end/);
   assert.match(subcategory, /function hasChanges\(\)/);
   assert.match(subcategory, /window\.addEventListener\('pz:admin-back-request'/);
   assert.match(orders, /if \(selectedOrder\) \{\s*event\.preventDefault\(\);\s*clearDetail\(\);/);
