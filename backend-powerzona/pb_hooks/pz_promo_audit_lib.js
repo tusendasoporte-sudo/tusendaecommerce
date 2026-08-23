@@ -66,7 +66,7 @@ const RESOURCE_SAFE_FIELDS = Object.freeze({
   promo_revision: Object.freeze(["sequence", "digest", "theme", "default_locale", "published_locales", "source_draft_version"]),
   promo_media_asset: Object.freeze(["kind", "purpose", "status", "mime_detected", "bytes", "width", "height", "duration_ms"]),
   promo_theme_release: Object.freeze(["theme_id", "version", "status", "renderer_key", "contract_version"]),
-  promo_publication_slot: Object.freeze(["state", "generation", "canonical_mode", "revision_digest", "binding_state"]),
+  promo_publication_slot: Object.freeze(["state", "generation", "canonical_mode", "revision_digest", "binding_state", "reason_code"]),
   promo_domain_binding: Object.freeze(["role", "status", "is_current", "state_version", "verification_method"]),
   promo_security_event: Object.freeze(["class", "result", "reason_code"]),
 });
@@ -82,7 +82,7 @@ const RESOURCE_PATH_PREFIXES = Object.freeze({
   promo_revision: Object.freeze(["/sequence", "/digest", "/theme", "/default_locale", "/published_locales", "/source_draft_version"]),
   promo_media_asset: Object.freeze(["/kind", "/purpose", "/status", "/mime_detected", "/bytes", "/width", "/height", "/duration_ms"]),
   promo_theme_release: Object.freeze(["/theme_id", "/version", "/status", "/renderer_key", "/contract_version"]),
-  promo_publication_slot: Object.freeze(["/state", "/generation", "/canonical_mode", "/revision_digest", "/binding_state"]),
+  promo_publication_slot: Object.freeze(["/state", "/generation", "/canonical_mode", "/revision_digest", "/binding_state", "/reason_code"]),
   promo_domain_binding: Object.freeze(["/role", "/status", "/is_current", "/state_version", "/verification_method"]),
   promo_security_event: Object.freeze(["/class", "/result", "/reason_code"]),
 });

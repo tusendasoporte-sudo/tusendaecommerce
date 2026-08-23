@@ -590,6 +590,7 @@ module.exports = {
   PromoDomainError,
   RECORD_ID_PATTERN,
   SHA256_PATTERN,
+  assertActiveBinding,
   domainAuditSnapshot,
   domainPrivateProjection,
   isPlatformHostname,

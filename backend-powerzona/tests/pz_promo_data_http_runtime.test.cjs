@@ -27,6 +27,7 @@ const PROMO_MIGRATIONS = [
 ];
 const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787520400_promo_permissions.js',
+  '1787520500_promo_publication_zero_generation.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -963,6 +964,15 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
 
     await stopPocketBase(runtime);
     runtime = null;
+
+    const publicationCompatibilityDown = runPocketBase(
+      ['migrate', 'down', '1'],
+      dataDirectory,
+      environment,
+      'y\n',
+    );
+    assertCommand(publicationCompatibilityDown, 'rollback vacío del soporte generation cero posterior a DATA');
+    assert.match(publicationCompatibilityDown.stdout, /Reverted 1787520500_promo_publication_zero_generation\.js/);
 
     const additiveDown = runPocketBase(
       ['migrate', 'down', '1'],

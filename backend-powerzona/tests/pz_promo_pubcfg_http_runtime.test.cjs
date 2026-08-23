@@ -41,9 +41,10 @@ function runtimeFlags(dataDirectory) {
   ];
 }
 
-function runPocketBase(args, dataDirectory, environment) {
+function runPocketBase(args, dataDirectory, environment, input) {
   return spawnSync(POCKETBASE_EXE, [...args, ...runtimeFlags(dataDirectory)], {
-    cwd: BACKEND_DIR, encoding: 'utf8', env: environment, timeout: 120_000, windowsHide: true,
+    cwd: BACKEND_DIR, encoding: 'utf8', env: environment, input,
+    timeout: 120_000, windowsHide: true,
   });
 }
 
@@ -251,6 +252,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
 
     const storeA = await createStore('Promo PUBCFG A', 'promo-pubcfg-a-store');
     const storeB = await createStore('Promo PUBCFG B', 'promo-pubcfg-b-store');
+    const storeC = await createStore('Promo PUBLISH Primera', 'promo-publish-first-store');
     const commerce = await createStore('Commerce PUBCFG', 'commerce-pubcfg');
     const primaryA = await createStoreUser(storeA, 'primary-a', 'store_admin');
     const secondaryA = await createStoreUser(storeA, 'secondary-a', 'store_admin');
@@ -296,7 +298,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       });
       const entitlement = await create('promo_site_entitlements', {
         site: site.id, source: 'contract', promo_site_enabled: true, publish_enabled: true,
-        custom_domain_enabled: false, theme_customization_enabled: true, multilanguage_enabled: true,
+        custom_domain_enabled: true, theme_customization_enabled: true, multilanguage_enabled: true,
         video_enabled: true, analytics_enabled: false, landing_qr_bridge_enabled: false,
         max_services: 20, max_gallery_assets: 12, max_locales: 2, max_videos: 2,
         max_storage_bytes: 52428800, updated_by: master.id,
@@ -321,6 +323,129 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
 
     const fixtureA = await createPromoFixture(storeA, 'promo-pubcfg-a', 'Publicado A');
     const fixtureB = await createPromoFixture(storeB, 'promo-pubcfg-b', 'Publicado B');
+
+    const firstDocument = publishedDocument('Primera publicación C');
+    const firstSite = await create('promo_sites', {
+      store: storeC.id, public_slug: 'promo-publish-first', status: 'draft', contract_version: 1,
+      created_by: master.id, updated_by: master.id,
+    });
+    await create('promo_site_entitlements', {
+      site: firstSite.id, source: 'contract', promo_site_enabled: true, publish_enabled: true,
+      custom_domain_enabled: false, theme_customization_enabled: true, multilanguage_enabled: true,
+      video_enabled: false, analytics_enabled: false, landing_qr_bridge_enabled: false,
+      max_services: 20, max_gallery_assets: 12, max_locales: 2, max_videos: 0,
+      max_storage_bytes: 52428800, updated_by: master.id,
+    });
+    await create('promo_draft_documents', {
+      site: firstSite.id, schema_version: 1, document_json: firstDocument, version: 1,
+      document_sha256: digest(firstDocument), created_by: master.id, updated_by: master.id,
+    });
+    await create('promo_publication_slots', {
+      site: firstSite.id, state: 'unpublished', canonical_mode: 'platform', generation: 0,
+    });
+
+    assertStatus(
+      await request('/api/pz/promo/public/v1/sites/promo-publish-first'),
+      404,
+      'draft inicial no es serving público',
+    );
+    const firstCandidateRequest = {
+      contract: 'promo.candidate.create.v1', expected_draft_version: 1,
+    };
+    assertStatus(await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: masterToken, json: firstCandidateRequest,
+    }), 403, 'candidata Master exige contexto explícito');
+    const firstCandidate = await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id }, json: firstCandidateRequest,
+    });
+    assertStatus(firstCandidate, 201, `crea primera candidata inmutable\n${runtime.output()}`);
+    assert.equal(firstCandidate.data.contract, 'promo.candidate.v1');
+    assert.equal(firstCandidate.data.candidate.sequence, 1);
+    assert.equal(firstCandidate.data.candidate.source_draft_version, 1);
+    assert.equal(firstCandidate.data.candidate.reused, false);
+    assertStatus(
+      await request('/api/pz/promo/public/v1/sites/promo-publish-first'),
+      404,
+      'crear candidata no altera serving',
+    );
+    const repeatedCandidate = await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id }, json: firstCandidateRequest,
+    });
+    assertStatus(repeatedCandidate, 200, 'digest idéntico reutiliza candidata');
+    assert.equal(repeatedCandidate.data.candidate.revision_id, firstCandidate.data.candidate.revision_id);
+    assert.equal(repeatedCandidate.data.candidate.reused, true);
+    const firstPreviewBody = {
+      contract: 'promo.preview.read.v1',
+      candidate_revision_id: firstCandidate.data.candidate.revision_id,
+      locale: 'es',
+    };
+    assertStatus(await request('/api/pz/promo/private/v1/publication/preview', {
+      json: firstPreviewBody,
+    }), 403, 'preview requiere autenticación central');
+    const firstPreview = await request('/api/pz/promo/private/v1/publication/preview', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id }, json: firstPreviewBody,
+    });
+    assertStatus(firstPreview, 200, 'preview privado de candidata exacta');
+    assert.equal(firstPreview.data.contract, 'promo.preview.v1');
+    assert.equal(firstPreview.data.visibility, 'private');
+    assert.equal(firstPreview.data.preview.content.identity.name, 'Primera publicación C');
+    assert.match(firstPreview.headers.get('cache-control'), /private, no-store/);
+    assert.match(firstPreview.headers.get('x-robots-tag'), /noindex/);
+    assert.equal(JSON.stringify(firstPreview.data).includes('content_by_locale'), false);
+    assert.equal(JSON.stringify(firstPreview.data).includes('Primera publicación C EN'), false);
+    const firstPublishBody = {
+      contract: 'promo.publication.publish.v1',
+      candidate_revision_id: firstCandidate.data.candidate.revision_id,
+      expected_generation: 0,
+      idempotency_key: 'publish.first.c.0001',
+      reason_code: 'content_release',
+      canonical: { mode: 'platform' },
+    };
+    const firstPublish = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id }, json: firstPublishBody,
+    });
+    assertStatus(firstPublish, 200, `primera publicación atómica\n${runtime.output()}`);
+    assert.equal(firstPublish.data.generation_before, 0);
+    assert.equal(firstPublish.data.generation_after, 1);
+    assert.equal(firstPublish.data.replayed, false);
+    const firstPublic = await request('/api/pz/promo/public/v1/sites/promo-publish-first');
+    assertStatus(firstPublic, 200, 'primera publicación activa serving slot→revision');
+    assert.equal(firstPublic.data.content_by_locale.es.identity.name, 'Primera publicación C');
+    const firstReplay = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id }, json: firstPublishBody,
+    });
+    assertStatus(firstReplay, 200, 'replay idempotente no vuelve a publicar');
+    assert.equal(firstReplay.data.replayed, true);
+    assert.equal(firstReplay.data.generation_after, 1);
+    const staleFirstPublish = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id },
+      json: { ...firstPublishBody, idempotency_key: 'publish.first.c.0002' },
+    });
+    assertStatus(staleFirstPublish, 409, 'CAS stale falla sin desplazar revisión pública');
+    assert.equal(staleFirstPublish.data.error, 'promo_publication_conflict');
+    const staleFirstReplay = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id },
+      json: { ...firstPublishBody, idempotency_key: 'publish.first.c.0002' },
+    });
+    assertStatus(staleFirstReplay, 409, 'replay de rechazo conserva el resultado idempotente');
+    assert.equal(staleFirstReplay.data.error, 'promo_publication_conflict');
+    const firstSecurityAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id },
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.security.reject' },
+      },
+    });
+    assertStatus(firstSecurityAudit, 200, 'CAS rechazado genera AUDIT central saneado');
+    assert.equal(firstSecurityAudit.data.events.length, 1, 'replay no duplica rechazo ni AUDIT');
+    assert.equal(firstSecurityAudit.data.events[0].after.class, 'promo_publication_conflict');
+    assert.equal(JSON.stringify(firstSecurityAudit.data).includes('publish.first.c.0002'), false);
+    for (const injected of ['store_id', 'site_id', 'actor_id', 'filter', 'sort', 'fields', 'expand']) {
+      assertStatus(await request('/api/pz/promo/private/v1/publication/publish', {
+        token: masterToken, headers: { 'X-PZ-Promo-Store': storeC.id },
+        json: { ...firstPublishBody, [injected]: storeA.id },
+      }), 400, `PUBLISH rechaza ${injected}`);
+    }
 
     const publicA = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a');
     const publicB = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-b');
@@ -634,6 +759,222 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       json: { contract: 'promo.draft.update.v1', expected_version: 3, document: unsafeThemeToken },
     }), 400, 'token Theme fuera de allowlist rechazado');
 
+    const candidateARequest = { contract: 'promo.candidate.create.v1', expected_draft_version: 3 };
+    assertStatus(await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: secondaryAuth.data.token, json: candidateARequest,
+    }), 403, 'secundario sin promo.publish no crea candidata');
+    const candidateA = await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: primaryAuth.data.token, json: candidateARequest,
+    });
+    assertStatus(candidateA, 201, `principal crea candidata publicable tenant A\n${runtime.output()}`);
+    const previewA = await request('/api/pz/promo/private/v1/publication/preview', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.preview.read.v1',
+        candidate_revision_id: candidateA.data.candidate.revision_id,
+        locale: 'en',
+      },
+    });
+    assertStatus(previewA, 200, 'preview localiza candidata A sin publicarla');
+    assert.equal(previewA.data.preview.content.identity.name, 'Solo borrador A EN');
+    assert.equal(JSON.stringify(previewA.data).includes('Edición secundaria"'), false, 'preview EN no mezcla contenido ES');
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Publicado A', 'candidata exacta nunca sustituye el slot público');
+
+    const publishA1Body = {
+      contract: 'promo.publication.publish.v1',
+      candidate_revision_id: candidateA.data.candidate.revision_id,
+      expected_generation: 3,
+      idempotency_key: 'publish.tenant.a.0001',
+      reason_code: 'content_release',
+      canonical: { mode: 'platform' },
+    };
+    await update('promo_site_entitlements', fixtureA.entitlement.id, { max_locales: 1 });
+    const quotaRejectedPublish = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: primaryAuth.data.token,
+      json: { ...publishA1Body, idempotency_key: 'publish.tenant.a.quota' },
+    });
+    assertStatus(quotaRejectedPublish, 403, 'publish revalida cuotas actuales después de crear candidata');
+    assert.equal(quotaRejectedPublish.data.error, 'promo_capability_denied');
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404,
+      'cuota insuficiente falla cerrado sin desplazar el slot');
+    fixtureA.entitlement = await update('promo_site_entitlements', fixtureA.entitlement.id, { max_locales: 2 });
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Publicado A', 'restaurar cuota demuestra que el rechazo conservó la revisión pública previa');
+    const publishA1 = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: primaryAuth.data.token, json: publishA1Body,
+    });
+    assertStatus(publishA1, 200, `publicación posterior usa CAS y evento atómico\n${runtime.output()}`);
+    assert.equal(publishA1.data.generation_after, 4);
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Edición secundaria', 'público lee revisión exacta recién señalada');
+    assertStatus(await request('/api/pz/promo/private/v1/publication/publish', {
+      token: staffAuth.data.token, json: publishA1Body,
+    }), 403, 'staff no puede reusar idempotency key ajena');
+
+    const laterDocument = structuredClone(secondaryEdit);
+    laterDocument.content_by_locale.es.identity.name = 'Publicación posterior A';
+    laterDocument.content_by_locale.es.sections['hero-main'].heading = 'Publicación posterior A';
+    laterDocument.content_by_locale.es.seo.title = 'Publicación posterior A';
+    const laterDraft = await request('/api/pz/promo/private/v1/draft/update', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.draft.update.v1', expected_version: 3, document: laterDocument },
+    });
+    assertStatus(laterDraft, 200, 'edita borrador sin tocar revisión pública');
+    assert.equal(laterDraft.data.draft.version, 4);
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Edición secundaria');
+    const candidateA2 = await request('/api/pz/promo/private/v1/publication/candidates/create', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.candidate.create.v1', expected_draft_version: 4 },
+    });
+    assertStatus(candidateA2, 201, 'crea segunda candidata inmutable');
+    const publishA2 = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.publication.publish.v1',
+        candidate_revision_id: candidateA2.data.candidate.revision_id,
+        expected_generation: 4,
+        idempotency_key: 'publish.tenant.a.0002',
+        reason_code: 'content_correction',
+        canonical: { mode: 'platform' },
+      },
+    });
+    assertStatus(publishA2, 200, 'segunda publicación incrementa exactamente una generación');
+    assert.equal(publishA2.data.generation_after, 5);
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Publicación posterior A');
+
+    const rollbackA = await request('/api/pz/promo/private/v1/publication/rollback', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.rollback.v1',
+        candidate_revision_id: candidateA.data.candidate.revision_id,
+        expected_generation: 5,
+        idempotency_key: 'rollback.tenant.a.01',
+        reason_code: 'content_correction',
+        canonical: { mode: 'platform' },
+      },
+    });
+    assertStatus(rollbackA, 200, 'rollback Master selecciona revisión histórica explícita');
+    assert.equal(rollbackA.data.generation_after, 6);
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Edición secundaria');
+    assertStatus(await request('/api/pz/promo/private/v1/publication/rollback', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.publication.rollback.v1',
+        candidate_revision_id: candidateA2.data.candidate.revision_id,
+        expected_generation: 6,
+        idempotency_key: 'rollback.tenant.a.02',
+        reason_code: 'content_correction',
+        canonical: { mode: 'platform' },
+      },
+    }), 403, 'rollback global permanece reservado al Master');
+
+    const localBinding = await create('promo_domain_bindings', {
+      site: fixtureA.site.id, hostname_ascii: 'promo-a.example.test', hostname_display: 'promo-a.example.test',
+      role: 'primary', status: 'active', is_current: true, verification_method: 'manual', state_version: 1,
+      verified_by: master.id, verified_at: now, activated_at: now,
+    });
+    const foreignBinding = await create('promo_domain_bindings', {
+      site: fixtureB.site.id, hostname_ascii: 'promo-b.example.test', hostname_display: 'promo-b.example.test',
+      role: 'primary', status: 'active', is_current: true, verification_method: 'manual', state_version: 1,
+      verified_by: master.id, verified_at: now, activated_at: now,
+    });
+    assertStatus(await request('/api/pz/promo/private/v1/publication/canonical/switch', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.canonical.switch.v1', expected_generation: 6,
+        idempotency_key: 'canonical.tenant.a.bad', reason_code: 'canonical_change',
+        canonical: { mode: 'custom', primary_binding_id: foreignBinding.id },
+      },
+    }), 409, 'primary binding cross-tenant falla cerrado sin consumir generation');
+    const switchCustom = await request('/api/pz/promo/private/v1/publication/canonical/switch', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.canonical.switch.v1', expected_generation: 6,
+        idempotency_key: 'canonical.tenant.a.01', reason_code: 'canonical_change',
+        canonical: { mode: 'custom', primary_binding_id: localBinding.id },
+      },
+    });
+    assertStatus(switchCustom, 200, `canonical custom cambia con slot/evento atómicos\n${runtime.output()}`);
+    assert.equal(switchCustom.data.generation_after, 7);
+    assert.equal(switchCustom.data.canonical.primary_binding_id, localBinding.id);
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404,
+      'ruta plataforma no suplanta custom después del switch');
+    const switchPlatform = await request('/api/pz/promo/private/v1/publication/canonical/switch', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.canonical.switch.v1', expected_generation: 7,
+        idempotency_key: 'canonical.tenant.a.02', reason_code: 'domain_recovery',
+        canonical: { mode: 'platform' },
+      },
+    });
+    assertStatus(switchPlatform, 200, 'retorno a canonical plataforma es explícito');
+    assert.equal(switchPlatform.data.generation_after, 8);
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200,
+      'plataforma vuelve a servir solo después del switch');
+
+    const pauseA = await request('/api/pz/promo/private/v1/publication/pause', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.pause.v1', expected_generation: 8,
+        idempotency_key: 'pause.tenant.a.0001', reason_code: 'content_review',
+      },
+    });
+    assertStatus(pauseA, 200, 'pausa Master conserva revisión pero cierra serving');
+    assert.equal(pauseA.data.state, 'paused');
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404);
+    const resumeA = await request('/api/pz/promo/private/v1/publication/resume', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.resume.v1', expected_generation: 9,
+        idempotency_key: 'resume.tenant.a.001', reason_code: 'content_approved',
+      },
+    });
+    assertStatus(resumeA, 200, 'resume revalida revisión y canonical antes de servir');
+    assert.equal(resumeA.data.generation_after, 10);
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200);
+    const unpublishA = await request('/api/pz/promo/private/v1/publication/unpublish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.unpublish.v1', expected_generation: 10,
+        idempotency_key: 'unpublish.tenant.a.1', reason_code: 'administrative_request',
+      },
+    });
+    assertStatus(unpublishA, 200, 'unpublish limpia puntero activo y pausa sitio');
+    assert.equal(unpublishA.data.state, 'unpublished');
+    assert.equal(unpublishA.data.revision, null);
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404,
+      'unpublish nunca cae a draft/latest/candidate/Commerce');
+    const republishA = await request('/api/pz/promo/private/v1/publication/publish', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.publish.v1',
+        candidate_revision_id: candidateA2.data.candidate.revision_id,
+        expected_generation: 11,
+        idempotency_key: 'publish.tenant.a.0003',
+        reason_code: 'content_release',
+        canonical: { mode: 'platform' },
+      },
+    });
+    assertStatus(republishA, 200, 'Master recupera publicación después de unpublish explícito');
+    assert.equal(republishA.data.generation_after, 12);
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Publicación posterior A');
+    const retiredMediaRollback = await request('/api/pz/promo/private/v1/publication/rollback', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.rollback.v1', candidate_revision_id: mediaRevision.id,
+        expected_generation: 12, idempotency_key: 'rollback.retired.media',
+        reason_code: 'media_recovery', canonical: { mode: 'platform' },
+      },
+    });
+    assertStatus(retiredMediaRollback, 409, 'rollback revalida media ready y rechaza asset retirado');
+    assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
+      'Publicación posterior A', 'rollback inválido conserva revisión pública previa');
+
     const directDraft = await request(`/api/collections/promo_draft_documents/records/${fixtureA.draft.id}`, {
       token: primaryAuth.data.token,
     });
@@ -642,6 +983,9 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       token: masterToken,
     });
     assertStatus(directRevision, [403, 404], 'REST directo revisión cerrado para Master');
+    assertStatus(await request('/api/collections/promo_publication_events/records?sort=-created&expand=site,actor', {
+      token: primaryAuth.data.token,
+    }), [403, 404], 'REST directo publication events cerrado para Admin');
 
     await update('users', suspendedA.id, { status: 'suspended' });
     const suspendedRead = await request('/api/pz/promo/private/v1/draft/read', {
@@ -673,26 +1017,6 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(disableB, 200, 'Master deshabilita capability B');
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-b'), 404, 'capability ausente cierra público');
 
-    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'paused', generation: 4 });
-    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404, 'slot inactivo cierra público');
-    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'active', generation: 5 });
-    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200, 'slot reactivado sirve revisión exacta');
-    const localBinding = await create('promo_domain_bindings', {
-      site: fixtureA.site.id, hostname_ascii: 'promo-a.example.test', hostname_display: 'promo-a.example.test',
-      role: 'primary', status: 'active', is_current: true, verification_method: 'manual', state_version: 1,
-      verified_by: master.id, verified_at: now, activated_at: now,
-    });
-    await update('promo_publication_slots', fixtureA.slot.id, {
-      canonical_mode: 'custom', primary_binding: localBinding.id, generation: 6,
-    });
-    assertStatus(
-      await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'),
-      404,
-      'PUBCFG no suplanta DOM-CORE cuando canonical es custom',
-    );
-    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, {
-      canonical_mode: 'platform', primary_binding: '', generation: 7,
-    });
     const releaseBody = (expectedStatus, nextStatus) => ({
       contract: 'promo.theme.release.update.v1', theme_id: 'promo.black-gold', version: '1.0.0',
       expected_status: expectedStatus, next_status: nextStatus,
@@ -728,6 +1052,15 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     assertStatus(blockedTheme, 200, 'Master bloquea release vulnerable');
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404, 'blocked falla cerrado sin otro tema');
+    assertStatus(await request('/api/pz/promo/private/v1/publication/rollback', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        contract: 'promo.publication.rollback.v1',
+        candidate_revision_id: candidateA.data.candidate.revision_id,
+        expected_generation: 12, idempotency_key: 'rollback.blocked.theme',
+        reason_code: 'theme_recovery', canonical: { mode: 'platform' },
+      },
+    }), 409, 'rollback revalida Theme y rechaza release blocked');
 
     const auditListBody = {
       contract: 'promo.audit.list.v1', page: 1, per_page: 50,
@@ -738,7 +1071,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     assertStatus(primaryAudit, 200, 'principal lee auditoría Promo saneada');
     assert.equal(primaryAudit.data.contract, 'promo.audit.list.v1');
-    assert.equal(primaryAudit.data.events.length, 2);
+    assert.equal(primaryAudit.data.events.length, 3);
     assert.equal(primaryAudit.data.events.some((event) => event.severity === 'critical'), true);
     assert.equal(primaryAudit.data.events.some((event) => event.severity === 'important'), true);
     const projectedAudit = JSON.stringify(primaryAudit.data);
@@ -754,7 +1087,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       },
     });
     assertStatus(localizationAudit, 200, 'principal lee eventos localización del writer AUDIT');
-    assert.equal(localizationAudit.data.events.length, 2);
+    assert.equal(localizationAudit.data.events.length, 3);
     assert.equal(localizationAudit.data.events.every((event) => event.module === 'localization'), true);
     assert.equal(JSON.stringify(localizationAudit.data).includes('Edición secundaria'), false);
     const themeSelectionAudit = await request('/api/pz/promo/private/v1/audit/list', {
@@ -767,6 +1100,38 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(themeSelectionAudit, 200, 'selección Theme usa writer AUDIT');
     assert.equal(themeSelectionAudit.data.events.length, 1);
     assert.equal(themeSelectionAudit.data.events[0].severity, 'critical');
+    const rollbackAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.publication.rollback' },
+      },
+    });
+    assertStatus(rollbackAudit, 200, 'rollback usa writer AUDIT central');
+    assert.equal(rollbackAudit.data.events.length, 1);
+    assert.equal(rollbackAudit.data.events[0].severity, 'critical');
+    assert.equal(rollbackAudit.data.events[0].after.reason_code, 'content_correction');
+    assert.equal(JSON.stringify(rollbackAudit.data).includes('idempotency'), false);
+    const publishAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.publication.publish' },
+      },
+    });
+    assertStatus(publishAudit, 200, 'publicaciones exitosas generan AUDIT tenant-scoped');
+    assert.equal(publishAudit.data.events.length, 3, 'replay/CAS rechazado no duplican eventos exitosos A');
+    const securityAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.security.reject' },
+      },
+    });
+    assertStatus(securityAudit, 200, 'rechazos de transición usan AUDIT central tenant-scoped');
+    assert.equal(securityAudit.data.events.length, 4, 'quota, binding foráneo, media retirada y theme bloqueado');
+    assert.equal(securityAudit.data.events.every((event) => event.module === 'security'), true);
+    assert.equal(JSON.stringify(securityAudit.data).includes('rollback.retired.media'), false);
     const auditDetail = await request('/api/pz/promo/private/v1/audit/detail', {
       token: primaryAuth.data.token,
       json: { contract: 'promo.audit.detail.v1', event_id: primaryAudit.data.events[0].id },
@@ -815,6 +1180,18 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(themeReleaseAudits.data.items.length, 3);
     assert.equal(themeReleaseAudits.data.items.every((item) => !item.site && item.scope_key === 'global'), true);
     assert.equal(JSON.stringify(themeReleaseAudits.data.items).includes('manifest_sha256'), false);
+
+    await stopPocketBase(runtime);
+    runtime = null;
+    const generationMigrationDown = runPocketBase(
+      ['migrate', 'down', '1'], dataDirectory, environment, 'y\n',
+    );
+    assert.equal(generationMigrationDown.error, undefined);
+    assert.match(
+      `${generationMigrationDown.stdout}\n${generationMigrationDown.stderr}`,
+      /unsafe_rollback_promo_publication_zero_generation/,
+      'down de compatibilidad aborta al encontrar el evento válido generation cero',
+    );
 
     t.diagnostic('Master, principal, secundario, staff, suspendido, sesión revocada y Commerce validados');
     t.diagnostic('dos tiendas aisladas, draft/candidata no publicados, CAS y payloads manipulados validados');

@@ -159,7 +159,7 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       'up vacío contiene DATA',
     );
     const emptyPermissionDown = runPocketBase(
-      ['migrate', 'down', '1'], emptyRollbackDirectory, environment, 'y\n',
+      ['migrate', 'down', '2'], emptyRollbackDirectory, environment, 'y\n',
     );
     assertCommand(emptyPermissionDown, 'down PERM vacío');
     assert.equal(
@@ -513,6 +513,8 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
 
     await stopPocketBase(runtime);
     runtime = null;
+    const publicationCompatibilityDown = runPocketBase(['migrate', 'down', '1'], dataDirectory, environment, 'y\n');
+    assertCommand(publicationCompatibilityDown, 'down soporte generation cero antes de probar bloqueo PERM');
     const blockedDown = runPocketBase(['migrate', 'down', '1'], dataDirectory, environment, 'y\n');
     assert.match(`${blockedDown.stdout}\n${blockedDown.stderr}`, /unsafe_rollback_promo_permissions/);
     const persistedFields = JSON.parse(sqliteValue(
