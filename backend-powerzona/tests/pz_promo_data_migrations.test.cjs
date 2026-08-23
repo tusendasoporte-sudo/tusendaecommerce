@@ -29,8 +29,19 @@ const PROMO_COLLECTIONS = [
   'promo_analytics_daily',
 ];
 
-class FakeCollection {
+class FakeField {
   constructor(values) { Object.assign(this, values); }
+}
+
+class FakeFields extends Array {
+  add(field) { this.push(field); }
+}
+
+class FakeCollection {
+  constructor(values) {
+    Object.assign(this, values);
+    this.fields = new FakeFields(...values.fields);
+  }
 }
 
 function loadMigration(filename) {
@@ -40,6 +51,7 @@ function loadMigration(filename) {
   vm.runInNewContext(source, {
     Collection: FakeCollection,
     Error,
+    Field: FakeField,
     migrate(forward, rollback) { up = forward; down = rollback; },
   }, { filename: migrationPath });
   return { filename, source, up, down };

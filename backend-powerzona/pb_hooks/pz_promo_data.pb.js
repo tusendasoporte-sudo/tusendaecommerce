@@ -16,39 +16,17 @@ const PZ_PROMO_DATA_COLLECTIONS = [
   "promo_analytics_daily",
 ];
 
-function pzPromoDataValidationError(error) {
-  const safeCode = error && /^[-a-z0-9_]{1,80}$/.test(String(error.code || ""))
-    ? String(error.code)
-    : "invalid_promo_data";
-  const safeField = error && /^[a-z][a-z0-9_]{0,79}$/.test(String(error.field || ""))
-    ? String(error.field)
-    : "promo";
-  const data = {};
-  data[safeField] = new ValidationError(safeCode, "Los datos Promo no cumplen el contrato.");
-  return new BadRequestError("Los datos Promo no cumplen el contrato.", data);
-}
-
-function pzEnforcePromoMutation(e, collection, operation) {
-  try {
-    const lib = require(`${__hooks}/pz_promo_data_lib.js`);
-    lib.assertPromoRecord(e.app || $app, collection, e.record, operation);
-  } catch (error) {
-    throw pzPromoDataValidationError(error);
-  }
-  return e.next();
-}
-
-function pzEnforcePromoDelete(e, collection) {
-  try {
-    require(`${__hooks}/pz_promo_data_lib.js`).assertPromoDelete(collection);
-  } catch (error) {
-    throw pzPromoDataValidationError(error);
-  }
-  return e.next();
-}
-
-for (const collection of PZ_PROMO_DATA_COLLECTIONS) {
-  onRecordCreateRequest((e) => pzEnforcePromoMutation(e, collection, "create"), collection);
-  onRecordUpdateRequest((e) => pzEnforcePromoMutation(e, collection, "update"), collection);
-  onRecordDeleteRequest((e) => pzEnforcePromoDelete(e, collection), collection);
+for (const collectionName of PZ_PROMO_DATA_COLLECTIONS) {
+  onRecordCreateRequest(
+    (e) => require(`${__hooks}/pz_promo_data_lib.js`).enforcePromoRequest(e, "create"),
+    collectionName,
+  );
+  onRecordUpdateRequest(
+    (e) => require(`${__hooks}/pz_promo_data_lib.js`).enforcePromoRequest(e, "update"),
+    collectionName,
+  );
+  onRecordDeleteRequest(
+    (e) => require(`${__hooks}/pz_promo_data_lib.js`).enforcePromoDeleteRequest(e),
+    collectionName,
+  );
 }

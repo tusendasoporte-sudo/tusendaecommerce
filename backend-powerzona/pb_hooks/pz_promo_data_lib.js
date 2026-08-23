@@ -135,6 +135,20 @@ function jsonValue(record, key) {
   if (typeof value === "string") {
     try { return JSON.parse(value); } catch (_) { fail("invalid_promo_json", key); }
   }
+  if (Array.isArray(value) && value.length
+    && value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)) {
+    try {
+      const encoded = value.map((item) => `%${item.toString(16).padStart(2, "0")}`).join("");
+      return JSON.parse(decodeURIComponent(encoded));
+    } catch (_) { fail("invalid_promo_json", key); }
+  }
+  if (value && typeof value === "object") {
+    try {
+      const normalized = JSON.parse(JSON.stringify(value));
+      if (typeof normalized === "string") return JSON.parse(normalized);
+      return normalized;
+    } catch (_) { fail("invalid_promo_json", key); }
+  }
   return value;
 }
 
@@ -681,6 +695,42 @@ function assertPromoDelete(collection) {
   fail("promo_delete_requires_orchestrator", collection);
 }
 
+function requestCollectionName(e) {
+  try { return String(e.collection.name || ""); } catch (_) {}
+  try { return String(e.record.collection().name || ""); } catch (_) {}
+  return "";
+}
+
+function raisePromoDataValidationError(error) {
+  const safeCode = error && /^[-a-z0-9_]{1,80}$/.test(String(error.code || ""))
+    ? String(error.code)
+    : "invalid_promo_data";
+  const safeField = error && /^[a-z][a-z0-9_]{0,79}$/.test(String(error.field || ""))
+    ? String(error.field)
+    : "promo";
+  const data = {};
+  data[safeField] = new ValidationError(safeCode, "Los datos Promo no cumplen el contrato.");
+  throw new BadRequestError("Los datos Promo no cumplen el contrato.", data);
+}
+
+function enforcePromoRequest(e, operation) {
+  try {
+    assertPromoRecord(e.app || $app, requestCollectionName(e), e.record, operation);
+  } catch (error) {
+    raisePromoDataValidationError(error);
+  }
+  return e.next();
+}
+
+function enforcePromoDeleteRequest(e) {
+  try {
+    assertPromoDelete(requestCollectionName(e));
+  } catch (error) {
+    raisePromoDataValidationError(error);
+  }
+  return e.next();
+}
+
 module.exports = {
   DOMAIN_TRANSITIONS,
   HARD_LIMITS,
@@ -705,6 +755,8 @@ module.exports = {
   assertPublicSlug,
   assertTenantIsolation,
   canonicalLocale,
+  enforcePromoDeleteRequest,
+  enforcePromoRequest,
   mediaUsage,
   recordValue,
   relationId,

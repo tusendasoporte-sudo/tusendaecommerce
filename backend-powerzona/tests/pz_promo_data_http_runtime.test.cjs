@@ -1,0 +1,866 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const { spawn, spawnSync } = require('node:child_process');
+const { createHash, randomBytes } = require('node:crypto');
+const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+const { DatabaseSync } = require('node:sqlite');
+
+const BACKEND_DIR = path.resolve(__dirname, '..');
+const POCKETBASE_EXE = path.join(
+  BACKEND_DIR,
+  process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase',
+);
+const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
+const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
+const LOOPBACK = '127.0.0.1';
+const TEMP_PREFIX = 'pz-promo-data-runtime-';
+const PROMO_MIGRATIONS = [
+  '1787520000_promo_tenant_foundation.js',
+  '1787520100_promo_authoring_media.js',
+  '1787520200_promo_revision_publication.js',
+  '1787520300_promo_audit_analytics.js',
+];
+const PROMO_COLLECTIONS = [
+  'promo_sites',
+  'promo_site_entitlements',
+  'promo_theme_releases',
+  'promo_domain_bindings',
+  'promo_draft_documents',
+  'promo_media_assets',
+  'promo_revisions',
+  'promo_revision_media_refs',
+  'promo_publication_slots',
+  'promo_publication_events',
+  'promo_audit_events',
+  'promo_analytics_events',
+  'promo_analytics_daily',
+];
+const EXPECTED_INDEXES = [
+  'ux_promo_sites_store',
+  'ux_promo_sites_public_slug',
+  'ix_promo_sites_status',
+  'ux_promo_entitlements_site',
+  'ix_promo_entitlements_enabled_until',
+  'ux_promo_theme_release',
+  'ix_promo_theme_status',
+  'ux_promo_domain_current_host',
+  'ux_promo_domain_current_primary',
+  'ix_promo_domain_lookup',
+  'ix_promo_domain_site_state',
+  'ux_promo_draft_site',
+  'ix_promo_draft_updated',
+  'ux_promo_media_site_sha',
+  'ix_promo_media_site_state',
+  'ix_promo_media_site_purpose',
+  'ix_promo_media_poster',
+  'ux_promo_revision_sequence',
+  'ux_promo_revision_digest',
+  'ix_promo_revision_created',
+  'ix_promo_revision_theme',
+  'ux_promo_revision_media_use',
+  'ix_promo_revision_media_asset',
+  'ix_promo_revision_media_site',
+  'ux_promo_publication_site',
+  'ix_promo_publication_state',
+  'ix_promo_publication_revision',
+  'ix_promo_publication_canonical',
+  'ux_promo_publication_idempotency',
+  'ix_promo_publication_events_created',
+  'ix_promo_publication_generation',
+  'ix_promo_publication_target',
+  'ux_promo_audit_source',
+  'ix_promo_audit_site_created',
+  'ix_promo_audit_module_created',
+  'ix_promo_audit_resource_created',
+  'ux_promo_analytics_dedupe',
+  'ix_promo_analytics_site_time',
+  'ix_promo_analytics_type_time',
+  'ix_promo_analytics_expiry',
+  'ux_promo_analytics_daily_bucket',
+  'ix_promo_analytics_daily_site_day',
+];
+const WEBP = Buffer.from(
+  'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEALmk0mk0iIiIiIgBoSygABc6zbAAA',
+  'base64',
+);
+const MP4 = Buffer.from('00000018667479706d703432000000006d70343269736f6d', 'hex');
+
+const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function runtimeEnvironment() {
+  return {
+    ...process.env,
+    PZ_SECURITY_HMAC_SECRET: randomBytes(32).toString('hex'),
+    PZ_SECURITY_AES_KEY: randomBytes(24).toString('base64url').slice(0, 32),
+  };
+}
+
+function runtimeFlags(dataDirectory) {
+  return [
+    `--dir=${dataDirectory}`,
+    `--hooksDir=${HOOKS_DIR}`,
+    `--migrationsDir=${MIGRATIONS_DIR}`,
+    '--hooksWatch=false',
+    '--hooksPool=2',
+    '--automigrate=false',
+    '--indexFallback=false',
+  ];
+}
+
+function runPocketBase(args, dataDirectory, environment, input) {
+  return spawnSync(
+    POCKETBASE_EXE,
+    [...args, ...runtimeFlags(dataDirectory)],
+    {
+      cwd: BACKEND_DIR,
+      encoding: 'utf8',
+      env: environment,
+      windowsHide: true,
+      maxBuffer: 8 * 1024 * 1024,
+      input,
+    },
+  );
+}
+
+function assertCommand(result, label) {
+  assert.equal(
+    result.status,
+    0,
+    `${label} fallo (exit=${result.status}): ${result.error || ''}\n${result.stdout || ''}\n${result.stderr || ''}`,
+  );
+  assert.doesNotMatch(
+    `${result.stdout || ''}\n${result.stderr || ''}`,
+    /failed to (?:apply|revert) migration|panic:/i,
+    `${label} reporto un error de migracion`,
+  );
+}
+
+function sqliteValue(dataDirectory, sql) {
+  const database = new DatabaseSync(path.join(dataDirectory, 'data.db'), { readOnly: true });
+  try {
+    return database.prepare(sql).get();
+  } finally {
+    database.close();
+  }
+}
+
+async function freeLoopbackPort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.once('error', reject);
+    server.listen(0, LOOPBACK, () => {
+      const address = server.address();
+      const port = address && typeof address === 'object' ? address.port : 0;
+      server.close((error) => error ? reject(error) : resolve(port));
+    });
+  });
+}
+
+function startPocketBase(dataDirectory, port, environment) {
+  let output = '';
+  let spawnError = null;
+  const child = spawn(
+    POCKETBASE_EXE,
+    ['serve', `--http=${LOOPBACK}:${port}`, ...runtimeFlags(dataDirectory)],
+    {
+      cwd: BACKEND_DIR,
+      env: environment,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    },
+  );
+  const capture = (chunk) => { output = `${output}${String(chunk)}`.slice(-100_000); };
+  child.stdout.on('data', capture);
+  child.stderr.on('data', capture);
+  child.on('error', (error) => {
+    spawnError = error;
+    capture(`\n${error.stack || error.message}`);
+  });
+  return { child, output: () => output, spawnError: () => spawnError };
+}
+
+async function waitForPocketBase(runtime, baseUrl) {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (runtime.spawnError()) throw runtime.spawnError();
+    if (runtime.child.exitCode !== null) {
+      throw new Error(`PocketBase termino antes de iniciar.\n${runtime.output()}`);
+    }
+    try {
+      const response = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(1500) });
+      if (response.ok) return;
+    } catch (_) {}
+    await delay(150);
+  }
+  throw new Error(`PocketBase no quedo listo.\n${runtime.output()}`);
+}
+
+async function stopPocketBase(runtime) {
+  if (!runtime || runtime.child.exitCode !== null || runtime.child.signalCode !== null) return;
+  const exited = new Promise((resolve) => runtime.child.once('exit', resolve));
+  runtime.child.kill('SIGTERM');
+  const graceful = await Promise.race([exited.then(() => true), delay(5000).then(() => false)]);
+  if (!graceful && runtime.child.exitCode === null && runtime.child.signalCode === null) {
+    runtime.child.kill('SIGKILL');
+    await Promise.race([exited, delay(5000)]);
+  }
+}
+
+async function apiRequest(baseUrl, route, options = {}) {
+  const response = await fetch(`${baseUrl}${route}`, {
+    method: options.method || (options.body === undefined && options.json === undefined ? 'GET' : 'POST'),
+    headers: {
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...(options.headers || {}),
+      ...(options.json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: options.json !== undefined ? JSON.stringify(options.json) : options.body,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(30_000),
+  });
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
+  return { status: response.status, data, raw, headers: response.headers };
+}
+
+function assertStatus(result, expected, label) {
+  const allowed = Array.isArray(expected) ? expected : [expected];
+  assert.ok(allowed.includes(result.status), `${label}: status=${result.status} ${result.raw}`);
+}
+
+function assertValidation(result, code, label) {
+  assertStatus(result, 400, label);
+  assert.match(result.raw, new RegExp(code), `${label}: ${result.raw}`);
+}
+
+function safeRemoveTemporaryRoot(directory) {
+  const resolved = path.resolve(directory);
+  assert.equal(path.dirname(resolved), path.resolve(os.tmpdir()), `temporal fuera de alcance: ${resolved}`);
+  assert.match(path.basename(resolved), /^pz-promo-data-runtime-[A-Za-z0-9_-]+$/);
+  fs.rmSync(resolved, { recursive: true, force: true });
+}
+
+function formData(values, file, filename, mimeType) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) form.append(key, String(value));
+  }
+  form.append('file', new Blob([file], { type: mimeType }), filename);
+  return form;
+}
+
+test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e rollback seguro', {
+  skip: !fs.existsSync(POCKETBASE_EXE),
+  timeout: 300_000,
+}, async (t) => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), TEMP_PREFIX));
+  const dataDirectory = path.join(temporaryRoot, 'main-data');
+  const emptyRollbackDirectory = path.join(temporaryRoot, 'empty-rollback-data');
+  const environment = runtimeEnvironment();
+  const superEmail = 'promo-data-runtime-super@example.test';
+  const superPassword = `QA-Promo-${randomBytes(24).toString('base64url')}!Aa1`;
+  const userPassword = `QA-Promo-User-${randomBytes(24).toString('base64url')}!Aa1`;
+  let runtime = null;
+
+  try {
+    const migrationNames = fs.readdirSync(MIGRATIONS_DIR)
+      .filter((name) => /^\d+_.+\.js$/.test(name))
+      .sort();
+    assert.deepEqual(migrationNames.slice(-4), PROMO_MIGRATIONS);
+
+    const version = spawnSync(POCKETBASE_EXE, ['--version'], {
+      cwd: BACKEND_DIR, encoding: 'utf8', windowsHide: true,
+    });
+    assertCommand(version, 'version de PocketBase');
+    assert.match(version.stdout, /0\.39\.8/);
+
+    const firstUp = runPocketBase(['migrate', 'up'], dataDirectory, environment);
+    assertCommand(firstUp, 'primer migrate up efimero');
+    const migrationsAfterFirstUp = sqliteValue(
+      dataDirectory,
+      'SELECT COUNT(*) AS count FROM `_migrations`',
+    ).count;
+    assert.equal(
+      sqliteValue(
+        dataDirectory,
+        "SELECT COUNT(*) AS count FROM `_collections` WHERE `name` LIKE 'promo_%'",
+      ).count,
+      13,
+      'el primer migrate up crea las 13 colecciones Promo',
+    );
+    const secondUp = runPocketBase(['migrate', 'up'], dataDirectory, environment);
+    assertCommand(secondUp, 'segundo migrate up efimero');
+    const migrationsAfterSecondUp = sqliteValue(
+      dataDirectory,
+      'SELECT COUNT(*) AS count FROM `_migrations`',
+    ).count;
+    assert.equal(migrationsAfterSecondUp, migrationsAfterFirstUp, 'el segundo up no duplica history');
+
+    const emptyUp = runPocketBase(['migrate', 'up'], emptyRollbackDirectory, environment);
+    assertCommand(emptyUp, 'migrate up para rollback vacio');
+    const emptyDown = runPocketBase(
+      ['migrate', 'down', '4'],
+      emptyRollbackDirectory,
+      environment,
+      'y\n',
+    );
+    assertCommand(emptyDown, 'rollback vacio de las cuatro migraciones Promo');
+    for (const migration of PROMO_MIGRATIONS) {
+      assert.match(emptyDown.stdout, new RegExp(`Reverted ${migration.replace('.', '\\.')}`));
+    }
+    assert.equal(
+      sqliteValue(
+        emptyRollbackDirectory,
+        "SELECT COUNT(*) AS count FROM `_collections` WHERE `name` LIKE 'promo_%'",
+      ).count,
+      0,
+      'rollback vacio elimina solo el schema Promo',
+    );
+
+    const bootstrap = runPocketBase(
+      ['superuser', 'create', superEmail, superPassword],
+      dataDirectory,
+      environment,
+    );
+    assertCommand(bootstrap, 'bootstrap de superuser efimero');
+
+    const port = await freeLoopbackPort();
+    const baseUrl = `http://${LOOPBACK}:${port}`;
+    runtime = startPocketBase(dataDirectory, port, environment);
+    await waitForPocketBase(runtime, baseUrl);
+
+    const request = (route, options) => apiRequest(baseUrl, route, options);
+    const superAuth = await request('/api/collections/_superusers/auth-with-password', {
+      json: { identity: superEmail, password: superPassword },
+    });
+    assertStatus(superAuth, 200, 'autenticar superuser efimero');
+    const superToken = superAuth.data.token;
+
+    async function create(collection, values) {
+      const result = await request(`/api/collections/${collection}/records`, {
+        token: superToken,
+        json: values,
+      });
+      assertStatus(result, [200, 201], `crear ${collection}`);
+      return result.data;
+    }
+
+    async function createMedia(values, file, filename, mimeType) {
+      return request('/api/collections/promo_media_assets/records', {
+        token: superToken,
+        body: formData(values, file, filename, mimeType),
+      });
+    }
+
+    const collectionList = await request('/api/collections?perPage=500', { token: superToken });
+    assertStatus(collectionList, 200, 'listar metadata de colecciones');
+    const promoMetadata = collectionList.data.items
+      .filter((collection) => collection.name.startsWith('promo_'))
+      .sort((left, right) => left.name.localeCompare(right.name));
+    assert.deepEqual(
+      promoMetadata.map((collection) => collection.name),
+      PROMO_COLLECTIONS.slice().sort(),
+    );
+    for (const collection of promoMetadata) {
+      for (const rule of ['listRule', 'viewRule', 'createRule', 'updateRule', 'deleteRule']) {
+        assert.equal(collection[rule], null, `${collection.name}.${rule}`);
+      }
+      const records = await request(`/api/collections/${collection.name}/records?perPage=1`, {
+        token: superToken,
+      });
+      assertStatus(records, 200, `comprobar cero backfill en ${collection.name}`);
+      assert.equal(records.data.totalItems, 0, collection.name);
+    }
+
+    const runtimeIndexes = promoMetadata.flatMap((collection) => collection.indexes || []);
+    assert.equal(runtimeIndexes.length, EXPECTED_INDEXES.length);
+    for (const indexName of EXPECTED_INDEXES) {
+      assert.ok(runtimeIndexes.some((sql) => sql.includes(`\`${indexName}\``)), indexName);
+    }
+    const mediaMetadata = promoMetadata.find((collection) => collection.name === 'promo_media_assets');
+    const mediaFileField = mediaMetadata.fields.find((field) => field.name === 'file');
+    assert.equal(mediaFileField.protected, true);
+    assert.equal(mediaFileField.maxSize, 25 * 1024 * 1024);
+    assert.deepEqual(mediaFileField.mimeTypes, ['image/webp', 'video/mp4', 'video/webm']);
+    const entitlementMetadata = promoMetadata.find(
+      (collection) => collection.name === 'promo_site_entitlements',
+    );
+    const entitlementMax = (name) => entitlementMetadata.fields.find((field) => field.name === name).max;
+    assert.equal(entitlementMax('max_services'), 50);
+    assert.equal(entitlementMax('max_gallery_assets'), 24);
+    assert.equal(entitlementMax('max_locales'), 10);
+    assert.equal(entitlementMax('max_videos'), 3);
+    assert.equal(entitlementMax('max_storage_bytes'), 250 * 1024 * 1024);
+
+    const master = await create('users', {
+      email: 'promo-data-runtime-master@example.test',
+      password: userPassword,
+      passwordConfirm: userPassword,
+      display_name: 'Promo DATA Runtime Master',
+      role: 'master_admin',
+      status: 'active',
+      phone: '',
+      emailVisibility: true,
+    });
+    const storeA = await create('stores', {
+      name: 'Promo DATA Runtime A',
+      slug: 'promo-data-runtime-a',
+      status: 'active',
+      plan: 'premium',
+      plan_duration_months: 0,
+      plan_is_permanent: true,
+    });
+    const storeB = await create('stores', {
+      name: 'Promo DATA Runtime B',
+      slug: 'promo-data-runtime-b',
+      status: 'active',
+      plan: 'premium',
+      plan_duration_months: 0,
+      plan_is_permanent: true,
+    });
+    const storeAdmin = await create('users', {
+      store: storeA.id,
+      email: 'promo-data-runtime-admin@example.test',
+      password: userPassword,
+      passwordConfirm: userPassword,
+      display_name: 'Promo DATA Runtime Admin',
+      role: 'store_admin',
+      status: 'active',
+      phone: '',
+      emailVisibility: true,
+    });
+    const masterAuth = await request('/api/collections/users/auth-with-password', {
+      json: { identity: master.email, password: userPassword },
+    });
+    assertStatus(masterAuth, 200, 'autenticar Master regular');
+    const storeAdminAuth = await request('/api/collections/users/auth-with-password', {
+      headers: { 'X-PZ-Admin-Device': 'P'.repeat(43) },
+      json: { identity: storeAdmin.email, password: userPassword },
+    });
+    assertStatus(storeAdminAuth, 200, 'autenticar Admin de tienda regular');
+
+    for (const collection of PROMO_COLLECTIONS) {
+      const query = '?perPage=5&fields=id&filter=id%20!%3D%20%22%22&sort=id&expand=site';
+      assertStatus(
+        await request(`/api/collections/${collection}/records${query}`),
+        403,
+        `API anonima cerrada para ${collection}`,
+      );
+      for (const [role, token] of [
+        ['master_admin', masterAuth.data.token],
+        ['store_admin', storeAdminAuth.data.token],
+      ]) {
+        assertStatus(
+          await request(`/api/collections/${collection}/records${query}`, { token }),
+          403,
+          `API ${role} cerrada para ${collection}`,
+        );
+        assertStatus(
+          await request(`/api/collections/${collection}/records`, { token, json: {} }),
+          403,
+          `create directo ${role} cerrado para ${collection}`,
+        );
+      }
+    }
+
+    const invalidReservedSlug = await request('/api/collections/promo_sites/records', {
+      token: superToken,
+      json: {
+        store: storeA.id,
+        public_slug: 'admin',
+        status: 'draft',
+        contract_version: 1,
+        created_by: master.id,
+        updated_by: master.id,
+      },
+    });
+    assertValidation(invalidReservedSlug, 'invalid_promo_public_slug', 'hook de slug reservado');
+
+    const siteA = await create('promo_sites', {
+      store: storeA.id,
+      public_slug: 'promo-runtime-a',
+      status: 'draft',
+      contract_version: 1,
+      created_by: master.id,
+      updated_by: master.id,
+    });
+    const siteB = await create('promo_sites', {
+      store: storeB.id,
+      public_slug: 'promo-runtime-b',
+      status: 'draft',
+      contract_version: 1,
+      created_by: master.id,
+      updated_by: master.id,
+    });
+    assertStatus(
+      await request(`/api/collections/promo_sites/records/${siteA.id}`, {
+        token: storeAdminAuth.data.token,
+      }),
+      403,
+      'view directo de sitio cerrado',
+    );
+    assertStatus(
+      await request(`/api/collections/promo_sites/records/${siteA.id}`, {
+        token: storeAdminAuth.data.token,
+        method: 'PATCH',
+        json: { status: 'active' },
+      }),
+      403,
+      'update directo de sitio cerrado',
+    );
+    assertStatus(
+      await request(`/api/collections/promo_sites/records/${siteA.id}`, {
+        token: storeAdminAuth.data.token,
+        method: 'DELETE',
+      }),
+      403,
+      'delete directo de sitio cerrado',
+    );
+
+    const invalidEntitlement = {
+      site: siteB.id,
+      source: 'unassigned',
+      promo_site_enabled: false,
+      publish_enabled: false,
+      custom_domain_enabled: false,
+      theme_customization_enabled: false,
+      multilanguage_enabled: false,
+      video_enabled: false,
+      analytics_enabled: false,
+      landing_qr_bridge_enabled: false,
+      max_services: 0,
+      max_gallery_assets: 0,
+      max_locales: 0,
+      max_videos: 0,
+      max_storage_bytes: 0,
+      updated_by: master.id,
+    };
+    assertValidation(
+      await request('/api/collections/promo_site_entitlements/records', {
+        token: superToken,
+        json: { ...invalidEntitlement, promo_site_enabled: true },
+      }),
+      'unassigned_promo_entitlement_enabled',
+      'entitlement unassigned no habilita gates',
+    );
+    assertStatus(
+      await request('/api/collections/promo_site_entitlements/records', {
+        token: superToken,
+        json: { ...invalidEntitlement, source: 'contract', max_services: 51 },
+      }),
+      400,
+      'hard ceiling de servicios',
+    );
+    await create('promo_site_entitlements', { ...invalidEntitlement, site: siteA.id });
+    await create('promo_site_entitlements', invalidEntitlement);
+
+    const bindingA = await create('promo_domain_bindings', {
+      site: siteA.id,
+      hostname_ascii: 'a.promo-runtime.example.test',
+      hostname_display: 'a.promo-runtime.example.test',
+      role: 'primary',
+      status: 'active',
+      is_current: true,
+      verification_method: 'manual',
+      state_version: 1,
+      verified_by: master.id,
+      verified_at: new Date().toISOString(),
+      activated_at: new Date().toISOString(),
+    });
+    const bindingB = await create('promo_domain_bindings', {
+      site: siteB.id,
+      hostname_ascii: 'b.promo-runtime.example.test',
+      hostname_display: 'b.promo-runtime.example.test',
+      role: 'primary',
+      status: 'active',
+      is_current: true,
+      verification_method: 'manual',
+      state_version: 1,
+      verified_by: master.id,
+      verified_at: new Date().toISOString(),
+      activated_at: new Date().toISOString(),
+    });
+    assertStatus(
+      await request('/api/collections/promo_domain_bindings/records', {
+        token: superToken,
+        json: {
+          site: siteB.id,
+          hostname_ascii: bindingA.hostname_ascii,
+          hostname_display: bindingA.hostname_ascii,
+          role: 'alias',
+          status: 'active',
+          is_current: true,
+          state_version: 1,
+        },
+      }),
+      400,
+      'indice parcial de hostname current',
+    );
+    assertStatus(
+      await request('/api/collections/promo_domain_bindings/records', {
+        token: superToken,
+        json: {
+          site: siteA.id,
+          hostname_ascii: 'other-a.promo-runtime.example.test',
+          hostname_display: 'other-a.promo-runtime.example.test',
+          role: 'primary',
+          status: 'active',
+          is_current: true,
+          state_version: 1,
+        },
+      }),
+      400,
+      'indice parcial de primary current por site',
+    );
+
+    const readyImageAResponse = await createMedia({
+      site: siteA.id,
+      kind: 'image',
+      purpose: 'hero',
+      status: 'ready',
+      mime_detected: 'image/webp',
+      sha256: createHash('sha256').update('ready-image-a').digest('hex'),
+      bytes: WEBP.length,
+      width: 1,
+      height: 1,
+      duration_ms: 0,
+      created_by: master.id,
+      ready_at: new Date().toISOString(),
+    }, WEBP, 'ready-a.webp', 'image/webp');
+    assertStatus(readyImageAResponse, [200, 201], 'crear imagen ready A');
+    const readyImageA = readyImageAResponse.data;
+    assertValidation(
+      await createMedia({
+        site: siteA.id,
+        kind: 'image',
+        purpose: 'gallery',
+        status: 'ready',
+        mime_detected: 'image/webp',
+        sha256: createHash('sha256').update('oversized-image-a').digest('hex'),
+        bytes: (100 * 1024) + 1,
+        width: 1,
+        height: 1,
+        duration_ms: 0,
+        created_by: master.id,
+      }, WEBP, 'oversized-a.webp', 'image/webp'),
+      'invalid_promo_image',
+      'imagen mayor de 100 KiB',
+    );
+    for (let index = 1; index < 200; index += 1) {
+      const uploaded = await createMedia({
+        site: siteA.id,
+        kind: 'image',
+        purpose: 'gallery',
+        status: 'uploaded',
+        created_by: master.id,
+      }, WEBP, `image-a-${String(index).padStart(3, '0')}.webp`, 'image/webp');
+      assertStatus(uploaded, [200, 201], `crear imagen ${index + 1}/200`);
+    }
+    assertValidation(
+      await createMedia({
+        site: siteA.id,
+        kind: 'image',
+        purpose: 'gallery',
+        status: 'uploaded',
+        created_by: master.id,
+      }, WEBP, 'image-a-201.webp', 'image/webp'),
+      'promo_image_count_exceeded',
+      'imagen 201 bloqueada',
+    );
+
+    for (let index = 1; index <= 3; index += 1) {
+      const uploaded = await createMedia({
+        site: siteA.id,
+        kind: 'video',
+        purpose: 'gallery',
+        status: 'uploaded',
+        created_by: master.id,
+      }, MP4, `video-a-${index}.mp4`, 'video/mp4');
+      assertStatus(uploaded, [200, 201], `crear video ${index}/3`);
+    }
+    assertValidation(
+      await createMedia({
+        site: siteA.id,
+        kind: 'video',
+        purpose: 'gallery',
+        status: 'uploaded',
+        created_by: master.id,
+      }, MP4, 'video-a-4.mp4', 'video/mp4'),
+      'promo_video_count_exceeded',
+      'video 4 bloqueado',
+    );
+
+    const readyImageBResponse = await createMedia({
+      site: siteB.id,
+      kind: 'image',
+      purpose: 'hero',
+      status: 'ready',
+      mime_detected: 'image/webp',
+      sha256: createHash('sha256').update('ready-image-b').digest('hex'),
+      bytes: WEBP.length,
+      width: 1,
+      height: 1,
+      duration_ms: 0,
+      created_by: master.id,
+      ready_at: new Date().toISOString(),
+    }, WEBP, 'ready-b.webp', 'image/webp');
+    assertStatus(readyImageBResponse, [200, 201], 'crear imagen ready B');
+    const readyImageB = readyImageBResponse.data;
+
+    const directFile = await request(
+      `/api/files/promo_media_assets/${readyImageA.id}/${encodeURIComponent(readyImageA.file)}`,
+    );
+    assert.notEqual(directFile.status, 200, 'archivo protected no se sirve directamente');
+
+    const theme = await create('promo_theme_releases', {
+      theme_id: 'promo.runtime.black-gold',
+      version: '1.0.0',
+      status: 'approved',
+      renderer_key: 'promo.runtime.black-gold',
+      contract_version: 1,
+      manifest_sha256: 'a'.repeat(64),
+      token_schema_sha256: 'b'.repeat(64),
+      approved_by: master.id,
+      approved_at: new Date().toISOString(),
+    });
+    const snapshot = {
+      locales: { default: 'es', published: ['es'] },
+      sections: [],
+      media_refs: {},
+      contact: { actions: [] },
+    };
+    const revisionA = await create('promo_revisions', {
+      site: siteA.id,
+      sequence: 1,
+      schema_version: 1,
+      snapshot_json: snapshot,
+      snapshot_sha256: createHash('sha256').update('revision-a').digest('hex'),
+      theme_release: theme.id,
+      default_locale: 'es',
+      published_locales_json: ['es'],
+      source_draft_version: 1,
+      created_by: master.id,
+    });
+    const revisionB = await create('promo_revisions', {
+      site: siteB.id,
+      sequence: 1,
+      schema_version: 1,
+      snapshot_json: snapshot,
+      snapshot_sha256: createHash('sha256').update('revision-b').digest('hex'),
+      theme_release: theme.id,
+      default_locale: 'es',
+      published_locales_json: ['es'],
+      source_draft_version: 1,
+      created_by: master.id,
+    });
+    await create('promo_revision_media_refs', {
+      site: siteA.id,
+      revision: revisionA.id,
+      media_asset: readyImageA.id,
+      use_key: 'hero_main',
+    });
+    assertValidation(
+      await request('/api/collections/promo_revision_media_refs/records', {
+        token: superToken,
+        json: {
+          site: siteA.id,
+          revision: revisionA.id,
+          media_asset: readyImageB.id,
+          use_key: 'hero_cross_tenant',
+        },
+      }),
+      'cross_promo_site_relation',
+      'media ref cross-tenant',
+    );
+    assertValidation(
+      await request('/api/collections/promo_publication_slots/records', {
+        token: superToken,
+        json: {
+          site: siteA.id,
+          state: 'active',
+          published_revision: revisionA.id,
+          canonical_mode: 'custom',
+          primary_binding: bindingB.id,
+          generation: 1,
+          published_by: master.id,
+          published_at: new Date().toISOString(),
+        },
+      }),
+      'cross_promo_site_relation',
+      'slot con binding cross-tenant',
+    );
+    assertValidation(
+      await request('/api/collections/promo_analytics_events/records', {
+        token: superToken,
+        json: {
+          site: siteA.id,
+          revision: revisionB.id,
+          event_type: 'page_view',
+          day: '2026-08-23',
+          locale: 'es',
+          theme_key: 'promo.runtime.black-gold@1.0.0',
+          occurred_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+        },
+      }),
+      'cross_promo_site_relation',
+      'analytics con revision cross-tenant',
+    );
+
+    const daily = await create('promo_analytics_daily', {
+      site: siteA.id,
+      day: '2026-08-23',
+      event_type: 'page_view',
+      locale: 'es',
+      theme_key: 'promo.runtime.black-gold@1.0.0',
+      dimension_key: '',
+      event_count: 1,
+      unique_count: 1,
+    });
+    assert.ok(daily.id);
+    assert.doesNotMatch(runtime.output(), /failed to load.*pz_promo_data|SyntaxError/i);
+
+    await stopPocketBase(runtime);
+    runtime = null;
+
+    const blockedDown = runPocketBase(
+      ['migrate', 'down', '1'],
+      dataDirectory,
+      environment,
+      'y\n',
+    );
+    assert.match(
+      `${blockedDown.stdout || ''}\n${blockedDown.stderr || ''}`,
+      /unsafe_rollback_promo_data/,
+    );
+    assert.equal(
+      sqliteValue(
+        dataDirectory,
+        "SELECT COUNT(*) AS count FROM `_collections` WHERE `name` LIKE 'promo_%'",
+      ).count,
+      13,
+      'rollback bloqueado conserva las 13 colecciones',
+    );
+    assert.equal(
+      sqliteValue(dataDirectory, 'SELECT COUNT(*) AS count FROM `promo_analytics_daily`').count,
+      1,
+      'rollback bloqueado conserva los datos',
+    );
+
+    t.diagnostic(`PocketBase ${version.stdout.trim().replace(/^pocketbase(?:\.exe)?\s+version\s+/i, '')}`);
+    t.diagnostic(`migrate up idempotente: ${migrationsAfterFirstUp} entradas sin duplicados`);
+    t.diagnostic(`colecciones Promo privadas: ${promoMetadata.length}; indices: ${runtimeIndexes.length}`);
+    t.diagnostic('aislamiento A/B, 200/201 imagenes, 3/4 videos y API directa negativa verificados');
+    t.diagnostic('rollback vacio aplicado; rollback con datos abortado sin perdida');
+  } finally {
+    await stopPocketBase(runtime);
+    safeRemoveTemporaryRoot(temporaryRoot);
+  }
+});

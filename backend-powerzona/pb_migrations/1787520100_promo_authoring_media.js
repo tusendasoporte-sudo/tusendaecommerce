@@ -126,7 +126,6 @@ migrate((app) => {
       numberField("number1787521210", "width", false, 1, 16384),
       numberField("number1787521211", "height", false, 1, 16384),
       numberField("number1787521212", "duration_ms", false, 0, 30 * 60 * 1000),
-      relationField("relation75210213", "poster_asset", "pbc_1787520102", false, false),
       relationField("relation75210214", "created_by", users.id, true, false),
       dateField("date17875210215", "ready_at", false),
       dateField("date17875210216", "retired_at", false),
@@ -137,9 +136,19 @@ migrate((app) => {
       "CREATE UNIQUE INDEX `ux_promo_media_site_sha` ON `promo_media_assets` (`site`, `sha256`) WHERE `sha256` != ''",
       "CREATE INDEX `ix_promo_media_site_state` ON `promo_media_assets` (`site`, `status`, `kind`, `created`)",
       "CREATE INDEX `ix_promo_media_site_purpose` ON `promo_media_assets` (`site`, `purpose`, `status`)",
-      "CREATE INDEX `ix_promo_media_poster` ON `promo_media_assets` (`poster_asset`)",
     ],
   );
+  app.save(media);
+
+  // PocketBase 0.39 validates relation targets before the collection insert.
+  // Add the self relation only after the target collection exists.
+  media.fields.add(new Field(
+    relationField("relation75210213", "poster_asset", media.id, false, false),
+  ));
+  media.indexes = [
+    ...media.indexes,
+    "CREATE INDEX `ix_promo_media_poster` ON `promo_media_assets` (`poster_asset`)",
+  ];
   return app.save(media);
 }, (app) => {
   const names = ["promo_media_assets", "promo_draft_documents"];
