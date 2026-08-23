@@ -303,7 +303,10 @@ function localizePublicProjection(projectionValue, negotiation) {
     theme: pubcfg.normalizeJson(projection.theme),
     section_order: projection.section_order.slice(),
     sections: pubcfg.normalizeJson(projection.sections),
-    media: pubcfg.normalizeJson(projection.media),
+    media: projection.media.map((item) => ({
+      ...pubcfg.normalizeJson(item),
+      accessibility: pubcfg.normalizeJson(contentByLocale[negotiation.effective].media_alt[item.key]),
+    })),
     contact: pubcfg.normalizeJson(projection.contact),
     content: pubcfg.normalizeJson(contentByLocale[negotiation.effective]),
     adapters: pubcfg.normalizeJson(projection.adapters),

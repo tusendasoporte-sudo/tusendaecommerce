@@ -122,6 +122,20 @@ test('revisión pública exige locale completo, referencias tipadas y CTA cohere
   }, { publicRevision: true }));
 });
 
+test('cada sección sólo acepta medios con el propósito allowlisted', () => {
+  const document = publishedDocument();
+  document.sections[0].config.media_use_key = 'hero_main';
+  document.sections[0].media_use_keys = ['hero_main'];
+  document.media_refs = { hero_main: { asset_id: 'assetbbbbbbbbbb', purpose: 'hero' } };
+  document.content_by_locale.es.media_alt = { hero_main: { alt: 'Taller artesanal', decorative: false } };
+  assert.deepEqual(contract.validatePromoDocument(document, { publicRevision: true }), document);
+  document.media_refs.hero_main.purpose = 'service';
+  assert.throws(
+    () => contract.validatePromoDocument(document, { publicRevision: true }),
+    /invalid_promo_media_reference/,
+  );
+});
+
 test('proyección pública se construye por allowlist y elimina destino, IDs y records privados', () => {
   const document = contract.validatePromoDocument(publishedDocument(), { publicRevision: true });
   const projection = contract.projectPublicDocument(document, 'aladdin-carpet', []);

@@ -15,6 +15,9 @@ const promoAudit = typeof __hooks === "undefined"
 const promoTheme = typeof __hooks === "undefined"
   ? require("./pz_promo_theme_lib.js")
   : require(`${__hooks}/pz_promo_theme_lib.js`);
+const promoMedia = typeof __hooks === "undefined"
+  ? require("./pz_promo_media_lib.js")
+  : require(`${__hooks}/pz_promo_media_lib.js`);
 
 const PRIVATE_COLLECTIONS = Object.freeze([
   "promo_sites",
@@ -301,15 +304,42 @@ function loadDocumentAssets(app, siteId, document, options) {
     }
     const kind = recordString(asset, "kind");
     if (!['image', 'video'].includes(kind)) throw codedError("invalid_promo_media_reference", 400);
+    let poster = null;
+    if (settings.publicRevision) {
+      try { promoMedia.assertReadyAsset(asset, { siteId, purpose: ref.purpose }); }
+      catch (_) { throw codedError("invalid_promo_media_reference", 400); }
+      if (kind === "video") {
+        const posterRecord = findRecord(app, "promo_media_assets", relationId(asset, "poster_asset"));
+        try { promoMedia.assertReadyAsset(posterRecord, { siteId, purpose: "video_poster" }); }
+        catch (_) { throw codedError("invalid_promo_media_reference", 400); }
+        if (recordString(posterRecord, "kind") !== "image") {
+          throw codedError("invalid_promo_media_reference", 400);
+        }
+        poster = {
+          id: recordId(posterRecord),
+          purpose: "video_poster",
+          kind: "image",
+          mime: recordString(posterRecord, "mime_detected"),
+          sha256: recordString(posterRecord, "sha256"),
+          bytes: recordInteger(posterRecord, "bytes") || 0,
+          width: recordInteger(posterRecord, "width") || 0,
+          height: recordInteger(posterRecord, "height") || 0,
+          duration_ms: 0,
+        };
+      }
+    }
     assets.push({
       id: recordId(asset),
       key,
       purpose: ref.purpose,
       kind,
+      mime: recordString(asset, "mime_detected"),
+      sha256: recordString(asset, "sha256"),
       bytes: recordInteger(asset, "bytes") || 0,
       width: recordInteger(asset, "width") || 0,
       height: recordInteger(asset, "height") || 0,
       duration_ms: recordInteger(asset, "duration_ms") || 0,
+      poster,
     });
   }
   return assets;
@@ -341,7 +371,7 @@ function validateRevisionMediaRows(app, siteId, revisionId, document, assets) {
   }
 }
 
-function resolvePublicProjection(app, publicSlug) {
+function resolvePublicProjectionContext(app, publicSlug) {
   if (!collectionsReady(app)) throw codedError("promo_pubcfg_unavailable", 503);
   try { data.assertPublicSlug(publicSlug); } catch (_) { throw codedError("promo_not_found", 404); }
   const site = findExact(app, "promo_sites", "public_slug = {:slug}", { slug: publicSlug });
@@ -389,7 +419,60 @@ function resolvePublicProjection(app, publicSlug) {
     || relationId(finalSlot, "primary_binding")) {
     throw codedError("promo_not_found", 404);
   }
-  return contract.projectPublicDocument(document, publicSlug, assets);
+  return {
+    projection: contract.projectPublicDocument(document, publicSlug, assets),
+    site,
+    siteId,
+    slot: finalSlot,
+    generation,
+    revision,
+    revisionId,
+    document,
+  };
+}
+
+function resolvePublicProjection(app, publicSlug) {
+  return resolvePublicProjectionContext(app, publicSlug).projection;
+}
+
+function resolvePublicMediaContext(app, publicSlug, useKey) {
+  const validated = resolvePublicProjectionContext(app, publicSlug);
+  const { projection, site, siteId: ownerSiteId, slot, generation, revision, revisionId, document } = validated;
+  if (!contract.USE_KEY_PATTERN.test(useKey)
+    || !projection.media.some((item) => item.key === useKey)) {
+    throw codedError("promo_not_found", 404);
+  }
+  const ref = document.media_refs[useKey];
+  const asset = ref && findRecord(app, "promo_media_assets", ref.asset_id);
+  try { promoMedia.assertReadyAsset(asset, { siteId: ownerSiteId, purpose: ref && ref.purpose }); }
+  catch (_) { throw codedError("promo_not_found", 404); }
+  const rows = findRecords(
+    app,
+    "promo_revision_media_refs",
+    "revision = {:revision} && use_key = {:key}",
+    "id",
+    2,
+    { revision: revisionId, key: useKey },
+  );
+  if (rows.length !== 1 || relationId(rows[0], "site") !== ownerSiteId
+    || relationId(rows[0], "media_asset") !== recordId(asset)) {
+    throw codedError("promo_not_found", 404);
+  }
+  let poster = null;
+  if (recordString(asset, "kind") === "video") {
+    poster = findRecord(app, "promo_media_assets", relationId(asset, "poster_asset"));
+    try { promoMedia.assertReadyAsset(poster, { siteId: ownerSiteId, purpose: "video_poster" }); }
+    catch (_) { throw codedError("promo_not_found", 404); }
+  }
+  const finalSlot = findRecord(app, "promo_publication_slots", recordId(slot));
+  if (!finalSlot || recordInteger(finalSlot, "generation") !== generation
+    || relationId(finalSlot, "published_revision") !== revisionId
+    || recordString(finalSlot, "state") !== "active"
+    || recordString(finalSlot, "canonical_mode") !== "platform"
+    || relationId(finalSlot, "primary_binding")) {
+    throw codedError("promo_not_found", 404);
+  }
+  return { asset, poster, revision, site, slot };
 }
 
 function handlePublicProjection(e) {
@@ -631,6 +714,7 @@ module.exports = {
   parseDraftUpdate,
   privateStatus,
   requireAuthenticatedUser,
+  resolvePublicMediaContext,
   resolvePublicProjection,
   findDraft,
   validateRevisionMediaRows,

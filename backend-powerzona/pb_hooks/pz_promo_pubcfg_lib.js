@@ -6,6 +6,9 @@ const data = typeof __hooks === "undefined"
 const promoTheme = typeof __hooks === "undefined"
   ? require("./pz_promo_theme_lib.js")
   : require(`${__hooks}/pz_promo_theme_lib.js`);
+const promoMedia = typeof __hooks === "undefined"
+  ? require("./pz_promo_media_lib.js")
+  : require(`${__hooks}/pz_promo_media_lib.js`);
 
 const DOCUMENT_CONTRACT = "promo.site.v1";
 const PUBLIC_CONTRACT = "promo.public.projection.v1";
@@ -41,6 +44,14 @@ const SECTION_CONFIG_KEYS = Object.freeze({
   store_rating: [],
   contact: ["action_keys"],
   footer: [],
+});
+const SECTION_MEDIA_PURPOSES = Object.freeze({
+  hero: Object.freeze(["hero"]),
+  services: Object.freeze(["service"]),
+  featured_work: Object.freeze(["gallery"]),
+  gallery: Object.freeze(["gallery"]),
+  owner: Object.freeze(["owner"]),
+  footer: Object.freeze(["footer"]),
 });
 
 const LOCALIZED_SECTION_KEYS = Object.freeze({
@@ -273,6 +284,20 @@ function validateMediaRefs(value) {
   }
 }
 
+function validateSectionMediaPurposes(document) {
+  for (const section of document.sections) {
+    const allowed = SECTION_MEDIA_PURPOSES[section.type] || [];
+    const keys = new Set(section.media_use_keys);
+    if (["hero", "owner"].includes(section.type) && section.config.media_use_key) {
+      keys.add(section.config.media_use_key);
+    }
+    for (const key of keys) {
+      const ref = document.media_refs[key];
+      if (!ref || !allowed.includes(ref.purpose)) fail("invalid_promo_media_reference", 400);
+    }
+  }
+}
+
 function validateContactConfig(action) {
   const config = plainObject(action.config);
   if (action.type === "whatsapp" || action.type === "phone") {
@@ -456,6 +481,7 @@ function validatePromoDocument(input, options) {
   validateIdentity(document.identity);
   const used = validateSections(document);
   validateMediaRefs(document.media_refs);
+  validateSectionMediaPurposes(document);
   const contactActions = validateContact(document.contact);
   used.media.forEach((key) => {
     if (!Object.prototype.hasOwnProperty.call(document.media_refs, key)) fail("invalid_promo_media_reference", 400);
@@ -541,6 +567,10 @@ function changedActionKeys(previous, next, assets) {
 function projectPublicDocument(document, siteSlug, media) {
   const visibleSections = document.sections.filter((section) => section.visible);
   const visibleKeys = new Set(visibleSections.map((section) => section.key));
+  const firstHero = visibleSections.find((section) => section.type === "hero");
+  const priorityMediaKey = firstHero
+    ? (firstHero.config.media_use_key || firstHero.media_use_keys[0] || "")
+    : "";
   const enabledActions = document.contact.enabled
     ? document.contact.actions.filter((action) => action.enabled)
     : [];
@@ -572,13 +602,8 @@ function projectPublicDocument(document, siteSlug, media) {
       config: normalizeJson(section.config),
       media_use_keys: section.media_use_keys.slice(),
     })),
-    media: (media || []).map((asset) => ({
-      key: asset.key,
-      purpose: asset.purpose,
-      kind: asset.kind,
-      width: asset.width,
-      height: asset.height,
-      duration_ms: asset.duration_ms,
+    media: (media || []).map((asset) => promoMedia.publicAssetDescriptor(asset, siteSlug, {
+      priority: !!priorityMediaKey && asset.key === priorityMediaKey,
     })),
     contact: {
       enabled: document.contact.enabled,

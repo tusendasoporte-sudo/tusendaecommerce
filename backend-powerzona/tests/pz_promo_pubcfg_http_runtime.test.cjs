@@ -100,7 +100,7 @@ async function waitForPocketBase(runtime, baseUrl) {
 async function apiRequest(baseUrl, route, options = {}) {
   const headers = { Accept: 'application/json', ...(options.headers || {}) };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
-  let body;
+  let body = options.body;
   if (Object.prototype.hasOwnProperty.call(options, 'json')) {
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(options.json);
@@ -428,6 +428,95 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     for (const [result, label] of [[primaryAuth, 'principal'], [secondaryAuth, 'secundario'], [staffAuth, 'staff'], [commerceAuth, 'Commerce'], [suspendedAuth, 'suspendible']]) {
       assertStatus(result, 200, `auth ${label}`);
     }
+
+    const normalizedService = fs.readFileSync(path.join(
+      BACKEND_DIR, '..', 'frontend-powerzona', 'public', 'brand', 'tusenda84-bazzar-logo.webp',
+    ));
+    const serviceSha = createHash('sha256').update(normalizedService).digest('hex');
+    const uploadBody = new FormData();
+    uploadBody.append('contract', 'promo.media.upload.v1');
+    uploadBody.append('kind', 'image');
+    uploadBody.append('purpose', 'service');
+    uploadBody.append('mime', 'image/webp');
+    uploadBody.append('sha256', serviceSha);
+    uploadBody.append('bytes', String(normalizedService.length));
+    uploadBody.append('width', '512');
+    uploadBody.append('height', '512');
+    uploadBody.append('duration_ms', '0');
+    uploadBody.append('poster_asset_id', '');
+    uploadBody.append('file', new Blob([normalizedService], { type: 'image/webp' }), `${'a'.repeat(32)}.webp`);
+    const mediaUpload = await request('/api/pz/promo/private/v1/media/upload', {
+      token: primaryAuth.data.token, method: 'POST', body: uploadBody,
+    });
+    assertStatus(mediaUpload, 201, `MEDIA normaliza y persiste asset tenant A\n${runtime.output()}`);
+    assert.equal(mediaUpload.data.contract, 'promo.media.asset.v1');
+    assert.equal(mediaUpload.data.asset.status, 'ready');
+    assert.equal(mediaUpload.data.asset.purpose, 'service');
+    assert.deepEqual(mediaUpload.data.asset.preview.variants.map((item) => item.width), [320, 512]);
+    const mediaAssetId = mediaUpload.data.asset.asset_id;
+    const privateOriginal = await request(mediaUpload.data.asset.preview.url, { token: primaryAuth.data.token });
+    assertStatus(privateOriginal, 200, 'preview privado MEDIA sirve asset propio');
+    assertStatus(await request(mediaUpload.data.asset.preview.url, { token: staffAuth.data.token }), 200, 'staff con site.view ve preview propio');
+    assertStatus(await request(mediaUpload.data.asset.preview.url, {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeB.id },
+    }), 404, 'preview privado MEDIA no mezcla contexto Master de tenant B');
+    const mediaList = await request('/api/pz/promo/private/v1/media/list', {
+      token: primaryAuth.data.token, json: { contract: 'promo.media.list.v1' },
+    });
+    assertStatus(mediaList, 200, 'catálogo privado MEDIA');
+    assert.equal(mediaList.data.assets.length, 1);
+    assert.equal(JSON.stringify(mediaList.data).includes(storeA.id), false, 'catálogo MEDIA no expone tenant');
+
+    const mediaSnapshot = publishedDocument('Publicado A');
+    mediaSnapshot.section_order = ['services-main'];
+    mediaSnapshot.sections = [{
+      key: 'services-main', type: 'services', variant: 'default', visible: true,
+      config: { item_keys: ['service-one'] }, media_use_keys: ['service_main'],
+    }];
+    mediaSnapshot.media_refs = { service_main: { asset_id: mediaAssetId, purpose: 'service' } };
+    mediaSnapshot.content_by_locale.es.navigation = { 'services-main': 'Servicios' };
+    mediaSnapshot.content_by_locale.es.sections = {
+      'services-main': { heading: 'Servicios', summary: 'Servicios publicados', items: [{ key: 'service-one', name: 'Servicio' }] },
+    };
+    mediaSnapshot.content_by_locale.es.media_alt = { service_main: { alt: 'Servicio accesible A', decorative: false } };
+    mediaSnapshot.content_by_locale.en.navigation = { 'services-main': 'Services' };
+    mediaSnapshot.content_by_locale.en.sections = {
+      'services-main': { heading: 'Services', summary: 'Published services', items: [{ key: 'service-one', name: 'Service' }] },
+    };
+    mediaSnapshot.content_by_locale.en.media_alt = { service_main: { alt: 'Accessible service A', decorative: false } };
+    const mediaRevision = await create('promo_revisions', {
+      site: fixtureA.site.id, sequence: 3, schema_version: 1, snapshot_json: mediaSnapshot,
+      snapshot_sha256: digest(mediaSnapshot), theme_release: theme1.id, default_locale: mediaSnapshot.locales.default,
+      published_locales_json: mediaSnapshot.locales.published, source_draft_version: 1, created_by: master.id,
+    });
+    await create('promo_revision_media_refs', {
+      site: fixtureA.site.id, revision: mediaRevision.id, media_asset: mediaAssetId, use_key: 'service_main',
+    });
+    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, {
+      published_revision: mediaRevision.id, generation: 2,
+    });
+    const publicMedia = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a');
+    assertStatus(publicMedia, 200, 'PUBCFG proyecta MEDIA publicada');
+    assert.equal(publicMedia.data.media[0].delivery.contract, 'promo.media.delivery.v1');
+    assert.equal(publicMedia.data.media[0].delivery.loading, 'lazy');
+    assert.equal(JSON.stringify(publicMedia.data.media[0]).includes(mediaAssetId), false, 'público no expone asset ID');
+    const localizedMedia = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales/es');
+    assertStatus(localizedMedia, 200, 'I18N proyecta alt efectivo');
+    assert.deepEqual(localizedMedia.data.media[0].accessibility, { alt: 'Servicio accesible A', decorative: false });
+    assertStatus(await request(publicMedia.data.media[0].delivery.src), 200, 'delivery pública valida revisión exacta');
+    assertStatus(await request(`${publicMedia.data.media[0].delivery.src}?download=1`), 404, 'delivery pública rechaza query no allowlisted');
+    const crossTenantMediaPath = publicMedia.data.media[0].delivery.src.replace('/promo-pubcfg-a/', '/promo-pubcfg-b/');
+    assertStatus(await request(crossTenantMediaPath), 404, 'delivery pública no mezcla tenant B');
+    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, {
+      published_revision: fixtureA.revision.id, generation: 3,
+    });
+    const retiredMedia = await request('/api/pz/promo/private/v1/media/retire', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.media.retire.v1', asset_id: mediaAssetId, expected_status: 'ready' },
+    });
+    assertStatus(retiredMedia, 200, 'MEDIA retira asset fuera de draft/publicación activa');
+    assert.equal(retiredMedia.data.asset.status, 'retired');
+
     const readBody = { contract: 'promo.draft.read.v1' };
     const primaryRead = await request('/api/pz/promo/private/v1/draft/read', { token: primaryAuth.data.token, json: readBody });
     assertStatus(primaryRead, 200, 'principal lee draft');
@@ -584,9 +673,9 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(disableB, 200, 'Master deshabilita capability B');
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-b'), 404, 'capability ausente cierra público');
 
-    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'paused', generation: 2 });
+    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'paused', generation: 4 });
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404, 'slot inactivo cierra público');
-    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'active', generation: 3 });
+    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, { state: 'active', generation: 5 });
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200, 'slot reactivado sirve revisión exacta');
     const localBinding = await create('promo_domain_bindings', {
       site: fixtureA.site.id, hostname_ascii: 'promo-a.example.test', hostname_display: 'promo-a.example.test',
@@ -594,7 +683,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       verified_by: master.id, verified_at: now, activated_at: now,
     });
     await update('promo_publication_slots', fixtureA.slot.id, {
-      canonical_mode: 'custom', primary_binding: localBinding.id, generation: 4,
+      canonical_mode: 'custom', primary_binding: localBinding.id, generation: 6,
     });
     assertStatus(
       await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'),
@@ -602,7 +691,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       'PUBCFG no suplanta DOM-CORE cuando canonical es custom',
     );
     fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, {
-      canonical_mode: 'platform', primary_binding: '', generation: 5,
+      canonical_mode: 'platform', primary_binding: '', generation: 7,
     });
     const releaseBody = (expectedStatus, nextStatus) => ({
       contract: 'promo.theme.release.update.v1', theme_id: 'promo.black-gold', version: '1.0.0',
