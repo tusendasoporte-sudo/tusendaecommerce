@@ -12,6 +12,9 @@ const contract = typeof __hooks === "undefined"
 const promoAudit = typeof __hooks === "undefined"
   ? require("./pz_promo_audit_lib.js")
   : require(`${__hooks}/pz_promo_audit_lib.js`);
+const promoTheme = typeof __hooks === "undefined"
+  ? require("./pz_promo_theme_lib.js")
+  : require(`${__hooks}/pz_promo_theme_lib.js`);
 
 const PRIVATE_COLLECTIONS = Object.freeze([
   "promo_sites",
@@ -266,7 +269,7 @@ function assertEntitlementMetrics(entitlement, document, assets) {
   return metrics;
 }
 
-function assertDraftTheme(app, document) {
+function assertDraftTheme(app, document, options) {
   if (!document.theme.theme_id) return null;
   const theme = findExact(
     app,
@@ -274,8 +277,11 @@ function assertDraftTheme(app, document) {
     "theme_id = {:theme} && version = {:version}",
     { theme: document.theme.theme_id, version: document.theme.version },
   );
-  if (!theme || !["approved", "deprecated"].includes(recordString(theme, "status"))
-    || recordInteger(theme, "contract_version") !== 1) {
+  try {
+    promoTheme.assertReleaseForSelection(theme, document.theme, {
+      mode: options && options.selectionChanged ? "select" : "edit",
+    });
+  } catch (_) {
     throw codedError("invalid_promo_document", 400);
   }
   return theme;
@@ -367,10 +373,9 @@ function resolvePublicProjection(app, publicSlug) {
     throw codedError("promo_pubcfg_unavailable", 503);
   }
   const theme = findRecord(app, "promo_theme_releases", relationId(revision, "theme_release"));
-  if (!theme || !contract.PUBLIC_THEME_STATUSES.includes(recordString(theme, "status"))
-    || recordString(theme, "theme_id") !== document.theme.theme_id
-    || recordString(theme, "version") !== document.theme.version
-    || recordInteger(theme, "contract_version") !== 1) {
+  try {
+    promoTheme.assertReleaseForSelection(theme, document.theme, { mode: "public" });
+  } catch (_) {
     throw codedError("promo_pubcfg_unavailable", 503);
   }
   const assets = loadDocumentAssets(app, siteId, document, { publicRevision: true });
@@ -527,6 +532,18 @@ function createDraftAudit(app, decision, draft, paths, previousDocument, nextDoc
       sourceEventKey: `promo.localization.${recordId(draft)}.v${nextVersion}`,
     });
   }
+  const themePaths = paths.filter((path) => path === "/theme");
+  if (themePaths.length) {
+    promoAudit.createPromoAudit(app, decision, {
+      action: "promo.theme.selection.update",
+      resourceType: "promo_draft_document",
+      resourceId: recordId(draft),
+      changedPaths: themePaths,
+      previousValues: previousSnapshot,
+      newValues: nextSnapshot,
+      sourceEventKey: `promo.theme.selection.${recordId(draft)}.v${nextVersion}`,
+    });
+  }
 }
 
 function handleDraftUpdate(e) {
@@ -555,7 +572,9 @@ function handleDraftUpdate(e) {
       decision = draftDecision(app, e.auth, context.supportStoreId, syntacticActions.length
         ? syntacticActions
         : ["promo.content.manage"]);
-      assertDraftTheme(app, parsed.document);
+      const selectionChanged = previousDocument.theme.theme_id !== parsed.document.theme.theme_id
+        || previousDocument.theme.version !== parsed.document.theme.version;
+      assertDraftTheme(app, parsed.document, { selectionChanged });
       const assets = loadDocumentAssets(app, recordId(decision.site), parsed.document, { publicRevision: false });
       assertEntitlementMetrics(decision.entitlement, parsed.document, assets);
       const requiredActions = contract.changedActionKeys(previousDocument, parsed.document, assets);
@@ -613,5 +632,7 @@ module.exports = {
   privateStatus,
   requireAuthenticatedUser,
   resolvePublicProjection,
+  findDraft,
   validateRevisionMediaRows,
+  validatedStoredDraft,
 };

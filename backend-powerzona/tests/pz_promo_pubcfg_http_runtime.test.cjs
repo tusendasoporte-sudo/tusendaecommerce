@@ -10,6 +10,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const pubcfg = require('../pb_hooks/pz_promo_pubcfg_lib.js');
+const theme = require('../pb_hooks/pz_promo_theme_lib.js');
 
 const BACKEND_DIR = path.resolve(__dirname, '..');
 const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
@@ -133,7 +134,7 @@ function publishedDocument(name, themeVersion = '1.0.0') {
   return {
     contract: 'promo.site.v1', system_catalog_version: 'promo.system.v1',
     locales: { default: 'es', published: ['en', 'es'] },
-    theme: { theme_id: 'promo.aladdin.black-gold', version: themeVersion, tokens: {} },
+    theme: { theme_id: 'promo.black-gold', version: themeVersion, tokens: {} },
     identity: { public_business_key: 'business-public' },
     section_order: ['hero-main'],
     sections: [{
@@ -281,15 +282,10 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
 
     const now = new Date().toISOString();
     const theme1 = await create('promo_theme_releases', {
-      theme_id: 'promo.aladdin.black-gold', version: '1.0.0', status: 'approved',
-      renderer_key: 'promo.aladdin.black-gold', contract_version: 1,
-      manifest_sha256: 'a'.repeat(64), token_schema_sha256: 'b'.repeat(64),
-      approved_by: master.id, approved_at: now,
-    });
-    await create('promo_theme_releases', {
-      theme_id: 'promo.aladdin.black-gold', version: '1.0.1', status: 'approved',
-      renderer_key: 'promo.aladdin.black-gold', contract_version: 1,
-      manifest_sha256: 'c'.repeat(64), token_schema_sha256: 'd'.repeat(64),
+      theme_id: 'promo.black-gold', version: '1.0.0', status: 'approved',
+      renderer_key: 'promo.black-gold', contract_version: 1,
+      manifest_sha256: theme.BLACK_GOLD_MANIFEST_SHA256,
+      token_schema_sha256: theme.BLACK_GOLD_TOKEN_SCHEMA_SHA256,
       approved_by: master.id, approved_at: now,
     });
 
@@ -300,7 +296,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       });
       const entitlement = await create('promo_site_entitlements', {
         site: site.id, source: 'contract', promo_site_enabled: true, publish_enabled: true,
-        custom_domain_enabled: false, theme_customization_enabled: false, multilanguage_enabled: true,
+        custom_domain_enabled: false, theme_customization_enabled: true, multilanguage_enabled: true,
         video_enabled: true, analytics_enabled: false, landing_qr_bridge_enabled: false,
         max_services: 20, max_gallery_assets: 12, max_locales: 2, max_videos: 2,
         max_storage_bytes: 52428800, updated_by: master.id,
@@ -332,6 +328,8 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(publicB, 200, 'público B');
     assert.equal(publicA.data.content_by_locale.es.identity.name, 'Publicado A');
     assert.equal(publicB.data.content_by_locale.es.identity.name, 'Publicado B');
+    assert.equal(publicA.data.theme.tokens.surface, 'obsidian', 'Theme completa defaults seguros');
+    assert.equal(publicA.data.theme.tokens.accent, 'heritage_gold');
     assert.equal(publicA.headers.get('cache-control').includes('no-store'), true);
     const publicSerialized = JSON.stringify(publicA.data);
     for (const forbidden of [
@@ -436,6 +434,18 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(primaryRead.data.draft.version, 1);
     assert.equal(primaryRead.data.draft.document.locales.published.length, 0);
     assert.equal(primaryRead.headers.get('x-robots-tag').includes('noindex'), true);
+    const emptyThemeCatalog = await request('/api/pz/promo/private/v1/themes/catalog', {
+      token: primaryAuth.data.token, json: { contract: 'promo.theme.catalog.read.v1' },
+    });
+    assertStatus(emptyThemeCatalog, 200, 'catálogo Theme privado para principal');
+    assert.equal(emptyThemeCatalog.data.contract, 'promo.theme.catalog.v1');
+    assert.equal(emptyThemeCatalog.data.current.source, 'safe_fallback');
+    assert.equal(emptyThemeCatalog.data.fallback.selectable, true);
+    assert.equal(emptyThemeCatalog.data.themes.length, 1);
+    const catalogSerialized = JSON.stringify(emptyThemeCatalog.data);
+    for (const forbidden of [
+      fixtureA.site.id, theme1.id, 'manifest_sha256', 'token_schema_sha256', 'approved_by', 'provider_reference',
+    ]) assert.equal(catalogSerialized.includes(forbidden), false, `catálogo Theme excluye ${forbidden}`);
 
     const masterNoContext = await request('/api/pz/promo/private/v1/draft/read', { token: masterToken, json: readBody });
     assertStatus(masterNoContext, 403, 'Master requiere contexto explícito');
@@ -456,6 +466,24 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(primaryUpdate, 200, 'principal actualiza con CAS');
     assert.equal(primaryUpdate.data.changed, true);
     assert.equal(primaryUpdate.data.draft.version, 2);
+    const selectedThemeCatalog = await request('/api/pz/promo/private/v1/themes/catalog', {
+      token: primaryAuth.data.token, json: { contract: 'promo.theme.catalog.read.v1' },
+    });
+    assertStatus(selectedThemeCatalog, 200, 'catálogo resuelve selección tenant-scoped');
+    assert.equal(selectedThemeCatalog.data.current.source, 'selected');
+    assert.equal(selectedThemeCatalog.data.current.theme_id, 'promo.black-gold');
+    assert.equal(selectedThemeCatalog.data.current.tokens.surface, 'obsidian');
+    const masterCatalogB = await request('/api/pz/promo/private/v1/themes/catalog', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeB.id },
+      json: { contract: 'promo.theme.catalog.read.v1' },
+    });
+    assertStatus(masterCatalogB, 200, 'Master Theme usa únicamente el tenant explícito B');
+    assert.equal(masterCatalogB.data.current.source, 'safe_fallback');
+    assert.equal(JSON.stringify(masterCatalogB.data).includes('Solo borrador A'), false);
+    assertStatus(await request('/api/pz/promo/private/v1/themes/catalog', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.theme.catalog.read.v1', site_id: fixtureB.site.id },
+    }), 400, 'catálogo Theme rechaza tenant inyectado');
     const publicAfterDraft = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a');
     assert.equal(publicAfterDraft.data.content_by_locale.es.identity.name, 'Publicado A', 'draft no es fallback público');
 
@@ -467,12 +495,12 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(conflict.data.error, 'promo_draft_conflict');
 
     const themeChange = structuredClone(edited);
-    themeChange.theme.version = '1.0.1';
+    themeChange.theme.tokens = { radius: 'soft' };
     const secondaryTheme = await request('/api/pz/promo/private/v1/draft/update', {
       token: secondaryAuth.data.token,
       json: { contract: 'promo.draft.update.v1', expected_version: 2, document: themeChange },
     });
-    assertStatus(secondaryTheme, 403, 'secundario sin theme.select');
+    assertStatus(secondaryTheme, 403, 'secundario sin appearance.manage');
     assert.equal(secondaryTheme.data.error, 'promo_permission_denied');
 
     const secondaryEdit = structuredClone(edited);
@@ -510,6 +538,12 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       token: primaryAuth.data.token,
       json: { contract: 'promo.draft.update.v1', expected_version: 3, document: html },
     }), 400, 'HTML/JS rechazado');
+    const unsafeThemeToken = structuredClone(secondaryEdit);
+    unsafeThemeToken.theme.tokens = { accent: '#ffffff' };
+    assertStatus(await request('/api/pz/promo/private/v1/draft/update', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.draft.update.v1', expected_version: 3, document: unsafeThemeToken },
+    }), 400, 'token Theme fuera de allowlist rechazado');
 
     const directDraft = await request(`/api/collections/promo_draft_documents/records/${fixtureA.draft.id}`, {
       token: primaryAuth.data.token,
@@ -567,6 +601,44 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       404,
       'PUBCFG no suplanta DOM-CORE cuando canonical es custom',
     );
+    fixtureA.slot = await update('promo_publication_slots', fixtureA.slot.id, {
+      canonical_mode: 'platform', primary_binding: '', generation: 5,
+    });
+    const releaseBody = (expectedStatus, nextStatus) => ({
+      contract: 'promo.theme.release.update.v1', theme_id: 'promo.black-gold', version: '1.0.0',
+      expected_status: expectedStatus, next_status: nextStatus,
+    });
+    assertStatus(await request('/api/pz/promo/private/v1/themes/releases/update', {
+      token: masterToken, json: releaseBody('approved', 'deprecated'),
+    }), 403, 'Master Theme requiere contexto explícito');
+    assertStatus(await request('/api/pz/promo/private/v1/themes/releases/update', {
+      token: primaryAuth.data.token, json: releaseBody('approved', 'deprecated'),
+    }), 403, 'Admin no gestiona catálogo global Theme');
+    const deprecatedTheme = await request('/api/pz/promo/private/v1/themes/releases/update', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: releaseBody('approved', 'deprecated'),
+    });
+    assertStatus(deprecatedTheme, 200, 'Master depreca release compilado exacto');
+    assert.equal(deprecatedTheme.data.release.status, 'deprecated');
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200, 'deprecated conserva revisión publicada');
+    const deprecatedCatalog = await request('/api/pz/promo/private/v1/themes/catalog', {
+      token: primaryAuth.data.token, json: { contract: 'promo.theme.catalog.read.v1' },
+    });
+    assertStatus(deprecatedCatalog, 200, 'selección existente deprecated sigue editable');
+    assert.equal(deprecatedCatalog.data.current.status, 'deprecated');
+    assert.equal(deprecatedCatalog.data.themes.length, 0, 'deprecated no aparece como nueva selección');
+    const retiredTheme = await request('/api/pz/promo/private/v1/themes/releases/update', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: releaseBody('deprecated', 'retired'),
+    });
+    assertStatus(retiredTheme, 200, 'Master retira release sin borrar artefacto');
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 200, 'retired conserva serving/rollback retenido');
+    const blockedTheme = await request('/api/pz/promo/private/v1/themes/releases/update', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: releaseBody('retired', 'blocked'),
+    });
+    assertStatus(blockedTheme, 200, 'Master bloquea release vulnerable');
+    assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404, 'blocked falla cerrado sin otro tema');
 
     const auditListBody = {
       contract: 'promo.audit.list.v1', page: 1, per_page: 50,
@@ -596,6 +668,16 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(localizationAudit.data.events.length, 2);
     assert.equal(localizationAudit.data.events.every((event) => event.module === 'localization'), true);
     assert.equal(JSON.stringify(localizationAudit.data).includes('Edición secundaria'), false);
+    const themeSelectionAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.theme.selection.update' },
+      },
+    });
+    assertStatus(themeSelectionAudit, 200, 'selección Theme usa writer AUDIT');
+    assert.equal(themeSelectionAudit.data.events.length, 1);
+    assert.equal(themeSelectionAudit.data.events[0].severity, 'critical');
     const auditDetail = await request('/api/pz/promo/private/v1/audit/detail', {
       token: primaryAuth.data.token,
       json: { contract: 'promo.audit.detail.v1', event_id: primaryAudit.data.events[0].id },
@@ -637,6 +719,13 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     const auditSerialized = JSON.stringify(audits.data.items);
     assert.equal(auditSerialized.includes('Solo borrador A'), false, 'audit no copia documento');
     assert.equal(auditSerialized.includes(userPassword), false, 'audit no copia secretos');
+    const themeReleaseAudits = await request('/api/collections/promo_audit_events/records?filter=action%3D%22promo.theme.release.update%22', {
+      token: superToken,
+    });
+    assertStatus(themeReleaseAudits, 200, 'superuser verifica audit global Theme temporal');
+    assert.equal(themeReleaseAudits.data.items.length, 3);
+    assert.equal(themeReleaseAudits.data.items.every((item) => !item.site && item.scope_key === 'global'), true);
+    assert.equal(JSON.stringify(themeReleaseAudits.data.items).includes('manifest_sha256'), false);
 
     t.diagnostic('Master, principal, secundario, staff, suspendido, sesión revocada y Commerce validados');
     t.diagnostic('dos tiendas aisladas, draft/candidata no publicados, CAS y payloads manipulados validados');

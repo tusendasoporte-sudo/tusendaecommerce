@@ -214,7 +214,7 @@ Esta colección evita reinterpretar `free/basic/premium`. Para DATA, Kraken conf
 
 | Campo | Tipo/longitud | Requerido | Restricción |
 |---|---|---:|---|
-| `theme_id` | text 1..100 | Sí | ID estable, p. ej. `promo.aladdin.black-gold`. |
+| `theme_id` | text 1..100 | Sí | ID estable, p. ej. `promo.black-gold`. |
 | `version` | text 1..32 | Sí | SemVer canónica. |
 | `status` | select | Sí | `draft`, `approved`, `deprecated`, `retired`, `blocked`. |
 | `renderer_key` | text 1..100 | Sí | Debe existir en registry compilado; no es ruta/import libre. |
@@ -810,7 +810,7 @@ No se define automatización Cloudflare. DOM-CORE podrá implementar binding loc
 - Draft selecciona `theme_id/version`; candidata resuelve relation `theme_release` exacta.
 - Snapshot duplica ID/version para integridad; relation sigue siendo fuente operacional.
 - Tokens deben validar schema/hash del release; no se aceptan unknown tokens.
-- `promo.aladdin.black-gold@1.0.0` no se inserta hasta que THEME/ALADDIN aprueben manifest/activo.
+- `promo.black-gold@1.0.0` no se inserta hasta que THEME/ALADDIN aprueben manifest/activo.
 - Retirar release no borra revision; bloquearlo sí impide serving/publicación hasta remediar.
 
 ### 16.2 i18n
@@ -1071,7 +1071,7 @@ La decisión elimina el bloqueo de diseño y activación asociado a la convivenc
 | `DP-08` | Retención audit/publication/revisions/media/analytics. | No GC; analytics disabled. | OPS/analytics/producción. |
 | `DP-09` | Audiencia de preview compartible. | Solo sesión central Admin/Master. | PREVIEW externo. |
 | `DP-11` | Aprobación de shared change en borrado Master. | Borrado de store con promo_site falla cerrado. | Delete/producción. |
-| `DP-12` | Manifest/activo `promo.aladdin.black-gold@1.0.0`. | No theme release approved/seed. | Primera publicación. |
+| `DP-12` | Manifest/activo `promo.black-gold@1.0.0`. | No theme release approved/seed. | Primera publicación. |
 
 `DP-02` queda cerrada como decisión de producto. El modelo la representa mediante `public_slug`, `canonical_mode`, `primary_binding` y `generation`; la implementación futura deberá preservar la atomicidad, fallo cerrado y regresiones negativas para tiendas Commerce no Promo.
 

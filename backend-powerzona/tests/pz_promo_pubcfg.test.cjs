@@ -32,7 +32,7 @@ function publishedDocument() {
     contract: 'promo.site.v1',
     system_catalog_version: 'promo.system.v1',
     locales: { default: 'es', published: ['es'] },
-    theme: { theme_id: 'promo.aladdin.black-gold', version: '1.0.0', tokens: {} },
+    theme: { theme_id: 'promo.black-gold', version: '1.0.0', tokens: {} },
     identity: { public_business_key: 'aladdin-carpet' },
     section_order: ['hero-main', 'contact-main'],
     sections: [

@@ -27,7 +27,7 @@ El sitio público Promo leerá una sola revisión publicada, inmutable y coheren
 
 La resolución de dominio ocurrirá únicamente desde un binding local exacto, único, activo y previamente verificado por Master. `X-Forwarded-Host` solo tendrá autoridad detrás de un peer confiable y con un único valor inequívoco; no habrá llamadas a Cloudflare/Coolify en el request. Admin, Master y APIs actuales seguirán en hosts Tu Senda 84. Un host o estado inválido fallará cerrado.
 
-Aladdin's Carpet será la primera Promo. La entrada conceptual inicial del registry será `promo.aladdin.black-gold`, con composición negra/dorada y sin precios, carrito ni checkout. El bloque “Escanéame para contactarme” se reemplazará por un CTA localizado/configurado. Landing QR seguirá siendo una capacidad independiente e intacta. El cierre responsive seguirá bloqueado por el mockup móvil aprobado.
+Aladdin's Carpet será la primera Promo. La entrada conceptual inicial del registry será `promo.black-gold`, con composición negra/dorada y sin precios, carrito ni checkout. El bloque “Escanéame para contactarme” se reemplazará por un CTA localizado/configurado. Landing QR seguirá siendo una capacidad independiente e intacta. El cierre responsive seguirá bloqueado por el mockup móvil aprobado.
 
 ## 3. Alcance, exclusiones y método
 
@@ -272,7 +272,7 @@ La publicación requiere 100 % de strings de sistema obligatorios y campos de co
 
 **Decisión.** `PromoThemeRegistry` es un catálogo de build/plataforma controlado por Master. Cada versión inmutable contiene ID estable, versión semántica, estado (`draft`, `approved`, `deprecated`, `retired` o equivalente), renderer empaquetado, assets conocidos, schema cerrado de tokens/variantes, compatibilidad de secciones, migraciones declarativas de configuración si fueran necesarias y requisitos A11Y/performance. El tenant solo selecciona ID+versión aprobados y valores validados.
 
-Se reserva la entrada conceptual `promo.aladdin.black-gold`; su primera versión publicable será `1.0.0` después de fijar el activo visual y pasar validación. La paleta usa tokens semánticos —superficie, texto, acento, borde, foco y estados—, no colores insertados libremente en componentes. Ninguna entrada acepta CSS, JS, HTML, imports dinámicos, handlers, selectores, URLs de scripts/estilos o nombres de componente controlados por usuario.
+Se reserva la entrada conceptual `promo.black-gold`; su primera versión publicable será `1.0.0` después de fijar el activo visual y pasar validación. La paleta usa tokens semánticos —superficie, texto, acento, borde, foco y estados—, no colores insertados libremente en componentes. Ninguna entrada acepta CSS, JS, HTML, imports dinámicos, handlers, selectores, URLs de scripts/estilos o nombres de componente controlados por usuario.
 
 Una candidata con tema desconocido, retirado incompatible o tokens inválidos no publica. Si una referencia publicada se vuelve inconsistente en runtime, se conserva/recupera la última revisión coherente conocida; si no existe, el sitio falla cerrado. No se sustituye silenciosamente por otro tema. Los artefactos necesarios para revisiones publicadas/rollback no se eliminan al retirar un tema. Cambiar de tema crea candidata nueva y nunca borra contenido.
 
@@ -541,7 +541,7 @@ Key lógica mínima de HTML/datos: `canonical-host + tenant + published-revision
 
 | Campo conceptual | Valor |
 |---|---|
-| ID reservado | `promo.aladdin.black-gold` |
+| ID reservado | `promo.black-gold` |
 | Primera versión publicable prevista | `1.0.0`, sujeta a activo visual y aprobación |
 | Tienda de referencia | Aladdin's Carpet |
 | Apariencia | Fondo predominantemente negro; acentos dorados; estética elegante/premium |
@@ -716,7 +716,7 @@ Estas decisiones no bloquean la especificación arquitectónica. La capacidad af
 | ID | Decisión reservada | Recomendación arquitectónica sin inferir aprobación | Gate afectado |
 |---|---|---|---|
 | `P-01` | Aprobar este catálogo de ADRs. | Aprobar como límite normativo antes de DATA-DES. | `G-ARC-APPROVAL` |
-| `P-02` | Activo desktop exacto y criterios visuales de Aladdin. | Fijarlos antes de convertir `promo.aladdin.black-gold@1.0.0` en publicable. | `G-THEME` |
+| `P-02` | Activo desktop exacto y criterios visuales de Aladdin. | Fijarlos antes de convertir `promo.black-gold@1.0.0` en publicable. | `G-THEME` |
 | `P-03` | Mockup móvil de Aladdin. | Ejecutar `MOB-VIS` en su tarea; imprescindible antes de RESP, no de DATA-DES. | `G-MOB-VIS` |
 | `P-04` | Locales iniciales y default de Aladdin. | Candidato sugerido: español default + inglés, pero no se publica hasta aprobación/completitud. | `G-I18N` |
 | `P-05` | Canales CTA habilitados y modelo editorial de labels/mensajes. | Habilitar solo tipos necesarios; claves del sistema para labels y contenido localized validado para mensajes. | `G-CTA` |

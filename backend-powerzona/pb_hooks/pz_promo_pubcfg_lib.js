@@ -3,6 +3,9 @@
 const data = typeof __hooks === "undefined"
   ? require("./pz_promo_data_lib.js")
   : require(`${__hooks}/pz_promo_data_lib.js`);
+const promoTheme = typeof __hooks === "undefined"
+  ? require("./pz_promo_theme_lib.js")
+  : require(`${__hooks}/pz_promo_theme_lib.js`);
 
 const DOCUMENT_CONTRACT = "promo.site.v1";
 const PUBLIC_CONTRACT = "promo.public.projection.v1";
@@ -15,8 +18,6 @@ const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const BUSINESS_KEY_PATTERN = /^(?:[a-z][a-z0-9._-]{0,99})?$/;
-const THEME_ID_PATTERN = /^(?:promo\.[a-z0-9]+(?:[.-][a-z0-9]+)*)?$/;
-const SEMVER_PATTERN = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 
@@ -29,7 +30,7 @@ const MEDIA_PURPOSES = Object.freeze([
 const CONTACT_TYPES = Object.freeze([
   "whatsapp", "phone", "email", "internal_form", "approved_live_chat",
 ]);
-const PUBLIC_THEME_STATUSES = Object.freeze(["approved", "deprecated", "retired"]);
+const PUBLIC_THEME_STATUSES = promoTheme.PUBLIC_RELEASE_STATUSES;
 
 const SECTION_CONFIG_KEYS = Object.freeze({
   hero: ["media_use_key", "action_key"],
@@ -190,14 +191,12 @@ function validateLocales(value, publicRevision) {
 
 function validateTheme(value, publicRevision) {
   const theme = exactKeys(value, ["theme_id", "version", "tokens"]);
-  assertKey(theme.theme_id, THEME_ID_PATTERN, !publicRevision);
-  if (typeof theme.version !== "string" || (!publicRevision && !theme.theme_id && theme.version !== "")
-    || (theme.theme_id && !SEMVER_PATTERN.test(theme.version)) || (publicRevision && !theme.theme_id)) {
-    fail("invalid_promo_document", 400);
+  try {
+    promoTheme.validateThemeSelection(theme, { allowEmpty: !publicRevision });
+  } catch (error) {
+    if (error instanceof promoTheme.PromoThemeError) fail(error.code, error.status);
+    throw error;
   }
-  const tokens = plainObject(theme.tokens);
-  // THEME-0001 owns the token schema. Until then, fail closed instead of accepting arbitrary keys.
-  if (Object.keys(tokens).length) fail("unknown_promo_theme_token", 400);
 }
 
 function validateIdentity(value) {
@@ -239,7 +238,15 @@ function validateSections(document) {
   for (const section of document.sections) {
     exactKeys(section, ["key", "type", "variant", "visible", "config", "media_use_keys"]);
     keys.push(assertKey(section.key, KEY_PATTERN, false));
-    if (!SECTION_TYPES.includes(section.type) || section.variant !== "default") fail("invalid_promo_document", 400);
+    if (!SECTION_TYPES.includes(section.type)) fail("invalid_promo_document", 400);
+    try {
+      promoTheme.assertSectionVariant(document.theme, section.type, section.variant, {
+        allowEmpty: !document.theme.theme_id,
+      });
+    } catch (error) {
+      if (error instanceof promoTheme.PromoThemeError) fail(error.code, error.status);
+      throw error;
+    }
     assertBoolean(section.visible);
     assertStringArray(section.media_use_keys, { max: 30, pattern: USE_KEY_PATTERN })
       .forEach((key) => media.add(key));
@@ -556,7 +563,7 @@ function projectPublicDocument(document, siteSlug, media) {
     site: { public_slug: siteSlug },
     system_catalog_version: document.system_catalog_version,
     locales: normalizeJson(document.locales),
-    theme: normalizeJson(document.theme),
+    theme: promoTheme.resolveEffectiveSelection(document.theme),
     section_order: document.section_order.filter((key) => visibleKeys.has(key)),
     sections: visibleSections.map((section) => ({
       key: section.key,

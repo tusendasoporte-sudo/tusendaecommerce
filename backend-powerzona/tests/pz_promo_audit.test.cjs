@@ -91,7 +91,7 @@ test('snapshot de draft conserva solo estructura operativa y nunca texto, destin
   const document = {
     system_catalog_version: 'promo.system.v1',
     locales: { default: 'es', published: ['es', 'en'] },
-    theme: { theme_id: 'promo.aladdin.black-gold', version: '1.0.0', tokens: { accent: '#caa85e' } },
+    theme: { theme_id: 'promo.black-gold', version: '1.0.0', tokens: { accent: '#caa85e' } },
     identity: { public_business_key: 'business-public' },
     sections: [{ key: 'hero-main', type: 'hero', visible: true }],
     media_refs: { hero: { asset_id: 'assetaaaaaaaaaa', purpose: 'hero' } },

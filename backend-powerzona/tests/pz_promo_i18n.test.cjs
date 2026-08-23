@@ -15,7 +15,7 @@ function publicProjection() {
     site: { public_slug: 'aladdin-carpet' },
     system_catalog_version: 'promo.system.v1',
     locales: { default: 'es', published: ['en', 'es'] },
-    theme: { theme_id: 'promo.aladdin.black-gold', version: '1.0.0', tokens: {} },
+    theme: { theme_id: 'promo.black-gold', version: '1.0.0', tokens: {} },
     section_order: ['hero-main'],
     sections: [{
       key: 'hero-main', type: 'hero', variant: 'default',
