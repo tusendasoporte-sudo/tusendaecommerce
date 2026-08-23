@@ -8,8 +8,13 @@ const test = require('node:test');
 
 const contract = require('../pb_hooks/pz_promo_pubcfg_lib.js');
 const api = require('../pb_hooks/pz_promo_pubcfg_api_lib.js');
+const theme = require('../pb_hooks/pz_promo_theme_lib.js');
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+function record(id, values = {}) {
+  return { id, ...values };
+}
 
 function emptyDraft() {
   return {
@@ -67,6 +72,66 @@ function publishedDocument() {
     },
     adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
   };
+}
+
+function customProjectionFixture() {
+  const ids = {
+    site: 'siteaaaaaaaaaaa', store: 'storeaaaaaaaaaa', entitlement: 'entaaaaaaaaaaaa',
+    slot: 'slotaaaaaaaaaaa', revision: 'revaaaaaaaaaaaa', theme: 'themeaaaaaaaaaa',
+    binding: 'bindprimaryaaaa',
+  };
+  const document = publishedDocument();
+  const site = record(ids.site, {
+    store: ids.store, public_slug: 'aladdin-carpet', status: 'active', contract_version: 1,
+  });
+  const collections = {
+    stores: [record(ids.store, { status: 'active' })],
+    promo_sites: [site],
+    promo_site_entitlements: [record(ids.entitlement, {
+      site: ids.site, source: 'contract', promo_site_enabled: true, custom_domain_enabled: true,
+      multilanguage_enabled: true, video_enabled: false, landing_qr_bridge_enabled: false,
+      max_services: 50, max_gallery_assets: 24, max_locales: 10, max_videos: 3,
+      max_storage_bytes: 262144000,
+    })],
+    promo_publication_slots: [record(ids.slot, {
+      site: ids.site, state: 'active', canonical_mode: 'custom', primary_binding: ids.binding,
+      published_revision: ids.revision, generation: 4,
+    })],
+    promo_revisions: [record(ids.revision, {
+      site: ids.site, schema_version: 1, snapshot_json: document,
+      snapshot_sha256: contract.digestDocument(document, sha256), default_locale: 'es',
+      published_locales_json: document.locales.published, theme_release: ids.theme,
+    })],
+    promo_theme_releases: [record(ids.theme, {
+      theme_id: 'promo.black-gold', version: '1.0.0', status: 'approved',
+      renderer_key: theme.BLACK_GOLD_MANIFEST.renderer_key,
+      contract_version: theme.BLACK_GOLD_MANIFEST.contract_version,
+      manifest_sha256: theme.BLACK_GOLD_MANIFEST_SHA256,
+      token_schema_sha256: theme.BLACK_GOLD_TOKEN_SCHEMA_SHA256,
+    })],
+    promo_domain_bindings: [record(ids.binding, {
+      site: ids.site, role: 'primary', status: 'active', is_current: true,
+    })],
+    promo_draft_documents: [], promo_media_assets: [], promo_revision_media_refs: [], promo_audit_events: [],
+  };
+  const app = {
+    findCollectionByNameOrId(name) {
+      if (!api.PRIVATE_COLLECTIONS.includes(name)) throw new Error('not_found');
+      return { listRule: null, viewRule: null, createRule: null, updateRule: null, deleteRule: null };
+    },
+    findRecordById(collection, id) {
+      const found = (collections[collection] || []).find((item) => item.id === id);
+      if (!found) throw new Error('not_found');
+      return found;
+    },
+    findRecordsByFilter(collection, filter, sort, limit, offset, params = {}) {
+      let rows = (collections[collection] || []).slice();
+      if (Object.hasOwn(params, 'site')) rows = rows.filter((item) => item.site === params.site);
+      if (Object.hasOwn(params, 'revision')) rows = rows.filter((item) => item.revision === params.revision);
+      return rows.slice(0, limit);
+    },
+  };
+  return { app, document, ids, site };
 }
 
 test('PUBCFG registra una ruta pública por slug y dos POST privados autenticados', () => {
@@ -147,6 +212,29 @@ test('proyección pública se construye por allowlist y elimina destino, IDs y r
     'phone_e164', '+13055550184', 'public_business_key', 'snapshot_sha256', 'revision_id', 'store_id',
     'site_id', 'tokenKey', 'permissions', 'provider_reference', 'price', 'currency', 'stock', 'checkout',
   ]) assert.equal(serialized.includes(forbidden), false, `proyección no contiene ${forbidden}`);
+});
+
+test('lector PUBCFG interno admite custom solo con binding, generación y revisión exactos', () => {
+  const { app, ids, site } = customProjectionFixture();
+  const previousSecurity = global.$security;
+  global.$security = { sha256 };
+  try {
+    const resolved = api.resolvePublicProjectionForSite(app, site, {
+      canonicalMode: 'custom', primaryBindingId: ids.binding,
+      expectedGeneration: 4, expectedRevisionId: ids.revision,
+    });
+    assert.equal(resolved.projection.contract, 'promo.public.projection.v1');
+    assert.equal(resolved.projection.site.public_slug, 'aladdin-carpet');
+    for (const options of [
+      { canonicalMode: 'custom', primaryBindingId: 'bindwrongaaaaaa', expectedGeneration: 4 },
+      { canonicalMode: 'custom', primaryBindingId: ids.binding, expectedGeneration: 3 },
+      { canonicalMode: 'custom', primaryBindingId: ids.binding, expectedGeneration: 4, expectedRevisionId: 'revwrongaaaaaaa' },
+      { canonicalMode: 'platform' },
+    ]) assert.throws(() => api.resolvePublicProjectionForSite(app, site, options));
+  } finally {
+    if (previousSecurity === undefined) delete global.$security;
+    else global.$security = previousSecurity;
+  }
 });
 
 test('payloads privados versionados rechazan tenant, revisión, filters y campos adicionales', () => {

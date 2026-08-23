@@ -568,8 +568,8 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       400,
       'hard ceiling de servicios',
     );
-    await create('promo_site_entitlements', { ...invalidEntitlement, site: siteA.id });
-    await create('promo_site_entitlements', invalidEntitlement);
+    const entitlementA = await create('promo_site_entitlements', { ...invalidEntitlement, site: siteA.id });
+    const entitlementB = await create('promo_site_entitlements', invalidEntitlement);
 
     const bindingA = await create('promo_domain_bindings', {
       site: siteA.id,
@@ -629,6 +629,130 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       400,
       'indice parcial de primary current por site',
     );
+
+    for (const entitlement of [entitlementA, entitlementB]) {
+      assertStatus(await request(`/api/collections/promo_site_entitlements/records/${entitlement.id}`, {
+        token: superToken,
+        method: 'PATCH',
+        json: { source: 'contract', promo_site_enabled: true, custom_domain_enabled: true },
+      }), 200, 'habilitar dominio solo en fixture efimera');
+    }
+    const domainHeadersA = { 'X-PZ-Promo-Store': storeA.id };
+    const domainHeadersB = { 'X-PZ-Promo-Store': storeB.id };
+    assertStatus(await request('/api/pz/promo/private/v1/domains/list', {
+      token: storeAdminAuth.data.token,
+      json: { contract: 'promo.domain.list.read.v1' },
+    }), 403, 'Admin no recibe operaciones globales de dominio');
+    assertStatus(await request('/api/pz/promo/private/v1/domains/list', {
+      token: masterAuth.data.token,
+      json: { contract: 'promo.domain.list.read.v1' },
+    }), 403, 'Master sin contexto no gestiona dominios');
+    const initialDomainList = await request('/api/pz/promo/private/v1/domains/list', {
+      token: masterAuth.data.token,
+      headers: domainHeadersA,
+      json: { contract: 'promo.domain.list.read.v1' },
+    });
+    assertStatus(initialDomainList, 200, 'Master lista solo bindings de tenant A');
+    assert.equal(initialDomainList.data.bindings.length, 1);
+    assert.equal(initialDomainList.data.bindings[0].hostname_ascii, bindingA.hostname_ascii);
+    assert.equal(JSON.stringify(initialDomainList.data).includes(siteA.id), false);
+    assert.equal(JSON.stringify(initialDomainList.data).includes(storeA.id), false);
+
+    const domainCreateBody = {
+      contract: 'promo.domain.create.v1', hostname: 'DOM-Alias.Example.Test.', role: 'alias',
+    };
+    const domainCreated = await request('/api/pz/promo/private/v1/domains/create', {
+      token: masterAuth.data.token, headers: domainHeadersA, json: domainCreateBody,
+    });
+    assertStatus(domainCreated, 201, 'Master crea binding pending normalizado');
+    assert.equal(domainCreated.data.binding.hostname_ascii, 'dom-alias.example.test');
+    assert.equal(domainCreated.data.binding.status, 'pending');
+    assert.equal(domainCreated.data.binding.state_version, 1);
+    const domainBindingId = domainCreated.data.binding.binding_id;
+    assertStatus(await request('/api/pz/promo/private/v1/domains/create', {
+      token: masterAuth.data.token,
+      headers: domainHeadersA,
+      json: { contract: 'promo.domain.create.v1', hostname: 'other-primary.example.test', role: 'primary' },
+    }), 409, 'un sitio no registra dos primary current');
+    const domainReplay = await request('/api/pz/promo/private/v1/domains/create', {
+      token: masterAuth.data.token, headers: domainHeadersA, json: domainCreateBody,
+    });
+    assertStatus(domainReplay, 200, 'replay de create es idempotente');
+    assert.equal(domainReplay.data.changed, false);
+    assert.equal(domainReplay.data.binding.binding_id, domainBindingId);
+    assertStatus(await request('/api/pz/promo/private/v1/domains/create', {
+      token: masterAuth.data.token, headers: domainHeadersB, json: domainCreateBody,
+    }), 409, 'hostname current no puede cruzarse a tenant B');
+    assertStatus(await request('/api/pz/promo/private/v1/domains/verify', {
+      token: masterAuth.data.token,
+      headers: domainHeadersA,
+      json: {
+        contract: 'promo.domain.verify.v1', binding_id: domainBindingId, expected_status: 'pending',
+        expected_state_version: 1, verification_method: 'dns', verification_evidence_sha256: 'raw-challenge',
+      },
+    }), 400, 'verificación solo admite digest, nunca challenge crudo');
+    const verifyDomainBody = {
+      contract: 'promo.domain.verify.v1', binding_id: domainBindingId, expected_status: 'pending',
+      expected_state_version: 1, verification_method: 'dns', verification_evidence_sha256: 'd'.repeat(64),
+    };
+    const verifiedDomain = await request('/api/pz/promo/private/v1/domains/verify', {
+      token: masterAuth.data.token,
+      headers: domainHeadersA,
+      json: verifyDomainBody,
+    });
+    assertStatus(verifiedDomain, 200, 'Master verifica con evidencia reducida a SHA-256');
+    assert.equal(verifiedDomain.data.binding.status, 'verified');
+    assert.equal(verifiedDomain.data.binding.state_version, 2);
+    assert.equal(JSON.stringify(verifiedDomain.data).includes('d'.repeat(64)), false);
+    const verifiedReplay = await request('/api/pz/promo/private/v1/domains/verify', {
+      token: masterAuth.data.token, headers: domainHeadersA, json: verifyDomainBody,
+    });
+    assertStatus(verifiedReplay, 200, 'replay inmediato de verify es idempotente');
+    assert.equal(verifiedReplay.data.changed, false);
+    const updateDomain = async (expectedStatus, version, nextStatus) => request(
+      '/api/pz/promo/private/v1/domains/status/update',
+      {
+        token: masterAuth.data.token,
+        headers: domainHeadersA,
+        json: {
+          contract: 'promo.domain.status.update.v1', binding_id: domainBindingId,
+          expected_status: expectedStatus, expected_state_version: version, next_status: nextStatus,
+        },
+      },
+    );
+    assertStatus(await updateDomain('pending', 1, 'active'), 409, 'CAS stale no activa binding');
+    const activatedDomain = await updateDomain('verified', 2, 'active');
+    assertStatus(activatedDomain, 200, 'alias activa solo con primary activo del mismo tenant');
+    assert.equal(activatedDomain.data.binding.state_version, 3);
+    const activatedReplay = await updateDomain('verified', 2, 'active');
+    assertStatus(activatedReplay, 200, 'replay inmediato de transición CAS es idempotente');
+    assert.equal(activatedReplay.data.changed, false);
+    assertStatus(await updateDomain('active', 3, 'paused'), 200, 'Master pausa alias');
+    assertStatus(await updateDomain('paused', 4, 'active'), 200, 'Master reactiva alias');
+    assertStatus(await updateDomain('active', 5, 'revoked'), 200, 'Master revoca alias');
+    const releasedDomain = await updateDomain('revoked', 6, 'released');
+    assertStatus(releasedDomain, 200, 'Master libera hostname después de revocarlo');
+    assert.equal(releasedDomain.data.binding.is_current, false);
+    assert.equal(releasedDomain.data.binding.state_version, 7);
+    const reusedDomain = await request('/api/pz/promo/private/v1/domains/create', {
+      token: masterAuth.data.token, headers: domainHeadersA, json: domainCreateBody,
+    });
+    assertStatus(reusedDomain, 201, 'hostname liberado exige un row y verificación nuevos');
+    assert.notEqual(reusedDomain.data.binding.binding_id, domainBindingId);
+    const domainAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: masterAuth.data.token,
+      headers: domainHeadersA,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { module: 'domain' },
+      },
+    });
+    assertStatus(domainAudit, 200, 'writer AUDIT lista transiciones de dominio del tenant A');
+    assert.equal(domainAudit.data.events.length, 8);
+    assert.equal(domainAudit.data.events.every((event) => event.module === 'domain' && event.severity === 'critical'), true);
+    const domainAuditText = JSON.stringify(domainAudit.data);
+    assert.equal(domainAuditText.includes('dom-alias.example.test'), false, 'AUDIT no copia hostname');
+    assert.equal(domainAuditText.includes('d'.repeat(64)), false, 'AUDIT no copia evidencia');
 
     const readyImageAResponse = await createMedia({
       site: siteA.id,

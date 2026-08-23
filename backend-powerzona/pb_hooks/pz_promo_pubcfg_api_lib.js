@@ -28,6 +28,7 @@ const PRIVATE_COLLECTIONS = Object.freeze([
   "promo_revisions",
   "promo_revision_media_refs",
   "promo_publication_slots",
+  "promo_domain_bindings",
   "promo_audit_events",
 ]);
 
@@ -371,11 +372,16 @@ function validateRevisionMediaRows(app, siteId, revisionId, document, assets) {
   }
 }
 
-function resolvePublicProjectionContext(app, publicSlug) {
+function resolvePublicProjectionForSite(app, site, options) {
   if (!collectionsReady(app)) throw codedError("promo_pubcfg_unavailable", 503);
+  const settings = options || {};
+  const canonicalMode = settings.canonicalMode === "custom" ? "custom" : "platform";
+  const expectedBindingId = canonicalMode === "custom" ? safeText(settings.primaryBindingId, 80) : "";
+  const expectedGeneration = Number.isInteger(settings.expectedGeneration) ? settings.expectedGeneration : null;
+  const expectedRevisionId = safeText(settings.expectedRevisionId, 80);
+  const publicSlug = recordString(site, "public_slug");
   try { data.assertPublicSlug(publicSlug); } catch (_) { throw codedError("promo_not_found", 404); }
-  const site = findExact(app, "promo_sites", "public_slug = {:slug}", { slug: publicSlug });
-  if (!site || recordString(site, "public_slug") !== publicSlug || recordString(site, "status") !== "active"
+  if (!site || recordString(site, "status") !== "active"
     || recordInteger(site, "contract_version") !== 1) throw codedError("promo_not_found", 404);
   const siteId = recordId(site);
   const store = findRecord(app, "stores", relationId(site, "store"));
@@ -386,11 +392,18 @@ function resolvePublicProjectionContext(app, publicSlug) {
   }
   const slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
   const generation = slot && recordInteger(slot, "generation");
-  if (!slot || recordString(slot, "state") !== "active" || recordString(slot, "canonical_mode") !== "platform"
-    || relationId(slot, "primary_binding") || generation === null || generation < 1) {
+  const slotBindingId = slot && relationId(slot, "primary_binding");
+  const canonicalBindingValid = canonicalMode === "platform"
+    ? !slotBindingId
+    : Boolean(expectedBindingId) && slotBindingId === expectedBindingId;
+  if (!slot || recordString(slot, "state") !== "active"
+    || recordString(slot, "canonical_mode") !== canonicalMode
+    || !canonicalBindingValid || generation === null || generation < 1
+    || (expectedGeneration !== null && generation !== expectedGeneration)) {
     throw codedError("promo_not_found", 404);
   }
   const revisionId = relationId(slot, "published_revision");
+  if (expectedRevisionId && revisionId !== expectedRevisionId) throw codedError("promo_not_found", 404);
   const revision = findRecord(app, "promo_revisions", revisionId);
   if (!revision || relationId(revision, "site") !== siteId || recordInteger(revision, "schema_version") !== 1) {
     throw codedError("promo_not_found", 404);
@@ -412,11 +425,15 @@ function resolvePublicProjectionContext(app, publicSlug) {
   validateRevisionMediaRows(app, siteId, revisionId, document, assets);
   assertEntitlementMetrics(entitlement, document, assets);
   const finalSlot = findRecord(app, "promo_publication_slots", recordId(slot));
+  const finalBindingId = finalSlot && relationId(finalSlot, "primary_binding");
+  const finalCanonicalBindingValid = canonicalMode === "platform"
+    ? !finalBindingId
+    : Boolean(expectedBindingId) && finalBindingId === expectedBindingId;
   if (!finalSlot || recordInteger(finalSlot, "generation") !== generation
     || relationId(finalSlot, "published_revision") !== revisionId
     || recordString(finalSlot, "state") !== "active"
-    || recordString(finalSlot, "canonical_mode") !== "platform"
-    || relationId(finalSlot, "primary_binding")) {
+    || recordString(finalSlot, "canonical_mode") !== canonicalMode
+    || !finalCanonicalBindingValid) {
     throw codedError("promo_not_found", 404);
   }
   return {
@@ -429,6 +446,14 @@ function resolvePublicProjectionContext(app, publicSlug) {
     revisionId,
     document,
   };
+}
+
+function resolvePublicProjectionContext(app, publicSlug) {
+  if (!collectionsReady(app)) throw codedError("promo_pubcfg_unavailable", 503);
+  try { data.assertPublicSlug(publicSlug); } catch (_) { throw codedError("promo_not_found", 404); }
+  const site = findExact(app, "promo_sites", "public_slug = {:slug}", { slug: publicSlug });
+  if (!site || recordString(site, "public_slug") !== publicSlug) throw codedError("promo_not_found", 404);
+  return resolvePublicProjectionForSite(app, site, { canonicalMode: "platform" });
 }
 
 function resolvePublicProjection(app, publicSlug) {
@@ -716,6 +741,7 @@ module.exports = {
   requireAuthenticatedUser,
   resolvePublicMediaContext,
   resolvePublicProjection,
+  resolvePublicProjectionForSite,
   findDraft,
   validateRevisionMediaRows,
   validatedStoredDraft,
