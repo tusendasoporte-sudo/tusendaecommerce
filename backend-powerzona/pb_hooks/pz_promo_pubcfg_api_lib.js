@@ -502,15 +502,31 @@ function lockDraft(app, draftId) {
 }
 
 function createDraftAudit(app, decision, draft, paths, previousDocument, nextDocument, previousDigest, nextDigest, nextVersion) {
+  const previousSnapshot = promoAudit.draftAuditSnapshot(previousDocument, previousDigest, nextVersion - 1);
+  const nextSnapshot = promoAudit.draftAuditSnapshot(nextDocument, nextDigest, nextVersion);
   promoAudit.createPromoAudit(app, decision, {
     action: "promo.draft.update",
     resourceType: "promo_draft_document",
     resourceId: recordId(draft),
     changedPaths: paths,
-    previousValues: promoAudit.draftAuditSnapshot(previousDocument, previousDigest, nextVersion - 1),
-    newValues: promoAudit.draftAuditSnapshot(nextDocument, nextDigest, nextVersion),
+    previousValues: previousSnapshot,
+    newValues: nextSnapshot,
     sourceEventKey: `promo.draft.${recordId(draft)}.v${nextVersion}`,
   });
+  const localizationPaths = paths.filter((path) => (
+    path === "/system_catalog_version" || path === "/locales" || path === "/content_by_locale"
+  ));
+  if (localizationPaths.length) {
+    promoAudit.createPromoAudit(app, decision, {
+      action: "promo.localization.update",
+      resourceType: "promo_draft_document",
+      resourceId: recordId(draft),
+      changedPaths: localizationPaths,
+      previousValues: previousSnapshot,
+      newValues: nextSnapshot,
+      sourceEventKey: `promo.localization.${recordId(draft)}.v${nextVersion}`,
+    });
+  }
 }
 
 function handleDraftUpdate(e) {

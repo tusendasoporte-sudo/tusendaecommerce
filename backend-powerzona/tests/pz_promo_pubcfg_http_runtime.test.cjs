@@ -132,7 +132,7 @@ function emptyDraft() {
 function publishedDocument(name, themeVersion = '1.0.0') {
   return {
     contract: 'promo.site.v1', system_catalog_version: 'promo.system.v1',
-    locales: { default: 'es', published: ['es'] },
+    locales: { default: 'es', published: ['en', 'es'] },
     theme: { theme_id: 'promo.aladdin.black-gold', version: themeVersion, tokens: {} },
     identity: { public_business_key: 'business-public' },
     section_order: ['hero-main'],
@@ -143,6 +143,12 @@ function publishedDocument(name, themeVersion = '1.0.0') {
     media_refs: {},
     contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
     content_by_locale: {
+      en: {
+        identity: { name: `${name} EN`, summary: 'Public Promo identity' },
+        navigation: { 'hero-main': 'Home' },
+        sections: { 'hero-main': { heading: `${name} EN`, summary: 'Informational content' } },
+        contact: {}, media_alt: {}, seo: { title: `${name} EN`, description: `Public presentation of ${name}` },
+      },
       es: {
         identity: { name, summary: 'Identidad pública Promo' },
         navigation: { 'hero-main': 'Inicio' },
@@ -307,8 +313,8 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       const snapshot = publishedDocument(publicName);
       const revision = await create('promo_revisions', {
         site: site.id, sequence: 1, schema_version: 1, snapshot_json: snapshot,
-        snapshot_sha256: digest(snapshot), theme_release: theme1.id, default_locale: 'es',
-        published_locales_json: ['es'], source_draft_version: 1, created_by: master.id,
+        snapshot_sha256: digest(snapshot), theme_release: theme1.id, default_locale: snapshot.locales.default,
+        published_locales_json: snapshot.locales.published, source_draft_version: 1, created_by: master.id,
       });
       const slot = await create('promo_publication_slots', {
         site: site.id, state: 'active', published_revision: revision.id, canonical_mode: 'platform',
@@ -333,6 +339,54 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       'phone_e164', 'permissions', 'price', 'currency', 'stock', 'cart', 'checkout',
     ]) assert.equal(publicSerialized.includes(forbidden), false, `público excluye ${forbidden}`);
 
+    const neutralLocale = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales');
+    assertStatus(neutralLocale, 200, 'I18N neutral usa default publicado');
+    assert.equal(neutralLocale.data.contract, 'promo.public.localized.v1');
+    assert.equal(neutralLocale.data.locale.effective, 'es');
+    assert.equal(neutralLocale.data.locale.source, 'default');
+    assert.equal(neutralLocale.data.content.identity.name, 'Publicado A');
+    assert.equal(neutralLocale.headers.get('content-language'), 'es');
+    assert.match(neutralLocale.headers.get('vary'), /Accept-Language/);
+    assert.deepEqual(neutralLocale.data.selector.options.map((option) => option.locale), ['en', 'es']);
+    const englishByHeader = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales', {
+      headers: { 'Accept-Language': 'en-US;q=0.9, es;q=0.8' },
+    });
+    assertStatus(englishByHeader, 200, 'I18N negocia Accept-Language por idioma');
+    assert.equal(englishByHeader.data.locale.effective, 'en');
+    assert.equal(englishByHeader.data.locale.source, 'accept-language');
+    assert.equal(englishByHeader.data.content.identity.name, 'Publicado A EN');
+    const englishByCookie = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales', {
+      headers: { Cookie: 'pz_promo_locale=en', 'Accept-Language': 'es' },
+    });
+    assert.equal(englishByCookie.data.locale.source, 'preference');
+    assert.equal(englishByCookie.data.locale.effective, 'en');
+    const explicitEnglish = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales/EN', {
+      headers: { Cookie: 'pz_promo_locale=es', 'Accept-Language': 'es' },
+    });
+    assertStatus(explicitEnglish, 200, 'locale URL explícito domina cookie/header y canonicaliza alias');
+    assert.equal(explicitEnglish.data.locale.source, 'url');
+    assert.equal(explicitEnglish.data.locale.effective, 'en');
+    assert.match(explicitEnglish.headers.get('set-cookie'), /pz_promo_locale=en/);
+    const localizedSerialized = JSON.stringify(explicitEnglish.data);
+    for (const forbidden of [
+      'content_by_locale', 'Identidad pública Promo', storeA.id, fixtureA.site.id, fixtureA.revision.id,
+      'phone_e164', 'tokenKey', 'price', 'currency', 'stock', 'cart', 'checkout',
+    ]) assert.equal(localizedSerialized.includes(forbidden), false, `I18N excluye ${forbidden}`);
+    assertStatus(
+      await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales/fr'),
+      404,
+      'locale explícito no publicado falla cerrado sin default',
+    );
+    assertStatus(
+      await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a/locales?store_id=attacker'),
+      400,
+      'entrada neutral rechaza tenancy por query',
+    );
+    const localizedB = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-b/locales/en');
+    assertStatus(localizedB, 200, 'I18N tenant B');
+    assert.equal(localizedB.data.content.identity.name, 'Publicado B EN');
+    assert.equal(JSON.stringify(localizedB.data).includes('Publicado A'), false, 'I18N no mezcla tenant A/B');
+
     for (const query of [
       '?store_id=attacker', '?site_id=attacker', '?revision_id=attacker', '?filter=id%21%3D%22%22',
       '?sort=-created', '?fields=*', '?expand=site.store',
@@ -346,8 +400,8 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     const candidate = publishedDocument('Candidata privada');
     await create('promo_revisions', {
       site: fixtureA.site.id, sequence: 2, schema_version: 1, snapshot_json: candidate,
-      snapshot_sha256: digest(candidate), theme_release: theme1.id, default_locale: 'es',
-      published_locales_json: ['es'], source_draft_version: 1, created_by: master.id,
+      snapshot_sha256: digest(candidate), theme_release: theme1.id, default_locale: candidate.locales.default,
+      published_locales_json: candidate.locales.published, source_draft_version: 1, created_by: master.id,
     });
     const afterCandidate = await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a');
     assertStatus(afterCandidate, 200, 'candidata no desplaza slot');
@@ -356,8 +410,8 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     const corruptSnapshot = publishedDocument('Digest corrupto');
     const corruptRevision = await create('promo_revisions', {
       site: fixtureB.site.id, sequence: 2, schema_version: 1, snapshot_json: corruptSnapshot,
-      snapshot_sha256: 'f'.repeat(64), theme_release: theme1.id, default_locale: 'es',
-      published_locales_json: ['es'], source_draft_version: 1, created_by: master.id,
+      snapshot_sha256: 'f'.repeat(64), theme_release: theme1.id, default_locale: corruptSnapshot.locales.default,
+      published_locales_json: corruptSnapshot.locales.published, source_draft_version: 1, created_by: master.id,
     });
     await update('promo_publication_slots', fixtureB.slot.id, {
       published_revision: corruptRevision.id, generation: 2,
@@ -531,6 +585,17 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       storeA.id, storeB.id, fixtureA.site.id, fixtureB.site.id, 'Solo borrador A',
       'Edición secundaria', userPassword, 'source_event_key', 'correlation_id', 'actor_snapshot_json',
     ]) assert.equal(projectedAudit.includes(forbidden), false, `auditoría proyectada excluye ${forbidden}`);
+    const localizationAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token,
+      json: {
+        contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+        filters: { action: 'promo.localization.update' },
+      },
+    });
+    assertStatus(localizationAudit, 200, 'principal lee eventos localización del writer AUDIT');
+    assert.equal(localizationAudit.data.events.length, 2);
+    assert.equal(localizationAudit.data.events.every((event) => event.module === 'localization'), true);
+    assert.equal(JSON.stringify(localizationAudit.data).includes('Edición secundaria'), false);
     const auditDetail = await request('/api/pz/promo/private/v1/audit/detail', {
       token: primaryAuth.data.token,
       json: { contract: 'promo.audit.detail.v1', event_id: primaryAudit.data.events[0].id },
