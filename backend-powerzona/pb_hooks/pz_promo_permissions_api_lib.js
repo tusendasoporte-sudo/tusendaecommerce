@@ -6,6 +6,9 @@ const promo = typeof __hooks === "undefined"
 const promoData = typeof __hooks === "undefined"
   ? require("./pz_promo_data_lib.js")
   : require(`${__hooks}/pz_promo_data_lib.js`);
+const promoAudit = typeof __hooks === "undefined"
+  ? require("./pz_promo_audit_lib.js")
+  : require(`${__hooks}/pz_promo_audit_lib.js`);
 const storePermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
@@ -351,38 +354,6 @@ function lockAccess(app, accessId) {
   app.db().newQuery("UPDATE store_user_access SET id = id WHERE id = {:id}").bind({ id: accessId }).execute();
 }
 
-function randomSuffix() {
-  try { return safeText($security.randomString(16)); } catch (_) {}
-  return `${Date.now()}${Math.floor(Math.random() * 1000000)}`;
-}
-
-function createPromoAudit(app, decision, values) {
-  const collection = app.findCollectionByNameOrId("promo_audit_events");
-  const audit = new Record(collection, {});
-  audit.set("scope_key", `site:${recordId(decision.site)}`);
-  audit.set("site", recordId(decision.site));
-  audit.set("actor", recordId(decision.actor));
-  audit.set("actor_snapshot_json", {
-    id: recordId(decision.actor),
-    name: safeText(recordString(decision.actor, "display_name"), 140),
-    role: recordString(decision.actor, "role"),
-  });
-  audit.set("origin", decision.is_master ? "master_admin" : "store_admin");
-  audit.set("module", values.module);
-  audit.set("action", values.action);
-  audit.set("severity", values.severity || "important");
-  audit.set("resource_type", values.resourceType);
-  audit.set("resource_id_snapshot", safeText(values.resourceId, 80));
-  audit.set("changed_paths_json", values.changedPaths || []);
-  audit.set("previous_values_json", values.previousValues || {});
-  audit.set("new_values_json", values.newValues || {});
-  audit.set("summary", safeText(values.summary, 500));
-  audit.set("source_event_key", safeText(values.sourceEventKey, 255));
-  audit.set("correlation_id", safeText(values.correlationId, 80));
-  app.save(audit);
-  return audit;
-}
-
 function handlePermissionsUpdate(e) {
   let parsed;
   let context;
@@ -422,17 +393,14 @@ function handlePermissionsUpdate(e) {
         if (typeof target.refreshTokenKey !== "function") throw codedError("promo_permissions_unavailable", 503);
         target.refreshTokenKey();
         app.save(target);
-        createPromoAudit(app, decision, {
-          module: "support",
+        promoAudit.createPromoAudit(app, decision, {
           action: "promo.team.permissions.update",
           resourceType: "promo_user_permissions",
           resourceId: recordId(target),
-          changedPaths: ["/promo_permissions"],
-          previousValues: { permissions: previousPermissions, version: previousVersion },
-          newValues: { permissions: parsed.permissions, version: previousVersion + 1 },
-          summary: `Actualizó permisos Promo de ${safeText(recordString(target, "display_name"), 140) || "un usuario"}`,
+          changedPaths: ["/permissions", "/sessions_revoked", "/version"],
+          previousValues: { permissions: previousPermissions, sessions_revoked: false, version: previousVersion },
+          newValues: { permissions: parsed.permissions, sessions_revoked: true, version: previousVersion + 1 },
           sourceEventKey: `promo.permissions.${recordId(target)}.v${previousVersion + 1}`,
-          correlationId: randomSuffix(),
         });
         access = findRecord(app, "store_user_access", recordId(access));
       }
@@ -546,17 +514,18 @@ function handleEntitlementsUpdate(e) {
       }
       app.save(entitlement);
       const next = entitlementResponse(entitlement);
-      createPromoAudit(app, decision, {
-        module: "entitlement",
+      promoAudit.createPromoAudit(app, decision, {
         action: "promo.entitlements.update",
         resourceType: "promo_site_entitlements",
         resourceId: recordId(entitlement),
-        changedPaths: ["/source", ...Object.keys(parsed.capabilities).map((key) => `/capabilities/${key}`)],
+        changedPaths: ["/source", "/updated", ...Object.keys(parsed.capabilities).map((key) => `/capabilities/${key}`)],
         previousValues: previous,
         newValues: next,
-        summary: "Actualizó capacidades de la Tienda Promo",
-        sourceEventKey: `promo.entitlements.${recordId(entitlement)}.${randomSuffix()}`,
-        correlationId: randomSuffix(),
+        sourceEventKey: `promo.entitlements.${recordId(entitlement)}.${promoAudit.stableFingerprint({
+          expected_updated: parsed.expectedUpdated,
+          source: parsed.source,
+          capabilities: parsed.capabilities,
+        })}`,
       });
       response = { ok: true, entitlement: next };
     });

@@ -9,6 +9,9 @@ const data = typeof __hooks === "undefined"
 const contract = typeof __hooks === "undefined"
   ? require("./pz_promo_pubcfg_lib.js")
   : require(`${__hooks}/pz_promo_pubcfg_lib.js`);
+const promoAudit = typeof __hooks === "undefined"
+  ? require("./pz_promo_audit_lib.js")
+  : require(`${__hooks}/pz_promo_audit_lib.js`);
 
 const PRIVATE_COLLECTIONS = Object.freeze([
   "promo_sites",
@@ -498,35 +501,16 @@ function lockDraft(app, draftId) {
     .execute();
 }
 
-function randomSuffix() {
-  try { return safeText($security.randomString(16), 32); } catch (_) {}
-  return `${Date.now()}${Math.floor(Math.random() * 1000000)}`;
-}
-
-function createDraftAudit(app, decision, draft, paths, previousDigest, nextDigest, nextVersion) {
-  const collection = app.findCollectionByNameOrId("promo_audit_events");
-  const audit = new Record(collection, {});
-  audit.set("scope_key", `site:${recordId(decision.site)}`);
-  audit.set("site", recordId(decision.site));
-  audit.set("actor", recordId(decision.actor));
-  audit.set("actor_snapshot_json", {
-    id: recordId(decision.actor),
-    name: safeText(recordString(decision.actor, "display_name"), 140),
-    role: recordString(decision.actor, "role"),
+function createDraftAudit(app, decision, draft, paths, previousDocument, nextDocument, previousDigest, nextDigest, nextVersion) {
+  promoAudit.createPromoAudit(app, decision, {
+    action: "promo.draft.update",
+    resourceType: "promo_draft_document",
+    resourceId: recordId(draft),
+    changedPaths: paths,
+    previousValues: promoAudit.draftAuditSnapshot(previousDocument, previousDigest, nextVersion - 1),
+    newValues: promoAudit.draftAuditSnapshot(nextDocument, nextDigest, nextVersion),
+    sourceEventKey: `promo.draft.${recordId(draft)}.v${nextVersion}`,
   });
-  audit.set("origin", decision.is_master ? "master_admin" : "store_admin");
-  audit.set("module", "content");
-  audit.set("action", "promo.draft.update");
-  audit.set("severity", "important");
-  audit.set("resource_type", "promo_draft_document");
-  audit.set("resource_id_snapshot", recordId(draft));
-  audit.set("changed_paths_json", paths);
-  audit.set("previous_values_json", { digest: previousDigest, version: nextVersion - 1 });
-  audit.set("new_values_json", { digest: nextDigest, version: nextVersion });
-  audit.set("summary", "Actualizó el borrador de la Tienda Promo");
-  audit.set("source_event_key", `promo.draft.${recordId(draft)}.v${nextVersion}`);
-  audit.set("correlation_id", randomSuffix());
-  app.save(audit);
 }
 
 function handleDraftUpdate(e) {
@@ -575,7 +559,17 @@ function handleDraftUpdate(e) {
       draft.set("version", nextVersion);
       draft.set("updated_by", recordId(decision.actor));
       app.save(draft);
-      createDraftAudit(app, decision, draft, paths, previousDigest, nextDigest, nextVersion);
+      createDraftAudit(
+        app,
+        decision,
+        draft,
+        paths,
+        previousDocument,
+        parsed.document,
+        previousDigest,
+        nextDigest,
+        nextVersion,
+      );
       draft = findRecord(app, "promo_draft_documents", recordId(draft));
       response = draftResponse(draft, parsed.document, true);
     });

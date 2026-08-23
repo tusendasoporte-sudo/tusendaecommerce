@@ -514,6 +514,56 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       'PUBCFG no suplanta DOM-CORE cuando canonical es custom',
     );
 
+    const auditListBody = {
+      contract: 'promo.audit.list.v1', page: 1, per_page: 50,
+      filters: { action: 'promo.draft.update' },
+    };
+    const primaryAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryAuth.data.token, json: auditListBody,
+    });
+    assertStatus(primaryAudit, 200, 'principal lee auditoría Promo saneada');
+    assert.equal(primaryAudit.data.contract, 'promo.audit.list.v1');
+    assert.equal(primaryAudit.data.events.length, 2);
+    assert.equal(primaryAudit.data.events.some((event) => event.severity === 'critical'), true);
+    assert.equal(primaryAudit.data.events.some((event) => event.severity === 'important'), true);
+    const projectedAudit = JSON.stringify(primaryAudit.data);
+    for (const forbidden of [
+      storeA.id, storeB.id, fixtureA.site.id, fixtureB.site.id, 'Solo borrador A',
+      'Edición secundaria', userPassword, 'source_event_key', 'correlation_id', 'actor_snapshot_json',
+    ]) assert.equal(projectedAudit.includes(forbidden), false, `auditoría proyectada excluye ${forbidden}`);
+    const auditDetail = await request('/api/pz/promo/private/v1/audit/detail', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.audit.detail.v1', event_id: primaryAudit.data.events[0].id },
+    });
+    assertStatus(auditDetail, 200, 'detalle audit tenant-scoped');
+    assert.equal(auditDetail.data.event.action, 'promo.draft.update');
+    assert.deepEqual(Object.keys(auditDetail.data.event).sort(), [
+      'action', 'actor', 'after', 'before', 'changed_paths', 'contract', 'created',
+      'id', 'module', 'origin', 'resource', 'severity', 'summary',
+    ]);
+    assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+      token: secondaryAuth.data.token, json: auditListBody,
+    }), 403, 'secundario no lee auditoría operativa');
+    assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+      token: staffAuth.data.token, json: auditListBody,
+    }), 403, 'staff no lee auditoría operativa');
+    assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+      token: commerceAuth.data.token, json: auditListBody,
+    }), 404, 'Commerce no lee auditoría Promo');
+    assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+      token: masterToken, json: auditListBody,
+    }), 403, 'Master requiere contexto audit explícito');
+    const masterAuditB = await request('/api/pz/promo/private/v1/audit/list', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeB.id }, json: auditListBody,
+    });
+    assertStatus(masterAuditB, 200, 'Master lee únicamente el tenant declarado');
+    assert.equal(masterAuditB.data.pagination.total_items, 0, 'draft audit A no cruza a B');
+    for (const injected of ['store_id', 'site_id', 'actor_id', 'filter', 'sort', 'fields', 'expand']) {
+      assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+        token: primaryAuth.data.token, json: { ...auditListBody, [injected]: storeB.id },
+      }), 400, `audit rechaza ${injected}`);
+    }
+
     const audits = await request('/api/collections/promo_audit_events/records?filter=action%3D%22promo.draft.update%22', {
       token: superToken,
     });

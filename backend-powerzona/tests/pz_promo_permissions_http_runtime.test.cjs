@@ -439,6 +439,38 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     assert.deepEqual(contextWithoutAnalytics.data.access.permissions, ['promo.site.view', 'promo.content.manage']);
     assert.equal(contextWithoutAnalytics.data.access.allowed_actions.includes('promo.analytics.view'), false);
 
+    const auditListBody = {
+      contract: 'promo.audit.list.v1', page: 1, per_page: 50, filters: {},
+    };
+    const primaryAudit = await request('/api/pz/promo/private/v1/audit/list', {
+      token: primaryToken, json: auditListBody,
+    });
+    assertStatus(primaryAudit, 200, 'principal lee actividad Promo crítica');
+    assert.equal(primaryAudit.data.events.length, 2);
+    assert.deepEqual(primaryAudit.data.events.map((event) => event.action).sort(), [
+      'promo.entitlements.update', 'promo.team.permissions.update',
+    ]);
+    assert.equal(primaryAudit.data.events.every((event) => event.severity === 'critical'), true);
+    const entitlementAudit = primaryAudit.data.events.find((event) => event.action === 'promo.entitlements.update');
+    assert.equal(entitlementAudit.before.capabilities.analytics_enabled, true);
+    assert.equal(entitlementAudit.after.capabilities.analytics_enabled, false);
+    const permissionsAudit = primaryAudit.data.events.find((event) => event.action === 'promo.team.permissions.update');
+    assert.equal(permissionsAudit.before.sessions_revoked, false);
+    assert.equal(permissionsAudit.after.sessions_revoked, true);
+    const serializedAudit = JSON.stringify(primaryAudit.data);
+    for (const forbidden of [
+      storeA.id, storeB.id, siteA.id, siteB.id, userPassword, 'tokenKey', 'source_event_key',
+      'correlation_id', 'actor_snapshot_json', secondaryA.email,
+    ]) assert.equal(serializedAudit.includes(forbidden), false, `audit privado excluye ${forbidden}`);
+    assertStatus(await request('/api/pz/promo/private/v1/audit/list', {
+      token: secondaryToken, json: auditListBody,
+    }), 403, 'secundario no obtiene lector de auditoría');
+    const masterAuditB = await request('/api/pz/promo/private/v1/audit/list', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeB.id }, json: auditListBody,
+    });
+    assertStatus(masterAuditB, 200, 'Master usa tenant audit explícito');
+    assert.equal(masterAuditB.data.pagination.total_items, 0, 'eventos A no cruzan a B');
+
     const commerceContext = await request('/api/pz/promo/access/context', {
       token: commerceAuth.data.token, json: {},
     });
@@ -462,6 +494,8 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       assertStatus(directAccess, [403, 404], `REST grants privado ${label}`);
       const directPromo = await request(`/api/collections/promo_site_entitlements/records${directQuery}`, { token });
       assertStatus(directPromo, [403, 404], `REST entitlement privado ${label}`);
+      const directAudit = await request(`/api/collections/promo_audit_events/records${directQuery}`, { token });
+      assertStatus(directAudit, [403, 404], `REST audit privado ${label}`);
     }
     const directPatch = await request(`/api/collections/store_user_access/records/${accessSecondary.id}`, {
       method: 'PATCH', token: secondaryToken, json: { promo_permissions_json: ['promo.publish'] },
