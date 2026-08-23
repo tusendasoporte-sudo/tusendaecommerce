@@ -52,6 +52,7 @@ export type MasterStoreInput = {
   slug: string;
   status?: string;
   owner_phone?: string;
+  store_type?: 'commerce' | 'promo';
 };
 
 export type MasterStoresPage = {
@@ -364,7 +365,9 @@ export async function getMasterStoreCounts(client: PocketBase): Promise<MasterSt
 
 export async function createStoreFromMaster(input: MasterStoreInput, client = pb) {
   requireMasterClient(client);
-  const payload = getMasterStorePayload(input);
+  const basePayload = getMasterStorePayload(input);
+  const storeType = input.store_type === 'promo' ? 'promo' : 'commerce';
+  const payload = { ...basePayload, store_type: storeType };
   await assertUniqueStoreSlug(payload.slug, '', client);
   try {
     const response = await client.send<{ ok: true; store: MasterStoreSummary }>(
@@ -379,6 +382,7 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   } catch (error: any) {
     const code = String(error?.data?.error || error?.response?.error || '');
     if (code === 'store_slug_exists') throw new Error('Ya existe una tienda con ese slug.');
+    if (code === 'promo_public_slug_exists') throw new Error('Ese slug público Promo ya está reservado.');
     if (code === 'invalid_payload') throw new Error('Revisa los datos de la tienda.');
     if (code === 'unauthorized') throw new Error('No tienes permisos para crear tiendas.');
     throw error;

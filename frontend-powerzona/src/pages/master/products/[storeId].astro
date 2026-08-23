@@ -16,6 +16,7 @@ import {
   type MasterProductsStore,
 } from '../../../lib/masterStoreProducts';
 import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
+import { getMasterStoreKind } from '../../../lib/promoMaster';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -36,6 +37,9 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
 const storeId = String(Astro.params.storeId || '').trim();
 if (!isValidRecordId(storeId)) {
   return Astro.redirect('/master/stores');
+}
+if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
 }
 
 let storeRecord: any = null;

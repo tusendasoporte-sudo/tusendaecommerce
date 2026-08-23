@@ -4,11 +4,13 @@ export const prerender = false;
 import Layout from '../../../layouts/Layout.astro';
 import MasterShell from '../../../components/master/MasterShell.astro';
 import MasterStoreOverviewView from '../../../components/master/MasterStoreOverviewView.astro';
+import MasterPromoStoreView from '../../../components/master/MasterPromoStoreView.astro';
 import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
 import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import { getStoreSecuritySettings } from '../../../lib/security';
 import { getMasterStoreOverview } from '../../../lib/masterStoreOverview';
+import { getPromoMasterOverview } from '../../../lib/promoMaster';
 import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
 import { DEFAULT_STORE_SLUG } from '../../../lib/stores';
 
@@ -36,11 +38,18 @@ try {
 }
 
 const pocketbaseUrl = serverPocketBaseUrl();
-const [result, securitySettings] = await Promise.all([
-  getMasterStoreOverview(pocketbaseUrl, authPb.authStore.token, storeId),
-  getStoreSecuritySettings(storeId, authPb),
-]);
-if (result.status === 404) return Astro.redirect('/master/stores');
+const promoResult = await getPromoMasterOverview(pocketbaseUrl, authPb.authStore.token, storeId);
+const explicitCommerce = promoResult.status === 404 && promoResult.error === 'store_not_promo';
+let commerceResult: Awaited<ReturnType<typeof getMasterStoreOverview>> | null = null;
+let securitySettings: Awaited<ReturnType<typeof getStoreSecuritySettings>> | null = null;
+if (explicitCommerce) {
+  [commerceResult, securitySettings] = await Promise.all([
+    getMasterStoreOverview(pocketbaseUrl, authPb.authStore.token, storeId),
+    getStoreSecuritySettings(storeId, authPb),
+  ]);
+  if (commerceResult.status === 404) return Astro.redirect('/master/stores');
+}
+const isPromo = promoResult.data?.store.type === 'promo';
 
 const currentStore = {
   id: storeId,
@@ -48,6 +57,8 @@ const currentStore = {
   slug: String(storeRecord.slug || '').trim(),
   status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
   planPresentation: resolveStorePlanPresentation(storeRecord),
+  storeType: isPromo ? 'promo' as const : explicitCommerce ? 'commerce' as const : undefined,
+  promoSiteStatus: isPromo ? promoResult.data?.site.status : undefined,
 };
 const protectedStore = storeRecord.protected === true || currentStore.slug === DEFAULT_STORE_SLUG;
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
@@ -55,10 +66,12 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={currentStore.name} currentStore={currentStore}>
-    {result.data ? (
+    {isPromo && promoResult.data ? (
+      <MasterPromoStoreView storeId={storeId} overview={promoResult.data} />
+    ) : explicitCommerce && commerceResult?.data && securitySettings ? (
       <>
         <MasterStoreOverviewView
-          overview={result.data}
+          overview={commerceResult.data}
           protectedStore={protectedStore}
           updated={String(storeRecord.updated || '')}
           securityExists={securitySettings.exists}
@@ -68,8 +81,8 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
       </>
     ) : (
       <section class="master-error" role="alert">
-        <strong>Resumen temporalmente no disponible.</strong><br />
-        No se muestran datos parciales ni estimados. Revisa que PocketBase tenga cargado el endpoint privado M7UI1.
+        <strong>Tipo de tienda temporalmente no disponible.</strong><br />
+        La clasificación backend no confirmó Promo ni Commerce. No se muestran controles ni datos parciales ({promoResult.error || 'promo_master_unavailable'}).
       </section>
     )}
   </MasterShell>

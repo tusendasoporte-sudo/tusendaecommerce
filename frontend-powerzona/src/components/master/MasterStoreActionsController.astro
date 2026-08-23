@@ -31,10 +31,18 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     <form class="master-form" data-store-form>
       <input type="hidden" name="store_id" data-store-id-input />
       <div class="master-field-grid">
+        <div class="master-field master-field--full" data-store-type-field>
+          <label for="master-store-type">Tipo de tienda</label>
+          <select id="master-store-type" name="store_type">
+            <option value="commerce">Commerce</option>
+            <option value="promo">Promo</option>
+          </select>
+          <span class="master-muted">El tipo se fija al crear. Promo usa entitlements independientes y no habilita Commerce.</span>
+        </div>
         <div class="master-field master-field--full"><label for="master-store-name">Nombre de tienda</label><input id="master-store-name" name="name" type="text" maxlength="140" autocomplete="off" required /></div>
         <div class="master-field"><label for="master-store-slug">Slug público</label><input id="master-store-slug" name="slug" type="text" maxlength="80" autocomplete="off" required /></div>
-        <div class="master-field"><label for="master-store-phone">WhatsApp</label><input id="master-store-phone" name="owner_phone" type="tel" maxlength="60" autocomplete="off" /></div>
-        <div class="master-field master-field--full"><label for="master-store-status">Estado</label><select id="master-store-status" name="status"><option value="active">Activa</option><option value="suspended">Suspendida</option></select></div>
+        <div class="master-field" data-store-commerce-only><label for="master-store-phone">WhatsApp</label><input id="master-store-phone" name="owner_phone" type="tel" maxlength="60" autocomplete="off" /></div>
+        <div class="master-field master-field--full" data-store-status-field><label for="master-store-status">Estado</label><select id="master-store-status" name="status"><option value="active">Activa</option><option value="suspended">Suspendida</option></select></div>
       </div>
       <p class="master-form-alert" data-store-form-alert role="alert" hidden></p>
     </form>
@@ -121,6 +129,27 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       target.textContent = message;
       target.hidden = !message;
       target.classList.toggle('is-success', success);
+    }
+
+    function syncCreateStoreType() {
+      if (!storeForm) return;
+      const id = String((storeForm.elements.namedItem('store_id') as HTMLInputElement | null)?.value || '');
+      const type = String((storeForm.elements.namedItem('store_type') as HTMLSelectElement | null)?.value || 'commerce');
+      const commerce = Boolean(id) || type === 'commerce';
+      storeForm.querySelectorAll<HTMLElement>('[data-store-commerce-only]').forEach((field) => {
+        field.hidden = !commerce;
+        field.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
+          input.disabled = !commerce;
+          if (!commerce) input.value = '';
+        });
+      });
+      const statusField = storeForm.querySelector<HTMLElement>('[data-store-status-field]');
+      const statusInput = storeForm.elements.namedItem('status') as HTMLSelectElement | null;
+      if (statusField) statusField.hidden = !commerce;
+      if (statusInput) {
+        statusInput.disabled = !commerce;
+        if (!commerce) statusInput.value = 'active';
+      }
     }
 
     function closeMenu(restoreFocus = false) {
@@ -229,10 +258,16 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       const slugInput = storeForm.elements.namedItem('slug') as HTMLInputElement | null;
       const phoneInput = storeForm.elements.namedItem('owner_phone') as HTMLInputElement | null;
       const statusInput = storeForm.elements.namedItem('status') as HTMLSelectElement | null;
+      const typeInput = storeForm.elements.namedItem('store_type') as HTMLSelectElement | null;
+      const typeField = storeForm.querySelector<HTMLElement>('[data-store-type-field]');
       setAlert(alert);
-      if (!idInput || !nameInput || !slugInput || !phoneInput || !statusInput) return;
+      if (!idInput || !nameInput || !slugInput || !phoneInput || !statusInput || !typeInput) return;
       idInput.value = storeId(context);
       statusInput.value = 'active';
+      typeInput.value = 'commerce';
+      typeInput.disabled = Boolean(context);
+      if (typeField) typeField.hidden = Boolean(context);
+      syncCreateStoreType();
       const title = storeDialog.querySelector('h2');
       if (title) title.textContent = context ? 'Editar tienda' : 'Crear tienda';
       window.PZMasterDialog?.open(storeDialog.id, document.activeElement as HTMLElement | null);
@@ -384,6 +419,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       slugEdited = true;
       (event.currentTarget as HTMLInputElement).value = normalizeStoreSlug((event.currentTarget as HTMLInputElement).value);
     });
+    storeForm?.querySelector<HTMLSelectElement>('[name="store_type"]')?.addEventListener('change', syncCreateStoreType);
 
     controller.querySelector<HTMLButtonElement>('[data-store-save]')?.addEventListener('click', async (event) => {
       if (!storeForm || !storeForm.reportValidity()) return;
@@ -397,6 +433,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         const payload = {
           name: String(data.get('name') || ''), slug: String(data.get('slug') || ''),
           owner_phone: String(data.get('owner_phone') || ''), status: String(data.get('status') || ''),
+          store_type: String(data.get('store_type') || 'commerce') as 'commerce' | 'promo',
         };
         if (id) await updateStoreFromMaster(id, payload);
         else await createStoreFromMaster(payload);

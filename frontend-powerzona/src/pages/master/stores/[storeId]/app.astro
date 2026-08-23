@@ -7,6 +7,7 @@ import MasterStoreAppBuildView from '../../../../components/master/MasterStoreAp
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
 import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStoreAppBuilds, getMasterAppBuildErrorMessage } from '../../../../lib/masterStoreAppBuilds';
+import { getMasterStoreKind } from '../../../../lib/promoMaster';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -21,6 +22,9 @@ if (!masterUser) return Astro.redirect('/master');
 
 const storeId = String(Astro.params.storeId || '').trim();
 if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
+}
 
 const storeRecord: any = await authPb.collection('stores').getOne(storeId, {
   fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent',

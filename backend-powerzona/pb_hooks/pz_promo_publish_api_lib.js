@@ -842,6 +842,7 @@ function sendError(e, error) {
 module.exports = {
   REQUIRED_COLLECTIONS,
   SAFE_ERRORS,
+  assertOperationalStore,
   assertStateForOperation,
   candidateResponse,
   collectionsReady,

@@ -9,6 +9,7 @@ import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
 import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import { getMasterStoreUserSummary } from '../../../lib/masterUsers';
 import { getMasterStoreActivitySummary } from '../../../lib/masterStoreActivity';
+import { getPromoMasterCatalog } from '../../../lib/promoMaster';
 import {
   getDefaultSecurityBackendHealth,
   getDefaultSecuritySettings,
@@ -40,9 +41,10 @@ const userSummary = await getMasterStoreUserSummary(authPb, storesPage.items.map
 const totalUsers = userSummary.total_users;
 const securityMap = await getMasterSecuritySettingsMap(authPb);
 const pocketbaseUrl = serverPocketBaseUrl();
-const [activity, securityHealth] = await Promise.all([
+const [activity, securityHealth, promoCatalog] = await Promise.all([
   getMasterStoreActivitySummary(pocketbaseUrl, authPb.authStore.token),
   getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token).catch(() => getDefaultSecurityBackendHealth()),
+  getPromoMasterCatalog(pocketbaseUrl, authPb.authStore.token),
 ]);
 
 const usersByStore = new Map(userSummary.stores.map((item) => [item.store_id, item.total_users]));
@@ -50,18 +52,22 @@ const usersByStore = new Map(userSummary.stores.map((item) => [item.store_id, it
 const stores: MasterStoresViewItem[] = storesPage.items.map((store) => {
   const settings = securityMap.get(store.id) || getDefaultSecuritySettings(store.id);
   const summary = activity.map.get(store.id);
+  const promo = promoCatalog.available ? promoCatalog.map.get(store.id) || null : null;
+  const storeType = promoCatalog.available ? (promo ? 'promo' : 'commerce') : 'unknown';
   return {
     id: store.id,
     name: store.name,
     slug: store.slug,
     status: store.status,
-    featured: store.featured,
-    protected: store.protected === true || store.slug === DEFAULT_STORE_SLUG,
+    featured: storeType === 'commerce' && store.featured === true,
+    protected: storeType !== 'commerce' || store.protected === true || store.slug === DEFAULT_STORE_SLUG,
     updated: store.updated,
-    userCount: usersByStore.get(store.id) || 0,
-    securityExists: settings.exists,
-    securityLabel: getSecurityStatusLabel(settings),
-    activity: summary ? {
+    userCount: storeType === 'commerce' ? usersByStore.get(store.id) || 0 : 0,
+    securityExists: storeType === 'commerce' && settings.exists,
+    securityLabel: storeType === 'commerce' ? getSecurityStatusLabel(settings) : 'No aplica a la vista Promo',
+    storeType,
+    promo,
+    activity: storeType === 'commerce' && summary ? {
       orders_total: summary.orders_total,
       visitors_30d: summary.visitors_30d,
       pageviews_30d: summary.pageviews_30d,

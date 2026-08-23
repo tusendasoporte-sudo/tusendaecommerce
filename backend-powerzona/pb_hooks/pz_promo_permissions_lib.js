@@ -557,6 +557,17 @@ function assertLiveSession(sessionUser, currentUser) {
   }
 }
 
+function requireActiveMasterSession(app, sessionUser) {
+  const sessionId = recordId(sessionUser);
+  const actor = findRecord(app, "users", sessionId);
+  if (!sessionId || !actor) throw new PromoAccessError("unauthorized", 403);
+  assertLiveSession(sessionUser, actor);
+  if (recordString(actor, "status") !== "active" || recordString(actor, "role") !== MASTER_ROLE) {
+    throw new PromoAccessError("unauthorized", 403);
+  }
+  return actor;
+}
+
 function promoCapabilitySnapshot(entitlement, options) {
   const result = {};
   PROMO_CAPABILITY_KEYS.forEach((key) => {
@@ -738,6 +749,7 @@ module.exports = {
   resolveEffectivePromoPermissions,
   resolvePromoCapabilityAccess,
   requirePromoAction,
+  requireActiveMasterSession,
   safeText,
   storedPromoPermissions,
 };

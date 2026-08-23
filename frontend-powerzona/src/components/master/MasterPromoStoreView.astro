@@ -1,0 +1,406 @@
+---
+import '../../styles/promo-master.css';
+import type { PromoMasterOverview } from '../../lib/promoMaster';
+
+interface Props {
+  storeId: string;
+  overview: PromoMasterOverview;
+}
+
+const { storeId, overview } = Astro.props;
+const booleanCapabilities = [
+  ['promo_site_enabled', 'Sitio Promo habilitado'],
+  ['publish_enabled', 'Publicación habilitada'],
+  ['custom_domain_enabled', 'Dominio personalizado'],
+  ['theme_customization_enabled', 'Personalización de tema'],
+  ['multilanguage_enabled', 'Múltiples idiomas'],
+  ['video_enabled', 'Video'],
+  ['analytics_enabled', 'Analítica Promo'],
+  ['landing_qr_bridge_enabled', 'Puente Landing QR'],
+] as const;
+const numericCapabilities = [
+  ['max_services', 'Máximo de servicios'],
+  ['max_gallery_assets', 'Máximo de recursos de galería'],
+  ['max_locales', 'Máximo de idiomas'],
+  ['max_videos', 'Máximo de videos'],
+  ['max_storage_bytes', 'Almacenamiento máximo (bytes)'],
+] as const;
+const stateLabels: Record<string, string> = {
+  draft: 'Borrador', active: 'Activo', paused: 'Pausado', suspended: 'Suspendido', retired: 'Retirado',
+  unpublished: 'Sin publicar', missing: 'Ausente', enabled: 'Habilitado', disabled: 'Deshabilitado',
+  pending: 'Pendiente', verified: 'Verificado', revoked: 'Revocado', released: 'Liberado', blocked: 'Bloqueado',
+  approved: 'Aprobado', deprecated: 'Obsoleto', absent: 'Ausente', healthy: 'Saludable', incoherent: 'Incoherente',
+};
+const label = (value: string) => stateLabels[value] || value || 'No disponible';
+const activePrimaryDomains = overview.domains.filter((item) => (
+  item.role === 'primary' && item.status === 'active' && item.is_current
+));
+const operationLabels: Record<string, string> = {
+  publish: 'Publicar revisión', rollback: 'Rollback a revisión', unpublish: 'Despublicar',
+  binding_switch: 'Cambiar origen canónico', pause: 'Pausar publicación', resume: 'Reanudar publicación',
+};
+const enabledPublicationOperations = Object.entries(overview.publication.controls)
+  .filter(([, allowed]) => allowed)
+  .map(([operation]) => operation);
+---
+
+<section
+  class="master-page promo-master"
+  aria-label="Control Master de Tienda Promo"
+  data-promo-master
+  data-store-id={storeId}
+  data-site-status={overview.site.status}
+  data-site-updated={overview.site.updated}
+  data-entitlement-updated={overview.entitlement.updated}
+  data-publication-generation={overview.publication.generation}
+  data-reason-codes={JSON.stringify(overview.publication.reason_codes)}
+>
+  <header class="master-overview-heading promo-master__heading">
+    <div>
+      <div class="promo-master__eyebrow"><span class="master-pill master-pill--warning">PROMO</span><span>Contrato {overview.site.contract_version}</span></div>
+      <h2>{overview.store.name || 'Tienda Promo'}</h2>
+      <p>Control central de lifecycle, capacidades, dominios, tema y publicación. El contenido se administra en el futuro panel Admin Promo.</p>
+    </div>
+    <a class="master-btn master-btn--secondary" href="/master/stores">Volver a tiendas</a>
+  </header>
+
+  <p class="promo-master__feedback" role="status" aria-live="polite" data-promo-feedback hidden></p>
+
+  {overview.health.state !== 'ready' && (
+    <div class="master-error" role="alert">
+      <strong>La proyección Promo está incompleta o incoherente.</strong><br />
+      Se bloquearon las acciones que no cumplen sus contratos. Códigos: {overview.health.issues.join(', ') || 'estado_no_disponible'}.
+    </div>
+  )}
+
+  <div class="master-kpi-grid" aria-label="Resumen Promo">
+    <article class="master-kpi"><span class="master-kpi__label">Lifecycle</span><strong class="master-kpi__value promo-master__kpi-value">{label(overview.site.status)}</strong><span class="master-kpi__meta">/{overview.site.public_slug}</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Entitlement</span><strong class="master-kpi__value promo-master__kpi-value">{overview.entitlement.capabilities.promo_site_enabled === true ? 'Habilitado' : 'Cerrado'}</strong><span class="master-kpi__meta">Fuente: {overview.entitlement.source || 'unassigned'}</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Publicación</span><strong class="master-kpi__value promo-master__kpi-value">{label(overview.publication.state)}</strong><span class="master-kpi__meta">Generación {overview.publication.generation}</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Canónico</span><strong class="master-kpi__value promo-master__kpi-value">{overview.publication.canonical.mode === 'custom' ? 'Dominio propio' : 'Plataforma'}</strong><span class="master-kpi__meta">{label(overview.publication.health.state)}</span></article>
+  </div>
+
+  <div class="promo-master__grid">
+    <section class="master-card promo-master__card" aria-labelledby="promo-lifecycle-title">
+      <header class="master-card-header"><div><h3 id="promo-lifecycle-title" class="master-card-title">Lifecycle</h3><span class="master-muted">CAS por estado y fecha de actualización</span></div></header>
+      <div class="promo-master__card-body">
+        <dl class="promo-master__facts">
+          <div><dt>Estado de tienda</dt><dd>{label(overview.store.status)}</dd></div>
+          <div><dt>Estado Promo</dt><dd>{label(overview.site.status)}</dd></div>
+          <div><dt>Slug público</dt><dd>/{overview.site.public_slug}</dd></div>
+        </dl>
+        {overview.operations.lifecycle_update && overview.site.allowed_next_statuses.length ? (
+          <form class="promo-master__form" data-lifecycle-form>
+            <div class="master-field"><label for="promo-next-status">Siguiente estado permitido</label><select id="promo-next-status" name="next_status" required>{overview.site.allowed_next_statuses.map((status) => <option value={status}>{label(status)}</option>)}</select></div>
+            <div class="master-field"><label for="promo-lifecycle-reason">Motivo</label><select id="promo-lifecycle-reason" name="reason_code" required><option value="administrative_request">Solicitud administrativa</option><option value="contract_change">Cambio contractual</option><option value="incident_recovery">Recuperación de incidente</option><option value="incident_response">Respuesta a incidente</option></select></div>
+            <button class="master-btn master-btn--primary" type="submit">Actualizar lifecycle</button>
+          </form>
+        ) : <p class="master-empty">No hay transición de lifecycle disponible para este estado.</p>}
+      </div>
+    </section>
+
+    <section class="master-card promo-master__card" aria-labelledby="promo-publish-title">
+      <header class="master-card-header"><div><h3 id="promo-publish-title" class="master-card-title">Publicación</h3><span class="master-muted">CAS generación {overview.publication.generation} · idempotencia por operación</span></div></header>
+      <div class="promo-master__card-body">
+        <dl class="promo-master__facts">
+          <div><dt>Borrador</dt><dd>v{overview.draft.version || 0} · {label(overview.draft.readiness.state)}</dd></div>
+          <div><dt>Revisión publicada</dt><dd>{overview.publication.revision_id ? overview.publication.revision_id : 'Ninguna'}</dd></div>
+          <div><dt>Salud pública</dt><dd>{label(overview.publication.health.state)}</dd></div>
+        </dl>
+        {overview.operations.candidate_create ? (
+          <button class="master-btn master-btn--secondary" type="button" data-create-candidate data-draft-version={overview.draft.version} disabled={overview.draft.readiness.state !== 'ready'}>Crear candidato desde borrador v{overview.draft.version}</button>
+        ) : <p class="master-notice">Capability de publicación ausente: no se ofrece creación de candidato.</p>}
+
+        {enabledPublicationOperations.length ? (
+          <form class="promo-master__form" data-publication-form>
+            <div class="master-field"><label for="promo-publication-operation">Operación disponible</label><select id="promo-publication-operation" name="operation" required>{enabledPublicationOperations.map((operation) => <option value={operation}>{operationLabels[operation] || operation}</option>)}</select></div>
+            <div class="master-field" data-revision-field><label for="promo-publication-revision">Revisión objetivo</label><select id="promo-publication-revision" name="candidate_revision_id">{overview.revisions.map((revision) => <option value={revision.revision_id} data-publish-ready={revision.publish_readiness.state === 'ready' ? 'true' : 'false'} data-rollback-ready={revision.rollback_readiness.state === 'ready' ? 'true' : 'false'}>#{revision.sequence} · {revision.digest.slice(0, 10)}{revision.current ? ' · actual' : ''}</option>)}</select></div>
+            <div class="master-field" data-canonical-field><label for="promo-canonical">Origen canónico</label><select id="promo-canonical" name="canonical"><option value="platform">Plataforma</option>{activePrimaryDomains.map((binding) => <option value={`custom:${binding.binding_id}`}>{binding.hostname_display || binding.hostname_ascii}</option>)}</select></div>
+            <div class="master-field"><label for="promo-publication-reason">Reason code aprobado</label><select id="promo-publication-reason" name="reason_code" required></select></div>
+            <button class="master-btn master-btn--primary" type="submit">Ejecutar operación</button>
+          </form>
+        ) : <p class="master-empty">No hay una transición de publicación válida para el estado actual.</p>}
+
+        <div class="promo-master__revision-list" aria-label="Revisiones Promo">
+          {overview.revisions.length ? overview.revisions.map((revision) => (
+            <article><div><strong>Revisión #{revision.sequence}</strong>{revision.current && <span class="master-pill master-pill--success">Actual</span>}</div><span>Draft v{revision.source_draft_version} · {revision.locales.published.join(', ') || 'sin locales publicados'} · {revision.theme.theme_id || 'sin tema'}</span><small>{revision.digest}</small></article>
+          )) : <p class="master-empty">Aún no existen revisiones inmutables.</p>}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="master-card promo-master__card" aria-labelledby="promo-entitlements-title">
+    <header class="master-card-header"><div><h3 id="promo-entitlements-title" class="master-card-title">Plan y entitlements Promo</h3><span class="master-muted">Fuente independiente del plan Commerce · CAS {overview.entitlement.updated || 'no disponible'}</span></div></header>
+    <div class="promo-master__card-body">
+      {overview.operations.entitlements_update ? (
+        <form class="promo-master__form" data-entitlements-form>
+          <div class="promo-master__entitlement-grid">
+            {booleanCapabilities.map(([key, title]) => <label class="master-switch"><span>{title}</span><input name={key} type="checkbox" checked={overview.entitlement.capabilities[key] === true} /></label>)}
+            {numericCapabilities.map(([key, title]) => <div class="master-field"><label for={`promo-cap-${key}`}>{title}</label><input id={`promo-cap-${key}`} name={key} type="number" min="0" step="1" value={Math.max(0, Number(overview.entitlement.capabilities[key] || 0))} required /></div>)}
+          </div>
+          <div class="master-field-grid">
+            <div class="master-field"><label for="promo-entitlement-source">Fuente</label><select id="promo-entitlement-source" name="source"><option value="unassigned" selected={overview.entitlement.source === 'unassigned'}>Sin asignar</option><option value="contract" selected={overview.entitlement.source === 'contract'}>Contrato</option><option value="addon" selected={overview.entitlement.source === 'addon'}>Addon</option><option value="master_override" selected={overview.entitlement.source === 'master_override'}>Override Master</option></select></div>
+            <div class="master-field"><label for="promo-entitlement-reason">Motivo auditable</label><input id="promo-entitlement-reason" name="reason" type="text" minlength="5" maxlength="500" required autocomplete="off" /></div>
+          </div>
+          <button class="master-btn master-btn--primary" type="submit">Guardar entitlements</button>
+        </form>
+      ) : <p class="master-notice">La sesión actual no tiene disponible la operación reservada de entitlements.</p>}
+    </div>
+  </section>
+
+  <div class="promo-master__grid">
+    <section class="master-card promo-master__card" aria-labelledby="promo-domains-title">
+      <header class="master-card-header"><div><h3 id="promo-domains-title" class="master-card-title">Dominios</h3><span class="master-muted">Bindings privados; la resolución Host permanece en DOM-CORE</span></div></header>
+      <div class="promo-master__card-body">
+        {overview.operations.domains_manage ? (
+          <form class="promo-master__form promo-master__inline-form" data-domain-create-form>
+            <div class="master-field"><label for="promo-domain-host">Hostname</label><input id="promo-domain-host" name="hostname" type="text" maxlength="253" required autocomplete="off" placeholder="www.ejemplo.com" /></div>
+            <div class="master-field"><label for="promo-domain-role">Rol</label><select id="promo-domain-role" name="role"><option value="primary">Primario</option><option value="alias">Alias</option></select></div>
+            <button class="master-btn master-btn--secondary" type="submit">Registrar binding</button>
+          </form>
+        ) : <p class="master-notice">Capability de dominio personalizado ausente. Los controles permanecen cerrados.</p>}
+
+        <div class="promo-master__domain-list">
+          {overview.domains.length ? overview.domains.map((binding) => (
+            <article data-domain-binding data-binding-id={binding.binding_id} data-binding-status={binding.status} data-binding-version={binding.state_version}>
+              <div><strong>{binding.hostname_display || binding.hostname_ascii}</strong><span class="master-pill">{binding.role} · {label(binding.status)}</span>{binding.is_current && <span class="master-pill master-pill--success">Vigente</span>}</div>
+              <span>Versión de estado {binding.state_version} · verificación {binding.verification_method || 'pendiente'}</span>
+              {overview.operations.domains_manage && (
+                <div>
+                  {binding.verification_available && (
+                    <form class="promo-master__verify-form" data-domain-verify-form>
+                      <div class="master-field"><label for={`promo-domain-method-${binding.binding_id}`}>Método</label><select id={`promo-domain-method-${binding.binding_id}`} name="verification_method"><option value="manual">Manual</option><option value="dns">DNS</option><option value="http">HTTP</option></select></div>
+                      <div class="master-field"><label for={`promo-domain-evidence-${binding.binding_id}`}>SHA-256 de evidencia verificada</label><input id={`promo-domain-evidence-${binding.binding_id}`} name="verification_evidence_sha256" type="text" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" autocomplete="off" spellcheck="false" required /></div>
+                      <button class="master-btn master-btn--secondary" type="submit">Verificar binding</button>
+                    </form>
+                  )}
+                  <div class="promo-master__actions">
+                  {binding.allowed_next_statuses.map((status) => <button class="master-btn master-btn--secondary" type="button" data-domain-status={status}>{label(status)}</button>)}
+                  </div>
+                </div>
+              )}
+            </article>
+          )) : <p class="master-empty">No hay bindings registrados.</p>}
+        </div>
+      </div>
+    </section>
+
+    <section class="master-card promo-master__card" aria-labelledby="promo-theme-title">
+      <header class="master-card-header"><div><h3 id="promo-theme-title" class="master-card-title">Theme</h3><span class="master-muted">Registry compilado y releases persistidos</span></div></header>
+      <div class="promo-master__card-body">
+        <dl class="promo-master__facts">
+          <div><dt>Borrador</dt><dd>{overview.theme.draft?.theme_id ? `${overview.theme.draft.theme_id}@${overview.theme.draft.version}` : 'Sin selección'}</dd></div>
+          <div><dt>Publicado</dt><dd>{overview.theme.published?.theme_id ? `${overview.theme.published.theme_id}@${overview.theme.published.version}` : 'Sin publicación'}</dd></div>
+        </dl>
+        <div class="promo-master__theme-list">
+          {overview.theme.releases.map((release) => (
+            <article data-theme-release data-theme-id={release.theme_id} data-theme-version={release.version} data-theme-status={release.status}>
+              <div><strong>{release.theme_id}@{release.version}</strong><span class="master-pill">{label(release.status)}</span></div>
+              <span>Renderer: {release.renderer_key}</span>
+              {overview.operations.theme_releases_manage && release.allowed_next_statuses.length > 0 && <div class="promo-master__actions">{release.allowed_next_statuses.map((status) => <button class="master-btn master-btn--secondary" type="button" data-theme-status={status}>Mover a {label(status)}</button>)}</div>}
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="master-card promo-master__card" aria-labelledby="promo-audit-title">
+    <header class="master-card-header"><div><h3 id="promo-audit-title" class="master-card-title">Actividad Promo reciente</h3><span class="master-muted">Resumen saneado; no se incluye contenido, PII ni payloads</span></div></header>
+    <div class="promo-master__card-body promo-master__activity">
+      {overview.activity.length ? overview.activity.map((item) => <article><span class={`promo-master__severity is-${item.severity}`}>{item.severity}</span><div><strong>{item.summary}</strong><span>{item.actor.name} · {item.actor.role} · {item.module}</span></div><time datetime={item.created}>{item.created || 'Fecha no disponible'}</time></article>) : <p class="master-empty">No hay eventos Promo recientes.</p>}
+    </div>
+  </section>
+</section>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import {
+    createPromoCandidate,
+    createPromoDomain,
+    transitionPromoPublication,
+    updatePromoDomainStatus,
+    updatePromoEntitlements,
+    updatePromoLifecycle,
+    updatePromoThemeRelease,
+    verifyPromoDomain,
+    type PromoPublicationOperation,
+  } from '../../lib/promoMaster';
+
+  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'video_enabled', 'analytics_enabled', 'landing_qr_bridge_enabled'];
+  const NUMERIC_CAPABILITIES = ['max_services', 'max_gallery_assets', 'max_locales', 'max_videos', 'max_storage_bytes'];
+  const REVISION_OPERATIONS = new Set(['publish', 'rollback']);
+  const CANONICAL_OPERATIONS = new Set(['publish', 'rollback', 'binding_switch']);
+
+  function errorCode(error: any) {
+    return String(error?.data?.error || error?.response?.error || error?.message || 'promo_master_unavailable').slice(0, 80);
+  }
+
+  function errorMessage(error: any) {
+    const code = errorCode(error);
+    const messages: Record<string, string> = {
+      promo_lifecycle_conflict: 'El lifecycle cambió en otra sesión. Recarga antes de repetir.',
+      promo_entitlements_conflict: 'Los entitlements cambiaron en otra sesión. Recarga antes de repetir.',
+      promo_publication_conflict: 'La generación de publicación cambió. Recarga antes de repetir.',
+      promo_publication_state_conflict: 'El estado ya no admite esa operación. Recarga la vista.',
+      promo_domain_state_conflict: 'El binding cambió en otra sesión. Recarga antes de repetir.',
+      promo_theme_release_conflict: 'El release cambió en otra sesión. Recarga antes de repetir.',
+      promo_capability_denied: 'La capability necesaria no está habilitada.',
+      invalid_payload: 'La operación no cumple el contrato esperado.',
+    };
+    return messages[code] || `Operación rechazada de forma segura (${code}).`;
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-promo-master]').forEach((root) => {
+    if (root.dataset.bound === 'true') return;
+    root.dataset.bound = 'true';
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    const storeId = String(root.dataset.storeId || '');
+    const feedback = root.querySelector<HTMLElement>('[data-promo-feedback]');
+    const reasons = JSON.parse(root.dataset.reasonCodes || '{}') as Record<string, string[]>;
+
+    function announce(message: string, failed = false) {
+      if (!feedback) return;
+      feedback.textContent = message;
+      feedback.hidden = !message;
+      feedback.classList.toggle('is-error', failed);
+      if (message) feedback.focus?.();
+    }
+
+    async function execute(button: HTMLButtonElement, operation: () => Promise<any>, success: string) {
+      button.disabled = true;
+      root.setAttribute('aria-busy', 'true');
+      announce('Procesando operación segura…');
+      try {
+        await operation();
+        announce(success);
+        window.location.reload();
+      } catch (error) {
+        announce(errorMessage(error), true);
+        button.disabled = false;
+        root.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    root.querySelector<HTMLFormElement>('[data-lifecycle-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button || !form.reportValidity()) return;
+      const values = new FormData(form);
+      void execute(button, () => updatePromoLifecycle(pb, storeId, {
+        expected_status: String(root.dataset.siteStatus || ''),
+        expected_updated: String(root.dataset.siteUpdated || ''),
+        next_status: String(values.get('next_status') || ''),
+        reason_code: String(values.get('reason_code') || ''),
+      }), 'Lifecycle actualizado.');
+    });
+
+    root.querySelector<HTMLButtonElement>('[data-create-candidate]')?.addEventListener('click', (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const version = Number(button.dataset.draftVersion || 0);
+      void execute(button, () => createPromoCandidate(pb, storeId, version), 'Candidato inmutable creado.');
+    });
+
+    const publicationForm = root.querySelector<HTMLFormElement>('[data-publication-form]');
+    function syncPublicationForm() {
+      if (!publicationForm) return;
+      const operation = String((publicationForm.elements.namedItem('operation') as HTMLSelectElement | null)?.value || '');
+      const revisionField = publicationForm.querySelector<HTMLElement>('[data-revision-field]');
+      const canonicalField = publicationForm.querySelector<HTMLElement>('[data-canonical-field]');
+      const reasonSelect = publicationForm.elements.namedItem('reason_code') as HTMLSelectElement | null;
+      if (revisionField) revisionField.hidden = !REVISION_OPERATIONS.has(operation);
+      if (canonicalField) canonicalField.hidden = !CANONICAL_OPERATIONS.has(operation);
+      if (reasonSelect) {
+        reasonSelect.replaceChildren(...(reasons[operation] || []).map((code) => {
+          const option = document.createElement('option');
+          option.value = code;
+          option.textContent = code.replaceAll('_', ' ');
+          return option;
+        }));
+      }
+    }
+    (publicationForm?.elements.namedItem('operation') as HTMLSelectElement | null)?.addEventListener('change', syncPublicationForm);
+    syncPublicationForm();
+    publicationForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button || !form.reportValidity()) return;
+      const values = new FormData(form);
+      const operation = String(values.get('operation') || '') as PromoPublicationOperation;
+      const canonicalValue = String(values.get('canonical') || 'platform');
+      const canonical = canonicalValue.startsWith('custom:')
+        ? { mode: 'custom' as const, primary_binding_id: canonicalValue.slice(7) }
+        : { mode: 'platform' as const };
+      void execute(button, () => transitionPromoPublication(pb, storeId, {
+        operation,
+        expected_generation: Number(root.dataset.publicationGeneration || 0),
+        reason_code: String(values.get('reason_code') || ''),
+        ...(REVISION_OPERATIONS.has(operation) ? { candidate_revision_id: String(values.get('candidate_revision_id') || '') } : {}),
+        ...(CANONICAL_OPERATIONS.has(operation) ? { canonical } : {}),
+      }), 'Operación de publicación completada.');
+    });
+
+    root.querySelector<HTMLFormElement>('[data-entitlements-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button || !form.reportValidity()) return;
+      const values = new FormData(form);
+      const capabilities: Record<string, boolean | number> = {};
+      BOOLEAN_CAPABILITIES.forEach((key) => { capabilities[key] = values.get(key) === 'on'; });
+      NUMERIC_CAPABILITIES.forEach((key) => { capabilities[key] = Math.max(0, Math.floor(Number(values.get(key) || 0))); });
+      void execute(button, () => updatePromoEntitlements(pb, storeId, {
+        expected_updated: String(root.dataset.entitlementUpdated || ''),
+        source: String(values.get('source') || ''),
+        capabilities,
+        reason: String(values.get('reason') || ''),
+      }), 'Entitlements actualizados.');
+    });
+
+    root.querySelector<HTMLFormElement>('[data-domain-create-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button || !form.reportValidity()) return;
+      const values = new FormData(form);
+      void execute(button, () => createPromoDomain(pb, storeId, String(values.get('hostname') || ''), String(values.get('role') || '')), 'Binding registrado.');
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-domain-binding]').forEach((row) => {
+      const bindingId = String(row.dataset.bindingId || '');
+      const expectedStatus = String(row.dataset.bindingStatus || '');
+      const expectedVersion = Number(row.dataset.bindingVersion || 0);
+      row.querySelector<HTMLFormElement>('[data-domain-verify-form]')?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const form = event.currentTarget as HTMLFormElement;
+        const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (!button || !form.reportValidity()) return;
+        const values = new FormData(form);
+        const evidence = String(values.get('verification_evidence_sha256') || '').trim().toLowerCase();
+        const method = String(values.get('verification_method') || '');
+        void execute(button, () => verifyPromoDomain(pb, storeId, {
+          binding_id: bindingId, expected_state_version: expectedVersion, expected_status: expectedStatus,
+          verification_method: method, verification_evidence_sha256: evidence,
+        }), 'Binding verificado.');
+      });
+      row.querySelectorAll<HTMLButtonElement>('[data-domain-status]').forEach((button) => button.addEventListener('click', () => {
+        void execute(button, () => updatePromoDomainStatus(pb, storeId, {
+          binding_id: bindingId, expected_state_version: expectedVersion,
+          expected_status: expectedStatus, next_status: String(button.dataset.domainStatus || ''),
+        }), 'Estado de dominio actualizado.');
+      }));
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-theme-release]').forEach((row) => {
+      row.querySelectorAll<HTMLButtonElement>('button[data-theme-status]').forEach((button) => button.addEventListener('click', () => {
+        void execute(button, () => updatePromoThemeRelease(pb, storeId, {
+          theme_id: String(row.dataset.themeId || ''), version: String(row.dataset.themeVersion || ''),
+          expected_status: String(row.dataset.themeStatus || ''), next_status: String(button.dataset.themeStatus || ''),
+        }), 'Release de Theme actualizado.');
+      }));
+    });
+  });
+</script>

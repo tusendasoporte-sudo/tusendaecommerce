@@ -9,6 +9,8 @@ import { listMasterStoreUsers } from '../../../../../lib/masterUsers';
 import { getMasterPrimaryAdminStatus } from '../../../../../lib/masterPrimaryAdmin';
 import { shouldUseCompactStoreUserList } from '../../../../../lib/masterUserListMode';
 import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
+import { serverPocketBaseUrl } from '../../../../../lib/pocketBaseServerUrl';
+import { getMasterStoreKind } from '../../../../../lib/promoMaster';
 import '../../../../../styles/master-users.css';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -21,6 +23,9 @@ const masterUser = requireMasterAdmin(authPb.authStore.record as any);
 if (!authPb.authStore.isValid || !masterUser) return Astro.redirect('/master-login');
 const storeId = String(Astro.params.storeId || '').trim();
 if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
+}
 
 let storeRecord: any;
 try {

@@ -8,6 +8,7 @@ import MasterStorePlanView from '../../../../components/master/MasterStorePlanVi
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
 import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStorePlan } from '../../../../lib/masterStorePlans';
+import { getMasterStoreKind } from '../../../../lib/promoMaster';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 import { getStoreSecuritySettings, SECURITY_STATUS_LABELS } from '../../../../lib/security';
 import { DEFAULT_STORE_SLUG } from '../../../../lib/stores';
@@ -24,6 +25,9 @@ if (!masterUser) return Astro.redirect('/master');
 
 const storeId = String(Astro.params.storeId || '').trim();
 if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
+}
 
 const [storeResult, planResult, securitySettings] = await Promise.all([
   authPb.collection('stores').getOne(storeId, {

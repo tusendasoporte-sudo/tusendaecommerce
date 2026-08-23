@@ -1,6 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 const STORE_STATUSES = Object.freeze(["active", "suspended"]);
+const STORE_TYPES = Object.freeze(["commerce", "promo"]);
 const STORE_NAME_MAX_LENGTH = 140;
 const STORE_SLUG_MAX_LENGTH = 80;
 const OWNER_PHONE_MAX_LENGTH = 60;
@@ -145,17 +146,23 @@ function normalizeStoreSlug(value) {
 }
 
 function parseCreateStorePayload(body) {
-  if (!exactPayload(body, ["name", "slug", "status", "owner_phone"])) return null;
+  const legacyPayload = exactPayload(body, ["name", "slug", "status", "owner_phone"]);
+  const typedPayload = exactPayload(body, ["name", "slug", "status", "owner_phone", "store_type"]);
+  if (!legacyPayload && !typedPayload) return null;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const rawSlug = typeof body.slug === "string" ? body.slug.trim() : "";
   const slug = normalizeStoreSlug(rawSlug);
   const status = typeof body.status === "string" ? body.status.trim().toLowerCase() : "";
   const ownerPhone = typeof body.owner_phone === "string" ? body.owner_phone.trim() : "";
+  const storeType = typedPayload && typeof body.store_type === "string"
+    ? body.store_type.trim().toLowerCase()
+    : "commerce";
   if (!name || name.length > STORE_NAME_MAX_LENGTH) return null;
   if (!rawSlug || slug !== rawSlug.toLowerCase() || slug.length > STORE_SLUG_MAX_LENGTH) return null;
   if (!STORE_STATUSES.includes(status)) return null;
+  if (!STORE_TYPES.includes(storeType)) return null;
   if (ownerPhone.length > OWNER_PHONE_MAX_LENGTH) return null;
-  return { name, slug, status, ownerPhone };
+  return { name, slug, status, ownerPhone, ...(typedPayload ? { storeType } : {}) };
 }
 
 function findRecord(app, collection, id) {
@@ -245,9 +252,7 @@ function createDefaultStoreSettings(app, store, defaultCurrency) {
   return settings;
 }
 
-function createStoreWithSystemCurrencies(app, actorId, payload) {
-  const actor = findRecord(app, "users", actorId);
-  if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
+function createBaseStore(app, actor, payload) {
   if (storeSlugExists(app, payload.slug)) throw new Error("store_slug_exists");
 
   const store = new Record(app.findCollectionByNameOrId("stores"), {});
@@ -263,10 +268,29 @@ function createStoreWithSystemCurrencies(app, actorId, payload) {
   store.set("protected", false);
   store.set("plan_updated_by", actor.id);
   app.save(store);
+  return store;
+}
+
+function createStoreWithSystemCurrencies(app, actorId, payload) {
+  const actor = findRecord(app, "users", actorId);
+  if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
+  const store = createBaseStore(app, actor, payload);
 
   const currencies = createSystemCurrencies(app, store.id);
   const settings = createDefaultStoreSettings(app, store, currencies[0]);
   return { store, currencies, settings };
+}
+
+function createStoreForMaster(app, actorId, payload) {
+  if (payload.storeType !== "promo") return createStoreWithSystemCurrencies(app, actorId, payload);
+  const actor = findRecord(app, "users", actorId);
+  if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
+  const store = createBaseStore(app, actor, payload);
+  const promoMaster = typeof __hooks === "undefined"
+    ? require("./pz_promo_master_lib.js")
+    : require(`${__hooks}/pz_promo_master_lib.js`);
+  const foundation = promoMaster.createPromoFoundation(app, actor, store, payload.slug);
+  return { store, currencies: [], settings: null, foundation, storeType: "promo" };
 }
 
 function storeResponse(record) {
@@ -301,8 +325,8 @@ function settingsResponse(record) {
 }
 
 function safeErrorCode(error) {
-  const code = String(error && error.message || "").trim();
-  return ["unauthorized", "store_slug_exists"].includes(code) ? code : "";
+  const code = String(error && (error.code || error.message) || "").trim();
+  return ["unauthorized", "session_revoked", "user_inactive", "store_slug_exists", "promo_public_slug_exists"].includes(code) ? code : "";
 }
 
 function handleCreate(e) {
@@ -316,19 +340,38 @@ function handleCreate(e) {
     let created = null;
     const actorId = recordString(info.auth, "id") || String(info.auth && info.auth.id || "").trim();
     $app.runInTransaction((txApp) => {
-      created = createStoreWithSystemCurrencies(txApp, actorId, parsed);
+      if (parsed.storeType === "promo") {
+        const promoPermissions = typeof __hooks === "undefined"
+          ? require("./pz_promo_permissions_lib.js")
+          : require(`${__hooks}/pz_promo_permissions_lib.js`);
+        const liveActor = promoPermissions.requireActiveMasterSession(txApp, info.auth);
+        if (recordString(liveActor, "id") !== actorId) throw new Error("unauthorized");
+      }
+      created = createStoreForMaster(txApp, actorId, parsed);
     });
 
-    return e.json(201, {
+    const response = {
       ok: true,
       store: storeResponse(created.store),
       currencies: created.currencies.map(currencyResponse),
-      settings: settingsResponse(created.settings),
-    });
+      settings: created.settings ? settingsResponse(created.settings) : null,
+    };
+    if (created.storeType === "promo") {
+      response.store_type = "promo";
+      response.promo = {
+        public_slug: recordString(created.foundation.site, "public_slug"),
+        status: recordString(created.foundation.site, "status"),
+      };
+    }
+    return e.json(201, response);
   } catch (error) {
     const code = safeErrorCode(error);
-    if (code === "unauthorized") return e.json(403, { ok: false, error: code });
-    if (code === "store_slug_exists") return e.json(409, { ok: false, error: code });
+    if (["unauthorized", "session_revoked", "user_inactive"].includes(code)) {
+      return e.json(403, { ok: false, error: code });
+    }
+    if (["store_slug_exists", "promo_public_slug_exists"].includes(code)) {
+      return e.json(409, { ok: false, error: code });
+    }
     try {
       $app.logger().error(
         "PowerZona master store creation failed safely.",
@@ -342,7 +385,10 @@ function handleCreate(e) {
 module.exports = {
   SYSTEM_CURRENCY_CODES,
   SYSTEM_CURRENCY_DEFAULTS,
+  STORE_TYPES,
+  createBaseStore,
   createDefaultStoreSettings,
+  createStoreForMaster,
   createStoreWithSystemCurrencies,
   createSystemCurrencies,
   createSystemCurrency,

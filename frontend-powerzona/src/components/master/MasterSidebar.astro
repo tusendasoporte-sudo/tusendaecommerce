@@ -9,6 +9,8 @@ export interface MasterSidebarStoreContext {
   slug: string;
   status: string;
   planPresentation: StorePlanPresentation;
+  storeType?: 'commerce' | 'promo';
+  promoSiteStatus?: string;
 }
 
 interface Props {
@@ -148,7 +150,9 @@ function initials(value: string, fallback: string) {
               'is-active': currentStore.status === 'active',
               'is-suspended': currentStore.status !== 'active',
             }]}>{currentStore.status === 'active' ? 'Activa' : 'Suspendida'}</span>
-            <StorePlanIndicator presentation={currentStore.planPresentation} variant="master-sidebar" />
+            {currentStore.storeType === 'promo'
+              ? <span class="master-sidebar__store-status is-active">Promo · {currentStore.promoSiteStatus || 'no disponible'}</span>
+              : <StorePlanIndicator presentation={currentStore.planPresentation} variant="master-sidebar" />}
           </span>
         </div>
 
@@ -158,50 +162,54 @@ function initials(value: string, fallback: string) {
         >
           <MasterIcon name="home" size={20} /><span>Resumen de tienda</span>
         </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/users`) }]}
-          href={`/master/stores/${encodeURIComponent(currentStore.id)}/users`}
-        >
-          <MasterIcon name="users" size={20} /><span>Usuarios</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/analytics/${currentStore.id}`) }]}
-          href={`/master/analytics/${encodeURIComponent(currentStore.id)}`}
-        >
-          <MasterIcon name="analytics" size={20} /><span>Analíticas</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/products/${currentStore.id}`) }]}
-          href={`/master/products/${encodeURIComponent(currentStore.id)}`}
-        >
-          <MasterIcon name="products" size={20} /><span>Productos</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', {
-            'is-active': normalizedPath === '/master/price-watch' && priceWatchStoreId === currentStore.id,
-          }]}
-          href={`/master/price-watch?store_id=${encodeURIComponent(currentStore.id)}`}
-        >
-          <MasterIcon name="price" size={20} /><span>Seguimiento de precios</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/security/${currentStore.id}`) }]}
-          href={`/master/security/${encodeURIComponent(currentStore.id)}`}
-        >
-          <MasterIcon name="security" size={20} /><span>Seguridad</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/plan`) }]}
-          href={`/master/stores/${encodeURIComponent(currentStore.id)}/plan`}
-        >
-          <MasterIcon name="plan" size={20} /><span>Plan y límites</span>
-        </a>
-        <a
-          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/app`) }]}
-          href={`/master/stores/${encodeURIComponent(currentStore.id)}/app`}
-        >
-          <MasterIcon name="settings" size={20} /><span>App Android</span>
-        </a>
+        {currentStore.storeType !== 'promo' && (
+          <>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/users`) }]}
+              href={`/master/stores/${encodeURIComponent(currentStore.id)}/users`}
+            >
+              <MasterIcon name="users" size={20} /><span>Usuarios</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/analytics/${currentStore.id}`) }]}
+              href={`/master/analytics/${encodeURIComponent(currentStore.id)}`}
+            >
+              <MasterIcon name="analytics" size={20} /><span>Analíticas</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/products/${currentStore.id}`) }]}
+              href={`/master/products/${encodeURIComponent(currentStore.id)}`}
+            >
+              <MasterIcon name="products" size={20} /><span>Productos</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', {
+                'is-active': normalizedPath === '/master/price-watch' && priceWatchStoreId === currentStore.id,
+              }]}
+              href={`/master/price-watch?store_id=${encodeURIComponent(currentStore.id)}`}
+            >
+              <MasterIcon name="price" size={20} /><span>Seguimiento de precios</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/security/${currentStore.id}`) }]}
+              href={`/master/security/${encodeURIComponent(currentStore.id)}`}
+            >
+              <MasterIcon name="security" size={20} /><span>Seguridad</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/plan`) }]}
+              href={`/master/stores/${encodeURIComponent(currentStore.id)}/plan`}
+            >
+              <MasterIcon name="plan" size={20} /><span>Plan y límites</span>
+            </a>
+            <a
+              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/app`) }]}
+              href={`/master/stores/${encodeURIComponent(currentStore.id)}/app`}
+            >
+              <MasterIcon name="settings" size={20} /><span>App Android</span>
+            </a>
+          </>
+        )}
         <a class="master-sidebar__link master-sidebar__link--back" href="/master/stores">
           <MasterIcon name="back" size={20} /><span>Volver a tiendas</span>
         </a>

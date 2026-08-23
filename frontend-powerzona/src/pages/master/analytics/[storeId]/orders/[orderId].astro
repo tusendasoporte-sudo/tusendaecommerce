@@ -11,6 +11,7 @@ import {
   isValidRecordId,
 } from '../../../../../lib/masterStoreAnalytics';
 import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
+import { getMasterStoreKind } from '../../../../../lib/promoMaster';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -32,6 +33,9 @@ const storeId = String(Astro.params.storeId || '').trim();
 const orderId = String(Astro.params.orderId || '').trim();
 if (!isValidRecordId(storeId) || !isValidRecordId(orderId)) {
   return Astro.redirect('/master/stores');
+}
+if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
 }
 
 let storeRecord: any;

@@ -78,6 +78,14 @@ test('valida un payload cerrado y normalizado para crear tiendas', () => {
   assert.equal(creation.parseCreateStorePayload({
     name: 'Mi Tienda', slug: 'Mi Tienda', status: 'active', owner_phone: '',
   }), null);
+  assert.deepEqual(creation.parseCreateStorePayload({
+    name: ' Mi Promo ', slug: 'mi-promo', status: 'active', owner_phone: '', store_type: 'promo',
+  }), {
+    name: 'Mi Promo', slug: 'mi-promo', status: 'active', ownerPhone: '', storeType: 'promo',
+  });
+  assert.equal(creation.parseCreateStorePayload({
+    name: 'Mi Promo', slug: 'mi-promo', status: 'active', owner_phone: '', store_type: 'unknown',
+  }), null);
   assert.equal(creation.parseCreateStorePayload({
     name: 'Mi Tienda', slug: 'mi-tienda', status: 'active', owner_phone: '', actor_id: MASTER_ID,
   }), null);
@@ -179,9 +187,11 @@ test('la ruta exige autenticaciÃ³n y ejecuta la operaciÃ³n dentro de una tra
   assert.match(route, /onRecordCreateRequest[\s\S]*rejectDuplicateFixedCurrencyCreate/);
   assert.match(route, /onRecordDeleteRequest[\s\S]*rejectFixedCurrencyDelete/);
   assert.match(source, /\$app\.runInTransaction/);
-  assert.match(source, /createStoreWithSystemCurrencies\(txApp/);
+  assert.match(source, /createStoreForMaster\(txApp/);
+  assert.match(source, /payload\.storeType !== "promo"/);
+  assert.match(source, /createPromoFoundation\(app, actor, store, payload\.slug\)/);
   assert.match(source, /createDefaultStoreSettings\(app, store, currencies\[0\]\)/);
-  assert.match(source, /settings:\s*settingsResponse\(created\.settings\)/);
+  assert.match(source, /created\.settings \? settingsResponse\(created\.settings\) : null/);
 });
 
 test('rechaza crear otra moneda fija con el mismo codigo en una tienda', () => {

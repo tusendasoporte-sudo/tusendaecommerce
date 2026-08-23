@@ -10,6 +10,8 @@ export interface MasterShellStoreContext {
   slug: string;
   status: string;
   planPresentation: StorePlanPresentation;
+  storeType?: 'commerce' | 'promo';
+  promoSiteStatus?: string;
 }
 
 interface Props {
