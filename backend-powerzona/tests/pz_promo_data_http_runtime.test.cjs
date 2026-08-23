@@ -25,6 +25,9 @@ const PROMO_MIGRATIONS = [
   '1787520200_promo_revision_publication.js',
   '1787520300_promo_audit_analytics.js',
 ];
+const ADDITIVE_POST_DATA_MIGRATIONS = [
+  '1787520400_promo_permissions.js',
+];
 const PROMO_COLLECTIONS = [
   'promo_sites',
   'promo_site_entitlements',
@@ -273,7 +276,14 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     const migrationNames = fs.readdirSync(MIGRATIONS_DIR)
       .filter((name) => /^\d+_.+\.js$/.test(name))
       .sort();
-    assert.deepEqual(migrationNames.slice(-4), PROMO_MIGRATIONS);
+    assert.deepEqual(
+      migrationNames.filter((name) => PROMO_MIGRATIONS.includes(name)),
+      PROMO_MIGRATIONS,
+    );
+    assert.deepEqual(
+      migrationNames.filter((name) => ADDITIVE_POST_DATA_MIGRATIONS.includes(name)),
+      ADDITIVE_POST_DATA_MIGRATIONS,
+    );
 
     const version = spawnSync(POCKETBASE_EXE, ['--version'], {
       cwd: BACKEND_DIR, encoding: 'utf8', windowsHide: true,
@@ -306,13 +316,13 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     const emptyUp = runPocketBase(['migrate', 'up'], emptyRollbackDirectory, environment);
     assertCommand(emptyUp, 'migrate up para rollback vacio');
     const emptyDown = runPocketBase(
-      ['migrate', 'down', '4'],
+      ['migrate', 'down', String(PROMO_MIGRATIONS.length + ADDITIVE_POST_DATA_MIGRATIONS.length)],
       emptyRollbackDirectory,
       environment,
       'y\n',
     );
     assertCommand(emptyDown, 'rollback vacio de las cuatro migraciones Promo');
-    for (const migration of PROMO_MIGRATIONS) {
+    for (const migration of [...ADDITIVE_POST_DATA_MIGRATIONS, ...PROMO_MIGRATIONS]) {
       assert.match(emptyDown.stdout, new RegExp(`Reverted ${migration.replace('.', '\\.')}`));
     }
     assert.equal(
@@ -829,6 +839,15 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
 
     await stopPocketBase(runtime);
     runtime = null;
+
+    const additiveDown = runPocketBase(
+      ['migrate', 'down', '1'],
+      dataDirectory,
+      environment,
+      'y\n',
+    );
+    assertCommand(additiveDown, 'rollback vacío del campo aditivo PERM posterior a DATA');
+    assert.match(additiveDown.stdout, /Reverted 1787520400_promo_permissions\.js/);
 
     const blockedDown = runPocketBase(
       ['migrate', 'down', '1'],
