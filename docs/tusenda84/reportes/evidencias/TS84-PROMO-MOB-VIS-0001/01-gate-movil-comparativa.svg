@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="1120" viewBox="0 0 1340 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Comparativa del gate móvil de Aladdin's Carpet</title>
+  <desc id="desc">Tres marcos exactos para 390 por 844, 412 por 915 y 320 por 700, con cabecera móvil, Hero, CTA, media y reglas de reflujo del tema negro y dorado.</desc>
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0b0b"/>
+      <stop offset="1" stop-color="#17130d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#b88c3c"/>
+      <stop offset="1" stop-color="#ead49b"/>
+    </linearGradient>
+    <pattern id="media" width="22" height="22" patternUnits="userSpaceOnUse">
+      <rect width="22" height="22" fill="#171511"/>
+      <path d="M0 22 22 0M-5 5 5-5M17 27 27 17" stroke="#c8a45a" stroke-opacity=".17" stroke-width="1"/>
+    </pattern>
+    <clipPath id="clip390"><rect x="35" y="142" width="390" height="844" rx="22"/></clipPath>
+    <clipPath id="clip412"><rect x="470" y="142" width="412" height="915" rx="22"/></clipPath>
+    <clipPath id="clip320"><rect x="935" y="142" width="320" height="700" rx="22"/></clipPath>
+    <style>
+      .board { fill:#070707; }
+      .frame { fill:#0b0b0b; stroke:#c8a45a; stroke-width:2; }
+      .label { fill:#ead49b; font:700 13px Arial,sans-serif; letter-spacing:2px; }
+      .meta { fill:#b9b0a1; font:12px Arial,sans-serif; }
+      .brand { fill:#f6f1e7; font:20px Georgia,serif; }
+      .nav { fill:#c9c0b0; font:700 9px Arial,sans-serif; letter-spacing:1.1px; }
+      .chip { fill:#14120f; stroke:#c8a45a; }
+      .chiptext { fill:#ead49b; font:700 10px Arial,sans-serif; }
+      .eyebrow { fill:#ead49b; font:700 10px Arial,sans-serif; letter-spacing:2px; }
+      .h1 { fill:#f6f1e7; font:40px Georgia,serif; }
+      .body { fill:#c9c0b0; font:16px Arial,sans-serif; }
+      .small { fill:#c9c0b0; font:11px Arial,sans-serif; }
+      .button { fill:url(#gold); stroke:#f0dfb4; }
+      .buttontext { fill:#0b0b0b; font:800 12px Arial,sans-serif; letter-spacing:1.5px; }
+      .goldline { stroke:#c8a45a; stroke-width:1; }
+      .note { fill:#11100e; stroke:#c8a45a; stroke-opacity:.6; }
+      .notetitle { fill:#ead49b; font:700 12px Arial,sans-serif; letter-spacing:1px; }
+      .notebody { fill:#c9c0b0; font:12px Arial,sans-serif; }
+    </style>
+  </defs>
+
+  <rect class="board" width="1340" height="1120"/>
+  <text x="35" y="42" fill="#f6f1e7" font-family="Georgia, serif" font-size="28">G-MOB-VIS · Aladdin's Carpet</text>
+  <text x="35" y="70" class="meta">PROPUESTO · PENDIENTE DE APROBACIÓN HUMANA · renderer promo.black-gold@1.0.0</text>
+  <rect x="1042" y="26" width="263" height="46" rx="8" fill="#17130d" stroke="#c8a45a"/>
+  <text x="1173.5" y="54" text-anchor="middle" class="label">GATE NO SUPERADO</text>
+
+  <text x="35" y="116" class="label">390×844 · ES · APERTURA</text>
+  <text x="470" y="116" class="label">412×915 · EN · APERTURA</text>
+  <text x="935" y="116" class="label">320×700 · ESTRECHO</text>
+
+  <rect x="35" y="142" width="390" height="844" rx="22" class="frame"/>
+  <g clip-path="url(#clip390)">
+    <rect x="35" y="142" width="390" height="844" fill="url(#page)"/>
+    <rect x="35" y="142" width="390" height="139" fill="#0b0b0b" stroke="#c8a45a" stroke-opacity=".32"/>
+    <text x="52" y="174" class="brand">Aladdin's Carpet</text>
+    <rect x="52" y="190" width="50" height="44" rx="22" class="chip"/><text x="77" y="217" text-anchor="middle" class="chiptext">ES</text>
+    <rect x="108" y="190" width="50" height="44" rx="22" fill="#0b0b0b" stroke="#5c5241"/><text x="133" y="217" text-anchor="middle" class="chiptext" fill="#c9c0b0">EN</text>
+    <rect x="277" y="190" width="131" height="44" rx="7" class="chip"/>
+    <rect x="289" y="204" width="15" height="15" fill="none" stroke="#ead49b"/><path d="M292 207h3v3h-3zm7 0h3v3h-3zm-7 7h3v3h-3zm7 0h3" stroke="#ead49b"/>
+    <text x="354" y="217" text-anchor="middle" class="chiptext">MÁS ENLACES</text>
+    <line x1="52" y1="246" x2="408" y2="246" stroke="#c8a45a" stroke-opacity=".18"/>
+    <text x="52" y="269" class="nav">INICIO  ·  SERVICIOS  ·  GALERÍA  ·  NOSOTROS  ·  CONTACTO  ›</text>
+
+    <text x="52" y="326" class="eyebrow">INICIO</text><line x1="52" y1="307" x2="91" y2="307" class="goldline"/>
+    <text x="390" y="322" text-anchor="end" fill="#ead49b" fill-opacity=".4" font-family="Georgia,serif" font-size="18">01</text>
+    <text x="52" y="374" class="h1"><tspan x="52">Alfombras</tspan><tspan x="52" dy="42">con historia</tspan></text>
+    <text x="52" y="482" class="body">Cuidado especializado</text>
+    <rect x="52" y="511" width="356" height="54" rx="8" class="button"/>
+    <text x="230" y="544" text-anchor="middle" class="buttontext">SOLICITAR ESTIMADO  →</text>
+    <rect x="52" y="604" width="356" height="267" rx="8" fill="url(#media)" stroke="#c8a45a" stroke-opacity=".6"/>
+    <text x="230" y="728" text-anchor="middle" class="label">MEDIA HERO PUBLICADA</text>
+    <text x="230" y="750" text-anchor="middle" class="small">4:3 · LCP único · alt ES exacto</text>
+    <rect x="305" y="812" width="86" height="44" rx="22" fill="#0b0b0b" fill-opacity=".83" stroke="#f6f1e7" stroke-opacity=".3"/>
+    <circle cx="331" cy="834" r="19" fill="none" stroke="#c8a45a"/><text x="331" y="838" text-anchor="middle" class="small">01</text>
+    <circle cx="369" cy="834" r="19" fill="none" stroke="#c8a45a"/><text x="369" y="838" text-anchor="middle" class="small">02</text>
+  </g>
+
+  <rect x="470" y="142" width="412" height="915" rx="22" class="frame"/>
+  <g clip-path="url(#clip412)">
+    <rect x="470" y="142" width="412" height="915" fill="url(#page)"/>
+    <rect x="470" y="142" width="412" height="139" fill="#0b0b0b" stroke="#c8a45a" stroke-opacity=".32"/>
+    <text x="487" y="174" class="brand">Aladdin's Carpet</text>
+    <rect x="487" y="190" width="50" height="44" rx="22" fill="#0b0b0b" stroke="#5c5241"/><text x="512" y="217" text-anchor="middle" class="chiptext" fill="#c9c0b0">ES</text>
+    <rect x="543" y="190" width="50" height="44" rx="22" class="chip"/><text x="568" y="217" text-anchor="middle" class="chiptext">EN</text>
+    <rect x="733" y="190" width="132" height="44" rx="7" class="chip"/>
+    <rect x="745" y="204" width="15" height="15" fill="none" stroke="#ead49b"/><path d="M748 207h3v3h-3zm7 0h3v3h-3zm-7 7h3v3h-3zm7 0h3" stroke="#ead49b"/>
+    <text x="809" y="217" text-anchor="middle" class="chiptext">MORE LINKS</text>
+    <line x1="487" y1="246" x2="865" y2="246" stroke="#c8a45a" stroke-opacity=".18"/>
+    <text x="487" y="269" class="nav">HOME  ·  SERVICES  ·  GALLERY  ·  ABOUT  ·  CONTACT  ›</text>
+
+    <text x="487" y="326" class="eyebrow">HOME</text><line x1="487" y1="307" x2="526" y2="307" class="goldline"/>
+    <text x="847" y="322" text-anchor="end" fill="#ead49b" fill-opacity=".4" font-family="Georgia,serif" font-size="18">01</text>
+    <text x="487" y="374" class="h1"><tspan x="487">Carpets</tspan><tspan x="487" dy="42">with history</tspan></text>
+    <text x="487" y="482" class="body">Specialized care</text>
+    <rect x="487" y="511" width="378" height="54" rx="8" class="button"/>
+    <text x="676" y="544" text-anchor="middle" class="buttontext">REQUEST AN ESTIMATE  →</text>
+    <rect x="487" y="604" width="378" height="284" rx="8" fill="url(#media)" stroke="#c8a45a" stroke-opacity=".6"/>
+    <text x="676" y="736" text-anchor="middle" class="label">PUBLISHED HERO MEDIA</text>
+    <text x="676" y="758" text-anchor="middle" class="small">4:3 · one LCP · exact EN alt</text>
+    <rect x="752" y="829" width="96" height="44" rx="22" fill="#0b0b0b" fill-opacity=".83" stroke="#f6f1e7" stroke-opacity=".3"/>
+    <circle cx="779" cy="851" r="19" fill="none" stroke="#c8a45a"/><text x="779" y="855" text-anchor="middle" class="small">01</text>
+    <circle cx="821" cy="851" r="19" fill="none" stroke="#c8a45a"/><text x="821" y="855" text-anchor="middle" class="small">02</text>
+    <text x="487" y="936" class="eyebrow">SERVICES</text>
+    <text x="487" y="976" fill="#f6f1e7" font-family="Georgia,serif" font-size="28">Same order and actions</text>
+    <text x="487" y="1006" class="small">No ES strings · no per-field fallback</text>
+  </g>
+
+  <rect x="935" y="142" width="320" height="700" rx="22" class="frame"/>
+  <g clip-path="url(#clip320)">
+    <rect x="935" y="142" width="320" height="700" fill="url(#page)"/>
+    <rect x="935" y="142" width="320" height="139" fill="#0b0b0b" stroke="#c8a45a" stroke-opacity=".32"/>
+    <text x="951" y="174" class="brand" font-size="18">Aladdin's Carpet</text>
+    <rect x="951" y="190" width="44" height="44" rx="22" class="chip"/><text x="973" y="217" text-anchor="middle" class="chiptext">ES</text>
+    <rect x="1001" y="190" width="44" height="44" rx="22" fill="#0b0b0b" stroke="#5c5241"/><text x="1023" y="217" text-anchor="middle" class="chiptext">EN</text>
+    <rect x="1195" y="190" width="44" height="44" rx="7" class="chip"/>
+    <rect x="1208" y="203" width="18" height="18" fill="none" stroke="#ead49b"/><path d="M1211 206h4v4h-4zm8 0h4v4h-4zm-8 8h4v4h-4zm8 0h4" stroke="#ead49b"/>
+    <line x1="951" y1="246" x2="1239" y2="246" stroke="#c8a45a" stroke-opacity=".18"/>
+    <text x="951" y="269" class="nav">INICIO  ·  SERVICIOS  ·  GALERÍA  ·  NOSOTROS  ›</text>
+
+    <text x="951" y="318" class="eyebrow">INICIO</text>
+    <text x="1218" y="318" text-anchor="end" fill="#ead49b" fill-opacity=".4" font-family="Georgia,serif" font-size="18">01</text>
+    <text x="951" y="361" fill="#f6f1e7" font-family="Georgia,serif" font-size="34"><tspan x="951">Alfombras</tspan><tspan x="951" dy="37">con historia</tspan></text>
+    <text x="951" y="459" class="body" font-size="15">Cuidado especializado</text>
+    <rect x="951" y="488" width="288" height="54" rx="8" class="button"/>
+    <text x="1095" y="521" text-anchor="middle" class="buttontext" font-size="11">SOLICITAR ESTIMADO  →</text>
+    <rect x="951" y="576" width="288" height="216" rx="8" fill="url(#media)" stroke="#c8a45a" stroke-opacity=".6"/>
+    <text x="1095" y="675" text-anchor="middle" class="label">MEDIA 4:3</text>
+    <text x="1095" y="696" text-anchor="middle" class="small">sin overflow de página</text>
+  </g>
+
+  <rect x="935" y="872" width="320" height="185" rx="10" class="note"/>
+  <text x="953" y="899" class="notetitle">REGLAS ESTRECHAS</text>
+  <text x="953" y="925" class="notebody"><tspan x="953">• marca sin ornamento; nombre intacto</tspan><tspan x="953" dy="22">• QR icon-only, aria-label completo</tspan><tspan x="953" dy="22">• locale, QR y nav: mínimo 44 px</tspan><tspan x="953" dy="22">• cards, media y redes: una columna</tspan><tspan x="953" dy="22">• scroll solo dentro de nav/carruseles</tspan></text>
+
+  <text x="35" y="1092" class="meta">La evidencia representa composición y jerarquía. No fija destinos, URLs, datos de negocio, assets ni variantes nuevas.</text>
+</svg>

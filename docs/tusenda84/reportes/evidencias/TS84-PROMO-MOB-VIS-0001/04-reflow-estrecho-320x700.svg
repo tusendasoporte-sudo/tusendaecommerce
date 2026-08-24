@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="2100" viewBox="0 0 320 2100" role="img" aria-labelledby="title desc">
+  <title id="title">Reflujo estrecho a 320 por 700</title>
+  <desc id="desc">Tres estados de un viewport de 320 por 700: cabecera y Hero, contenido y reseñas, contacto y footer. La propuesta mantiene targets de 44 píxeles, QR solo icono, columnas únicas y scroll contenido.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#090909"/><stop offset="1" stop-color="#17130d"/></linearGradient>
+    <linearGradient id="cta" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b98e41"/><stop offset="1" stop-color="#ead49b"/></linearGradient>
+    <pattern id="media" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#151411"/><path d="M0 20 20 0M-5 5 5-5M15 25 25 15" stroke="#c8a45a" stroke-opacity=".18"/></pattern>
+    <clipPath id="reviewclip"><rect x="16" y="1210" width="288" height="226" rx="8"/></clipPath>
+    <style>
+      .eye{fill:#ead49b;font:700 9px Arial,sans-serif;letter-spacing:1.7px}.h1{fill:#f6f1e7;font:34px Georgia,serif}.h2{fill:#f6f1e7;font:29px Georgia,serif}.h3{fill:#f6f1e7;font:20px Georgia,serif}.body{fill:#c9c0b0;font:14px Arial,sans-serif}.small{fill:#c9c0b0;font:10px Arial,sans-serif}.meta{fill:#ead49b;font:700 8px Arial,sans-serif;letter-spacing:1px}.nav{fill:#c9c0b0;font:700 8px Arial,sans-serif;letter-spacing:.9px}.card{fill:#151411;stroke:#c8a45a;stroke-opacity:.42}.buttontext{fill:#0b0b0b;font:800 10px Arial,sans-serif;letter-spacing:1.2px}
+    </style>
+  </defs>
+  <rect width="320" height="2100" fill="url(#bg)"/>
+
+  <!-- Estado 1 -->
+  <rect width="320" height="140" fill="#0b0b0b" stroke="#c8a45a" stroke-opacity=".3"/>
+  <text x="16" y="30" fill="#f6f1e7" font-family="Georgia,serif" font-size="18">Aladdin's Carpet</text>
+  <rect x="16" y="45" width="44" height="44" rx="22" fill="#17130d" stroke="#c8a45a"/><text x="38" y="72" text-anchor="middle" class="meta">ES</text>
+  <rect x="66" y="45" width="44" height="44" rx="22" fill="#0b0b0b" stroke="#5f5544"/><text x="88" y="72" text-anchor="middle" class="meta">EN</text>
+  <rect x="260" y="45" width="44" height="44" rx="8" fill="#11100e" stroke="#c8a45a"/>
+  <rect x="273" y="58" width="18" height="18" fill="none" stroke="#ead49b"/><path d="M276 61h4v4h-4zm8 0h4v4h-4zm-8 8h4v4h-4zm8 0h4" stroke="#ead49b"/>
+  <rect x="256" y="41" width="52" height="52" rx="11" fill="none" stroke="#f6f1e7" stroke-width="3"/>
+  <text x="16" y="128" class="nav">INICIO · SERVICIOS · GALERÍA · NOSOTROS · RESEÑAS · CONTACTO ›</text>
+  <text x="16" y="180" class="eye">INICIO</text><text x="295" y="178" text-anchor="end" fill="#ead49b" fill-opacity=".38" font-family="Georgia,serif" font-size="16">01</text>
+  <text x="16" y="224" class="h1"><tspan x="16">Alfombras</tspan><tspan x="16" dy="37">con historia</tspan></text>
+  <text x="16" y="316" class="body">Cuidado especializado</text>
+  <rect x="16" y="342" width="288" height="54" rx="8" fill="url(#cta)" stroke="#f0dfb4"/><text x="160" y="375" text-anchor="middle" class="buttontext">SOLICITAR ESTIMADO  →</text>
+  <rect x="16" y="432" width="288" height="216" rx="8" fill="url(#media)" stroke="#c8a45a" stroke-opacity=".6"/>
+  <text x="160" y="532" text-anchor="middle" class="meta">MEDIA HERO · 4:3</text><text x="160" y="553" text-anchor="middle" class="small">ancho contenido · sin clipping</text>
+  <text x="16" y="676" class="small">QR: icon-only + nombre accesible completo · foco 3 px</text>
+
+  <line x1="0" y1="700" x2="320" y2="700" stroke="#f0dfb4" stroke-dasharray="7 7" stroke-opacity=".75"/>
+
+  <!-- Estado 2 -->
+  <rect x="0" y="700" width="320" height="700" fill="#0b0b0b"/>
+  <rect x="16" y="716" width="288" height="32" rx="16" fill="#17130d" stroke="#c8a45a" stroke-opacity=".45"/><text x="160" y="737" text-anchor="middle" class="meta">DESPUÉS DE SCROLL · MISMA REVISIÓN</text>
+  <text x="16" y="790" class="eye">SERVICIOS · UNA COLUMNA</text>
+  <rect x="16" y="810" width="288" height="230" rx="8" class="card"/>
+  <rect x="16" y="810" width="288" height="110" rx="8" fill="url(#media)"/>
+  <text x="32" y="948" class="meta">01</text><text x="32" y="978" class="h3">Limpieza</text><text x="32" y="1007" class="body">Proceso delicado · sin precio</text>
+  <text x="16" y="1084" class="eye">GALERÍA · UNA COLUMNA</text>
+  <rect x="16" y="1104" width="288" height="82" rx="8" fill="url(#media)" stroke="#c8a45a" stroke-opacity=".5"/>
+  <text x="160" y="1152" text-anchor="middle" class="meta">MEDIA LAZY · CAPTION LOCALIZADO</text>
+  <text x="16" y="1230" class="eye">RESEÑAS · SCROLLER PROPIO</text>
+  <g clip-path="url(#reviewclip)">
+    <g transform="translate(16 1250)">
+      <rect width="250" height="132" rx="8" class="card"/><text x="14" y="28" fill="#ead49b" font-family="Arial,sans-serif" font-size="12">★★★★★</text>
+      <text x="14" y="58" fill="#f6f1e7" font-family="Georgia,serif" font-size="15" font-style="italic">Reseña aprobada</text>
+      <line x1="14" y1="85" x2="236" y2="85" stroke="#c8a45a" stroke-opacity=".3"/><text x="14" y="109" class="meta">NOMBRE PUBLICADO</text>
+    </g>
+    <rect x="278" y="1250" width="250" height="132" rx="8" class="card"/>
+  </g>
+  <text x="16" y="1374" class="small">Pista de continuidad · scroll-snap · teclado</text>
+  <text x="16" y="1390" class="small">scroll horizontal limitado al componente</text>
+
+  <line x1="0" y1="1400" x2="320" y2="1400" stroke="#f0dfb4" stroke-dasharray="7 7" stroke-opacity=".75"/>
+
+  <!-- Estado 3 -->
+  <rect x="0" y="1400" width="320" height="700" fill="#0d0c0a"/>
+  <text x="16" y="1450" class="eye">CONTACTO</text><text x="295" y="1448" text-anchor="end" fill="#ead49b" fill-opacity=".38" font-family="Georgia,serif" font-size="16">07</text>
+  <text x="16" y="1496" class="h2"><tspan x="16">Hablemos de</tspan><tspan x="16" dy="33">tu alfombra</tspan></text>
+  <text x="16" y="1576" class="body"><tspan x="16">Misma acción compilada del Hero.</tspan><tspan x="16" dy="22">Sin URL o canal inventado.</tspan></text>
+  <rect x="16" y="1630" width="288" height="54" rx="8" fill="url(#cta)" stroke="#f0dfb4"/><text x="160" y="1663" text-anchor="middle" class="buttontext">SOLICITAR ESTIMADO  →</text>
+  <rect x="12" y="1626" width="296" height="62" rx="11" fill="none" stroke="#f6f1e7" stroke-width="3"/>
+
+  <rect x="0" y="1728" width="320" height="372" fill="#070707" stroke="#c8a45a" stroke-opacity=".35"/>
+  <line x1="16" y1="1762" x2="64" y2="1762" stroke="#c8a45a" stroke-width="2"/>
+  <text x="16" y="1803" class="h3">Aladdin's Carpet</text>
+  <text x="16" y="1831" class="small">Enlaces internos · 44 px</text>
+  <text x="16" y="1872" class="eye">REDES · UNA COLUMNA ≤ 360</text>
+  <rect x="16" y="1890" width="288" height="48" rx="8" class="card"/><text x="32" y="1920" class="meta">INSTAGRAM</text>
+  <rect x="16" y="1948" width="288" height="48" rx="8" class="card"/><text x="32" y="1978" class="meta">FACEBOOK</text>
+  <line x1="0" y1="2024" x2="320" y2="2024" stroke="#c8a45a" stroke-opacity=".22"/>
+  <text x="160" y="2052" text-anchor="middle" class="small">Presencia promocional en</text><text x="160" y="2077" text-anchor="middle" fill="#f6f1e7" font-family="Arial,sans-serif" font-size="13" font-weight="800">Tu Senda 84</text>
+</svg>
