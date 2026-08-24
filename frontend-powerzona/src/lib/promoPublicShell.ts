@@ -8,6 +8,8 @@ export const PROMO_PUBLIC_INTERNAL_PATH = '/__pz/promo-shell';
 export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
 export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
 export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';
+export const PROMO_PUBLIC_SEO_CONTRACT = 'promo.public.seo.v1';
+export const PROMO_PLATFORM_ORIGIN = 'https://tusenda84.com';
 
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
@@ -192,6 +194,39 @@ export type PromoPublicLandingQrLink = Readonly<{
   link: Readonly<{ label: string; aria_label: string; href: string }> | null;
 }>;
 
+export type PromoPublicSeoImage = Readonly<{
+  url: string;
+  width: number;
+  height: number;
+  alt: string;
+  type: 'image/webp';
+}>;
+
+export type PromoPublicSeo = Readonly<{
+  contract: typeof PROMO_PUBLIC_SEO_CONTRACT;
+  canonical_url: string;
+  sitemap_url: string;
+  alternates: readonly Readonly<{ locale: string; url: string }>[];
+  x_default: string;
+  open_graph: Readonly<{
+    type: 'website';
+    url: string;
+    title: string;
+    description: string;
+    site_name: string;
+    locale: string;
+    alternate_locales: readonly string[];
+    image: PromoPublicSeoImage | null;
+  }>;
+  twitter: Readonly<{
+    card: 'summary' | 'summary_large_image';
+    title: string;
+    description: string;
+    image: string;
+    image_alt: string;
+  }>;
+}>;
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -228,6 +263,7 @@ export type PromoPublicProfile = Readonly<{
 export type PromoPublicShellResult = Readonly<{
   route: Readonly<{ source: 'platform' | 'custom'; action: 'serve' | 'redirect'; location?: string }>;
   profile?: PromoPublicProfile;
+  seo?: PromoPublicSeo;
   response: Readonly<{ contentLanguage: string; setCookie: string; vary: string }>;
 }>;
 
@@ -939,19 +975,114 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   };
 }
 
+function normalizedSeoUrl(value: unknown) {
+  const text = safeText(value, 500, true);
+  let parsed: URL;
+  try { parsed = new URL(text); } catch (_) { fail(); }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.port
+    || parsed.search || parsed.hash || parsed.origin + parsed.pathname !== text
+    || !/^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/.test(parsed.hostname)
+    || parsed.hostname.includes('..')) fail();
+  return parsed;
+}
+
+function normalizePageSeo(value: unknown, profile: PromoPublicProfile, source: 'platform' | 'custom'): PromoPublicSeo {
+  const seo = exactRecord(value, [
+    'contract', 'canonical_url', 'sitemap_url', 'alternates', 'x_default', 'open_graph', 'twitter',
+  ]);
+  if (seo.contract !== PROMO_PUBLIC_SEO_CONTRACT) fail();
+  const canonical = normalizedSeoUrl(seo.canonical_url);
+  const origin = source === 'platform' ? PROMO_PLATFORM_ORIGIN : canonical.origin;
+  if (source === 'platform' && canonical.origin !== PROMO_PLATFORM_ORIGIN) fail();
+  if (canonical.pathname !== profile.locale.canonical_path) fail();
+  if (!Array.isArray(seo.alternates) || seo.alternates.length !== profile.selector.options.length) fail();
+  const alternates = seo.alternates.map((raw: unknown, index: number) => {
+    const entry = exactRecord(raw, ['locale', 'url']);
+    const locale = canonicalLocale(entry.locale);
+    const expectedOption = profile.selector.options[index];
+    const url = normalizedSeoUrl(entry.url);
+    const expectedPath = source === 'platform'
+      ? `/promo/${profile.site.public_slug}/${locale}`
+      : `/${locale}`;
+    if (!expectedOption || expectedOption.locale !== locale || url.origin !== origin || url.pathname !== expectedPath) fail();
+    return { locale, url: url.toString() };
+  });
+  const xDefault = normalizedSeoUrl(seo.x_default);
+  const expectedDefault = alternates.find((entry) => entry.locale === profile.locale.default);
+  if (!expectedDefault || xDefault.toString() !== expectedDefault.url) fail();
+  const sitemap = normalizedSeoUrl(seo.sitemap_url);
+  const expectedSitemapPath = source === 'platform'
+    ? `/promo/${profile.site.public_slug}/sitemap.xml`
+    : '/sitemap.xml';
+  if (sitemap.origin !== origin || sitemap.pathname !== expectedSitemapPath) fail();
+  const og = exactRecord(seo.open_graph, [
+    'type', 'url', 'title', 'description', 'site_name', 'locale', 'alternate_locales', 'image',
+  ]);
+  const expectedSocialTitle = profile.content.seo.social_title || profile.content.seo.title;
+  const expectedSocialDescription = profile.content.seo.social_description || profile.content.seo.description;
+  const expectedAlternateLocales = alternates
+    .filter((entry) => entry.locale !== profile.locale.effective)
+    .map((entry) => entry.locale);
+  if (og.type !== 'website' || og.url !== canonical.toString()
+    || og.title !== expectedSocialTitle || og.description !== expectedSocialDescription
+    || og.site_name !== profile.content.identity.name || og.locale !== profile.locale.effective
+    || !Array.isArray(og.alternate_locales)
+    || JSON.stringify(og.alternate_locales) !== JSON.stringify(expectedAlternateLocales)) fail();
+  let image: PromoPublicSeoImage | null = null;
+  if (og.image !== null) {
+    const rawImage = exactRecord(og.image, ['url', 'width', 'height', 'alt', 'type']);
+    const imageUrl = normalizedSeoUrl(rawImage.url);
+    if (imageUrl.origin !== PROMO_PLATFORM_ORIGIN
+      || !imageUrl.pathname.startsWith(`/api/pz/promo/public/v1/sites/${profile.site.public_slug}/media/`)
+      || !imageUrl.pathname.endsWith('.webp') || rawImage.type !== 'image/webp') fail();
+    image = {
+      url: imageUrl.toString(),
+      width: safeInteger(rawImage.width, 1, 4096),
+      height: safeInteger(rawImage.height, 1, 4096),
+      alt: safeText(rawImage.alt, 300, true),
+      type: 'image/webp',
+    };
+  }
+  const twitter = exactRecord(seo.twitter, ['card', 'title', 'description', 'image', 'image_alt']);
+  const expectedCard = image ? 'summary_large_image' : 'summary';
+  if (twitter.card !== expectedCard || twitter.title !== expectedSocialTitle
+    || twitter.description !== expectedSocialDescription
+    || twitter.image !== (image?.url || '') || twitter.image_alt !== (image?.alt || '')) fail();
+  return {
+    contract: PROMO_PUBLIC_SEO_CONTRACT,
+    canonical_url: canonical.toString(),
+    sitemap_url: sitemap.toString(),
+    alternates,
+    x_default: xDefault.toString(),
+    open_graph: {
+      type: 'website', url: canonical.toString(), title: expectedSocialTitle,
+      description: expectedSocialDescription, site_name: profile.content.identity.name,
+      locale: profile.locale.effective, alternate_locales: expectedAlternateLocales, image,
+    },
+    twitter: {
+      card: expectedCard, title: expectedSocialTitle, description: expectedSocialDescription,
+      image: image?.url || '', image_alt: image?.alt || '',
+    },
+  };
+}
+
 function normalizeEnvelope(value: unknown): Omit<PromoPublicShellResult, 'response'> {
-  const envelope = exactRecord(value, ['ok', 'contract', 'route', ...(isRecord(value) && Object.hasOwn(value, 'profile') ? ['profile'] : [])]);
+  const hasProfile = isRecord(value) && Object.hasOwn(value, 'profile');
+  const hasSeo = isRecord(value) && Object.hasOwn(value, 'seo');
+  const envelope = exactRecord(value, ['ok', 'contract', 'route', ...(hasProfile ? ['profile'] : []), ...(hasSeo ? ['seo'] : [])]);
   if (envelope.ok !== true || envelope.contract !== PROMO_PUBLIC_SHELL_CONTRACT) fail();
   const route = exactRecord(envelope.route, ['source', 'action', ...(isRecord(envelope.route) && Object.hasOwn(envelope.route, 'location') ? ['location'] : [])]);
   if (!['platform', 'custom'].includes(route.source) || !['serve', 'redirect'].includes(route.action)) fail();
   if (route.action === 'redirect') {
-    if (route.source !== 'custom' || Object.hasOwn(envelope, 'profile')) fail();
+    if (hasProfile || hasSeo) fail();
     return { route: { source: route.source, action: 'redirect', location: safeRedirect(route.location) } };
   }
-  if (Object.hasOwn(route, 'location') || !Object.hasOwn(envelope, 'profile')) fail();
+  if (Object.hasOwn(route, 'location') || !hasProfile || !hasSeo) fail();
+  const profile = normalizeProfile(envelope.profile, route.source);
   return {
     route: { source: route.source, action: 'serve' },
-    profile: normalizeProfile(envelope.profile, route.source),
+    profile,
+    seo: normalizePageSeo(envelope.seo, profile, route.source),
   };
 }
 
@@ -1018,6 +1149,41 @@ function requestBackendWithAuthoritativeHost(url: string, headers: Headers) {
     request.on('error', reject);
     request.end();
   });
+}
+
+export async function requestPromoPublicJson(input: {
+  endpoint: string;
+  request: Request;
+  host?: string;
+  fetcher?: typeof fetch;
+}) {
+  if (!/^\/api\/pz\/promo\/public\/v1\/[A-Za-z0-9/_-]+$/.test(input.endpoint)) {
+    fail('promo_public_backend_unavailable', 503);
+  }
+  const baseUrl = normalizedBaseUrl(serverPocketBaseUrl());
+  const headers = new Headers({ Accept: 'application/json' });
+  const language = input.request.headers.get('accept-language') || '';
+  const cookie = localeCookie(input.request.headers.get('cookie') || '');
+  if (language) headers.set('Accept-Language', language.slice(0, 512));
+  if (cookie) headers.set('Cookie', cookie);
+  if (input.host) headers.set('Host', input.host);
+  let response: Response;
+  try {
+    response = input.host && !input.fetcher
+      ? await requestBackendWithAuthoritativeHost(`${baseUrl}${input.endpoint}`, headers)
+      : await (input.fetcher || fetch)(`${baseUrl}${input.endpoint}`, {
+        method: 'GET', headers, cache: 'no-store', redirect: 'manual',
+      });
+  } catch (_) { fail('promo_public_backend_unavailable', 503); }
+  const raw = await response.text();
+  if (raw.length > 1024 * 1024) fail('promo_public_backend_unavailable', 503);
+  let body: unknown = null;
+  try { body = raw ? JSON.parse(raw) : null; } catch (_) { fail('promo_public_backend_unavailable', 503); }
+  if (!response.ok) {
+    const code = isRecord(body) && typeof body.error === 'string' ? body.error : 'promo_public_unavailable';
+    fail(code, response.status);
+  }
+  return body;
 }
 
 async function requestContract(input: {
@@ -1118,9 +1284,11 @@ export function isPromoPlatformRequest(request: Request) {
 
 export function applyPromoPublicHeaders(response: Response, result?: PromoPublicShellResult) {
   response.headers.set('Cache-Control', 'private, no-store, max-age=0');
-  response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  const indexable = result?.route.action === 'serve' && Boolean(result.profile && result.seo);
+  response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex, nofollow, noarchive');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (indexable && result?.seo) response.headers.set('Link', `<${result.seo.sitemap_url}>; rel="sitemap"`);
   if (result?.response.contentLanguage) response.headers.set('Content-Language', result.response.contentLanguage);
   if (result?.response.setCookie) response.headers.append('Set-Cookie', result.response.setCookie);
   if (result?.response.vary) response.headers.set('Vary', result.response.vary);

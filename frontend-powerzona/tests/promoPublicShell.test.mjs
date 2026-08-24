@@ -33,10 +33,28 @@ const messages = Object.fromEntries([
 
 function shellEnvelope(source = 'platform') {
   const basePath = source === 'platform' ? '/promo/demo-promo' : '';
+  const origin = source === 'platform' ? 'https://tusenda84.com' : 'https://primary.example.test';
+  const canonicalUrl = `${origin}${basePath}/es`;
   return {
     ok: true,
     contract: 'promo.public.shell.v1',
     route: { source, action: 'serve' },
+    seo: {
+      contract: 'promo.public.seo.v1',
+      canonical_url: canonicalUrl,
+      sitemap_url: `${origin}${basePath}/sitemap.xml`,
+      alternates: [{ locale: 'es', url: canonicalUrl }],
+      x_default: canonicalUrl,
+      open_graph: {
+        type: 'website', url: canonicalUrl, title: 'Negocio demo',
+        description: 'Presentación pública', site_name: 'Negocio demo', locale: 'es',
+        alternate_locales: [], image: null,
+      },
+      twitter: {
+        card: 'summary', title: 'Negocio demo', description: 'Presentación pública',
+        image: '', image_alt: '',
+      },
+    },
     profile: {
       site: { public_slug: 'demo-promo' },
       system: { catalog_version: 'promo.system.v1', messages },
@@ -312,6 +330,8 @@ function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
 test('cliente SHELL acepta únicamente la proyección localized allowlisted', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelope());
   assert.equal(normalized.profile.locale.effective, 'es');
+  assert.equal(normalized.seo.canonical_url, 'https://tusenda84.com/promo/demo-promo/es');
+  assert.equal(normalized.seo.open_graph.type, 'website');
   assert.equal(normalized.profile.content.identity.name, 'Negocio demo');
   assert.equal(normalized.profile.theme.renderer_key, 'promo.black-gold');
   const hostile = structuredClone(shellEnvelope());
@@ -689,7 +709,7 @@ test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidrat
     'CSS combinado ALADDIN/HERO/SECTIONS excede el budget Theme de 50 KiB');
 });
 
-test('shell público conserva no-store/noindex hasta SEO/PERF y no adelanta prompts posteriores', () => {
+test('shell público conserva no-store, indexa solo identidad SEO válida y no adelanta ANALYTICS', () => {
   const client = read('../src/lib/promoPublicShell.ts');
   assert.match(client, /private, no-store, max-age=0/);
   assert.match(client, /noindex,nofollow,noarchive/);
@@ -697,7 +717,10 @@ test('shell público conserva no-store/noindex hasta SEO/PERF y no adelanta prom
   assert.match(client, /localeCookie/);
   assert.match(client, /requestBackendWithAuthoritativeHost/);
   assert.match(client, /nodeHttpRequest/);
+  assert.match(client, /index, follow/);
+  assert.match(client, /PROMO_PUBLIC_SEO_CONTRACT/);
+  assert.match(client, /normalizePageSeo/);
   assert.match(client, /CONTACT_ACTION_CONTRACT = 'promo\.contact\.action\.v1'/);
   assert.match(client, /safeContactHref/);
-  assert.doesNotMatch(client, /Cloudflare|Coolify|hreflang.*canonical|analytics|contact\.activate/i);
+  assert.doesNotMatch(client, /Cloudflare|Coolify|analytics|contact\.activate/i);
 });

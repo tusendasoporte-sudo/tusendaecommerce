@@ -1,5 +1,6 @@
 ---
 import '../styles/promo-public-shell.css';
+import type { PromoPublicSeo } from '../lib/promoPublicShell';
 
 interface Props {
   lang: string;
@@ -10,6 +11,7 @@ interface Props {
   themeVersion: string;
   themeRenderer: string;
   themeTokens: Readonly<Record<string, string>>;
+  seo: PromoPublicSeo;
 }
 
 const {
@@ -21,6 +23,7 @@ const {
   themeVersion,
   themeRenderer,
   themeTokens,
+  seo,
 } = Astro.props;
 ---
 
@@ -30,7 +33,32 @@ const {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href={seo.canonical_url} />
+    {seo.alternates.map((alternate) => (
+      <link rel="alternate" hreflang={alternate.locale} href={alternate.url} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={seo.x_default} />
+    <link rel="sitemap" type="application/xml" href={seo.sitemap_url} />
+    <meta property="og:type" content={seo.open_graph.type} />
+    <meta property="og:url" content={seo.open_graph.url} />
+    <meta property="og:title" content={seo.open_graph.title} />
+    <meta property="og:description" content={seo.open_graph.description} />
+    <meta property="og:site_name" content={seo.open_graph.site_name} />
+    <meta property="og:locale" content={seo.open_graph.locale.replaceAll('-', '_')} />
+    {seo.open_graph.alternate_locales.map((locale) => (
+      <meta property="og:locale:alternate" content={locale.replaceAll('-', '_')} />
+    ))}
+    {seo.open_graph.image && <meta property="og:image" content={seo.open_graph.image.url} />}
+    {seo.open_graph.image && <meta property="og:image:type" content={seo.open_graph.image.type} />}
+    {seo.open_graph.image && <meta property="og:image:width" content={String(seo.open_graph.image.width)} />}
+    {seo.open_graph.image && <meta property="og:image:height" content={String(seo.open_graph.image.height)} />}
+    {seo.open_graph.image && <meta property="og:image:alt" content={seo.open_graph.image.alt} />}
+    <meta name="twitter:card" content={seo.twitter.card} />
+    <meta name="twitter:title" content={seo.twitter.title} />
+    <meta name="twitter:description" content={seo.twitter.description} />
+    {seo.twitter.image && <meta name="twitter:image" content={seo.twitter.image} />}
+    {seo.twitter.image_alt && <meta name="twitter:image:alt" content={seo.twitter.image_alt} />}
     <meta name="color-scheme" content="dark" />
     <title>{title}</title>
   </head>

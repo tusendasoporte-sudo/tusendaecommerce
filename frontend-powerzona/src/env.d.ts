@@ -5,7 +5,7 @@ import type { AdminStoreContext } from './lib/storeContext';
 import type { StoreAccessContext } from './lib/storeTeam';
 import type { AdminAppPolicy } from './lib/mobileAdminReleases';
 import type { PromoAccessContext } from './lib/promoAccess';
-import type { PromoPublicProfile } from './lib/promoPublicShell';
+import type { PromoPublicProfile, PromoPublicSeo } from './lib/promoPublicShell';
 
 declare global {
   namespace App {
@@ -15,6 +15,7 @@ declare global {
       storeAccessContext?: StoreAccessContext;
       promoAccessContext?: PromoAccessContext;
       promoPublicProfile?: PromoPublicProfile;
+      promoPublicSeo?: PromoPublicSeo;
       adminAppPolicy?: AdminAppPolicy;
     }
   }

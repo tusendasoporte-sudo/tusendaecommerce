@@ -7,13 +7,14 @@ import PromoFooter from './PromoFooter.astro';
 import PromoLandingQrLink from './PromoLandingQrLink.astro';
 import PromoReviews from './PromoReviews.astro';
 import PromoSections from './PromoSections.astro';
-import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
+import type { PromoPublicProfile, PromoPublicSection, PromoPublicSeo } from '../../lib/promoPublicShell';
 
 interface Props {
   profile: PromoPublicProfile;
+  seo: PromoPublicSeo;
 }
 
-const { profile } = Astro.props;
+const { profile, seo } = Astro.props;
 const { content, locale, selector, system, theme } = profile;
 const identity = content.identity;
 const sectionByKey = new Map(profile.sections.map((section) => [section.key, section]));
@@ -38,6 +39,7 @@ const description = String(content.seo.description || identity.summary || '');
   themeVersion={theme.version}
   themeRenderer={theme.renderer_key}
   themeTokens={theme.tokens}
+  seo={seo}
 >
   <a class="promo-skip-link" href="#promo-main">{system.messages['a11y.skip_to_content']}</a>
 

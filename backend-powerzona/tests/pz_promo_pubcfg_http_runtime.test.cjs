@@ -553,11 +553,15 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     const platformShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a');
     assertStatus(platformShell, 200, 'SHELL SSR resuelve canonical plataforma publicado');
     assert.equal(platformShell.data.contract, 'promo.public.shell.v1');
-    assert.deepEqual(platformShell.data.route, { source: 'platform', action: 'serve' });
-    assert.equal(platformShell.data.profile.locale.effective, 'es');
-    assert.equal(platformShell.data.profile.content.identity.name, 'Publicado A');
-    assert.equal(platformShell.data.profile.locale.canonical_path, '/promo/promo-pubcfg-a/es');
-    assert.deepEqual(platformShell.data.profile.contact_action, {
+    assert.deepEqual(platformShell.data.route, {
+      source: 'platform', action: 'redirect', location: '/promo/promo-pubcfg-a/es',
+    });
+    const localizedPlatformShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
+    assertStatus(localizedPlatformShell, 200, 'SHELL localized sirve identidad SEO estable');
+    assert.equal(localizedPlatformShell.data.profile.locale.effective, 'es');
+    assert.equal(localizedPlatformShell.data.profile.content.identity.name, 'Publicado A');
+    assert.equal(localizedPlatformShell.data.profile.locale.canonical_path, '/promo/promo-pubcfg-a/es');
+    assert.deepEqual(localizedPlatformShell.data.profile.contact_action, {
       contract: 'promo.contact.action.v1', available: true,
       action: {
         key: 'estimate', type: 'whatsapp', label: 'Solicitar estimado',
@@ -565,10 +569,18 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
         href: 'https://wa.me/5351234567?text=Hola%2C%20deseo%20un%20estimado.',
       },
     });
-    assert.deepEqual(platformShell.data.profile.selector.options.map((option) => option.href), [
+    assert.deepEqual(localizedPlatformShell.data.profile.selector.options.map((option) => option.href), [
       '/promo/promo-pubcfg-a/en', '/promo/promo-pubcfg-a/es',
     ]);
     assert.equal(platformShell.headers.get('cache-control').includes('no-store'), true);
+    assert.equal(localizedPlatformShell.data.seo.canonical_url, 'https://tusenda84.com/promo/promo-pubcfg-a/es');
+    assert.equal(localizedPlatformShell.data.seo.open_graph.type, 'website');
+    const platformSitemap = await request('/api/pz/promo/public/v1/seo/sites/promo-pubcfg-a/sitemap');
+    assertStatus(platformSitemap, 200, 'SEO sitemap deriva locales de revisión publicada');
+    assert.deepEqual(platformSitemap.data.identity.locales.map((entry) => entry.locale), ['en', 'es']);
+    assert.equal(platformSitemap.data.identity.sitemap_url,
+      'https://tusenda84.com/promo/promo-pubcfg-a/sitemap.xml');
+
     const explicitShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/en');
     assertStatus(explicitShell, 200, 'SHELL SSR aplica locale explícito publicado');
     assert.equal(explicitShell.data.profile.locale.effective, 'en');
@@ -1013,7 +1025,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.deepEqual(platformRedirect.data.route, {
       source: 'custom', action: 'redirect', location: 'https://promo-a.example.test/es',
     });
-    const customShell = await request('/api/pz/promo/public/v1/shell/host', {
+    const customShell = await request('/api/pz/promo/public/v1/shell/host/locales/en', {
       headers: { Host: 'promo-a.example.test', 'Accept-Language': 'en' },
     });
     assertStatus(customShell, 200, `SHELL Host primary sirve revisión custom exacta\n${runtime.output()}`);
@@ -1024,6 +1036,15 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(customShell.data.profile.locale.canonical_path, '/en');
     assert.deepEqual(customShell.data.profile.selector.options.map((option) => option.href), ['/en', '/es']);
     const customBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
+    assert.equal(customShell.data.seo.canonical_url, 'https://promo-a.example.test/en');
+    const platformSitemapRedirect = await request('/api/pz/promo/public/v1/seo/sites/promo-pubcfg-a/sitemap');
+    assert.deepEqual(platformSitemapRedirect.data.route, {
+      source: 'custom', action: 'redirect', location: 'https://promo-a.example.test/sitemap.xml',
+    });
+    const customSitemap = await request('/api/pz/promo/public/v1/seo/host/sitemap', {
+      headers: { Host: 'promo-a.example.test' },
+    });
+    assert.equal(customSitemap.data.identity.sitemap_url, 'https://promo-a.example.test/sitemap.xml');
     assertStatus(customBridge, 200, 'guard Commerce usa primary custom exacto');
     assert.equal(customBridge.data.route.location, 'https://promo-a.example.test/');
     const switchPlatform = await request('/api/pz/promo/private/v1/publication/canonical/switch', {

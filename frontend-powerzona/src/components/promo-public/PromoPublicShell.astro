@@ -3,17 +3,19 @@ import PromoBlackGoldTheme from './PromoBlackGoldTheme.astro';
 import {
   PROMO_BLACK_GOLD_RENDERER_KEY,
   type PromoPublicProfile,
+  type PromoPublicSeo,
 } from '../../lib/promoPublicShell';
 
 interface Props {
   profile: PromoPublicProfile;
+  seo: PromoPublicSeo;
 }
 
-const { profile } = Astro.props;
+const { profile, seo } = Astro.props;
 
 if (profile.theme.renderer_key !== PROMO_BLACK_GOLD_RENDERER_KEY) {
   throw new Error('promo_public_renderer_unavailable');
 }
 ---
 
-<PromoBlackGoldTheme profile={profile} />
+<PromoBlackGoldTheme profile={profile} seo={seo} />

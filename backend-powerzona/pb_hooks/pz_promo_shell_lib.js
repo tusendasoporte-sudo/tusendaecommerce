@@ -5,6 +5,9 @@
 const data = typeof __hooks === "undefined"
   ? require("./pz_promo_data_lib.js")
   : require(`${__hooks}/pz_promo_data_lib.js`);
+const seo = typeof __hooks === "undefined"
+  ? require("./pz_promo_seo_lib.js")
+  : require(`${__hooks}/pz_promo_seo_lib.js`);
 
 const PUBLIC_SHELL_CONTRACT = "promo.public.shell.v1";
 const PUBLIC_ROUTE_CONTRACT = "promo.public.route.v1";
@@ -115,11 +118,18 @@ function shellResponse(localized, route) {
   const profile = localizedProfile(localized, source);
   const projectedRoute = { source, action };
   if (action === "redirect") {
-    const localePath = customPath(profile.locale.effective);
-    projectedRoute.location = httpsLocation(settings.canonicalHostname, localePath);
+    projectedRoute.location = source === "platform"
+      ? platformPath(profile.site.public_slug, profile.locale.effective)
+      : httpsLocation(settings.canonicalHostname, customPath(profile.locale.effective));
     return { ok: true, contract: PUBLIC_SHELL_CONTRACT, route: projectedRoute };
   }
-  return { ok: true, contract: PUBLIC_SHELL_CONTRACT, route: projectedRoute, profile };
+  return {
+    ok: true,
+    contract: PUBLIC_SHELL_CONTRACT,
+    route: projectedRoute,
+    profile,
+    seo: seo.pageSeo(profile, settings),
+  };
 }
 
 function routeRedirect(location) {

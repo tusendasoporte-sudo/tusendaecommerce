@@ -20,11 +20,11 @@ try {
 }
 
 if (resolved.route.action === 'redirect' && resolved.route.location) {
-  return applyPromoPublicHeaders(Astro.redirect(resolved.route.location, 307), resolved);
+  return applyPromoPublicHeaders(Astro.redirect(resolved.route.location, 308), resolved);
 }
-if (!resolved.profile) return promoPublicUnavailable(404);
+if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(404);
 
 applyPromoPublicHeaders(Astro.response, resolved);
 ---
 
-<PromoPublicShell profile={resolved.profile} />
+<PromoPublicShell profile={resolved.profile} seo={resolved.seo} />

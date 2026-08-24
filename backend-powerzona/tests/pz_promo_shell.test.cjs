@@ -30,7 +30,9 @@ function localizedFixture(locale = 'es') {
     },
     selector: { label: 'Idioma', options: [option('en', 'English'), option('es', 'Español')] },
     theme: { theme_id: 'promo.black-gold', version: '1.0.0', tokens: {} },
-    section_order: [], sections: [], media: [], contact: {}, content: {}, adapters: {},
+    section_order: [], sections: [], media: [], contact: {},
+    content: { identity: { name: 'Negocio demo' }, seo: { title: 'Demo', description: 'Descripción pública' } },
+    adapters: {},
   };
 }
 

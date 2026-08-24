@@ -171,7 +171,12 @@ function resolvePlatformShell(app, publicSlug, signals) {
     ),
     context,
   );
-  return shell.shellResponse(localized, context);
+  const exactLocale = signals && Object.prototype.hasOwnProperty.call(signals, "explicitLocale")
+    && signals.explicitLocale === localized.locale.effective;
+  return shell.shellResponse(localized, {
+    ...context,
+    action: context.action === "redirect" || !exactLocale ? "redirect" : "serve",
+  });
 }
 
 function resolveHostShell(app, headers, signals) {
@@ -197,9 +202,11 @@ function resolveHostShell(app, headers, signals) {
     );
   }
   catch (_) { throw codedError("promo_public_unavailable", 404); }
+  const exactLocale = signals && Object.prototype.hasOwnProperty.call(signals, "explicitLocale")
+    && signals.explicitLocale === localized.locale.effective;
   return shell.shellResponse(localized, {
     source: "custom",
-    action: context.binding_role === "alias" ? "redirect" : "serve",
+    action: context.binding_role === "alias" || !exactLocale ? "redirect" : "serve",
     canonicalHostname: context.canonical_hostname,
   });
 }

@@ -36,6 +36,11 @@ import {
   promoPublicUnavailable,
   readCustomHostPromoShell,
 } from './lib/promoPublicShell';
+import {
+  customPromoSeoResource,
+  promoSeoResourceResponse,
+  readCustomHostPromoSeo,
+} from './lib/promoPublicSeo';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -219,6 +224,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (context.locals.promoPublicProfile) return await next();
 
   if (!isPromoPlatformRequest(context.request)) {
+    const seoResource = customPromoSeoResource(pathname);
+    if (seoResource) {
+      if (context.url.search) return promoPublicUnavailable(404);
+      try {
+        return promoSeoResourceResponse(await readCustomHostPromoSeo(context.request, seoResource));
+      } catch (error) {
+        const status = error instanceof PromoPublicShellError ? error.status : 421;
+        return promoPublicUnavailable(status === 404 ? 404 : 421);
+      }
+    }
     const publicPath = customPromoPublicPath(pathname);
     let resolved;
     try {
@@ -232,10 +247,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
     if (!publicPath.allowed || context.url.search) return promoPublicUnavailable(404);
     if (resolved.route.action === 'redirect' && resolved.route.location) {
-      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 307), resolved);
+      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
     }
-    if (!resolved.profile) return promoPublicUnavailable(421);
+    if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(421);
     context.locals.promoPublicProfile = resolved.profile;
+    context.locals.promoPublicSeo = resolved.seo;
     const response = await context.rewrite(PROMO_PUBLIC_INTERNAL_PATH);
     return applyPromoPublicHeaders(response, resolved);
   }
