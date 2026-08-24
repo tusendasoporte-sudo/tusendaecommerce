@@ -29,6 +29,8 @@ test('catálogo AUDIT fija acciones críticas y recursos Promo sin ampliar Comme
     'promo.team.permissions.update', 'promo.entitlements.update', 'promo.draft.update',
     'promo.publication.publish', 'promo.publication.rollback', 'promo.publication.binding_switch',
     'promo.domain.activate', 'promo.contact.update', 'promo.theme.release.update',
+    'promo.domain.cloudflare.prepare.simulate', 'promo.domain.cloudflare.inspect.simulate',
+    'promo.domain.cloudflare.remove.simulate',
   ]) assert.ok(audit.ACTION_CATALOG[action], `falta ${action}`);
   assert.equal(audit.ACTION_CATALOG['promo.team.permissions.update'].severity, 'critical');
   assert.equal(audit.ACTION_CATALOG['promo.entitlements.update'].severity, 'critical');

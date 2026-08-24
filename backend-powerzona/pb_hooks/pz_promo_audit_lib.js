@@ -56,6 +56,9 @@ const ACTION_CATALOG = Object.freeze({
   "promo.domain.pause": definition("domain", "critical", ["promo_domain_binding"], "Pausó un binding de dominio Promo"),
   "promo.domain.revoke": definition("domain", "critical", ["promo_domain_binding"], "Revocó un binding de dominio Promo"),
   "promo.domain.release": definition("domain", "critical", ["promo_domain_binding"], "Liberó un binding de dominio Promo"),
+  "promo.domain.cloudflare.prepare.simulate": definition("domain", "critical", ["promo_domain_binding"], "Simuló la preparación Cloudflare de un dominio Promo", { allowEmptyPaths: true }),
+  "promo.domain.cloudflare.inspect.simulate": definition("domain", "critical", ["promo_domain_binding"], "Simuló la consulta Cloudflare de un dominio Promo", { allowEmptyPaths: true }),
+  "promo.domain.cloudflare.remove.simulate": definition("domain", "critical", ["promo_domain_binding"], "Simuló el retiro Cloudflare de un dominio Promo", { allowEmptyPaths: true }),
   "promo.security.reject": definition("security", "important", ["promo_security_event"], "Rechazó una operación Promo insegura", { allowEmptyPaths: true }),
 });
 

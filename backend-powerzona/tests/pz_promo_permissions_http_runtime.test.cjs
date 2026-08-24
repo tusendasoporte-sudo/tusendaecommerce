@@ -306,7 +306,7 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     async function createEntitlement(site) {
       return create('promo_site_entitlements', {
         site: site.id, source: 'contract', promo_site_enabled: true, publish_enabled: true,
-        custom_domain_enabled: false, theme_customization_enabled: true, multilanguage_enabled: true,
+        custom_domain_enabled: true, theme_customization_enabled: true, multilanguage_enabled: true,
         video_enabled: true, analytics_enabled: true, landing_qr_bridge_enabled: true,
         max_services: 20, max_gallery_assets: 12, max_locales: 2, max_videos: 2,
         max_storage_bytes: 52428800, updated_by: master.id,
@@ -343,6 +343,71 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     assertStatus(masterContext, 200, 'Master con contexto Promo');
     assert.ok(masterContext.data.access.reserved_permissions.includes('promo.entitlements.manage'));
     assert.ok(masterContext.data.access.allowed_actions.includes('promo.master.entitlements.manage'));
+
+    const bindingA = await create('promo_domain_bindings', {
+      site: siteA.id,
+      hostname_ascii: 'domain-a.example.test',
+      hostname_display: 'domain-a.example.test',
+      role: 'primary',
+      status: 'pending',
+      is_current: true,
+      verification_method: '',
+      state_version: 1,
+    });
+    const simulateBody = (operation) => ({
+      binding_id: bindingA.id,
+      contract: 'promo.domain.cloudflare.simulate.v1',
+      expected_state_version: 1,
+      expected_status: 'pending',
+      mode: 'simulation',
+      operation,
+    });
+    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+      token: primaryToken,
+      json: simulateBody('prepare'),
+    }), 403, 'Admin Promo no recibe integración Cloudflare reservada');
+    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+      token: masterToken,
+      json: simulateBody('prepare'),
+    }), 403, 'Master sin tenant explícito no simula Cloudflare');
+    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+      token: masterToken,
+      headers: { 'X-PZ-Promo-Store': storeB.id },
+      json: simulateBody('prepare'),
+    }), 404, 'binding A no puede simularse bajo contexto B');
+    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+      token: masterToken,
+      headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: { ...simulateBody('prepare'), zone_id: 'client-controlled' },
+    }), 400, 'cliente no aporta zona o configuración de proveedor');
+    const simulations = {};
+    for (const operation of ['prepare', 'inspect', 'remove']) {
+      const result = await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+        token: masterToken,
+        headers: { 'X-PZ-Promo-Store': storeA.id },
+        json: simulateBody(operation),
+      });
+      assertStatus(result, 200, `simulación Cloudflare ${operation}`);
+      assert.equal(result.data.contract, 'promo.domain.cloudflare.simulation.v1');
+      assert.equal(result.data.mode, 'simulation');
+      assert.equal(result.data.operation, operation);
+      assert.equal(Object.values(result.data.provider_state).every((value) => value === 'not_executed'), true);
+      assert.equal(Object.values(result.data.deferred).every(Boolean), true);
+      assert.equal(result.data.audit.recorded, true);
+      const serialized = JSON.stringify(result.data);
+      for (const forbidden of [
+        siteA.id, storeA.id, 'provider_reference', 'validation_records', 'Authorization', 'Bearer ',
+      ]) assert.equal(serialized.includes(forbidden), false, `simulación excluye ${forbidden}`);
+      simulations[operation] = result.data;
+    }
+    const simulationReplay = await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
+      token: masterToken,
+      headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: simulateBody('prepare'),
+    });
+    assertStatus(simulationReplay, 200, 'replay Cloudflare determinista e idempotente');
+    assert.equal(simulationReplay.data.simulation_reference, simulations.prepare.simulation_reference);
+    assert.equal(simulationReplay.data.request_fingerprint, simulations.prepare.request_fingerprint);
 
     const staffContext = await request('/api/pz/promo/access/context', { token: staffToken, json: {} });
     assertStatus(staffContext, 403, 'staff sin concesión');
@@ -446,9 +511,13 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       token: primaryToken, json: auditListBody,
     });
     assertStatus(primaryAudit, 200, 'principal lee actividad Promo crítica');
-    assert.equal(primaryAudit.data.events.length, 2);
+    assert.equal(primaryAudit.data.events.length, 5);
     assert.deepEqual(primaryAudit.data.events.map((event) => event.action).sort(), [
-      'promo.entitlements.update', 'promo.team.permissions.update',
+      'promo.domain.cloudflare.inspect.simulate',
+      'promo.domain.cloudflare.prepare.simulate',
+      'promo.domain.cloudflare.remove.simulate',
+      'promo.entitlements.update',
+      'promo.team.permissions.update',
     ]);
     assert.equal(primaryAudit.data.events.every((event) => event.severity === 'critical'), true);
     const entitlementAudit = primaryAudit.data.events.find((event) => event.action === 'promo.entitlements.update');
