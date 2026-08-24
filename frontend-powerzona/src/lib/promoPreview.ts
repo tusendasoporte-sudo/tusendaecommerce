@@ -19,11 +19,19 @@ const SECTION_TYPES = new Set([
   'hero', 'services', 'featured_work', 'gallery', 'owner', 'store_rating', 'contact', 'footer',
 ]);
 const CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email', 'internal_form', 'approved_live_chat']);
+const FOOTER_SOCIAL_PATTERNS: Readonly<Record<string, RegExp>> = Object.freeze({
+  instagram: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9_])?)$/,
+  facebook: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9.]{0,48}[a-z0-9])?)$/,
+  linkedin: /^(?:[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?)$/,
+  youtube: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/,
+});
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
-  'a11y.contact_action', 'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation',
-  'a11y.skip_to_content', 'contact.call', 'contact.email', 'contact.open_chat',
+  'a11y.contact_action', 'a11y.footer_links', 'a11y.footer_social', 'a11y.footer_social_link',
+  'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation', 'a11y.skip_to_content',
+  'contact.call', 'contact.email', 'contact.open_chat',
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
+  'footer.platform_branding',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
   'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
@@ -37,7 +45,7 @@ const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
   owner: Object.freeze(['media_use_key']),
   store_rating: Object.freeze([]),
   contact: Object.freeze(['action_keys']),
-  footer: Object.freeze([]),
+  footer: Object.freeze(['navigation_section_keys', 'social_profiles']),
 });
 const LOCALIZED_SECTION_KEYS: Record<string, readonly string[]> = Object.freeze({
   hero: Object.freeze(['heading', 'summary']),
@@ -47,7 +55,7 @@ const LOCALIZED_SECTION_KEYS: Record<string, readonly string[]> = Object.freeze(
   owner: Object.freeze(['heading', 'name', 'bio']),
   store_rating: Object.freeze(['heading']),
   contact: Object.freeze(['heading', 'summary']),
-  footer: Object.freeze(['text']),
+  footer: Object.freeze(['heading', 'summary', 'text']),
 });
 
 type JsonRecord = Record<string, any>;
@@ -354,7 +362,9 @@ function normalizeSection(value: unknown) {
   const section = exactRecord(value, ['key', 'type', 'variant', 'config', 'media_use_keys']);
   const type = typeof section.type === 'string' ? section.type : '';
   if (!SECTION_TYPES.has(type) || section.variant !== 'default') fail('invalid_payload');
-  const config = exactRecord(section.config, SECTION_CONFIG_KEYS[type] || []);
+  const config = type === 'footer'
+    ? subsetRecord(section.config, SECTION_CONFIG_KEYS.footer)
+    : exactRecord(section.config, SECTION_CONFIG_KEYS[type] || []);
   const normalizedConfig: JsonRecord = {};
   if (['services', 'featured_work', 'gallery'].includes(type)) {
     normalizedConfig.item_keys = stringArray(config.item_keys, KEY_PATTERN, 50);
@@ -365,6 +375,21 @@ function normalizeSection(value: unknown) {
     normalizedConfig.media_use_key = config.media_use_key === '' ? '' : safePattern(config.media_use_key, USE_KEY_PATTERN);
   } else if (type === 'contact') {
     normalizedConfig.action_keys = stringArray(config.action_keys, KEY_PATTERN, 32);
+  } else if (type === 'footer') {
+    normalizedConfig.navigation_section_keys = Object.prototype.hasOwnProperty.call(config, 'navigation_section_keys')
+      ? stringArray(config.navigation_section_keys, KEY_PATTERN, 8) : [];
+    if (Object.prototype.hasOwnProperty.call(config, 'social_profiles')
+      && (!Array.isArray(config.social_profiles) || config.social_profiles.length > 4)) fail('invalid_payload');
+    normalizedConfig.social_profiles = Object.prototype.hasOwnProperty.call(config, 'social_profiles')
+      ? config.social_profiles.map((raw: unknown) => {
+        const profile = exactRecord(raw, ['network', 'handle']);
+        const network = safePattern(profile.network, KEY_PATTERN);
+        const handle = safeText(profile.handle, 100, false);
+        if (!FOOTER_SOCIAL_PATTERNS[network]?.test(handle)) fail('invalid_payload');
+        return { network, handle };
+      }) : [];
+    if (new Set(normalizedConfig.social_profiles.map((profile: JsonRecord) => profile.network)).size
+      !== normalizedConfig.social_profiles.length) fail('invalid_payload');
   }
   return {
     key: safePattern(section.key, KEY_PATTERN),
@@ -496,6 +521,13 @@ function normalizePreview(value: unknown, mode: MediaUrlMode) {
   if (sectionOrder.length !== sectionKeys.length || sectionOrder.some((key, index) => key !== sectionKeys[index])) {
     fail('invalid_payload');
   }
+  const sectionByKey = new Map(sections.map((section) => [section.key, section]));
+  sections.filter((section) => section.type === 'footer').forEach((section) => {
+    section.config.navigation_section_keys.forEach((sectionKey: string) => {
+      const target = sectionByKey.get(sectionKey);
+      if (!target || target.type === 'footer') fail('invalid_payload');
+    });
+  });
   if (!Array.isArray(preview.media) || preview.media.length > 512) fail('invalid_payload');
   const media = preview.media.map((item: unknown) => normalizeMedia(item, mode));
   if (new Set(media.map((item) => item.key)).size !== media.length) fail('invalid_payload');

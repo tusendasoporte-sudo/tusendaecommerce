@@ -110,7 +110,16 @@ function contentPatch(document) {
         ],
       } : {}),
       ...(section.type === 'owner' ? { heading: 'Nuestra historia', name: 'Ada', bio: 'Biografía nueva' } : {}),
-      ...(section.type === 'footer' ? { text: 'Texto legal y de cierre.' } : {}),
+      ...(section.type === 'footer' ? {
+        heading: 'Conecta con nosotros',
+        summary: 'Enlaces oficiales del negocio',
+        text: 'Texto legal y de cierre.',
+        navigationSectionKeys: ['hero-main', 'contact-main'],
+        socialProfiles: [
+          { network: 'instagram', handle: 'negocio.demo' },
+          { network: 'linkedin', handle: 'negocio-demo' },
+        ],
+      } : {}),
     })),
   };
 }
@@ -143,6 +152,14 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
   assert.equal(updated.content_by_locale.es.identity.name, 'Negocio editado');
   assert.equal(updated.sections.find((section) => section.type === 'owner').visible, false);
   assert.deepEqual(updated.sections.find((section) => section.type === 'services').config.item_keys, ['service-one', 'service-two']);
+  assert.deepEqual(updated.sections.find((section) => section.type === 'footer').config, {
+    navigation_section_keys: ['hero-main', 'contact-main'],
+    social_profiles: [
+      { network: 'instagram', handle: 'negocio.demo' },
+      { network: 'linkedin', handle: 'negocio-demo' },
+    ],
+  });
+  assert.equal(updated.content_by_locale.es.sections['footer-main'].heading, 'Conecta con nosotros');
   assert.deepEqual({
     theme: updated.theme,
     media_refs: updated.media_refs,
@@ -165,6 +182,14 @@ test('servicios respetan cuota efectiva y el documento no acepta contenido activ
   assert.throws(
     () => buildPromoCmsContentDocument(original, unsafe, 4),
     (error) => error instanceof PromoCmsError && error.code === 'unsafe_promo_document_value',
+  );
+  const unsafeSocial = contentPatch(original);
+  unsafeSocial.sections.find((section) => section.key === 'footer-main').socialProfiles = [
+    { network: 'instagram', handle: 'https://attacker.example/demo' },
+  ];
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, unsafeSocial, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
 });
 

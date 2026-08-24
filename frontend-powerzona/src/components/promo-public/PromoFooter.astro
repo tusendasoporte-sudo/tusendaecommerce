@@ -1,0 +1,63 @@
+---
+import '../../styles/promo-footer.css';
+import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
+
+interface Props {
+  profile: PromoPublicProfile;
+  section: PromoPublicSection;
+  localized: Record<string, any>;
+}
+
+const { profile, section, localized } = Astro.props;
+const footer = profile.footer.sections.find((entry) => entry.key === section.key);
+const sectionId = `promo-section-${section.key}`;
+---
+
+{footer && (
+  <footer
+    id={sectionId}
+    class="promo-shell-footer promo-footer"
+    aria-label={profile.content.navigation[section.key]}
+    data-section-type="footer"
+    data-section-variant={section.variant}
+  >
+    <div class="promo-footer__inner">
+      <div class="promo-footer__identity">
+        <span class="promo-shell-footer__mark" aria-hidden="true"></span>
+        {localized.heading && <h2>{localized.heading}</h2>}
+        {localized.summary && <p class="promo-footer__summary">{localized.summary}</p>}
+        {localized.text && <p class="promo-footer__text">{localized.text}</p>}
+      </div>
+
+      {footer.navigation_links.length > 0 && (
+        <nav class="promo-footer__navigation" aria-label={footer.navigation_label}>
+          <ul>
+            {footer.navigation_links.map((link) => (
+              <li><a href={link.href}>{link.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      {footer.social_links.length > 0 && (
+        <nav class="promo-footer__social" aria-label={footer.social_label}>
+          <ul>
+            {footer.social_links.map((link) => (
+              <li>
+                <a href={link.href} aria-label={link.aria_label} data-social-network={link.network}>
+                  <span aria-hidden="true">{link.label.slice(0, 1)}</span>
+                  <span>{link.label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
+      <p class="promo-footer__platform-brand">
+        <span>{footer.branding.label}</span>
+        <strong>{footer.branding.name}</strong>
+      </p>
+    </div>
+  </footer>
+)}

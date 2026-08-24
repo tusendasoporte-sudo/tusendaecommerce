@@ -3,6 +3,7 @@ import '../../styles/promo-black-gold.css';
 import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
 import PromoContact from './PromoContact.astro';
+import PromoFooter from './PromoFooter.astro';
 import PromoReviews from './PromoReviews.astro';
 import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
@@ -175,18 +176,7 @@ const description = String(content.seo.description || identity.summary || '');
     {footerSections.map((section) => {
       const localized = localizedSection(section);
       return (
-        <footer
-          id={sectionId(section.key)}
-          class="promo-shell-footer"
-          aria-label={content.navigation[section.key]}
-          data-section-type="footer"
-          data-section-variant={section.variant}
-        >
-          <span class="promo-shell-footer__mark" aria-hidden="true"></span>
-          {localized.heading && <h2>{localized.heading}</h2>}
-          {localized.summary && <p>{localized.summary}</p>}
-          {localized.text && <p>{localized.text}</p>}
-        </footer>
+        <PromoFooter profile={profile} section={section} localized={localized} />
       );
     })}
   </div>

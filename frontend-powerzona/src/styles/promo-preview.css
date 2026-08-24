@@ -361,6 +361,10 @@
 .pz-promo-site__contact-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .pz-promo-site__section.is-footer { border-top: 1px solid color-mix(in srgb, var(--promo-site-border) 30%, transparent); padding-block: 34px; text-align: center; }
 .pz-promo-site__section.is-footer p { margin: 0; font-size: 13px; }
+.pz-promo-site__footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin: 18px 0; }
+.pz-promo-site__footer-links span { color: var(--promo-site-accent); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.pz-promo-site__platform-brand { padding-top: 15px; border-top: 1px solid color-mix(in srgb, var(--promo-site-border) 20%, transparent); }
+.pz-promo-site__platform-brand strong { color: var(--promo-site-text); }
 
 .pz-promo-preview__workspace[data-device="mobile"] .pz-promo-site { min-height: 844px; }
 .pz-promo-preview__workspace[data-device="mobile"] .pz-promo-site__header { grid-template-columns: 1fr auto; min-height: 68px; gap: 12px; padding: 14px 18px; }

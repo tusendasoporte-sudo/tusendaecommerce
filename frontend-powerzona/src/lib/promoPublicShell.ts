@@ -24,6 +24,18 @@ const EXECUTABLE_CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email']);
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_ACTION_CONTRACT = 'promo.contact.action.v1';
+const FOOTER_CONTRACT = 'promo.footer.v1';
+const RESERVED_FOOTER_BRAND = 'Tu Senda 84';
+const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
+  label: string;
+  handle: RegExp;
+  href: (handle: string) => string;
+}>>> = Object.freeze({
+  instagram: { label: 'Instagram', handle: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9_])?)$/, href: (handle) => `https://www.instagram.com/${handle}/` },
+  facebook: { label: 'Facebook', handle: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9.]{0,48}[a-z0-9])?)$/, href: (handle) => `https://www.facebook.com/${handle}` },
+  linkedin: { label: 'LinkedIn', handle: /^(?:[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?)$/, href: (handle) => `https://www.linkedin.com/company/${handle}/` },
+  youtube: { label: 'YouTube', handle: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/, href: (handle) => `https://www.youtube.com/@${handle}` },
+});
 const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster']);
 const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
 const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
@@ -47,10 +59,12 @@ const SECTION_MEDIA_PURPOSES: Readonly<Record<string, readonly string[]>> = Obje
   owner: ['owner'], store_rating: [], contact: [], footer: ['footer'],
 });
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
-  'a11y.contact_action', 'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation',
-  'a11y.skip_to_content', 'contact.call', 'contact.email', 'contact.open_chat',
+  'a11y.contact_action', 'a11y.footer_links', 'a11y.footer_social', 'a11y.footer_social_link',
+  'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation', 'a11y.skip_to_content',
+  'contact.call', 'contact.email', 'contact.open_chat',
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
+  'footer.platform_branding',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
   'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
@@ -150,6 +164,25 @@ export type PromoPublicContactAction = Readonly<{
   }> | null;
 }>;
 
+export type PromoPublicFooterSection = Readonly<{
+  key: string;
+  navigation_label: string;
+  social_label: string;
+  navigation_links: readonly Readonly<{ section_key: string; label: string; href: string }>[];
+  social_links: readonly Readonly<{
+    network: 'instagram' | 'facebook' | 'linkedin' | 'youtube';
+    label: string;
+    aria_label: string;
+    href: string;
+  }>[];
+  branding: Readonly<{ label: string; name: typeof RESERVED_FOOTER_BRAND }>;
+}>;
+
+export type PromoPublicFooter = Readonly<{
+  contract: typeof FOOTER_CONTRACT;
+  sections: readonly PromoPublicFooterSection[];
+}>;
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -176,6 +209,7 @@ export type PromoPublicProfile = Readonly<{
   media: readonly PromoPublicMedia[];
   contact: Readonly<JsonRecord>;
   contact_action: PromoPublicContactAction;
+  footer: PromoPublicFooter;
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
   store_rating: PromoPublicStoreRating;
@@ -486,14 +520,30 @@ function normalizeSection(value: unknown): PromoPublicSection {
     || !Array.isArray(section.media_use_keys) || section.media_use_keys.length > 30) fail();
   const allowedConfig: Readonly<Record<string, readonly string[]>> = {
     hero: ['media_use_key', 'action_key'], services: ['item_keys'], featured_work: ['item_keys'],
-    gallery: ['item_keys'], owner: ['media_use_key'], store_rating: [], contact: ['action_keys'], footer: [],
+    gallery: ['item_keys'], owner: ['media_use_key'], store_rating: [], contact: ['action_keys'],
+    footer: ['navigation_section_keys', 'social_profiles'],
   };
-  exactRecord(section.config, allowedConfig[type] || []);
+  if (type === 'footer') subsetRecord(section.config, allowedConfig.footer);
+  else exactRecord(section.config, allowedConfig[type] || []);
   const config: JsonRecord = {};
   for (const [key, raw] of Object.entries(section.config)) {
+    if (type === 'footer' && key === 'social_profiles') {
+      if (!Array.isArray(raw) || raw.length > 4) fail();
+      config.social_profiles = raw.map((item: unknown) => {
+        const profile = exactRecord(item, ['network', 'handle']);
+        const network = safePattern(profile.network, TOKEN_PATTERN);
+        const handle = safeText(profile.handle, 100, true);
+        if (!FOOTER_SOCIALS[network]?.handle.test(handle)) fail();
+        return { network, handle };
+      });
+      if (new Set(config.social_profiles.map((item: JsonRecord) => item.network)).size !== config.social_profiles.length) fail();
+      continue;
+    }
     if (Array.isArray(raw)) {
-      if (raw.length > 50) fail();
+      const maximum = type === 'footer' && key === 'navigation_section_keys' ? 8 : 50;
+      if (raw.length > maximum) fail();
       config[key] = raw.map((item) => safePattern(item, KEY_PATTERN));
+      if (new Set(config[key]).size !== config[key].length) fail();
     } else {
       config[key] = raw === '' ? '' : safePattern(raw, KEY_PATTERN);
     }
@@ -505,6 +555,83 @@ function normalizeSection(value: unknown): PromoPublicSection {
     config,
     media_use_keys: section.media_use_keys.map((item: unknown) => safePattern(item, KEY_PATTERN)),
   };
+}
+
+function formatSystemMessage(template: unknown, values: Readonly<Record<string, string>>) {
+  const message = safeText(template, 240, true);
+  const expected = Array.from(new Set((message.match(/\{[a-z_]+\}/g) || [])
+    .map((item) => item.slice(1, -1)))).sort();
+  const actual = Object.keys(values).sort();
+  if (expected.length !== actual.length || expected.some((key, index) => key !== actual[index])) fail();
+  return message.replace(/\{([a-z_]+)\}/g, (_, key) => safeText(values[key], 160, true));
+}
+
+function normalizeFooter(
+  value: unknown,
+  sections: readonly PromoPublicSection[],
+  content: JsonRecord,
+  messages: Readonly<Record<string, string>>,
+): PromoPublicFooter {
+  const footer = exactRecord(value, ['contract', 'sections']);
+  if (footer.contract !== FOOTER_CONTRACT || !Array.isArray(footer.sections)) fail();
+  const configured = sections.filter((section) => section.type === 'footer');
+  if (footer.sections.length !== configured.length) fail();
+  const sectionByKey = new Map(sections.map((section) => [section.key, section]));
+  const business = safeText(content.identity.name, 140, true);
+  const normalizedSections = footer.sections.map((raw: unknown, index: number) => {
+    const entry = exactRecord(raw, [
+      'key', 'navigation_label', 'social_label', 'navigation_links', 'social_links', 'branding',
+    ]);
+    const section = configured[index];
+    if (!section || entry.key !== section.key || !Array.isArray(entry.navigation_links)
+      || !Array.isArray(entry.social_links)) fail();
+    const navigationKeys = Array.isArray(section.config.navigation_section_keys)
+      ? section.config.navigation_section_keys : [];
+    const socialProfiles = Array.isArray(section.config.social_profiles)
+      ? section.config.social_profiles : [];
+    if (entry.navigation_links.length !== navigationKeys.length
+      || entry.social_links.length !== socialProfiles.length) fail();
+    const navigationLinks = entry.navigation_links.map((linkValue: unknown, linkIndex: number) => {
+      const link = exactRecord(linkValue, ['section_key', 'label', 'href']);
+      const sectionKey = navigationKeys[linkIndex];
+      const target = sectionByKey.get(sectionKey);
+      const label = safeText(link.label, 80, true);
+      if (!target || target.type === 'footer' || link.section_key !== sectionKey
+        || label !== content.navigation[sectionKey]
+        || link.href !== `#promo-section-${sectionKey}`) fail();
+      return { section_key: sectionKey, label, href: link.href };
+    });
+    const socialLinks = entry.social_links.map((linkValue: unknown, linkIndex: number) => {
+      const link = exactRecord(linkValue, ['network', 'label', 'aria_label', 'href']);
+      const source = socialProfiles[linkIndex];
+      const definition = source && FOOTER_SOCIALS[source.network];
+      if (!definition || link.network !== source.network || link.label !== definition.label
+        || link.href !== definition.href(source.handle)
+        || link.aria_label !== formatSystemMessage(messages['a11y.footer_social_link'], {
+          business, network: definition.label,
+        })) fail();
+      return {
+        network: source.network as 'instagram' | 'facebook' | 'linkedin' | 'youtube',
+        label: definition.label,
+        aria_label: safeText(link.aria_label, 240, true),
+        href: link.href,
+      };
+    });
+    const branding = exactRecord(entry.branding, ['label', 'name']);
+    if (branding.label !== messages['footer.platform_branding'] || branding.name !== RESERVED_FOOTER_BRAND) fail();
+    const navigationLabel = formatSystemMessage(messages['a11y.footer_links'], { business });
+    const socialLabel = formatSystemMessage(messages['a11y.footer_social'], { business });
+    if (entry.navigation_label !== navigationLabel || entry.social_label !== socialLabel) fail();
+    return {
+      key: section.key,
+      navigation_label: navigationLabel,
+      social_label: socialLabel,
+      navigation_links: navigationLinks,
+      social_links: socialLinks,
+      branding: { label: safeText(branding.label, 160, true), name: RESERVED_FOOTER_BRAND },
+    };
+  });
+  return { contract: FOOTER_CONTRACT, sections: normalizedSections };
 }
 
 function normalizeContent(value: unknown, sections: readonly PromoPublicSection[], mediaKeys: readonly string[], actionKeys: readonly string[]) {
@@ -605,11 +732,12 @@ function normalizeStoreRating(value: unknown, adapterEnabled: boolean, sectionAv
 function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoPublicProfile {
   const profile = exactRecord(value, [
     'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
-    'media', 'contact', 'contact_action', 'content', 'adapters', 'store_rating',
+    'media', 'contact', 'contact_action', 'footer', 'content', 'adapters', 'store_rating',
   ]);
   const site = exactRecord(profile.site, ['public_slug']);
   const system = exactRecord(profile.system, ['catalog_version', 'messages']);
   if (system.catalog_version !== 'promo.system.v1') fail();
+  const systemMessages = exactStringMap(system.messages, SYSTEM_MESSAGE_KEYS, 240);
   const locale = exactRecord(profile.locale, ['effective', 'default', 'source', 'lang', 'direction', 'canonical_path']);
   const effective = canonicalLocale(locale.effective);
   const defaultLocale = canonicalLocale(locale.default);
@@ -722,6 +850,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     return !localized || localized.alt !== item.accessibility.alt
       || localized.decorative !== item.accessibility.decorative;
   })) fail();
+  const footer = normalizeFooter(profile.footer, sections, normalizedContent, systemMessages);
   const adapters = exactRecord(profile.adapters, ['store_rating', 'landing_qr_link']);
   const rating = exactRecord(adapters.store_rating, ['enabled']);
   const landing = exactRecord(adapters.landing_qr_link, ['enabled']);
@@ -733,7 +862,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   );
   return {
     site: { public_slug: slug },
-    system: { catalog_version: 'promo.system.v1', messages: exactStringMap(system.messages, SYSTEM_MESSAGE_KEYS, 240) },
+    system: { catalog_version: 'promo.system.v1', messages: systemMessages },
     locale: {
       effective, default: defaultLocale, source: locale.source, lang: effective,
       direction: locale.direction, canonical_path: expectedCanonical,
@@ -750,6 +879,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     media,
     contact: normalizedContact,
     contact_action: contactAction,
+    footer,
     content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },
     store_rating: storeRating,

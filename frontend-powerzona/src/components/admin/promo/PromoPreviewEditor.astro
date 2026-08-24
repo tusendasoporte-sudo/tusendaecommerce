@@ -400,7 +400,25 @@ const { storeSlug, canPrepare } = Astro.props;
           });
           block.append(actions);
         } else if (section.type === 'footer') {
-          block.append(element('p', '', localized.text || ''));
+          block.append(sectionTitle(localized));
+          if (localized.text) block.append(element('p', '', localized.text));
+          const footerLinks = element('div', 'pz-promo-site__footer-links');
+          (section.config.navigation_section_keys || []).forEach((targetKey: string) => {
+            footerLinks.append(element('span', '', preview.content.navigation[targetKey] || targetKey));
+          });
+          const socialLabels: Record<string, string> = {
+            instagram: 'Instagram', facebook: 'Facebook', linkedin: 'LinkedIn', youtube: 'YouTube',
+          };
+          (section.config.social_profiles || []).forEach((profile: any) => {
+            footerLinks.append(element('span', '', socialLabels[profile.network] || profile.network));
+          });
+          if (footerLinks.childElementCount) block.append(footerLinks);
+          const platformBrand = element('p', 'pz-promo-site__platform-brand');
+          platformBrand.append(
+            document.createTextNode(`${preview.system.messages['footer.platform_branding']} `),
+            element('strong', '', 'Tu Senda 84'),
+          );
+          block.append(platformBrand);
         } else {
           block.append(sectionTitle(localized));
         }

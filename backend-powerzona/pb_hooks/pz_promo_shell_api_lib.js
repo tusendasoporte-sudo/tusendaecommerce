@@ -23,6 +23,9 @@ const shell = typeof __hooks === "undefined"
 const promoContact = typeof __hooks === "undefined"
   ? require("./pz_promo_contact_lib.js")
   : require(`${__hooks}/pz_promo_contact_lib.js`);
+const promoFooter = typeof __hooks === "undefined"
+  ? require("./pz_promo_footer_lib.js")
+  : require(`${__hooks}/pz_promo_footer_lib.js`);
 const promoReviews = typeof __hooks === "undefined"
   ? require("./pz_promo_reviews_api_lib.js")
   : require(`${__hooks}/pz_promo_reviews_api_lib.js`);
@@ -154,7 +157,9 @@ function resolvePlatformShell(app, publicSlug, signals) {
   const localized = promoReviews.attachPublicRating(
     app,
     promoContact.attachPublicContact(
-      localizeProjection(context.projection, signals || {}),
+      promoFooter.attachPublicFooter(
+        localizeProjection(context.projection, signals || {}),
+      ),
       context,
     ),
     context,
@@ -172,7 +177,9 @@ function resolveHostShell(app, headers, signals) {
     localized = promoReviews.attachPublicRating(
       app,
       promoContact.attachPublicContact(
-        localizeProjection(context.projection, signals || {}),
+        promoFooter.attachPublicFooter(
+          localizeProjection(context.projection, signals || {}),
+        ),
         context,
       ),
       context,

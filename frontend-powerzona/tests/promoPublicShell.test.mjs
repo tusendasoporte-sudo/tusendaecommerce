@@ -18,10 +18,12 @@ function read(relativePath) {
 }
 
 const messages = Object.fromEntries([
-  'a11y.contact_action', 'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation',
-  'a11y.skip_to_content', 'contact.call', 'contact.email', 'contact.open_chat',
+  'a11y.contact_action', 'a11y.footer_links', 'a11y.footer_social', 'a11y.footer_social_link',
+  'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation', 'a11y.skip_to_content',
+  'contact.call', 'contact.email', 'contact.open_chat',
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
+  'footer.platform_branding',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
   'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
@@ -61,6 +63,7 @@ function shellEnvelope(source = 'platform') {
       media: [],
       contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
       contact_action: { contract: 'promo.contact.action.v1', available: false, action: null },
+      footer: { contract: 'promo.footer.v1', sections: [] },
       content: {
         identity: { name: 'Negocio demo', summary: 'Presentación pública' },
         navigation: { 'hero-main': 'Inicio' },
@@ -74,6 +77,55 @@ function shellEnvelope(source = 'platform') {
       },
     },
   };
+}
+
+function shellEnvelopeWithFooter() {
+  const envelope = shellEnvelope();
+  Object.assign(envelope.profile.system.messages, {
+    'a11y.footer_links': '{business} site links',
+    'a11y.footer_social': '{business} social media',
+    'a11y.footer_social_link': 'Visit {business} on {network}',
+    'footer.platform_branding': 'Promo presence on',
+  });
+  envelope.profile.section_order = ['hero-main', 'footer-main'];
+  envelope.profile.sections.push({
+    key: 'footer-main', type: 'footer', variant: 'default',
+    config: {
+      navigation_section_keys: ['hero-main'],
+      social_profiles: [
+        { network: 'instagram', handle: 'demo.business' },
+        { network: 'linkedin', handle: 'demo-business' },
+      ],
+    },
+    media_use_keys: [],
+  });
+  envelope.profile.content.navigation['footer-main'] = 'Site footer';
+  envelope.profile.content.sections['footer-main'] = {
+    heading: 'Stay connected', summary: 'Official links', text: 'Visits by appointment.',
+  };
+  envelope.profile.footer = {
+    contract: 'promo.footer.v1',
+    sections: [{
+      key: 'footer-main',
+      navigation_label: 'Negocio demo site links',
+      social_label: 'Negocio demo social media',
+      navigation_links: [{ section_key: 'hero-main', label: 'Inicio', href: '#promo-section-hero-main' }],
+      social_links: [
+        {
+          network: 'instagram', label: 'Instagram',
+          aria_label: 'Visit Negocio demo on Instagram',
+          href: 'https://www.instagram.com/demo.business/',
+        },
+        {
+          network: 'linkedin', label: 'LinkedIn',
+          aria_label: 'Visit Negocio demo on LinkedIn',
+          href: 'https://www.linkedin.com/company/demo-business/',
+        },
+      ],
+      branding: { label: 'Promo presence on', name: 'Tu Senda 84' },
+    }],
+  };
+  return envelope;
 }
 
 function imageDelivery({
@@ -344,6 +396,29 @@ test('CONTACT acepta solo la acción principal compilada, allowlisted y localize
   assert.throws(() => normalizePromoPublicShellResponse(unsafeMail), PromoPublicShellError);
 });
 
+test('FOOTER acepta solo enlaces compilados, redes tipadas y branding reservado', () => {
+  const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithFooter());
+  const footer = normalized.profile.footer.sections[0];
+  assert.deepEqual(footer.navigation_links, [{
+    section_key: 'hero-main', label: 'Inicio', href: '#promo-section-hero-main',
+  }]);
+  assert.deepEqual(footer.social_links.map((link) => [link.network, link.href]), [
+    ['instagram', 'https://www.instagram.com/demo.business/'],
+    ['linkedin', 'https://www.linkedin.com/company/demo-business/'],
+  ]);
+  assert.deepEqual(footer.branding, { label: 'Promo presence on', name: 'Tu Senda 84' });
+
+  const arbitrary = shellEnvelopeWithFooter();
+  arbitrary.profile.footer.sections[0].social_links[0].href = 'https://tenant.example/social';
+  assert.throws(() => normalizePromoPublicShellResponse(arbitrary), PromoPublicShellError);
+  const reserved = shellEnvelopeWithFooter();
+  reserved.profile.footer.sections[0].branding.name = 'Marca del tenant';
+  assert.throws(() => normalizePromoPublicShellResponse(reserved), PromoPublicShellError);
+  const commerce = shellEnvelopeWithFooter();
+  commerce.profile.sections[1].config.navigation_section_keys = ['checkout'];
+  assert.throws(() => normalizePromoPublicShellResponse(commerce), PromoPublicShellError);
+});
+
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithSections());
   assert.deepEqual(normalized.profile.section_order, [
@@ -425,18 +500,20 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   const hero = read('../src/components/promo-public/PromoHero.astro');
   const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
   const contact = read('../src/components/promo-public/PromoContact.astro');
+  const footer = read('../src/components/promo-public/PromoFooter.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const sectionMedia = read('../src/components/promo-public/PromoSectionMedia.astro');
   const styles = read('../src/styles/promo-public-shell.css');
   const themeStyles = read('../src/styles/promo-black-gold.css');
   const heroStyles = read('../src/styles/promo-hero.css');
   const contactStyles = read('../src/styles/promo-contact.css');
+  const footerStyles = read('../src/styles/promo-footer.css');
   const sectionStyles = read('../src/styles/promo-sections.css');
   const middleware = read('../src/middleware.ts');
   const platform = read('../src/pages/promo/[publicSlug]/index.astro');
   const localized = read('../src/pages/promo/[publicSlug]/[locale].astro');
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
-  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${contactStyles}\n${sectionStyles}\n${platform}\n${localized}`;
+  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${footer}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${contactStyles}\n${footerStyles}\n${sectionStyles}\n${platform}\n${localized}`;
   assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);
@@ -488,6 +565,39 @@ test('renderer ALADDIN aplica únicamente la release negra/dorada y delega conta
   assert.ok(Buffer.byteLength(styles, 'utf8') <= 50 * 1024, 'CSS del renderer excede el budget Theme de 50 KiB');
   assert.doesNotMatch(`${theme}\n${styles}`, /<img|<video|<button|tel:|mailto:|wa\.me|Escanéame|qr|price|cart|checkout/i);
   assert.doesNotMatch(styles, /url\(|@import|https?:/i);
+});
+
+test('FOOTER renderiza datos localizados, navegación, redes y marca Master sin scripts', () => {
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const footer = read('../src/components/promo-public/PromoFooter.astro');
+  const styles = read('../src/styles/promo-footer.css');
+  const cms = read('../src/components/admin/promo/PromoCmsEditor.astro');
+  const cmsLib = read('../src/lib/promoCms.ts');
+  const allThemeStyles = [
+    read('../src/styles/promo-black-gold.css'),
+    read('../src/styles/promo-hero.css'),
+    read('../src/styles/promo-sections.css'),
+    read('../src/styles/promo-reviews.css'),
+    read('../src/styles/promo-contact.css'),
+    styles,
+  ].join('\n');
+  assert.match(theme, /<PromoFooter/);
+  assert.match(footer, /profile\.footer\.sections\.find/);
+  assert.match(footer, /aria-label=\{footer\.navigation_label\}/);
+  assert.match(footer, /aria-label=\{footer\.social_label\}/);
+  assert.match(footer, /aria-label=\{link\.aria_label\}/);
+  assert.match(footer, /footer\.branding\.name/);
+  assert.match(styles, /grid-template-columns: minmax\(0, 1\.5fr\)/);
+  assert.match(styles, /min-height: 44px/);
+  assert.match(styles, /@media \(max-width: 640px\)/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(cms, /dataCmsFooterSocial|cmsFooterSocial/);
+  assert.match(cmsLib, /navigation_section_keys/);
+  assert.match(cmsLib, /social_profiles/);
+  assert.doesNotMatch(`${footer}\n${styles}`, /<script|onclick|addEventListener|innerHTML|set:html|target="_blank"/i);
+  assert.doesNotMatch(styles, /url\(|@import|https?:/i);
+  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 64 * 1024,
+    'CSS público combinado Promo excede el budget transitorio de 64 KiB');
 });
 
 test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () => {

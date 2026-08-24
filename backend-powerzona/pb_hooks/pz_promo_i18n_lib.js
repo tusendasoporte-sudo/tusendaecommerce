@@ -14,6 +14,9 @@ const LOCALE_PREFERENCE_COOKIE = "pz_promo_locale";
 
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
   "a11y.contact_action",
+  "a11y.footer_links",
+  "a11y.footer_social",
+  "a11y.footer_social_link",
   "a11y.language_selector",
   "a11y.main_content",
   "a11y.main_navigation",
@@ -27,6 +30,7 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   "contact.whatsapp",
   "error.locale_unavailable",
   "error.site_unavailable",
+  "footer.platform_branding",
   "locale.current",
   "locale.option_aria",
   "navigation.contact",
@@ -50,6 +54,9 @@ const SYSTEM_CATALOGS = Object.freeze({
   "promo.system.v1": Object.freeze({
     en: catalog("English", "ltr", {
       "a11y.contact_action": "Contact the business",
+      "a11y.footer_links": "{business} site links",
+      "a11y.footer_social": "{business} social media",
+      "a11y.footer_social_link": "Visit {business} on {network}",
       "a11y.language_selector": "Language",
       "a11y.main_content": "Main content",
       "a11y.main_navigation": "Main navigation",
@@ -63,6 +70,7 @@ const SYSTEM_CATALOGS = Object.freeze({
       "contact.whatsapp": "Contact on WhatsApp",
       "error.locale_unavailable": "This language is unavailable",
       "error.site_unavailable": "This site is unavailable",
+      "footer.platform_branding": "Promo presence on",
       "locale.current": "Current language",
       "locale.option_aria": "View this site in {language}",
       "navigation.contact": "Contact",
@@ -83,6 +91,9 @@ const SYSTEM_CATALOGS = Object.freeze({
     }),
     es: catalog("Español", "ltr", {
       "a11y.contact_action": "Contactar al negocio",
+      "a11y.footer_links": "Enlaces del sitio de {business}",
+      "a11y.footer_social": "Redes sociales de {business}",
+      "a11y.footer_social_link": "Visitar {network} de {business}",
       "a11y.language_selector": "Idioma",
       "a11y.main_content": "Contenido principal",
       "a11y.main_navigation": "Navegación principal",
@@ -96,6 +107,7 @@ const SYSTEM_CATALOGS = Object.freeze({
       "contact.whatsapp": "Contactar por WhatsApp",
       "error.locale_unavailable": "Este idioma no está disponible",
       "error.site_unavailable": "Este sitio no está disponible",
+      "footer.platform_branding": "Presencia promocional en",
       "locale.current": "Idioma actual",
       "locale.option_aria": "Ver este sitio en {language}",
       "navigation.contact": "Contacto",

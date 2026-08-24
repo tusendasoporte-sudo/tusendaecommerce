@@ -17,6 +17,15 @@ export const PROMO_CMS_CONTACT_TYPES = Object.freeze([
   'email',
 ] as const);
 
+export const PROMO_CMS_FOOTER_SOCIAL_NETWORKS = Object.freeze([
+  Object.freeze({ key: 'instagram', label: 'Instagram' }),
+  Object.freeze({ key: 'facebook', label: 'Facebook' }),
+  Object.freeze({ key: 'linkedin', label: 'LinkedIn' }),
+  Object.freeze({ key: 'youtube', label: 'YouTube' }),
+] as const);
+
+export const PROMO_CMS_FOOTER_MAX_LINKS = 8;
+
 export const PROMO_CMS_TEXT_LIMITS = Object.freeze({
   businessName: 140,
   heading: 160,
@@ -39,6 +48,12 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const STORE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FOOTER_SOCIAL_PATTERNS: Readonly<Record<string, RegExp>> = Object.freeze({
+  instagram: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9_])?)$/,
+  facebook: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9.]{0,48}[a-z0-9])?)$/,
+  linkedin: /^(?:[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?)$/,
+  youtube: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/,
+});
 const SUPPORTED_SECTION_TYPES = new Set([
   'hero', 'services', 'featured_work', 'gallery', 'owner', 'store_rating', 'contact', 'footer',
 ]);
@@ -64,6 +79,8 @@ export type PromoCmsContentPatch = Readonly<{
     name?: string;
     bio?: string;
     text?: string;
+    navigationSectionKeys?: readonly string[];
+    socialProfiles?: readonly Readonly<{ network: string; handle: string }>[];
     items?: readonly Readonly<{ key: string; name: string; summary: string; caption: string }>[];
   }>[];
 }>;
@@ -166,7 +183,7 @@ function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number
     services: { key: 'services-main', config: { item_keys: [] } },
     owner: { key: 'owner-main', config: { media_use_key: '' } },
     contact: { key: 'contact-main', config: { action_keys: [] } },
-    footer: { key: 'footer-main', config: {} },
+    footer: { key: 'footer-main', config: { navigation_section_keys: [], social_profiles: [] } },
   };
   return definitions[type];
 }
@@ -177,7 +194,7 @@ function localizedSectionDefinition(type: string) {
     services: { heading: '', summary: '', items: [] },
     owner: { heading: '', name: '', bio: '' },
     contact: { heading: '', summary: '' },
-    footer: { text: '' },
+    footer: { heading: '', summary: '', text: '' },
   };
   return clone(definitions[type] || {});
 }
@@ -342,6 +359,23 @@ function patchByKey<T extends { key: string }>(items: readonly T[]) {
   return result;
 }
 
+function footerSocialProfiles(value: unknown) {
+  if (!Array.isArray(value) || value.length > PROMO_CMS_FOOTER_SOCIAL_NETWORKS.length) {
+    fail('invalid_promo_document');
+  }
+  const networks = new Set<string>();
+  return value.map((raw) => {
+    if (!isRecord(raw) || Object.keys(raw).sort().join(',') !== 'handle,network') fail('invalid_payload');
+    const network = String(raw.network || '');
+    const handle = String(raw.handle || '').trim().toLowerCase();
+    if (networks.has(network) || !FOOTER_SOCIAL_PATTERNS[network]?.test(handle)) {
+      fail('invalid_promo_document');
+    }
+    networks.add(network);
+    return { network, handle };
+  });
+}
+
 export function buildPromoCmsContentDocument(
   value: unknown,
   patch: PromoCmsContentPatch,
@@ -414,8 +448,27 @@ export function buildPromoCmsContentDocument(
         bio: safeText(sectionPatch.bio || '', PROMO_CMS_TEXT_LIMITS.body),
       };
     } else if (section.type === 'footer') {
+      const navigationSectionKeys = Array.isArray(sectionPatch.navigationSectionKeys)
+        ? sectionPatch.navigationSectionKeys.map((sectionKey) => key(sectionKey))
+        : [];
+      if (navigationSectionKeys.length > PROMO_CMS_FOOTER_MAX_LINKS
+        || new Set(navigationSectionKeys).size !== navigationSectionKeys.length
+        || navigationSectionKeys.some((targetKey) => {
+          const target = sectionMap.get(targetKey);
+          const targetPatch = patchSections.get(targetKey);
+          return !target || target.type === 'footer' || !targetPatch?.visible;
+        })) {
+        fail('invalid_promo_document');
+      }
+      const socialProfiles = footerSocialProfiles(sectionPatch.socialProfiles || []);
+      section.config = {
+        navigation_section_keys: navigationSectionKeys,
+        social_profiles: socialProfiles,
+      };
       localized.sections[sectionKey] = {
         ...current,
+        heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
+        summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
         text: safeText(sectionPatch.text || '', PROMO_CMS_TEXT_LIMITS.body),
       };
     }

@@ -169,6 +169,8 @@ const isContent = scope === 'content';
     normalizePromoCmsDraftResponse,
     PROMO_CMS_API_PATH,
     PROMO_CMS_CONTACT_TYPES,
+    PROMO_CMS_FOOTER_MAX_LINKS,
+    PROMO_CMS_FOOTER_SOCIAL_NETWORKS,
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
 
@@ -425,9 +427,47 @@ const isContent = scope === 'content';
           inputField('Biografía', sectionContent.bio || '', { textarea: true, max: 4000, data: 'bio' }).label,
         );
       } else if (section.type === 'footer') {
-        fields.append(inputField('Texto del pie', sectionContent.text || '', {
-          textarea: true, max: 4000, data: 'text',
-        }).label);
+        fields.append(
+          inputField('Título del pie', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
+          inputField('Resumen del pie', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+          inputField('Texto legal o de cierre', sectionContent.text || '', {
+            textarea: true, max: 4000, data: 'text',
+          }).label,
+        );
+
+        const footerLinks = element('fieldset', 'pz-promo-cms__footer-options');
+        const linksLegend = element('legend', '', `Enlaces internos (máximo ${PROMO_CMS_FOOTER_MAX_LINKS})`);
+        footerLinks.append(linksLegend);
+        const selectedLinks = new Set(section.config.navigation_section_keys || []);
+        const linkGrid = element('div', 'pz-promo-cms__footer-option-grid');
+        (documentValue?.sections || []).filter((candidate: CmsDocument) => (
+          candidate.type !== 'footer' && candidate.visible === true
+        )).forEach((candidate: CmsDocument) => {
+          const option = element('label', 'pz-promo-cms__check-option');
+          const checkbox = element('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = candidate.key;
+          checkbox.checked = selectedLinks.has(candidate.key);
+          checkbox.dataset.cmsFooterLink = '';
+          option.append(checkbox, element('span', '', localized.navigation?.[candidate.key] || sectionLabels[candidate.type] || candidate.key));
+          linkGrid.append(option);
+        });
+        footerLinks.append(linkGrid);
+
+        const social = element('fieldset', 'pz-promo-cms__footer-options');
+        social.append(element('legend', '', 'Redes sociales aprobadas'));
+        social.append(element('p', 'pz-promo-cms__scope-note', 'Escribe solo el identificador público, sin @, dominio, URL ni protocolo.'));
+        const socialByNetwork = new Map((section.config.social_profiles || []).map((profile: CmsDocument) => [profile.network, profile.handle]));
+        const socialGrid = element('div', 'pz-promo-cms__footer-social-grid');
+        PROMO_CMS_FOOTER_SOCIAL_NETWORKS.forEach((network) => {
+          const field = inputField(`${network.label}: identificador`, socialByNetwork.get(network.key) || '', { max: 100 });
+          field.control.dataset.cmsFooterSocial = network.key;
+          field.control.setAttribute('autocomplete', 'off');
+          socialGrid.append(field.label);
+        });
+        social.append(socialGrid);
+        card.append(header, visible, fields, footerLinks, social);
+        return card;
       } else {
         const note = element('p', 'pz-promo-cms__scope-note');
         note.textContent = section.type === 'contact'
@@ -596,7 +636,16 @@ const isContent = scope === 'content';
           };
           if (type === 'hero') Object.assign(result, { heading: field('heading'), summary: field('summary') });
           if (type === 'owner') Object.assign(result, { heading: field('heading'), name: field('name'), bio: field('bio') });
-          if (type === 'footer') Object.assign(result, { text: field('text') });
+          if (type === 'footer') Object.assign(result, {
+            heading: field('heading'),
+            summary: field('summary'),
+            text: field('text'),
+            navigationSectionKeys: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-link]:checked'))
+              .map((input) => input.value),
+            socialProfiles: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-social]'))
+              .map((input) => ({ network: input.dataset.cmsFooterSocial || '', handle: input.value }))
+              .filter((profile) => profile.handle.trim()),
+          });
           if (type === 'services') {
             Object.assign(result, {
               heading: field('heading'),

@@ -9,6 +9,9 @@ const promoTheme = typeof __hooks === "undefined"
 const promoMedia = typeof __hooks === "undefined"
   ? require("./pz_promo_media_lib.js")
   : require(`${__hooks}/pz_promo_media_lib.js`);
+const promoFooter = typeof __hooks === "undefined"
+  ? require("./pz_promo_footer_lib.js")
+  : require(`${__hooks}/pz_promo_footer_lib.js`);
 
 const DOCUMENT_CONTRACT = "promo.site.v1";
 const PUBLIC_CONTRACT = "promo.public.projection.v1";
@@ -43,7 +46,7 @@ const SECTION_CONFIG_KEYS = Object.freeze({
   owner: ["media_use_key"],
   store_rating: [],
   contact: ["action_keys"],
-  footer: [],
+  footer: ["navigation_section_keys", "social_profiles"],
 });
 const SECTION_MEDIA_PURPOSES = Object.freeze({
   hero: Object.freeze(["hero"]),
@@ -62,7 +65,7 @@ const LOCALIZED_SECTION_KEYS = Object.freeze({
   owner: ["heading", "name", "bio"],
   store_rating: ["heading"],
   contact: ["heading", "summary"],
-  footer: ["text"],
+  footer: ["heading", "summary", "text"],
 });
 
 class PromoPubcfgError extends Error {
@@ -217,7 +220,15 @@ function validateIdentity(value) {
 
 function validateSectionConfig(section, knownActions, knownMedia) {
   const expected = SECTION_CONFIG_KEYS[section.type];
-  exactKeys(section.config, expected);
+  if (section.type === "footer") {
+    try { promoFooter.normalizeFooterConfig(section.config); }
+    catch (error) {
+      if (error instanceof promoFooter.PromoFooterError) fail("invalid_promo_document", 400);
+      throw error;
+    }
+  } else {
+    exactKeys(section.config, expected);
+  }
   const config = section.config;
   if (["services", "featured_work", "gallery"].includes(section.type)) {
     assertStringArray(config.item_keys, { max: data.HARD_LIMITS.max_services, pattern: KEY_PATTERN });
@@ -238,7 +249,7 @@ function validateSectionConfig(section, knownActions, knownMedia) {
   }
 }
 
-function validateSections(document) {
+function validateSections(document, publicRevision) {
   assertStringArray(document.section_order, { max: data.HARD_LIMITS.max_sections, pattern: KEY_PATTERN });
   if (!Array.isArray(document.sections) || document.sections.length > data.HARD_LIMITS.max_sections) {
     fail("invalid_promo_document", 400);
@@ -267,6 +278,17 @@ function validateSections(document) {
     || keys.some((key, index) => key !== document.section_order[index])) {
     fail("invalid_promo_document", 400);
   }
+  const sectionByKey = new Map(document.sections.map((section) => [section.key, section]));
+  document.sections.filter((section) => section.type === "footer").forEach((section) => {
+    const config = promoFooter.normalizeFooterConfig(section.config);
+    config.navigation_section_keys.forEach((sectionKey) => {
+      const target = sectionByKey.get(sectionKey);
+      if (!target || target.type === "footer"
+        || (publicRevision && section.visible && !target.visible)) {
+        fail("invalid_promo_document", 400);
+      }
+    });
+  });
   return { actions, media };
 }
 
@@ -479,7 +501,7 @@ function validatePromoDocument(input, options) {
   validateLocales(document.locales, settings.publicRevision === true);
   validateTheme(document.theme, settings.publicRevision === true);
   validateIdentity(document.identity);
-  const used = validateSections(document);
+  const used = validateSections(document, settings.publicRevision === true);
   validateMediaRefs(document.media_refs);
   validateSectionMediaPurposes(document);
   const contactActions = validateContact(document.contact);
