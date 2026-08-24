@@ -8,9 +8,20 @@ interface Props {
   description: string;
   themeId: string;
   themeVersion: string;
+  themeRenderer: string;
+  themeTokens: Readonly<Record<string, string>>;
 }
 
-const { lang, direction, title, description, themeId, themeVersion } = Astro.props;
+const {
+  lang,
+  direction,
+  title,
+  description,
+  themeId,
+  themeVersion,
+  themeRenderer,
+  themeTokens,
+} = Astro.props;
 ---
 
 <!doctype html>
@@ -20,10 +31,25 @@ const { lang, direction, title, description, themeId, themeVersion } = Astro.pro
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="robots" content="noindex,nofollow,noarchive" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="dark" />
     <title>{title}</title>
   </head>
-  <body data-promo-theme={themeId} data-promo-theme-version={themeVersion}>
+  <body
+    data-promo-theme={themeId}
+    data-promo-theme-version={themeVersion}
+    data-promo-theme-renderer={themeRenderer}
+    data-promo-token-surface={themeTokens.surface}
+    data-promo-token-text={themeTokens.text}
+    data-promo-token-accent={themeTokens.accent}
+    data-promo-token-border={themeTokens.border}
+    data-promo-token-focus={themeTokens.focus}
+    data-promo-token-heading-font={themeTokens.heading_font}
+    data-promo-token-body-font={themeTokens.body_font}
+    data-promo-token-radius={themeTokens.radius}
+    data-promo-token-shadow={themeTokens.shadow}
+    data-promo-token-density={themeTokens.density}
+    data-promo-token-motion={themeTokens.motion}
+  >
     <slot />
   </body>
 </html>

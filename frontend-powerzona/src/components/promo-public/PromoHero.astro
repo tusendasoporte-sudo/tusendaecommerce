@@ -1,0 +1,136 @@
+---
+import '../../styles/promo-hero.css';
+import type {
+  PromoPublicMedia,
+  PromoPublicProfile,
+  PromoPublicSection,
+} from '../../lib/promoPublicShell';
+
+interface Props {
+  profile: PromoPublicProfile;
+  section: PromoPublicSection;
+  localized: Record<string, any>;
+  heading: string;
+  navigationLabel: string;
+  primaryHeading: boolean;
+}
+
+const {
+  profile,
+  section,
+  localized,
+  heading,
+  navigationLabel,
+  primaryHeading,
+} = Astro.props;
+const sectionId = `promo-section-${section.key}`;
+const mediaByKey = new Map(profile.media.map((item) => [item.key, item]));
+const primaryMediaKey = String(section.config.media_use_key || section.media_use_keys[0] || '');
+const heroMediaKeys = [primaryMediaKey, ...section.media_use_keys]
+  .filter((key, index, keys) => key && keys.indexOf(key) === index);
+const heroMedia = heroMediaKeys
+  .map((key) => mediaByKey.get(key))
+  .filter((item): item is PromoPublicMedia => Boolean(item && item.purpose === 'hero'));
+const requestedActionKey = String(section.config.action_key || profile.contact.primary_action_key || '');
+const actionCopy = requestedActionKey ? profile.content.contact[requestedActionKey] : undefined;
+const ctaLabel = String(actionCopy?.label || profile.system.messages['contact.request_estimate']);
+const ctaAria = String(actionCopy?.aria_label || profile.system.messages['a11y.contact_action']);
+const unavailable = profile.system.messages['contact.unavailable'];
+const srcset = (media: PromoPublicMedia) => media.kind === 'image'
+  ? media.delivery.srcset.map((source) => `${source.url} ${source.width}w`).join(', ')
+  : '';
+const mediaLabel = (media: PromoPublicMedia, index: number) => (
+  media.accessibility.alt || `${navigationLabel} ${index + 1}`
+);
+---
+
+<section
+  id={sectionId}
+  class:list={['promo-shell-section', 'promo-shell-section--hero', 'promo-hero', { 'promo-hero--with-media': heroMedia.length > 0 }]}
+  aria-labelledby={`${sectionId}-heading`}
+  data-section-type="hero"
+  data-section-variant={section.variant}
+  data-hero-media-count={String(heroMedia.length)}
+>
+  <div class="promo-shell-section__inner promo-hero__inner">
+    <div class="promo-shell-section__copy promo-hero__copy">
+      <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
+      {primaryHeading
+        ? <h1 id={`${sectionId}-heading`}>{heading}</h1>
+        : <h2 id={`${sectionId}-heading`}>{heading}</h2>}
+      {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
+
+      <div class="promo-hero__cta" role="group" aria-label={ctaAria}>
+        <span class="promo-hero__cta-label">{ctaLabel}</span>
+        <span class="promo-hero__cta-state" role="status">{unavailable}</span>
+      </div>
+    </div>
+
+    {heroMedia.length > 0 ? (
+      <div class="promo-hero__media-region">
+        <ol class="promo-hero__slides" aria-label={navigationLabel} tabindex={heroMedia.length > 1 ? '0' : undefined}>
+          {heroMedia.map((media, index) => (
+            <li
+              id={`${sectionId}-media-${index + 1}`}
+              class="promo-hero__slide"
+              data-media-kind={media.kind}
+              data-media-priority={media.key === primaryMediaKey ? 'primary' : 'secondary'}
+            >
+              <figure class="promo-hero__figure">
+                {media.kind === 'image' ? (
+                  <img
+                    src={media.delivery.src}
+                    srcset={srcset(media)}
+                    sizes={media.delivery.sizes}
+                    width={media.width}
+                    height={media.height}
+                    loading={media.delivery.loading}
+                    fetchpriority={media.delivery.fetch_priority}
+                    decoding={media.delivery.decoding}
+                    alt={media.accessibility.alt}
+                  />
+                ) : (
+                  <video
+                    controls={media.delivery.controls_required}
+                    preload={media.delivery.preload}
+                    playsinline={media.delivery.plays_inline}
+                    poster={media.delivery.poster.src}
+                    width={media.width}
+                    height={media.height}
+                    aria-label={mediaLabel(media, index)}
+                  >
+                    <source src={media.delivery.src} type={media.delivery.mime} />
+                  </video>
+                )}
+                {media.kind === 'video' && !media.accessibility.decorative && (
+                  <figcaption class="promo-shell-visually-hidden">{media.accessibility.alt}</figcaption>
+                )}
+              </figure>
+            </li>
+          ))}
+        </ol>
+
+        {heroMedia.length > 1 && (
+          <nav class="promo-hero__controls" aria-label={navigationLabel}>
+            <ol>
+              {heroMedia.map((media, index) => (
+                <li>
+                  <a
+                    href={`#${sectionId}-media-${index + 1}`}
+                    aria-label={mediaLabel(media, index)}
+                  >
+                    {String(index + 1).padStart(2, '0')}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+      </div>
+    ) : (
+      <div class="promo-shell-section__ornament" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    )}
+  </div>
+</section>

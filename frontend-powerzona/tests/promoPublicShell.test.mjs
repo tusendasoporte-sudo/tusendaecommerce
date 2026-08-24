@@ -69,10 +69,86 @@ function shellEnvelope(source = 'platform') {
   };
 }
 
+function imageDelivery({
+  slug = 'demo-promo', key = 'hero-main-media', purpose = 'hero', width = 1280, height = 720,
+  priority = true, poster = false, sha = 'a'.repeat(64),
+} = {}) {
+  const widths = purpose === 'video_poster' ? [480, 960] : [480, 768];
+  const prefix = poster ? 'poster-' : '';
+  const sources = [...widths.filter((candidate) => candidate < width).map((candidate) => ({
+    key: `w${candidate}`,
+    width: candidate,
+    height: Math.max(1, Math.round((height * candidate) / width)),
+    url: `/api/pz/promo/public/v1/sites/${slug}/media/${key}/${sha}/${prefix}w${candidate}.webp`,
+  })), {
+    key: 'original', width, height,
+    url: `/api/pz/promo/public/v1/sites/${slug}/media/${key}/${sha}/${prefix}original.webp`,
+  }];
+  return {
+    contract: 'promo.media.delivery.v1', mime: 'image/webp',
+    src: sources.at(-1).url, srcset: sources,
+    sizes: '100vw', loading: priority ? 'eager' : 'lazy',
+    fetch_priority: priority ? 'high' : 'auto', decoding: 'async',
+  };
+}
+
+function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
+  const envelope = shellEnvelope();
+  envelope.profile.sections[0].config = { media_use_key: 'hero-main-media', action_key: 'estimate' };
+  envelope.profile.sections[0].media_use_keys = ['hero-main-media', 'hero-second-media'];
+  envelope.profile.contact = {
+    enabled: true,
+    primary_action_key: 'estimate',
+    secondary_action_keys: [],
+    actions: [{ key: 'estimate', type: 'phone', enabled: true }],
+  };
+  envelope.profile.content.contact = {
+    estimate: { label: 'Solicitar estimado', aria_label: 'Solicitar un estimado', message: 'Cuéntanos tu idea' },
+  };
+  envelope.profile.content.media_alt = {
+    'hero-main-media': { alt: 'Alfombra artesanal terminada', decorative: false },
+    'hero-second-media': { alt: 'Detalle del tejido artesanal', decorative: false },
+  };
+  const image = {
+    key: 'hero-main-media', purpose: 'hero', kind: 'image', width: 1280, height: 720, duration_ms: 0,
+    delivery: imageDelivery(),
+    accessibility: { alt: 'Alfombra artesanal terminada', decorative: false },
+  };
+  const video = {
+    key: 'hero-second-media', purpose: 'hero', kind: 'video', width: 1280, height: 720, duration_ms: 15_000,
+    delivery: {
+      contract: 'promo.media.delivery.v1', mime: 'video/mp4',
+      src: `/api/pz/promo/public/v1/sites/demo-promo/media/hero-second-media/${'b'.repeat(64)}/original.mp4`,
+      preload: 'none', controls_required: true, autoplay: false, plays_inline: true,
+      reduced_motion: 'poster', save_data: 'poster',
+      poster: imageDelivery({
+        key: 'hero-second-media', purpose: 'video_poster', priority: false, poster: true, sha: 'c'.repeat(64),
+      }),
+    },
+    accessibility: { alt: 'Detalle del tejido artesanal', decorative: false },
+  };
+  if (videoFirst) {
+    video.key = 'hero-main-media';
+    video.delivery.src = `/api/pz/promo/public/v1/sites/demo-promo/media/hero-main-media/${'b'.repeat(64)}/original.mp4`;
+    video.delivery.poster = imageDelivery({
+      key: 'hero-main-media', purpose: 'video_poster', priority: true, poster: true, sha: 'c'.repeat(64),
+    });
+    video.accessibility.alt = 'Alfombra artesanal terminada';
+    image.key = 'hero-second-media';
+    image.delivery = imageDelivery({ key: 'hero-second-media', priority: false });
+    image.accessibility.alt = 'Detalle del tejido artesanal';
+    envelope.profile.media = [video, image];
+  } else {
+    envelope.profile.media = [image, video];
+  }
+  return envelope;
+}
+
 test('cliente SHELL acepta únicamente la proyección localized allowlisted', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelope());
   assert.equal(normalized.profile.locale.effective, 'es');
   assert.equal(normalized.profile.content.identity.name, 'Negocio demo');
+  assert.equal(normalized.profile.theme.renderer_key, 'promo.black-gold');
   const hostile = structuredClone(shellEnvelope());
   hostile.profile.theme.tokens.accent = '#ff00ff';
   assert.throws(() => normalizePromoPublicShellResponse(hostile), PromoPublicShellError);
@@ -86,11 +162,51 @@ test('cliente SHELL acepta únicamente la proyección localized allowlisted', ()
   }];
   invalidMedia.profile.content.media_alt = { 'hero-media': { alt: 'Portada', decorative: false } };
   assert.throws(() => normalizePromoPublicShellResponse(invalidMedia), PromoPublicShellError);
+  const unpackagedTheme = structuredClone(shellEnvelope());
+  unpackagedTheme.profile.theme.version = '2.0.0';
+  assert.throws(
+    () => normalizePromoPublicShellResponse(unpackagedTheme),
+    (error) => error instanceof PromoPublicShellError
+      && error.code === 'promo_public_renderer_unavailable'
+      && error.status === 503,
+  );
   const redirect = normalizePromoPublicShellResponse({
     ok: true, contract: 'promo.public.shell.v1',
     route: { source: 'custom', action: 'redirect', location: 'https://primary.example.test/es' },
   });
   assert.equal(redirect.route.location, 'https://primary.example.test/es');
+});
+
+test('HERO consume exclusivamente delivery MEDIA público, content-addressed y prioritario', () => {
+  const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithHeroMedia());
+  assert.equal(normalized.profile.media.length, 2);
+  assert.equal(normalized.profile.media[0].kind, 'image');
+  assert.equal(normalized.profile.media[0].delivery.loading, 'eager');
+  assert.equal(normalized.profile.media[0].delivery.fetch_priority, 'high');
+  assert.equal(normalized.profile.media[0].delivery.srcset.at(-1).width, 1280);
+  assert.equal(normalized.profile.media[1].kind, 'video');
+  assert.equal(normalized.profile.media[1].delivery.preload, 'none');
+  assert.equal(normalized.profile.media[1].delivery.autoplay, false);
+  assert.equal(normalized.profile.media[1].delivery.controls_required, true);
+  assert.equal(normalized.profile.media[1].delivery.poster.loading, 'lazy');
+  assert.equal(normalized.profile.content.contact.estimate.label, 'Solicitar estimado');
+
+  const videoLcp = normalizePromoPublicShellResponse(shellEnvelopeWithHeroMedia({ videoFirst: true }));
+  assert.equal(videoLcp.profile.media[0].kind, 'video');
+  assert.equal(videoLcp.profile.media[0].delivery.poster.fetch_priority, 'high');
+
+  const external = shellEnvelopeWithHeroMedia();
+  external.profile.media[0].delivery.src = 'https://tenant.example/hero.webp';
+  assert.throws(() => normalizePromoPublicShellResponse(external), PromoPublicShellError);
+  const wrongPriority = shellEnvelopeWithHeroMedia();
+  wrongPriority.profile.media[1].delivery.poster.fetch_priority = 'high';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongPriority), PromoPublicShellError);
+  const wrongPurpose = shellEnvelopeWithHeroMedia();
+  wrongPurpose.profile.media[0].purpose = 'gallery';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongPurpose), PromoPublicShellError);
+  const leakedDelivery = shellEnvelopeWithHeroMedia();
+  leakedDelivery.profile.media[0].delivery.asset_id = 'assetaaaaaaaaaa';
+  assert.throws(() => normalizePromoPublicShellResponse(leakedDelivery), PromoPublicShellError);
 });
 
 test('rutas públicas separan plataforma, Host y paths custom allowlisted', () => {
@@ -146,18 +262,32 @@ test('salto SSR a PocketBase conserva el Host original con transporte Node', asy
 test('shell SSR es independiente de Layout y no incluye scripts ni acciones comerciales', () => {
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const shell = read('../src/components/promo-public/PromoPublicShell.astro');
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const hero = read('../src/components/promo-public/PromoHero.astro');
   const styles = read('../src/styles/promo-public-shell.css');
+  const themeStyles = read('../src/styles/promo-black-gold.css');
+  const heroStyles = read('../src/styles/promo-hero.css');
   const middleware = read('../src/middleware.ts');
   const platform = read('../src/pages/promo/[publicSlug]/index.astro');
   const localized = read('../src/pages/promo/[publicSlug]/[locale].astro');
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
-  const combined = `${layout}\n${shell}\n${styles}\n${platform}\n${localized}`;
-  assert.match(shell, /promo-skip-link/);
-  assert.match(shell, /aria-label=\{system\.messages\['a11y\.main_navigation'\]\}/);
-  assert.match(shell, /aria-current=\{option\.active \? 'page'/);
+  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${styles}\n${themeStyles}\n${heroStyles}\n${platform}\n${localized}`;
+  assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
+  assert.match(shell, /promo_public_renderer_unavailable/);
+  assert.match(theme, /promo-skip-link/);
+  assert.match(theme, /aria-label=\{system\.messages\['a11y\.main_navigation'\]\}/);
+  assert.match(theme, /aria-current=\{option\.active \? 'page'/);
   assert.match(layout, /<html lang=\{lang\} dir=\{direction\}>/);
+  assert.match(layout, /data-promo-theme-renderer=\{themeRenderer\}/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(styles, /@media \(max-width: 640px\)/);
+  assert.match(themeStyles, /@media \(max-width: 720px\)/);
+  assert.match(hero, /fetchpriority=\{media\.delivery\.fetch_priority\}/);
+  assert.match(hero, /controls=\{media\.delivery\.controls_required\}/);
+  assert.match(hero, /preload=\{media\.delivery\.preload\}/);
+  assert.match(hero, /promo-hero__controls/);
+  assert.match(hero, /contact\.request_estimate/);
+  assert.match(hero, /contact\.unavailable/);
+  assert.match(heroStyles, /scroll-snap-type: inline mandatory/);
   assert.doesNotMatch(combined, /<script|layouts\/Layout\.astro|PublicStoreHome|innerHTML|set:html/);
   assert.doesNotMatch(combined, /cart|checkout|products|categories|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
@@ -167,6 +297,39 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   assert.match(middleware, /promoPublicUnavailable\(404\)/);
   assert.ok(commerce.indexOf('readPromoCommerceBridge') < commerce.indexOf("import('../../../components/public-store/PublicStoreHome.astro')"));
   assert.doesNotMatch(commerce, /storeSlug[^\n]*toLowerCase/);
+});
+
+test('renderer ALADDIN aplica únicamente la release negra/dorada y conserva prompts posteriores inertes', () => {
+  const layout = read('../src/layouts/PromoPublicLayout.astro');
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const styles = read('../src/styles/promo-black-gold.css');
+  assert.match(styles, /body\[data-promo-theme-renderer="promo\.black-gold"\]/);
+  assert.match(styles, /--promo-surface: #0b0b0b/);
+  assert.match(styles, /--promo-accent: #c8a45a/);
+  assert.match(styles, /data-promo-token-accent="champagne_gold"/);
+  assert.match(styles, /data-promo-token-radius="soft"/);
+  assert.match(styles, /data-promo-token-density="compact"/);
+  assert.match(styles, /data-promo-token-motion="reduced"/);
+  assert.match(styles, /:focus-visible/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.match(theme, /role="status"/);
+  assert.match(theme, /system\.messages\['contact\.unavailable'\]/);
+  assert.match(theme, /promo-shell-section__ornament/);
+  assert.match(layout, /data-promo-token-accent=\{themeTokens\.accent\}/);
+  assert.ok(Buffer.byteLength(styles, 'utf8') <= 50 * 1024, 'CSS del renderer excede el budget Theme de 50 KiB');
+  assert.doesNotMatch(`${theme}\n${styles}`, /<img|<video|<button|tel:|mailto:|wa\.me|Escanéame|qr|price|cart|checkout/i);
+  assert.doesNotMatch(styles, /url\(|@import|https?:/i);
+});
+
+test('HERO no activa destinos de contacto ni adelanta SECTIONS/CONTACT', () => {
+  const hero = read('../src/components/promo-public/PromoHero.astro');
+  const heroStyles = read('../src/styles/promo-hero.css');
+  assert.doesNotMatch(hero, /<button|<form|tel:|mailto:|wa\.me|target=|onclick|addEventListener|<script/i);
+  assert.doesNotMatch(heroStyles, /url\(|@import|https?:/i);
+  assert.match(hero, /role="status"/);
+  assert.match(hero, /href=\{`#\$\{sectionId\}-media-/);
+  assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}`, 'utf8') <= 50 * 1024,
+    'CSS combinado ALADDIN/HERO excede el budget Theme de 50 KiB');
 });
 
 test('shell público conserva no-store/noindex hasta SEO/PERF y no adelanta prompts posteriores', () => {

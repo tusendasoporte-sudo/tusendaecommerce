@@ -1,0 +1,158 @@
+---
+import '../../styles/promo-black-gold.css';
+import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
+import PromoHero from './PromoHero.astro';
+import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
+
+interface Props {
+  profile: PromoPublicProfile;
+}
+
+const { profile } = Astro.props;
+const { content, locale, selector, system, theme } = profile;
+const identity = content.identity;
+const sectionByKey = new Map(profile.sections.map((section) => [section.key, section]));
+const orderedSections = profile.section_order
+  .map((key) => sectionByKey.get(key))
+  .filter(Boolean) as PromoPublicSection[];
+const mainSections = orderedSections.filter((section) => section.type !== 'footer');
+const footerSections = orderedSections.filter((section) => section.type === 'footer');
+const sectionId = (key: string) => `promo-section-${key}`;
+const localizedSection = (section: PromoPublicSection) => content.sections[section.key] || {};
+const title = String(content.seo.title || identity.name);
+const description = String(content.seo.description || identity.summary || '');
+---
+
+<PromoPublicLayout
+  lang={locale.lang}
+  direction={locale.direction}
+  title={title}
+  description={description}
+  themeId={theme.theme_id}
+  themeVersion={theme.version}
+  themeRenderer={theme.renderer_key}
+  themeTokens={theme.tokens}
+>
+  <a class="promo-skip-link" href="#promo-main">{system.messages['a11y.skip_to_content']}</a>
+
+  <div class="promo-public-shell promo-black-gold">
+    <header class="promo-shell-header">
+      <a class="promo-shell-brand" href={locale.canonical_path} aria-label={identity.name}>
+        <span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span>
+        <span class="promo-shell-brand__name">{identity.name}</span>
+      </a>
+
+      <nav class="promo-shell-navigation" aria-label={system.messages['a11y.main_navigation']}>
+        <ul>
+          {orderedSections.map((section) => (
+            <li><a href={`#${sectionId(section.key)}`}>{content.navigation[section.key]}</a></li>
+          ))}
+        </ul>
+      </nav>
+
+      <nav class="promo-shell-locales" aria-label={selector.label}>
+        <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
+        <ul>
+          {selector.options.map((option) => (
+            <li>
+              <a
+                href={option.href}
+                aria-label={option.aria_label}
+                aria-current={option.active ? 'page' : undefined}
+                lang={option.locale}
+                hreflang={option.locale}
+              >
+                {option.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </header>
+
+    <main id="promo-main" class="promo-shell-main" aria-label={system.messages['a11y.main_content']} tabindex="-1">
+      {mainSections.length === 0 && <h1 class="promo-shell-visually-hidden">{identity.name}</h1>}
+      {mainSections.map((section, index) => {
+        const localized = localizedSection(section);
+        const navigationLabel = String(content.navigation[section.key]);
+        const heading = String(localized.heading || (section.type === 'hero' ? identity.name : navigationLabel));
+        const items = Array.isArray(localized.items) ? localized.items : [];
+        if (section.type === 'hero') {
+          return (
+            <PromoHero
+              profile={profile}
+              section={section}
+              localized={localized}
+              heading={heading}
+              navigationLabel={navigationLabel}
+              primaryHeading={index === 0}
+            />
+          );
+        }
+        return (
+          <section
+            id={sectionId(section.key)}
+            class:list={['promo-shell-section', `promo-shell-section--${section.type}`]}
+            aria-labelledby={`${sectionId(section.key)}-heading`}
+            data-section-type={section.type}
+            data-section-variant={section.variant}
+          >
+            <div class="promo-shell-section__inner">
+              <div class="promo-shell-section__copy">
+                <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
+                {index === 0
+                  ? <h1 id={`${sectionId(section.key)}-heading`}>{heading}</h1>
+                  : <h2 id={`${sectionId(section.key)}-heading`}>{heading}</h2>}
+                {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
+                {localized.name && <h3>{localized.name}</h3>}
+                {localized.bio && <p>{localized.bio}</p>}
+                {localized.text && <p>{localized.text}</p>}
+              </div>
+
+              <div class="promo-shell-section__ornament" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+
+              {items.length > 0 && (
+                <ul class="promo-shell-items">
+                  {items.map((item: Record<string, string>) => (
+                    <li>
+                      <span class="promo-shell-item__rule" aria-hidden="true"></span>
+                      {item.name && <h3>{item.name}</h3>}
+                      {item.summary && <p>{item.summary}</p>}
+                      {item.caption && <p class="promo-shell-item__caption">{item.caption}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {section.type === 'contact' && (
+                <p class="promo-shell-contact-state" role="status">
+                  <span>{system.messages['contact.unavailable']}</span>
+                </p>
+              )}
+            </div>
+          </section>
+        );
+      })}
+    </main>
+
+    {footerSections.map((section) => {
+      const localized = localizedSection(section);
+      return (
+        <footer
+          id={sectionId(section.key)}
+          class="promo-shell-footer"
+          aria-label={content.navigation[section.key]}
+          data-section-type="footer"
+          data-section-variant={section.variant}
+        >
+          <span class="promo-shell-footer__mark" aria-hidden="true"></span>
+          {localized.heading && <h2>{localized.heading}</h2>}
+          {localized.summary && <p>{localized.summary}</p>}
+          {localized.text && <p>{localized.text}</p>}
+        </footer>
+      );
+    })}
+  </div>
+</PromoPublicLayout>

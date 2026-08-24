@@ -5,18 +5,43 @@ import { request as nodeHttpsRequest } from 'node:https';
 export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
 export const PROMO_PUBLIC_INTERNAL_PATH = '/__pz/promo-shell';
+export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
+export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
+export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';
 
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const THEME_PATTERN = /^[a-z][a-z0-9.-]{0,79}$/;
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const TOKEN_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
+const MEDIA_VARIANT_PATTERN = /^(?:original|w[0-9]{2,4})$/;
 const LOCALE_PATH_PATTERN = /^\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)$/;
 const SECTION_TYPES = new Set([
   'hero', 'services', 'featured_work', 'gallery', 'owner', 'store_rating', 'contact', 'footer',
 ]);
 const CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email', 'internal_form', 'approved_live_chat']);
 const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster']);
+const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
+const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
+  minWidth: number;
+  minHeight: number;
+  maxWidth: number;
+  maxHeight: number;
+  widths: readonly number[];
+  sizes: string;
+}>>> = Object.freeze({
+  hero: { minWidth: 640, minHeight: 320, maxWidth: 1920, maxHeight: 1080, widths: [480, 768, 1280], sizes: '100vw' },
+  service: { minWidth: 240, minHeight: 240, maxWidth: 1200, maxHeight: 1200, widths: [320, 640, 960], sizes: '(min-width: 900px) 33vw, 100vw' },
+  gallery: { minWidth: 320, minHeight: 240, maxWidth: 1600, maxHeight: 1600, widths: [480, 768, 1280], sizes: '(min-width: 900px) 50vw, 100vw' },
+  owner: { minWidth: 320, minHeight: 400, maxWidth: 1200, maxHeight: 1600, widths: [320, 640, 960], sizes: '(min-width: 900px) 40vw, 100vw' },
+  footer: { minWidth: 480, minHeight: 120, maxWidth: 1600, maxHeight: 800, widths: [480, 960, 1280], sizes: '100vw' },
+  social: { minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630, widths: [600, 1200], sizes: '100vw' },
+  video_poster: { minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900, widths: [480, 960, 1440], sizes: '100vw' },
+});
+const SECTION_MEDIA_PURPOSES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  hero: ['hero'], services: ['service'], featured_work: ['gallery'], gallery: ['gallery'],
+  owner: ['owner'], store_rating: [], contact: [], footer: ['footer'],
+});
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'a11y.contact_action', 'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation',
   'a11y.skip_to_content', 'contact.call', 'contact.email', 'contact.open_chat',
@@ -49,6 +74,50 @@ export type PromoPublicSection = Readonly<{
   media_use_keys: readonly string[];
 }>;
 
+export type PromoPublicImageSource = Readonly<{
+  key: string;
+  width: number;
+  height: number;
+  url: string;
+}>;
+
+export type PromoPublicImageDelivery = Readonly<{
+  contract: typeof MEDIA_DELIVERY_CONTRACT;
+  mime: 'image/webp';
+  src: string;
+  srcset: readonly PromoPublicImageSource[];
+  sizes: string;
+  loading: 'eager' | 'lazy';
+  fetch_priority: 'high' | 'auto';
+  decoding: 'async';
+}>;
+
+export type PromoPublicVideoDelivery = Readonly<{
+  contract: typeof MEDIA_DELIVERY_CONTRACT;
+  mime: 'video/mp4' | 'video/webm';
+  src: string;
+  preload: 'none';
+  controls_required: true;
+  autoplay: false;
+  plays_inline: true;
+  reduced_motion: 'poster';
+  save_data: 'poster';
+  poster: PromoPublicImageDelivery;
+}>;
+
+type PromoPublicMediaBase = Readonly<{
+  key: string;
+  purpose: string;
+  width: number;
+  height: number;
+  duration_ms: number;
+  accessibility: Readonly<{ alt: string; decorative: boolean }>;
+}>;
+
+export type PromoPublicMedia =
+  | (PromoPublicMediaBase & Readonly<{ kind: 'image'; delivery: PromoPublicImageDelivery }>)
+  | (PromoPublicMediaBase & Readonly<{ kind: 'video'; delivery: PromoPublicVideoDelivery }>);
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -64,10 +133,15 @@ export type PromoPublicProfile = Readonly<{
     label: string;
     options: readonly Readonly<{ locale: string; label: string; aria_label: string; href: string; active: boolean }>[];
   }>;
-  theme: Readonly<{ theme_id: string; version: string; tokens: Readonly<Record<string, string>> }>;
+  theme: Readonly<{
+    theme_id: string;
+    version: string;
+    renderer_key: typeof PROMO_BLACK_GOLD_RENDERER_KEY;
+    tokens: Readonly<Record<string, string>>;
+  }>;
   section_order: readonly string[];
   sections: readonly PromoPublicSection[];
-  media: readonly Readonly<JsonRecord>[];
+  media: readonly PromoPublicMedia[];
   contact: Readonly<JsonRecord>;
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
@@ -137,6 +211,13 @@ function canonicalLocale(value: unknown) {
   return canonical;
 }
 
+function publicThemeRenderer(themeId: string, version: string) {
+  if (themeId === PROMO_BLACK_GOLD_THEME_ID && version === PROMO_BLACK_GOLD_THEME_VERSION) {
+    return PROMO_BLACK_GOLD_RENDERER_KEY;
+  }
+  return fail('promo_public_renderer_unavailable', 503);
+}
+
 function exactStringMap(value: unknown, keys: readonly string[], max = 4000) {
   const record = exactRecord(value, keys);
   return Object.fromEntries(keys.map((key) => [key, safeText(record[key], max, true)]));
@@ -172,6 +253,142 @@ function safeRedirect(value: unknown) {
   return parsed.toString();
 }
 
+function safePublicMediaPath(value: unknown, input: {
+  slug: string;
+  key: string;
+  variant: string;
+  extension: 'webp' | 'mp4' | 'webm';
+}) {
+  const path = safeText(value, 420, true);
+  const variant = input.variant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const expected = new RegExp(
+    `^/api/pz/promo/public/v1/sites/${input.slug}/media/${input.key}/[a-f0-9]{64}/${variant}\\.${input.extension}$`,
+  );
+  if (!expected.test(path)) fail();
+  return path;
+}
+
+function normalizeImageDelivery(value: unknown, input: {
+  slug: string;
+  key: string;
+  purpose: string;
+  priority: boolean;
+  poster?: boolean;
+  width?: number;
+  height?: number;
+}): PromoPublicImageDelivery {
+  const delivery = exactRecord(value, [
+    'contract', 'mime', 'src', 'srcset', 'sizes', 'loading', 'fetch_priority', 'decoding',
+  ]);
+  const policy = MEDIA_PURPOSE_POLICIES[input.purpose];
+  if (!policy || delivery.contract !== MEDIA_DELIVERY_CONTRACT || delivery.mime !== 'image/webp'
+    || delivery.sizes !== policy.sizes || delivery.decoding !== 'async'
+    || delivery.loading !== (input.priority ? 'eager' : 'lazy')
+    || delivery.fetch_priority !== (input.priority ? 'high' : 'auto')
+    || !Array.isArray(delivery.srcset) || !delivery.srcset.length || delivery.srcset.length > 4) fail();
+  const srcset = delivery.srcset.map((raw: unknown, index: number) => {
+    const source = exactRecord(raw, ['key', 'width', 'height', 'url']);
+    const key = safePattern(source.key, MEDIA_VARIANT_PATTERN);
+    const width = safeInteger(source.width, 1, 4096);
+    const height = safeInteger(source.height, 1, 4096);
+    const last = index === delivery.srcset.length - 1;
+    if ((last && key !== 'original') || (!last && key !== `w${width}`)
+      || (!last && !policy.widths.includes(width))) fail();
+    return {
+      key,
+      width,
+      height,
+      url: safePublicMediaPath(source.url, {
+        slug: input.slug,
+        key: input.key,
+        variant: `${input.poster ? 'poster-' : ''}${key}`,
+        extension: 'webp',
+      }),
+    };
+  });
+  if (srcset.some((source, index) => index > 0 && source.width <= srcset[index - 1].width)) fail();
+  const original = srcset[srcset.length - 1];
+  if (original.width < policy.minWidth || original.height < policy.minHeight
+    || original.width > policy.maxWidth || original.height > policy.maxHeight
+    || (input.width !== undefined && original.width !== input.width)
+    || (input.height !== undefined && original.height !== input.height)
+    || srcset.some((source) => source.key !== 'original'
+      && source.height !== Math.max(1, Math.round((original.height * source.width) / original.width)))) fail();
+  const src = safePublicMediaPath(delivery.src, {
+    slug: input.slug,
+    key: input.key,
+    variant: `${input.poster ? 'poster-' : ''}original`,
+    extension: 'webp',
+  });
+  if (src !== original.url) fail();
+  return {
+    contract: MEDIA_DELIVERY_CONTRACT,
+    mime: 'image/webp',
+    src,
+    srcset,
+    sizes: policy.sizes,
+    loading: input.priority ? 'eager' : 'lazy',
+    fetch_priority: input.priority ? 'high' : 'auto',
+    decoding: 'async',
+  };
+}
+
+function normalizePublicMedia(value: unknown, slug: string, priorityMediaKey: string): PromoPublicMedia {
+  const item = exactRecord(value, [
+    'key', 'purpose', 'kind', 'width', 'height', 'duration_ms', 'delivery', 'accessibility',
+  ]);
+  const key = safePattern(item.key, KEY_PATTERN);
+  const purpose = safePattern(item.purpose, KEY_PATTERN);
+  const policy = MEDIA_PURPOSE_POLICIES[purpose];
+  const width = safeInteger(item.width, 1, 4096);
+  const height = safeInteger(item.height, 1, 4096);
+  const duration = safeInteger(item.duration_ms, 0, 30 * 60 * 1000);
+  const accessibility = exactRecord(item.accessibility, ['alt', 'decorative']);
+  const alt = safeText(accessibility.alt, 300);
+  const decorative = accessibility.decorative;
+  if (!policy || !MEDIA_PURPOSES.has(purpose) || typeof decorative !== 'boolean'
+    || (decorative && alt) || (!decorative && !alt)
+    || width < policy.minWidth || height < policy.minHeight
+    || width > policy.maxWidth || height > policy.maxHeight) fail();
+  const priority = Boolean(priorityMediaKey) && key === priorityMediaKey;
+  if (item.kind === 'image') {
+    if (duration !== 0) fail();
+    return {
+      key, purpose, kind: 'image', width, height, duration_ms: 0,
+      accessibility: { alt, decorative },
+      delivery: normalizeImageDelivery(item.delivery, { slug, key, purpose, priority, width, height }),
+    };
+  }
+  if (item.kind !== 'video' || duration === 0 || !['hero', 'gallery'].includes(purpose)) fail();
+  const delivery = exactRecord(item.delivery, [
+    'contract', 'mime', 'src', 'preload', 'controls_required', 'autoplay', 'plays_inline',
+    'reduced_motion', 'save_data', 'poster',
+  ]);
+  if (delivery.contract !== MEDIA_DELIVERY_CONTRACT || !['video/mp4', 'video/webm'].includes(delivery.mime)
+    || delivery.preload !== 'none' || delivery.controls_required !== true || delivery.autoplay !== false
+    || delivery.plays_inline !== true || delivery.reduced_motion !== 'poster' || delivery.save_data !== 'poster') fail();
+  const mime = delivery.mime as 'video/mp4' | 'video/webm';
+  const extension = mime === 'video/webm' ? 'webm' : 'mp4';
+  return {
+    key, purpose, kind: 'video', width, height, duration_ms: duration,
+    accessibility: { alt, decorative },
+    delivery: {
+      contract: MEDIA_DELIVERY_CONTRACT,
+      mime,
+      src: safePublicMediaPath(delivery.src, { slug, key, variant: 'original', extension }),
+      preload: 'none',
+      controls_required: true,
+      autoplay: false,
+      plays_inline: true,
+      reduced_motion: 'poster',
+      save_data: 'poster',
+      poster: normalizeImageDelivery(delivery.poster, {
+        slug, key, purpose: 'video_poster', priority, poster: true,
+      }),
+    },
+  };
+}
+
 function normalizeSection(value: unknown): PromoPublicSection {
   const section = exactRecord(value, ['key', 'type', 'variant', 'config', 'media_use_keys']);
   const type = safePattern(section.type, KEY_PATTERN);
@@ -181,7 +398,7 @@ function normalizeSection(value: unknown): PromoPublicSection {
     hero: ['media_use_key', 'action_key'], services: ['item_keys'], featured_work: ['item_keys'],
     gallery: ['item_keys'], owner: ['media_use_key'], store_rating: [], contact: ['action_keys'], footer: [],
   };
-  if (Object.keys(section.config).some((key) => !(allowedConfig[type] || []).includes(key))) fail();
+  exactRecord(section.config, allowedConfig[type] || []);
   const config: JsonRecord = {};
   for (const [key, raw] of Object.entries(section.config)) {
     if (Array.isArray(raw)) {
@@ -294,6 +511,9 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     || options.some((option) => option.href !== (source === 'platform'
       ? `/promo/${slug}/${option.locale}` : `/${option.locale}`))) fail();
   const theme = exactRecord(profile.theme, ['theme_id', 'version', 'tokens']);
+  const themeId = safePattern(theme.theme_id, THEME_PATTERN);
+  const themeVersion = safePattern(theme.version, VERSION_PATTERN);
+  const rendererKey = publicThemeRenderer(themeId, themeVersion);
   const tokens = exactRecord(theme.tokens, Object.keys(THEME_TOKEN_VALUES));
   const normalizedTokens = Object.fromEntries(Object.entries(tokens).map(([key, raw]) => {
     const token = safePattern(raw, TOKEN_PATTERN);
@@ -307,25 +527,12 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   if (!Array.isArray(profile.section_order) || profile.section_order.length !== sections.length) fail();
   const sectionOrder = profile.section_order.map((item: unknown) => safePattern(item, KEY_PATTERN));
   if (sectionOrder.some((key, index) => key !== sections[index]?.key)) fail();
+  const firstHero = sections.find((section) => section.type === 'hero');
+  const priorityMediaKey = firstHero
+    ? String(firstHero.config.media_use_key || firstHero.media_use_keys[0] || '')
+    : '';
   if (!Array.isArray(profile.media) || profile.media.length > 512) fail();
-  const media = profile.media.map((raw: unknown) => {
-    const item = subsetRecord(raw, ['key', 'purpose', 'kind', 'width', 'height', 'duration_ms', 'delivery', 'accessibility']);
-    const accessibility = exactRecord(item.accessibility, ['alt', 'decorative']);
-    const purpose = safePattern(item.purpose, KEY_PATTERN);
-    const width = safeInteger(item.width, 1, 4096);
-    const height = safeInteger(item.height, 1, 4096);
-    const duration = safeInteger(item.duration_ms, 0, 30 * 60 * 1000);
-    const alt = safeText(accessibility.alt, 300);
-    if (!['image', 'video'].includes(item.kind) || !MEDIA_PURPOSES.has(purpose)
-      || typeof accessibility.decorative !== 'boolean'
-      || (accessibility.decorative && alt) || (!accessibility.decorative && !alt)
-      || (item.kind === 'image' && duration !== 0) || (item.kind === 'video' && duration === 0)) fail();
-    return {
-      key: safePattern(item.key, KEY_PATTERN), purpose,
-      kind: item.kind, width, height, duration_ms: duration,
-      accessibility: { alt, decorative: accessibility.decorative },
-    };
-  });
+  const media = profile.media.map((raw: unknown) => normalizePublicMedia(raw, slug, priorityMediaKey));
   const mediaKeys = media.map((item) => item.key);
   if (new Set(mediaKeys).size !== mediaKeys.length) fail();
   const contact = exactRecord(profile.contact, ['enabled', 'primary_action_key', 'secondary_action_keys', 'actions']);
@@ -358,7 +565,19 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     if ((configMedia && !mediaKeys.includes(configMedia))
       || (configAction && !actionKeys.includes(configAction))
       || configActions.some((key) => !actionKeys.includes(key))) fail();
+    const allowedPurposes = SECTION_MEDIA_PURPOSES[section.type] || [];
+    const referencedMedia = new Set([...section.media_use_keys, ...(configMedia ? [configMedia] : [])]);
+    if ([...referencedMedia].some((key) => {
+      const item = media.find((candidate) => candidate.key === key);
+      return !item || !allowedPurposes.includes(item.purpose);
+    })) fail();
   }
+  const normalizedContent = normalizeContent(profile.content, sections, mediaKeys, actionKeys);
+  if (media.some((item) => {
+    const localized = normalizedContent.media_alt[item.key];
+    return !localized || localized.alt !== item.accessibility.alt
+      || localized.decorative !== item.accessibility.decorative;
+  })) fail();
   const adapters = exactRecord(profile.adapters, ['store_rating', 'landing_qr_link']);
   const rating = exactRecord(adapters.store_rating, ['enabled']);
   const landing = exactRecord(adapters.landing_qr_link, ['enabled']);
@@ -372,14 +591,16 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     },
     selector: { label: safeText(selector.label, 80, true), options },
     theme: {
-      theme_id: safePattern(theme.theme_id, THEME_PATTERN),
-      version: safePattern(theme.version, VERSION_PATTERN), tokens: normalizedTokens,
+      theme_id: themeId,
+      version: themeVersion,
+      renderer_key: rendererKey,
+      tokens: normalizedTokens,
     },
     section_order: sectionOrder,
     sections,
     media,
     contact: normalizedContact,
-    content: normalizeContent(profile.content, sections, mediaKeys, actionKeys),
+    content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },
   };
 }
