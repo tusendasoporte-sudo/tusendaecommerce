@@ -41,9 +41,9 @@
 
   <rect class="board" width="1340" height="1120"/>
   <text x="35" y="42" fill="#f6f1e7" font-family="Georgia, serif" font-size="28">G-MOB-VIS · Aladdin's Carpet</text>
-  <text x="35" y="70" class="meta">PROPUESTO · PENDIENTE DE APROBACIÓN HUMANA · renderer promo.black-gold@1.0.0</text>
+  <text x="35" y="70" class="meta">APROBADO POR KRAKEN · renderer promo.black-gold@1.0.0 · 2026-08-24</text>
   <rect x="1042" y="26" width="263" height="46" rx="8" fill="#17130d" stroke="#c8a45a"/>
-  <text x="1173.5" y="54" text-anchor="middle" class="label">GATE NO SUPERADO</text>
+  <text x="1173.5" y="54" text-anchor="middle" class="label">GATE SUPERADO</text>
 
   <text x="35" y="116" class="label">390×844 · ES · APERTURA</text>
   <text x="470" y="116" class="label">412×915 · EN · APERTURA</text>

@@ -7,16 +7,18 @@
 | Proyecto | Tu Senda 84 / Tiendas Promo |
 | Tienda de referencia | Aladdin's Carpet |
 | Prompt ID | `TS84-PROMO-MOB-VIS-0001` |
-| Estado | **PROPUESTO / PENDIENTE DE APROBACIÓN HUMANA** |
-| Gate | `G-MOB-VIS`: **NO SUPERADO** |
+| Estado | **APROBADO POR KRAKEN** |
+| Gate | `G-MOB-VIS`: **SUPERADO** |
 | Fecha | 2026-08-24 |
 | Rama local verificada antes de modificar | `dev` |
 | Base autorizada verificada | `0358867` |
 | Worktree inicial | limpio |
 | Implementación funcional | **NO** |
-| Commit, push, merge, deploy o release | **NO** |
+| Commit local de la propuesta | `0bc2188` |
+| Registro de aprobación | sobre `dev` / `0bc2188`, worktree limpio |
+| Push, merge, deploy o release | **NO** |
 
-Este documento define el mockup móvil que Kraken debe aprobar o devolver con cambios. Su existencia no equivale a aprobación: `G-MOB-VIS` solo cambia a aprobado mediante una decisión humana explícita de Kraken en esta tarea o en una tarea posterior que cite este contrato.
+Este documento define el mockup móvil aprobado por Kraken. La propuesta se registró inicialmente como pendiente y Kraken emitió después la decisión humana explícita **“APROBADO TS84-PROMO-MOB-VIS-0001”**; por tanto `G-MOB-VIS` queda superado sin iniciar ni implementar `TS84-PROMO-RESP-0001` en esta tarea.
 
 ## 2. Evidencia visual para revisión
 
@@ -249,28 +251,29 @@ La futura implementación `TS84-PROMO-RESP-0001` deberá probar, sin adelantarse
 
 ## 11. Criterios para la decisión humana
 
-Kraken puede aprobar el gate solo si acepta expresamente:
+Kraken aprobó expresamente:
 
-- [ ] composición y orden móvil;
-- [ ] cabecera de tres filas y navegación horizontal sin hamburguesa;
-- [ ] Hero 1 columna, media `4:3` y CTA ancho completo;
-- [ ] servicios/galería 1 columna, propietario apilado y reseñas con scroll-snap;
-- [ ] Landing QR secundario y separado del CTA;
-- [ ] targets mínimos y orden de foco;
-- [ ] contrato de zoom, reflujo, carga y movimiento reducido;
-- [ ] locale exacto ES/EN y paridad con desktop;
-- [ ] evidencia de `390×844`, `412×915` y `320×700`.
+- [x] composición y orden móvil;
+- [x] cabecera de tres filas y navegación horizontal sin hamburguesa;
+- [x] Hero 1 columna, media `4:3` y CTA ancho completo;
+- [x] servicios/galería 1 columna, propietario apilado y reseñas con scroll-snap;
+- [x] Landing QR secundario y separado del CTA;
+- [x] targets mínimos y orden de foco;
+- [x] contrato de zoom, reflujo, carga y movimiento reducido;
+- [x] locale exacto ES/EN y paridad con desktop;
+- [x] evidencia de `390×844`, `412×915` y `320×700`.
 
 ### Registro de decisión de Kraken
 
-| Campo | Pendiente |
+| Campo | Valor |
 |---|---|
-| Decisión | `PENDIENTE` |
-| Resultado permitido | `APROBADO` o `CAMBIOS SOLICITADOS` |
-| Fecha | — |
-| Observaciones | — |
+| Decisión | **`APROBADO`** |
+| Autoridad | Kraken |
+| Fecha | 2026-08-24 |
+| Evidencia de decisión | Respuesta explícita “aprobado” sobre la instrucción “APROBADO TS84-PROMO-MOB-VIS-0001” |
+| Observaciones | Sin cambios solicitados |
 
-Hasta que Kraken complete esta decisión, `G-MOB-VIS` continúa **NO SUPERADO** y `TS84-PROMO-RESP-0001` no puede cerrarse ni se considera iniciado.
+Con esta decisión, `G-MOB-VIS` queda **SUPERADO** y `TS84-PROMO-RESP-0001` queda habilitado para una tarea independiente. `RESP-0001` no fue iniciado en este registro de aprobación.
 
 ## 12. Archivos y alcance
 
