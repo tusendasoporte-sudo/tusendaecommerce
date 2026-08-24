@@ -1,0 +1,853 @@
+---
+import '../../../styles/promo-locales.css';
+
+interface Props {
+  storeSlug: string;
+  maxLocales?: number;
+  canManageContent: boolean;
+  canManageTranslations: boolean;
+}
+
+const {
+  storeSlug,
+  maxLocales = 0,
+  canManageContent,
+  canManageTranslations,
+} = Astro.props;
+const canSave = canManageContent && canManageTranslations;
+---
+
+<section
+  class="pz-promo-locales"
+  data-promo-locales
+  data-store-slug={storeSlug}
+  data-max-locales={maxLocales}
+  data-can-save={canSave ? 'true' : 'false'}
+  aria-labelledby="promo-locales-title"
+>
+  <header class="pz-promo-locales__intro">
+    <div>
+      <span class="pz-promo-locales__kicker">Borrador privado</span>
+      <h2 id="promo-locales-title">Idiomas y traducciones</h2>
+      <p>Prepara cada idioma, revisa su completitud y decide cuáles formarán parte de una futura publicación. Guardar no crea candidata ni publica.</p>
+    </div>
+    <div class="pz-promo-locales__draft-meta" aria-label="Estado del borrador">
+      <span data-locales-version>Versión: —</span>
+      <span data-locales-quota>Idiomas: —</span>
+    </div>
+  </header>
+
+  {!canSave && (
+    <div class="pz-promo-locales__notice is-warning" role="status">
+      <strong>Acceso de solo lectura</strong>
+      <p>
+        {!canManageTranslations
+          ? 'Esta sesión no tiene la acción de traducciones proyectada por el backend.'
+          : 'Para guardar el documento completo también se requiere la acción de contenido, tal como exige PUBCFG.'}
+      </p>
+    </div>
+  )}
+
+  <div class="pz-promo-locales__notice" role="status" aria-live="polite" data-locales-status>
+    <span class="pz-promo-locales__spinner" aria-hidden="true"></span>
+    <span>Cargando el borrador y sus locales…</span>
+  </div>
+
+  <div class="pz-promo-locales__error" role="alert" tabindex="-1" data-locales-error hidden>
+    <strong>No se pudo continuar</strong>
+    <p data-locales-error-message></p>
+    <button type="button" data-locales-reload>Recargar borrador</button>
+  </div>
+
+  <form class="pz-promo-locales__form" data-locales-form hidden novalidate>
+    <section class="pz-promo-locales__toolbar" aria-labelledby="promo-locales-enabled-title">
+      <div>
+        <h3 id="promo-locales-enabled-title">Idiomas habilitados</h3>
+        <p>Solo se ofrecen catálogos generales completos y aprobados por el backend.</p>
+      </div>
+      <div class="pz-promo-locales__add">
+        <label for={`promo-locale-add-${storeSlug}`}>Añadir idioma</label>
+        <select id={`promo-locale-add-${storeSlug}`} data-locales-add-select data-locale-edit-control></select>
+        <button type="button" data-locales-add data-locale-edit-control>Añadir</button>
+      </div>
+    </section>
+
+    <div class="pz-promo-locales__workspace">
+      <aside class="pz-promo-locales__locale-panel" aria-label="Estado por idioma">
+        <div data-locales-list></div>
+      </aside>
+      <div class="pz-promo-locales__editor" data-locales-editor></div>
+    </div>
+
+    <section class="pz-promo-locales__publication" aria-labelledby="promo-locales-publication-title">
+      <div class="pz-promo-locales__publication-heading">
+        <div>
+          <span class="pz-promo-locales__step" aria-hidden="true">✓</span>
+          <div>
+            <h3 id="promo-locales-publication-title">Gate de completitud</h3>
+            <p>La referencia del idioma base nunca cuenta como traducción. El backend vuelve a validar todo al crear una candidata.</p>
+          </div>
+        </div>
+        <strong data-locales-publication-state>Revisando…</strong>
+      </div>
+      <div data-locales-publication-list></div>
+    </section>
+
+    <footer class="pz-promo-locales__actions">
+      <div>
+        <strong data-locales-unsaved>Sin cambios pendientes</strong>
+        <small>El sitio publicado permanece en su revisión actual hasta un flujo de publicación autorizado.</small>
+      </div>
+      <button class="pz-promo-locales__save" type="submit" data-locales-save data-locale-edit-control disabled>
+        <span data-locales-save-label>Guardar borrador</span>
+      </button>
+    </footer>
+  </form>
+</section>
+
+<script>
+  import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
+  import {
+    addPromoLocale,
+    buildPromoLocalesDocument,
+    createPromoLocalesWorkspace,
+    diagnosePromoLocale,
+    diagnosePromoLocalesPublication,
+    PROMO_LOCALES_API_PATH,
+    PROMO_LOCALES_CATALOG,
+    promoLocalesErrorMessage,
+    removePromoLocale,
+    setPromoDefaultLocale,
+    setPromoLocalePublished,
+  } from '../../../lib/promoLocales';
+
+  type LocaleDocument = Record<string, any>;
+
+  const sectionLabels: Record<string, string> = {
+    hero: 'Portada',
+    services: 'Servicios',
+    featured_work: 'Trabajo destacado',
+    gallery: 'Galería',
+    owner: 'Propietario',
+    store_rating: 'Reseñas de tienda',
+    contact: 'Contacto',
+    footer: 'Pie del sitio',
+  };
+  const fieldLabels: Record<string, string> = {
+    heading: 'Título',
+    summary: 'Resumen',
+    name: 'Nombre',
+    bio: 'Biografía',
+    text: 'Texto',
+    caption: 'Descripción',
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-promo-locales]').forEach((root) => {
+    const storeSlug = root.dataset.storeSlug || '';
+    const maxLocales = Number(root.dataset.maxLocales || 0);
+    const canSave = root.dataset.canSave === 'true';
+    const endpoint = `${PROMO_LOCALES_API_PATH}?store=${encodeURIComponent(storeSlug)}`;
+    const form = root.querySelector<HTMLFormElement>('[data-locales-form]');
+    const status = root.querySelector<HTMLElement>('[data-locales-status]');
+    const errorBox = root.querySelector<HTMLElement>('[data-locales-error]');
+    const errorMessage = root.querySelector<HTMLElement>('[data-locales-error-message]');
+    const editor = root.querySelector<HTMLElement>('[data-locales-editor]');
+    const list = root.querySelector<HTMLElement>('[data-locales-list]');
+    const publicationList = root.querySelector<HTMLElement>('[data-locales-publication-list]');
+    const publicationState = root.querySelector<HTMLElement>('[data-locales-publication-state]');
+    const addSelect = root.querySelector<HTMLSelectElement>('[data-locales-add-select]');
+    const addButton = root.querySelector<HTMLButtonElement>('[data-locales-add]');
+    const saveButton = root.querySelector<HTMLButtonElement>('[data-locales-save]');
+    const saveLabel = root.querySelector<HTMLElement>('[data-locales-save-label]');
+    const unsaved = root.querySelector<HTMLElement>('[data-locales-unsaved]');
+    let version = 0;
+    let documentValue: LocaleDocument | null = null;
+    let activeLocale = '';
+    let dirty = false;
+    let busy = false;
+    let showFallback = true;
+
+    function element<K extends keyof HTMLElementTagNameMap>(
+      tag: K,
+      className = '',
+      text = '',
+    ): HTMLElementTagNameMap[K] {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    }
+
+    function localeInfo(locale: string) {
+      return PROMO_LOCALES_CATALOG.find((entry) => entry.locale === locale);
+    }
+
+    function setDirty(value = true) {
+      dirty = value;
+      if (unsaved) unsaved.textContent = dirty ? 'Hay cambios sin guardar' : 'Sin cambios pendientes';
+      if (saveButton) saveButton.disabled = !canSave || busy || !dirty;
+    }
+
+    function clearError() {
+      if (errorBox) errorBox.hidden = true;
+      if (errorMessage) errorMessage.textContent = '';
+    }
+
+    function showError(code: string) {
+      if (!errorBox || !errorMessage) return;
+      errorMessage.textContent = promoLocalesErrorMessage(code);
+      errorBox.hidden = false;
+      errorBox.focus();
+    }
+
+    function applyControlState() {
+      root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement>('[data-locale-edit-control]')
+        .forEach((control) => {
+          control.disabled = busy
+            || !canSave
+            || control.dataset.localeLocked === 'true'
+            || (control === saveButton && !dirty);
+        });
+      if (addButton && addSelect) {
+        addButton.disabled = busy || !canSave || addButton.dataset.localeLocked === 'true' || !addSelect.value;
+      }
+    }
+
+    function setBusy(value: boolean, label: string) {
+      busy = value;
+      root.setAttribute('aria-busy', value ? 'true' : 'false');
+      if (saveLabel && label) saveLabel.textContent = label;
+      if (saveLabel && !value) saveLabel.textContent = 'Guardar borrador';
+      applyControlState();
+    }
+
+    function fallbackValue(group: string, first: string, second = '') {
+      if (!documentValue || activeLocale === documentValue.locales.default || !showFallback) return '';
+      const base = documentValue.content_by_locale[documentValue.locales.default] || {};
+      if (group === 'identity') return String(base.identity?.[first] || '');
+      if (group === 'navigation') return String(base.navigation?.[first] || '');
+      if (group === 'section') return String(base.sections?.[first]?.[second] || '');
+      if (group === 'contact') return String(base.contact?.[first]?.[second] || '');
+      if (group === 'seo') return String(base.seo?.[first] || '');
+      if (group === 'media') return String(base.media_alt?.[first]?.alt || '');
+      return '';
+    }
+
+    function field(
+      labelText: string,
+      value: string,
+      options: { max: number; textarea?: boolean; required?: boolean; fallback?: string } = { max: 160 },
+    ) {
+      const label = element('label', 'pz-promo-locales__field');
+      label.append(element('span', '', labelText));
+      const control = options.textarea ? element('textarea') : element('input');
+      if (control instanceof HTMLTextAreaElement) control.rows = options.max > 1000 ? 5 : 3;
+      if (control instanceof HTMLInputElement) control.type = 'text';
+      control.value = value;
+      control.maxLength = options.max;
+      control.dataset.localeEditControl = '';
+      if (options.fallback) control.placeholder = `Referencia: ${options.fallback.slice(0, 120)}`;
+      label.append(control);
+      if (options.fallback) label.append(element('small', 'pz-promo-locales__fallback-copy', 'La referencia no se guarda ni cuenta como traducción.'));
+      return { label, control };
+    }
+
+    function heading(title: string, description: string) {
+      const header = element('header', 'pz-promo-locales__panel-heading');
+      const copy = element('div');
+      copy.append(element('h4', '', title), element('p', '', description));
+      header.append(copy);
+      return header;
+    }
+
+    function renderLocaleList() {
+      if (!list || !documentValue) return;
+      const workspace = createPromoLocalesWorkspace(documentValue);
+      const cards = workspace.enabledLocales.map((locale) => {
+        const info = localeInfo(locale)!;
+        const diagnostic = diagnosePromoLocale(documentValue, locale);
+        const button = element('button', 'pz-promo-locales__locale-card');
+        button.type = 'button';
+        button.dataset.localeSelect = locale;
+        button.classList.toggle('is-active', locale === activeLocale);
+        button.setAttribute('aria-current', locale === activeLocale ? 'true' : 'false');
+        const top = element('span', 'pz-promo-locales__locale-card-top');
+        const name = element('span');
+        name.append(element('strong', '', info.label), element('small', '', locale));
+        const badges = element('span', 'pz-promo-locales__badges');
+        if (locale === documentValue.locales.default) badges.append(element('small', 'is-base', 'Base'));
+        if (documentValue.locales.published.includes(locale)) badges.append(element('small', 'is-target', 'Incluido'));
+        top.append(name, badges);
+        const progress = element('progress');
+        progress.max = 100;
+        progress.value = diagnostic.percent;
+        progress.setAttribute('aria-label', `${info.label}: ${diagnostic.percent}% completo`);
+        button.append(top, progress, element('span', 'pz-promo-locales__locale-progress', `${diagnostic.percent}% · ${diagnostic.complete ? 'Completo' : `${diagnostic.missing.length} pendiente(s)`}`));
+        return button;
+      });
+      list.replaceChildren(...cards);
+    }
+
+    function createIdentityPanel(localized: LocaleDocument) {
+      const panel = element('section', 'pz-promo-locales__panel');
+      panel.append(heading('Identidad', 'Nombre y presentación pública para este idioma.'));
+      const fields = element('div', 'pz-promo-locales__fields two-columns');
+      const definitions = [
+        ['name', 'Nombre público', 140, true, false],
+        ['summary', 'Resumen del negocio', 600, false, true],
+        ['owner_name', 'Nombre público del propietario', 140, false, false],
+        ['owner_bio', 'Presentación general del propietario', 4000, false, true],
+      ] as const;
+      definitions.forEach(([name, labelText, max, required, textarea]) => {
+        const entry = field(labelText, localized.identity?.[name] || '', {
+          max, required, textarea, fallback: fallbackValue('identity', name),
+        });
+        entry.control.dataset.localeIdentity = name;
+        fields.append(entry.label);
+      });
+      panel.append(fields);
+      return panel;
+    }
+
+    function itemFields(section: LocaleDocument, content: LocaleDocument) {
+      const container = element('div', 'pz-promo-locales__items');
+      const configured = Array.isArray(section.config?.item_keys) ? section.config.item_keys : [];
+      const byKey = new Map((Array.isArray(content.items) ? content.items : []).map((item: LocaleDocument) => [item.key, item]));
+      configured.forEach((itemKey: string, index: number) => {
+        const item = byKey.get(itemKey) || {};
+        const baseItems = documentValue && activeLocale !== documentValue.locales.default && showFallback
+          ? documentValue.content_by_locale[documentValue.locales.default]?.sections?.[section.key]?.items
+          : [];
+        const baseItem = Array.isArray(baseItems)
+          ? baseItems.find((entry: LocaleDocument) => entry.key === itemKey) || {}
+          : {};
+        const card = element('article', 'pz-promo-locales__item');
+        card.append(element('h5', '', `${section.type === 'gallery' ? 'Elemento' : 'Entrada'} ${index + 1}`));
+        const fields = element('div', 'pz-promo-locales__fields two-columns');
+        if (section.type !== 'gallery') {
+          const name = field('Nombre', item.name || '', { max: 160, required: true, fallback: baseItem.name || '' });
+          name.control.dataset.localeItemSection = section.key;
+          name.control.dataset.localeItemKey = itemKey;
+          name.control.dataset.localeItemField = 'name';
+          const summary = field('Resumen', item.summary || '', { max: 600, textarea: true, fallback: baseItem.summary || '' });
+          summary.control.dataset.localeItemSection = section.key;
+          summary.control.dataset.localeItemKey = itemKey;
+          summary.control.dataset.localeItemField = 'summary';
+          fields.append(name.label, summary.label);
+        }
+        const caption = field('Descripción', item.caption || '', { max: 500, fallback: baseItem.caption || '' });
+        caption.control.dataset.localeItemSection = section.key;
+        caption.control.dataset.localeItemKey = itemKey;
+        caption.control.dataset.localeItemField = 'caption';
+        fields.append(caption.label);
+        card.append(fields);
+        container.append(card);
+      });
+      return container;
+    }
+
+    function createSectionsPanel(localized: LocaleDocument) {
+      const panel = element('section', 'pz-promo-locales__panel');
+      panel.append(heading('Navegación y secciones', 'Solo las secciones visibles bloquean la completitud, pero puedes traducir también las ocultas.'));
+      const stack = element('div', 'pz-promo-locales__section-stack');
+      documentValue!.sections.forEach((section: LocaleDocument) => {
+        const sectionContent = localized.sections?.[section.key] || {};
+        const card = element('article', 'pz-promo-locales__section-card');
+        const cardHeader = element('header');
+        const title = element('div');
+        title.append(element('h5', '', sectionLabels[section.type] || section.type));
+        title.append(element('small', '', section.visible ? 'Visible' : 'Oculta'));
+        cardHeader.append(title);
+        const fields = element('div', 'pz-promo-locales__fields two-columns');
+        const navigation = field('Etiqueta de navegación', localized.navigation?.[section.key] || '', {
+          max: 80,
+          required: section.visible === true,
+          fallback: fallbackValue('navigation', section.key),
+        });
+        navigation.control.dataset.localeNavigation = section.key;
+        fields.append(navigation.label);
+        const keys: Record<string, readonly string[]> = {
+          hero: ['heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
+          gallery: ['heading', 'summary'], owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
+          contact: ['heading', 'summary'], footer: ['text'],
+        };
+        (keys[section.type] || []).forEach((name) => {
+          const max = name === 'heading' ? 160 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
+          const entry = field(fieldLabels[name] || name, sectionContent[name] || '', {
+            max,
+            required: section.visible === true && ['heading', 'name', 'bio', 'text'].includes(name),
+            textarea: ['summary', 'bio', 'text'].includes(name),
+            fallback: fallbackValue('section', section.key, name),
+          });
+          entry.control.dataset.localeSection = section.key;
+          entry.control.dataset.localeSectionField = name;
+          fields.append(entry.label);
+        });
+        card.append(cardHeader, fields);
+        if (['services', 'featured_work', 'gallery'].includes(section.type)) card.append(itemFields(section, sectionContent));
+        stack.append(card);
+      });
+      panel.append(stack);
+      return panel;
+    }
+
+    function createContactPanel(localized: LocaleDocument) {
+      const panel = element('section', 'pz-promo-locales__panel');
+      panel.append(heading('Textos de contacto', 'El destino se conserva en Contacto; aquí solo se traducen labels, nombres accesibles y mensajes.'));
+      const stack = element('div', 'pz-promo-locales__items');
+      if (!documentValue!.contact.actions.length) {
+        stack.append(element('p', 'pz-promo-locales__empty', 'No hay métodos de contacto configurados.'));
+      }
+      documentValue!.contact.actions.forEach((action: LocaleDocument) => {
+        const text = localized.contact?.[action.key] || {};
+        const card = element('article', 'pz-promo-locales__item');
+        card.append(element('h5', '', `${action.type} · ${action.key}`));
+        const fields = element('div', 'pz-promo-locales__fields two-columns');
+        const definitions = [
+          ['label', 'Texto del botón', 80, true, false],
+          ['aria_label', 'Nombre accesible', 160, true, false],
+          ['message', 'Mensaje sugerido', 1000, false, true],
+        ] as const;
+        definitions.forEach(([name, labelText, max, required, textarea]) => {
+          const entry = field(labelText, text[name] || '', {
+            max,
+            required: required && documentValue!.contact.enabled && action.enabled,
+            textarea,
+            fallback: fallbackValue('contact', action.key, name),
+          });
+          entry.control.dataset.localeContact = action.key;
+          entry.control.dataset.localeContactField = name;
+          fields.append(entry.label);
+        });
+        card.append(fields);
+        stack.append(card);
+      });
+      panel.append(stack);
+      return panel;
+    }
+
+    function createMediaPanel(localized: LocaleDocument) {
+      const panel = element('section', 'pz-promo-locales__panel');
+      panel.append(heading('Accesibilidad de medios', 'Cada referencia requiere alt localizado o una marca decorativa explícita.'));
+      const stack = element('div', 'pz-promo-locales__items');
+      const mediaKeys = Object.keys(documentValue!.media_refs);
+      if (!mediaKeys.length) stack.append(element('p', 'pz-promo-locales__empty', 'No hay medios referenciados en el borrador.'));
+      mediaKeys.forEach((useKey) => {
+        const current = localized.media_alt?.[useKey] || { alt: '', decorative: false };
+        const card = element('article', 'pz-promo-locales__item');
+        card.dataset.localeMedia = useKey;
+        card.append(element('h5', '', `${documentValue!.media_refs[useKey].purpose} · ${useKey}`));
+        const decorative = element('label', 'pz-promo-locales__switch');
+        const checkbox = element('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = current.decorative === true;
+        checkbox.dataset.localeMediaDecorative = useKey;
+        checkbox.dataset.localeEditControl = '';
+        decorative.append(checkbox, element('span', '', 'Este medio es decorativo'));
+        const alt = field('Texto alternativo', current.alt || '', {
+          max: 300,
+          required: !checkbox.checked,
+          fallback: fallbackValue('media', useKey),
+        });
+        alt.control.dataset.localeMediaAlt = useKey;
+        alt.control.dataset.localeLocked = checkbox.checked ? 'true' : 'false';
+        alt.control.disabled = checkbox.checked || !canSave;
+        checkbox.addEventListener('change', () => {
+          alt.control.dataset.localeLocked = checkbox.checked ? 'true' : 'false';
+          alt.control.disabled = checkbox.checked || busy || !canSave;
+          if (checkbox.checked) alt.control.value = '';
+        });
+        card.append(decorative, alt.label);
+        stack.append(card);
+      });
+      panel.append(stack);
+      return panel;
+    }
+
+    function createSeoPanel(localized: LocaleDocument) {
+      const panel = element('section', 'pz-promo-locales__panel');
+      panel.append(heading('SEO localizado', 'Los campos obligatorios participan en el gate; canonical y hreflang pertenecen al prompt SEO posterior.'));
+      const fields = element('div', 'pz-promo-locales__fields two-columns');
+      const definitions = [
+        ['title', 'Título SEO', 70, true, false],
+        ['description', 'Descripción SEO', 170, true, true],
+        ['social_title', 'Título social', 70, false, false],
+        ['social_description', 'Descripción social', 170, false, true],
+      ] as const;
+      definitions.forEach(([name, labelText, max, required, textarea]) => {
+        const entry = field(labelText, localized.seo?.[name] || '', {
+          max, required, textarea, fallback: fallbackValue('seo', name),
+        });
+        entry.control.dataset.localeSeo = name;
+        fields.append(entry.label);
+      });
+      panel.append(fields);
+      return panel;
+    }
+
+    function collectActiveContent() {
+      const content: LocaleDocument = {
+        identity: {}, navigation: {}, sections: {}, contact: {}, media_alt: {}, seo: {},
+      };
+      root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-identity]').forEach((control) => {
+        content.identity[control.dataset.localeIdentity || ''] = control.value;
+      });
+      root.querySelectorAll<HTMLInputElement>('[data-locale-navigation]').forEach((control) => {
+        if (control.value.trim()) content.navigation[control.dataset.localeNavigation || ''] = control.value;
+      });
+      documentValue!.sections.forEach((section: LocaleDocument) => { content.sections[section.key] = {}; });
+      root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-section]').forEach((control) => {
+        content.sections[control.dataset.localeSection || ''][control.dataset.localeSectionField || ''] = control.value;
+      });
+      documentValue!.sections.filter((section: LocaleDocument) => ['services', 'featured_work', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
+        const items: LocaleDocument[] = [];
+        (section.config.item_keys || []).forEach((itemKey: string) => {
+          const item: LocaleDocument = { key: itemKey };
+          root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(`[data-locale-item-section="${section.key}"][data-locale-item-key="${itemKey}"]`).forEach((control) => {
+            item[control.dataset.localeItemField || ''] = control.value;
+          });
+          items.push(item);
+        });
+        content.sections[section.key].items = items;
+      });
+      root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-contact]').forEach((control) => {
+        const actionKey = control.dataset.localeContact || '';
+        content.contact[actionKey] ||= {};
+        content.contact[actionKey][control.dataset.localeContactField || ''] = control.value;
+      });
+      Object.keys(documentValue!.media_refs).forEach((useKey) => {
+        const decorative = root.querySelector<HTMLInputElement>(`[data-locale-media-decorative="${useKey}"]`)?.checked === true;
+        const alt = root.querySelector<HTMLInputElement>(`[data-locale-media-alt="${useKey}"]`)?.value || '';
+        if (decorative || alt.trim()) content.media_alt[useKey] = { alt: decorative ? '' : alt, decorative };
+      });
+      root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-seo]').forEach((control) => {
+        content.seo[control.dataset.localeSeo || ''] = control.value;
+      });
+      return content;
+    }
+
+    function previewDocument() {
+      if (!documentValue || !activeLocale) return documentValue;
+      return buildPromoLocalesDocument(documentValue, {
+        defaultLocale: documentValue.locales.default,
+        publishedLocales: documentValue.locales.published,
+        contentByLocale: { ...documentValue.content_by_locale, [activeLocale]: collectActiveContent() },
+      }, Math.max(maxLocales, Object.keys(documentValue.content_by_locale).length));
+    }
+
+    function commitActive() {
+      const next = previewDocument();
+      if (next) documentValue = next;
+      return next;
+    }
+
+    function renderPublication(source = documentValue) {
+      if (!source || !publicationList || !publicationState) return;
+      const result = diagnosePromoLocalesPublication(source);
+      publicationState.textContent = result.ready ? 'Apto por idiomas' : 'Publicación bloqueada';
+      publicationState.className = result.ready ? 'is-ready' : 'is-blocked';
+      const rows = source.locales.published.map((locale: string) => {
+        const diagnostic = diagnosePromoLocale(source, locale);
+        const row = element('article', 'pz-promo-locales__publication-row');
+        const copy = element('div');
+        copy.append(element('strong', '', localeInfo(locale)?.label || locale));
+        copy.append(element('span', '', diagnostic.complete
+          ? 'Todos los requisitos editoriales están completos.'
+          : diagnostic.missing.slice(0, 3).join(' · ')));
+        row.append(copy, element('strong', diagnostic.complete ? 'is-ready' : 'is-blocked', diagnostic.complete ? 'Listo' : `${diagnostic.missing.length} pendiente(s)`));
+        return row;
+      });
+      publicationList.replaceChildren(...rows);
+    }
+
+    function refreshDiagnostics() {
+      try {
+        const preview = previewDocument();
+        if (!preview) return;
+        documentValue = preview;
+        renderLocaleList();
+        renderPublication(preview);
+        const diagnostic = diagnosePromoLocale(preview, activeLocale);
+        const badge = root.querySelector<HTMLElement>('[data-active-locale-status]');
+        if (badge) {
+          badge.textContent = diagnostic.complete ? 'Completo' : `${diagnostic.percent}% completo`;
+          badge.className = diagnostic.complete ? 'is-ready' : 'is-blocked';
+        }
+        const defaultControl = root.querySelector<HTMLButtonElement>('[data-locales-set-default]');
+        if (defaultControl) {
+          const locked = preview.locales.default === activeLocale || !diagnostic.complete;
+          defaultControl.dataset.localeLocked = locked ? 'true' : 'false';
+          defaultControl.disabled = busy || !canSave || locked;
+        }
+        const publishControl = root.querySelector<HTMLInputElement>('[data-locales-publish-toggle]');
+        if (publishControl) {
+          const locked = preview.locales.default === activeLocale || (!publishControl.checked && !diagnostic.complete);
+          publishControl.dataset.localeLocked = locked ? 'true' : 'false';
+          publishControl.disabled = busy || !canSave || locked;
+        }
+      } catch (error) {
+        const code = (error as { code?: string })?.code || 'invalid_promo_document';
+        const badge = root.querySelector<HTMLElement>('[data-active-locale-status]');
+        if (badge) {
+          badge.textContent = promoLocalesErrorMessage(code);
+          badge.className = 'is-blocked';
+        }
+      }
+    }
+
+    function renderEditor() {
+      if (!editor || !documentValue || !activeLocale) return;
+      const info = localeInfo(activeLocale)!;
+      const localized = documentValue.content_by_locale[activeLocale];
+      const diagnostic = diagnosePromoLocale(documentValue, activeLocale);
+      const header = element('header', 'pz-promo-locales__editor-header');
+      const copy = element('div');
+      copy.append(element('span', 'pz-promo-locales__locale-code', activeLocale));
+      copy.append(element('h3', '', info.label));
+      const statusBadge = element('strong', diagnostic.complete ? 'is-ready' : 'is-blocked', diagnostic.complete ? 'Completo' : `${diagnostic.percent}% completo`);
+      statusBadge.dataset.activeLocaleStatus = '';
+      copy.append(statusBadge);
+      const controls = element('div', 'pz-promo-locales__editor-actions');
+      const defaultButton = element('button', 'pz-promo-locales__secondary-button', documentValue.locales.default === activeLocale ? 'Idioma base' : 'Usar como base');
+      defaultButton.type = 'button';
+      defaultButton.dataset.localesSetDefault = '';
+      defaultButton.dataset.localeEditControl = '';
+      defaultButton.dataset.localeLocked = documentValue.locales.default === activeLocale || !diagnostic.complete ? 'true' : 'false';
+      defaultButton.disabled = !canSave || documentValue.locales.default === activeLocale || !diagnostic.complete;
+      defaultButton.addEventListener('click', () => {
+        try {
+          clearError();
+          commitActive();
+          documentValue = setPromoDefaultLocale(documentValue, activeLocale);
+          setDirty();
+          renderAll();
+        } catch (error) { showError((error as { code?: string })?.code || 'invalid_promo_document'); }
+      });
+      const remove = element('button', 'pz-promo-locales__danger-button', 'Quitar idioma');
+      remove.type = 'button';
+      remove.dataset.localeEditControl = '';
+      remove.dataset.localeLocked = documentValue.locales.default === activeLocale ? 'true' : 'false';
+      remove.disabled = !canSave || documentValue.locales.default === activeLocale;
+      remove.addEventListener('click', () => {
+        if (!window.confirm(`Quitar ${info.label} y sus traducciones del borrador?`)) return;
+        try {
+          clearError();
+          documentValue = removePromoLocale(documentValue, activeLocale);
+          activeLocale = documentValue.locales.default;
+          setDirty();
+          renderAll();
+        } catch (error) { showError((error as { code?: string })?.code || 'invalid_promo_document'); }
+      });
+      controls.append(defaultButton, remove);
+      header.append(copy, controls);
+
+      const publishLabel = element('label', 'pz-promo-locales__switch pz-promo-locales__publish-toggle');
+      const publishToggle = element('input');
+      publishToggle.type = 'checkbox';
+      publishToggle.dataset.localesPublishToggle = '';
+      publishToggle.checked = documentValue.locales.published.includes(activeLocale);
+      publishToggle.dataset.localeEditControl = '';
+      publishToggle.dataset.localeLocked = activeLocale === documentValue.locales.default || (!publishToggle.checked && !diagnostic.complete) ? 'true' : 'false';
+      publishToggle.disabled = !canSave || activeLocale === documentValue.locales.default || (!publishToggle.checked && !diagnostic.complete);
+      const publishCopy = element('span');
+      publishCopy.append(element('strong', '', 'Incluir en una futura publicación'));
+      publishCopy.append(element('small', '', activeLocale === documentValue.locales.default
+        ? 'El idioma base siempre forma parte del conjunto publicable.'
+        : 'Solo puede activarse cuando el idioma esté completo.'));
+      publishLabel.append(publishToggle, publishCopy);
+      publishToggle.addEventListener('change', () => {
+        try {
+          clearError();
+          commitActive();
+          documentValue = setPromoLocalePublished(documentValue, activeLocale, publishToggle.checked);
+          setDirty();
+          renderAll();
+        } catch (error) {
+          publishToggle.checked = !publishToggle.checked;
+          showError((error as { code?: string })?.code || 'incomplete_promo_locale');
+        }
+      });
+
+      const fallback = element('label', 'pz-promo-locales__switch pz-promo-locales__fallback-toggle');
+      const fallbackToggle = element('input');
+      fallbackToggle.type = 'checkbox';
+      fallbackToggle.checked = showFallback;
+      fallbackToggle.disabled = activeLocale === documentValue.locales.default;
+      const fallbackCopy = element('span');
+      fallbackCopy.append(element('strong', '', 'Mostrar referencia del idioma base'));
+      fallbackCopy.append(element('small', '', 'Solo ayuda a traducir: no rellena, no guarda y no habilita publicación.'));
+      fallback.append(fallbackToggle, fallbackCopy);
+      fallbackToggle.addEventListener('change', () => {
+        try { commitActive(); } catch (_) { return; }
+        showFallback = fallbackToggle.checked;
+        renderEditor();
+        applyControlState();
+      });
+
+      const missing = element('details', 'pz-promo-locales__missing');
+      const summary = element('summary', '', diagnostic.complete ? 'Sin requisitos pendientes' : `Ver ${diagnostic.missing.length} requisito(s) pendiente(s)`);
+      const missingList = element('ul');
+      diagnostic.missing.forEach((entry) => missingList.append(element('li', '', entry)));
+      missing.append(summary, missingList);
+
+      editor.replaceChildren(
+        header,
+        publishLabel,
+        fallback,
+        missing,
+        createIdentityPanel(localized),
+        createSectionsPanel(localized),
+        createContactPanel(localized),
+        createMediaPanel(localized),
+        createSeoPanel(localized),
+      );
+      applyControlState();
+    }
+
+    function renderAddOptions() {
+      if (!addSelect || !addButton || !documentValue) return;
+      const enabled = new Set(Object.keys(documentValue.content_by_locale));
+      const options = PROMO_LOCALES_CATALOG.filter((entry) => !enabled.has(entry.locale)).map((entry) => {
+        const option = element('option', '', `${entry.label} (${entry.locale})`);
+        option.value = entry.locale;
+        return option;
+      });
+      addSelect.replaceChildren(...options);
+      const addLocked = !options.length || enabled.size >= Math.min(maxLocales, PROMO_LOCALES_CATALOG.length);
+      addButton.dataset.localeLocked = addLocked ? 'true' : 'false';
+      addSelect.dataset.localeLocked = addLocked ? 'true' : 'false';
+      addButton.disabled = !canSave || busy || addLocked;
+      addSelect.disabled = addButton.disabled;
+    }
+
+    function updateMeta() {
+      const versionNode = root.querySelector<HTMLElement>('[data-locales-version]');
+      const quotaNode = root.querySelector<HTMLElement>('[data-locales-quota]');
+      if (versionNode) versionNode.textContent = `Versión: ${version || '—'}`;
+      if (quotaNode && documentValue) quotaNode.textContent = `Idiomas: ${Object.keys(documentValue.content_by_locale).length}/${Math.max(0, maxLocales)}`;
+    }
+
+    function renderAll() {
+      if (!form || !documentValue) return;
+      renderLocaleList();
+      renderEditor();
+      renderPublication();
+      renderAddOptions();
+      updateMeta();
+      form.hidden = false;
+      applyControlState();
+    }
+
+    async function loadDraft() {
+      clearError();
+      if (status) {
+        status.hidden = false;
+        status.classList.remove('is-success');
+        status.querySelector('span:last-child')!.textContent = 'Cargando el borrador y sus locales…';
+      }
+      if (form) form.hidden = true;
+      setBusy(true, 'Cargando…');
+      try {
+        const response = await fetch(endpoint, {
+          headers: { Accept: 'application/json' }, cache: 'no-store', credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.ok !== true) throw Object.assign(new Error('promo_locales_unavailable'), { code: result?.error });
+        const draft = normalizePromoCmsDraftResponse(result);
+        const workspace = createPromoLocalesWorkspace(draft.document);
+        version = draft.version;
+        documentValue = workspace.document;
+        activeLocale = documentValue.locales.default;
+        setDirty(false);
+        renderAll();
+        if (status) status.hidden = true;
+      } catch (error) {
+        showError((error as { code?: string })?.code || 'promo_locales_unavailable');
+        if (status) status.hidden = true;
+      } finally {
+        setBusy(false, '');
+      }
+    }
+
+    root.querySelector('[data-locales-reload]')?.addEventListener('click', loadDraft);
+    list?.addEventListener('click', (event) => {
+      const button = (event.target as Element)?.closest<HTMLButtonElement>('[data-locale-select]');
+      const nextLocale = button?.dataset.localeSelect || '';
+      if (!nextLocale || nextLocale === activeLocale) return;
+      try {
+        clearError();
+        if (canSave) commitActive();
+        activeLocale = nextLocale;
+        renderAll();
+      } catch (error) { showError((error as { code?: string })?.code || 'invalid_promo_document'); }
+    });
+    addButton?.addEventListener('click', () => {
+      if (!documentValue || !addSelect?.value) return;
+      try {
+        clearError();
+        commitActive();
+        documentValue = addPromoLocale(documentValue, addSelect.value, maxLocales);
+        activeLocale = addSelect.value;
+        setDirty();
+        renderAll();
+      } catch (error) { showError((error as { code?: string })?.code || 'promo_locales_unavailable'); }
+    });
+    form?.addEventListener('input', (event) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.hasAttribute('data-locale-edit-control')) return;
+      setDirty();
+      refreshDiagnostics();
+    });
+    form?.addEventListener('change', (event) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.hasAttribute('data-locale-edit-control')) return;
+      setDirty();
+      refreshDiagnostics();
+    });
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearError();
+      if (!documentValue || !canSave || busy) return;
+      if (!form.reportValidity()) return;
+      setBusy(true, 'Guardando…');
+      try {
+        commitActive();
+        documentValue = buildPromoLocalesDocument(documentValue, {
+          defaultLocale: documentValue.locales.default,
+          publishedLocales: documentValue.locales.published,
+          contentByLocale: documentValue.content_by_locale,
+        }, maxLocales);
+        const response = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: version, document: documentValue }),
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.ok !== true) throw Object.assign(new Error('promo_locales_unavailable'), { code: result?.error });
+        const draft = normalizePromoCmsDraftResponse({ ok: result.ok, contract: result.contract, draft: result.draft });
+        const workspace = createPromoLocalesWorkspace(draft.document);
+        version = draft.version;
+        documentValue = workspace.document;
+        if (!Object.prototype.hasOwnProperty.call(documentValue.content_by_locale, activeLocale)) activeLocale = documentValue.locales.default;
+        setDirty(false);
+        renderAll();
+        if (status) {
+          status.hidden = false;
+          status.classList.add('is-success');
+          status.querySelector('span:last-child')!.textContent = result.changed === true
+            ? 'Idiomas guardados en el borrador. El sitio publicado no cambió.'
+            : 'No había cambios nuevos para guardar.';
+        }
+      } catch (error) {
+        showError((error as { code?: string })?.code || 'promo_locales_unavailable');
+      } finally {
+        setBusy(false, '');
+      }
+    });
+    window.addEventListener('beforeunload', (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+    });
+    loadDraft();
+  });
+</script>

@@ -5,6 +5,7 @@ import { hasPromoAction, type PromoAccessContext } from '../../../lib/promoAcces
 import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
+import PromoLocalesEditor from './PromoLocalesEditor.astro';
 import {
   getPromoAdminModule,
   getPromoAdminSectionPath,
@@ -67,6 +68,9 @@ const maxStorageBytes = Number(accessContext.capabilities.max_storage_bytes || 0
 const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
 const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appearance.manage');
+const canManageLocaleContent = hasPromoAction(accessContext, 'promo.content.manage');
+const canManagePromoTranslations = hasPromoAction(accessContext, 'promo.translations.manage');
+const maxLocales = Number(accessContext.capabilities.max_locales || 0);
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -248,6 +252,13 @@ function initials(value: string) {
             canManageContent={canManageAppearanceContent}
             canSelectTheme={canSelectPromoTheme}
             canManageAppearance={canCustomizePromoAppearance}
+          />
+        ) : activeModule && section === 'languages' ? (
+          <PromoLocalesEditor
+            storeSlug={storeSlug}
+            maxLocales={Number.isSafeInteger(maxLocales) && maxLocales >= 0 ? maxLocales : 0}
+            canManageContent={canManageLocaleContent}
+            canManageTranslations={canManagePromoTranslations}
           />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">
