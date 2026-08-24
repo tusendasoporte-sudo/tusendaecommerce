@@ -6,7 +6,11 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 body {
   min-width: 280px;
@@ -19,6 +23,10 @@ a { color: inherit; }
 .promo-skip-link {
   position: fixed;
   z-index: 100;
+  display: flex;
+  max-width: calc(100% - 24px);
+  min-height: 44px;
+  align-items: center;
   inset-block-start: 12px;
   inset-inline-start: 12px;
   padding: 11px 16px;
@@ -27,11 +35,17 @@ a { color: inherit; }
   background: #f6f1e7;
   color: #0b0b0b;
   font: 800 .875rem/1.2 system-ui, sans-serif;
+  overflow-wrap: anywhere;
   text-decoration: none;
   transform: translateY(-180%);
 }
 
 .promo-skip-link:focus { transform: translateY(0); }
+
+.promo-skip-link:focus-visible {
+  outline: 3px solid #c8a45a;
+  outline-offset: 3px;
+}
 
 .promo-shell-visually-hidden {
   position: absolute;

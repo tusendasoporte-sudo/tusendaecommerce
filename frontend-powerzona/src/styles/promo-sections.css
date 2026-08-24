@@ -112,6 +112,7 @@
   font-weight: 750;
   letter-spacing: .08em;
   line-height: 1.55 !important;
+  overflow-wrap: anywhere;
 }
 
 .promo-sections__featured-list {
@@ -283,11 +284,18 @@
   width: min(100%, 31rem);
   aspect-ratio: 3 / 4;
   min-height: 30rem;
-  overflow: hidden;
+  isolation: isolate;
+  overflow: visible;
   border: 1px solid rgb(200 164 90 / 44%);
   border-radius: var(--promo-radius);
   background: var(--promo-surface-soft);
   box-shadow: var(--promo-shadow);
+}
+
+.promo-sections__owner-media > figure,
+.promo-sections__owner-media > .promo-sections__media-placeholder {
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .promo-sections__owner-media::after {

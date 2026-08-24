@@ -132,20 +132,35 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   list-style: none;
 }
 
+.promo-shell-header > *,
+.promo-shell-navigation,
+.promo-shell-locales,
+.promo-shell-utilities {
+  min-width: 0;
+}
+
+.promo-shell-navigation {
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 1rem;
+}
+
 .promo-shell-navigation ul { justify-content: center; }
 
 .promo-shell-navigation a,
 .promo-shell-locales a {
   position: relative;
   display: inline-flex;
+  min-width: 44px;
   min-height: 44px;
   align-items: center;
+  justify-content: center;
   color: var(--promo-muted);
   font-size: .76rem;
   font-weight: 750;
   letter-spacing: .12em;
   text-decoration: none;
   text-transform: uppercase;
+  touch-action: manipulation;
   transition: color var(--promo-motion-duration) ease;
 }
 
@@ -279,7 +294,15 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 .promo-shell-footer h2 {
   font-family: var(--promo-heading-font);
   font-weight: 400;
+  overflow-wrap: anywhere;
   text-wrap: balance;
+}
+
+.promo-shell-section p,
+.promo-shell-footer p,
+.promo-shell-navigation a,
+.promo-shell-locales a {
+  overflow-wrap: anywhere;
 }
 
 .promo-shell-section h1,
@@ -517,11 +540,11 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 }
 
 @media (max-width: 420px) {
-  .promo-shell-brand { max-width: 11rem; }
+  .promo-shell-brand { max-width: min(11rem, 100%); }
   .promo-shell-brand__mark { display: none; }
-  .promo-shell-locales a { min-width: 42px; padding-inline: .4rem; }
+  .promo-shell-locales a { min-width: 44px; min-height: 44px; padding-inline: .4rem; }
   .promo-shell-section { padding-inline: 1rem; }
-  .promo-shell-section__eyebrow { letter-spacing: .15em; }
+  .promo-shell-section__eyebrow { flex-wrap: wrap; letter-spacing: .15em; }
   .promo-shell-section__ornament { width: 18rem; }
 }
 
@@ -530,4 +553,13 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   .promo-shell-items li { transition: none; }
 
   .promo-shell-items li:hover { transform: none; }
+}
+
+body[data-promo-token-motion="reduced"] .promo-shell-navigation a::after,
+body[data-promo-token-motion="reduced"] .promo-shell-items li {
+  transition: none;
+}
+
+body[data-promo-token-motion="reduced"] .promo-shell-items li:hover {
+  transform: none;
 }

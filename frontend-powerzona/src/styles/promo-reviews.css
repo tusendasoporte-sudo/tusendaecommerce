@@ -58,10 +58,12 @@
 }
 
 .promo-reviews__viewport {
+  max-width: 100%;
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   padding: .4rem .15rem 1.1rem;
+  scroll-padding-inline: .15rem;
   scrollbar-color: var(--promo-accent) var(--promo-surface-soft);
   scrollbar-width: thin;
   scroll-snap-type: inline mandatory;
@@ -133,6 +135,7 @@
   font-size: clamp(1.15rem, 2vw, 1.4rem);
   font-style: italic;
   line-height: 1.55;
+  overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
@@ -147,6 +150,7 @@
   color: var(--promo-accent-bright);
   font-size: .85rem;
   letter-spacing: .08em;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
 }
 
@@ -190,4 +194,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .promo-reviews__viewport { scroll-behavior: auto; }
+}
+
+body[data-promo-token-motion="reduced"] .promo-reviews__viewport {
+  scroll-behavior: auto;
 }

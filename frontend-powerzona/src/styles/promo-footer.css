@@ -66,6 +66,7 @@
   line-height: 1.3;
   text-decoration: none;
   text-transform: uppercase;
+  touch-action: manipulation;
   overflow-wrap: anywhere;
 }
 
@@ -176,4 +177,8 @@
   .promo-footer__navigation a::before {
     transition: none;
   }
+}
+
+body[data-promo-token-motion="reduced"] .promo-footer__navigation a::before {
+  transition: none;
 }

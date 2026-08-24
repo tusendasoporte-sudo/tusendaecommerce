@@ -66,6 +66,7 @@
   margin: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  overscroll-behavior-inline: contain;
   border-radius: inherit;
   list-style: none;
   scroll-snap-type: inline mandatory;
@@ -106,6 +107,11 @@
   background: #050505;
 }
 
+.promo-hero__figure video:focus-visible {
+  outline: 3px solid var(--promo-focus);
+  outline-offset: -5px;
+}
+
 .promo-hero__controls {
   position: absolute;
   z-index: 5;
@@ -128,8 +134,8 @@
 
 .promo-hero__controls a {
   display: grid;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 50%;
@@ -138,6 +144,7 @@
   font-weight: 800;
   letter-spacing: .08em;
   text-decoration: none;
+  touch-action: manipulation;
 }
 
 .promo-hero__controls a:hover {
@@ -201,8 +208,8 @@
   }
 
   .promo-hero__controls a {
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
