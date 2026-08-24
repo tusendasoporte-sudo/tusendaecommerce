@@ -20,6 +20,13 @@ import { optimizePublicCatalogResponse } from './lib/publicCatalogResponse';
 import { appendPublicRequestTiming } from './lib/publicRequestTiming';
 import { readAdminDeviceToken } from './lib/adminDevice';
 import { getAdminAppPolicy, parseNativeAdminAppUserAgent } from './lib/mobileAdminReleases';
+import {
+  canOpenPromoAdminSection,
+  firstAllowedPromoAdminPath,
+  getPromoAdminSectionPath,
+  normalizePromoAdminSection,
+  resolvePromoAdminStore,
+} from './lib/promoAdminShell';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -110,6 +117,51 @@ function renderPermissionBlock(homePath: string) {
   });
 }
 
+function renderPromoPermissionBlock(homePath: string) {
+  return new Response(`<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Módulo no disponible</title><meta name="robots" content="noindex,nofollow,noarchive"/>
+<style>:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}main{width:min(560px,100%);padding:28px;border:1px solid #d8dfeb;border-radius:20px;background:#fff;box-shadow:0 20px 60px rgba(23,32,51,.1)}span{display:inline-flex;border-radius:999px;background:#f4ecff;color:#6b36a8;padding:6px 10px;font-size:12px;font-weight:800}h1{margin:16px 0 0;font-size:28px}p{color:#667085;line-height:1.55}a{display:inline-flex;min-height:44px;align-items:center;border-radius:10px;background:#6b36a8;color:#fff;padding:0 16px;text-decoration:none;font-weight:800}a:focus-visible{outline:3px solid #d6b8ff;outline-offset:3px}</style>
+</head><body><main><span>Tienda Promo</span><h1>Módulo no disponible</h1><p>Tu acceso actual no incluye este módulo. La navegación permanece cerrada hasta que el permiso y la capacidad sean efectivos.</p><a href="${homePath}">Volver al resumen Promo</a></main></body></html>`, {
+    status: 403,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
+function renderPromoValidationBlock(code: string, status: number) {
+  const entitlementBlocked = [
+    'blocked_by_plan',
+    'promo_capability_denied',
+    'promo_site_inactive',
+    'store_inactive',
+  ].includes(code);
+  const title = entitlementBlocked
+    ? 'Tienda Promo no habilitada'
+    : 'No se pudo validar el acceso Promo';
+  const message = entitlementBlocked
+    ? 'El panel permanece cerrado porque la tienda, el plan o la capacidad raíz no están operativos. Contacta al Master para revisar la asignación.'
+    : 'Por seguridad no se habilitó ningún módulo ni se usó otro tipo de panel como alternativa. Intenta iniciar sesión nuevamente; si continúa, contacta al Master.';
+  const responseStatus = entitlementBlocked ? 403 : (status >= 500 && status <= 599 ? status : 503);
+  return new Response(`<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Acceso Promo no disponible</title><meta name="robots" content="noindex,nofollow,noarchive"/>
+<style>:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}main{width:min(580px,100%);padding:28px;border:1px solid #efd6a8;border-radius:20px;background:#fffaf0;box-shadow:0 20px 60px rgba(23,32,51,.1)}h1{margin:0;font-size:28px}p{color:#765c2b;line-height:1.55}a{display:inline-flex;min-height:44px;align-items:center;border-radius:10px;background:#172033;color:#fff;padding:0 16px;text-decoration:none;font-weight:800}a:focus-visible{outline:3px solid #c8b16a;outline-offset:3px}</style>
+</head><body><main><h1>${title}</h1><p>${message}</p><a href="/login">Volver al acceso</a></main></body></html>`, {
+    status: responseStatus,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
 function renderAdminBlock(message: string) {
   return new Response(`<!doctype html>
 <html lang="es">
@@ -145,6 +197,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   let authDurationMs = 0;
   let storeDurationMs = 0;
   let permissionDurationMs = 0;
+  let promoAccessDurationMs = 0;
   const pathname = context.url.pathname;
   const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
   const isMasterRoute = pathname === '/master' || pathname.startsWith('/master/');
@@ -260,73 +313,111 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const requestedSection = isAdminRoute
       ? getLegacyAdminSection(pathname)
       : String(professionalAdminMatch?.[2] || '');
-    if (nativeAdminApp && !adminContext.isMasterSupport && requestedSection !== 'mobile-app'
-      && requestedSection !== 'change-temporary-password') {
-      const deviceToken = readAdminDeviceToken(context.request.headers.get('cookie') || '');
-      if (deviceToken) {
-        const policy = await getAdminAppPolicy(
-          import.meta.env.PUBLIC_POCKETBASE_URL,
-          authPb.authStore.token,
-          deviceToken,
-          nativeAdminApp,
-        );
-        if (policy.data) context.locals.adminAppPolicy = policy.data;
-        if (policy.data?.update_required) return context.redirect(getStoreAdminPath(currentStoreSlug, 'mobile-app'));
-      }
-    }
-    if (adminContext.isMasterSupport
-      && (requestedSection === 'account' || requestedSection.startsWith('account/') || requestedSection === 'change-temporary-password')) {
-      return context.redirect(`/master/stores/${encodeURIComponent(adminContext.storeId)}`);
-    }
-    const accessRule = adminAccessRule(requestedSection);
-    if (accessRule) {
-      let storeAccess;
-      try {
-        const permissionStartedAt = performance.now();
-        storeAccess = await getStoreAccessContext({
-          baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
-          token: authPb.authStore.token,
-          supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
-        });
-        permissionDurationMs = performance.now() - permissionStartedAt;
-        context.locals.storeAccessContext = storeAccess;
-      } catch (_) {
-        return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');
-      }
-      const permissionContext = {
-        permissions: storeAccess.access.permissions,
-        is_primary_admin: storeAccess.access.is_primary_admin,
-        blocked_by_plan: storeAccess.access.blocked_by_plan,
-      };
-      const allowed = primaryAdminCanReachRafflesGate(
-        requestedSection,
-        storeAccess.access.is_primary_admin === true,
-      ) || primaryAdminCanReachSecurityGate(
-        requestedSection,
-        storeAccess.access.is_primary_admin === true,
-      ) || primaryAdminCanReachPushCampaignsGate(
-        requestedSection,
-        storeAccess.access.is_primary_admin === true,
-      ) || (accessRule.primary === true
-        ? storeAccess.access.is_primary_admin === true
-        : accessRule.all?.length
-          ? accessRule.all.every((permission) => hasStorePermission(permissionContext, permission))
-          : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission)));
-      if (!allowed) {
-        const fallback = firstAllowedAdminPath(currentStoreSlug, storeAccess.access);
-        if (!requestedSection && fallback && fallback !== canonicalAdminPath) return context.redirect(fallback);
-        return renderPermissionBlock(fallback || canonicalAdminPath);
-      }
+
+    const promoAccessStartedAt = performance.now();
+    const promoResolution = await resolvePromoAdminStore({
+      baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
+      token: authPb.authStore.token,
+      supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+    });
+    promoAccessDurationMs = performance.now() - promoAccessStartedAt;
+
+    if (promoResolution.kind === 'blocked') {
+      return renderPromoValidationBlock(promoResolution.code, promoResolution.status);
     }
 
-    if (isAdminRoute) {
-      return context.redirect(getStoreAdminPath(currentStoreSlug, getLegacyAdminSection(pathname)));
-    }
+    if (promoResolution.kind === 'promo') {
+      const projectedPromoStoreSlug = String(promoResolution.context.store.slug || '').trim().toLowerCase();
+      if (!projectedPromoStoreSlug || projectedPromoStoreSlug !== currentStoreSlug) {
+        return renderPromoValidationBlock('promo_permissions_unavailable', 503);
+      }
+      context.locals.promoAccessContext = promoResolution.context;
+      const promoSection = normalizePromoAdminSection(requestedSection);
+      const promoHomePath = firstAllowedPromoAdminPath(currentStoreSlug, promoResolution.context)
+        || canonicalAdminPath;
 
-    if (isProfessionalAdminRoute) {
+      if (!promoSection) return context.redirect(promoHomePath);
+      if (!canOpenPromoAdminSection(promoResolution.context, promoSection)) {
+        return renderPromoPermissionBlock(promoHomePath);
+      }
+
+      if (isAdminRoute) {
+        return context.redirect(getPromoAdminSectionPath(currentStoreSlug, promoSection));
+      }
+
       const routeStoreSlug = String(professionalAdminMatch?.[1] || '').trim().toLowerCase();
       if (routeStoreSlug !== currentStoreSlug) {
         return renderAdminBlock('Este usuario no pertenece a esta tienda.');
+      }
+    } else if (promoResolution.kind === 'commerce') {
+      if (nativeAdminApp && !adminContext.isMasterSupport && requestedSection !== 'mobile-app'
+        && requestedSection !== 'change-temporary-password') {
+        const deviceToken = readAdminDeviceToken(context.request.headers.get('cookie') || '');
+        if (deviceToken) {
+          const policy = await getAdminAppPolicy(
+            import.meta.env.PUBLIC_POCKETBASE_URL,
+            authPb.authStore.token,
+            deviceToken,
+            nativeAdminApp,
+          );
+          if (policy.data) context.locals.adminAppPolicy = policy.data;
+          if (policy.data?.update_required) return context.redirect(getStoreAdminPath(currentStoreSlug, 'mobile-app'));
+        }
+      }
+      if (adminContext.isMasterSupport
+        && (requestedSection === 'account' || requestedSection.startsWith('account/') || requestedSection === 'change-temporary-password')) {
+        return context.redirect(`/master/stores/${encodeURIComponent(adminContext.storeId)}`);
+      }
+      const accessRule = adminAccessRule(requestedSection);
+      if (accessRule) {
+        let storeAccess;
+        try {
+          const permissionStartedAt = performance.now();
+          storeAccess = await getStoreAccessContext({
+            baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
+            token: authPb.authStore.token,
+            supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+          });
+          permissionDurationMs = performance.now() - permissionStartedAt;
+          context.locals.storeAccessContext = storeAccess;
+        } catch (_) {
+          return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');
+        }
+        const permissionContext = {
+          permissions: storeAccess.access.permissions,
+          is_primary_admin: storeAccess.access.is_primary_admin,
+          blocked_by_plan: storeAccess.access.blocked_by_plan,
+        };
+        const allowed = primaryAdminCanReachRafflesGate(
+          requestedSection,
+          storeAccess.access.is_primary_admin === true,
+        ) || primaryAdminCanReachSecurityGate(
+          requestedSection,
+          storeAccess.access.is_primary_admin === true,
+        ) || primaryAdminCanReachPushCampaignsGate(
+          requestedSection,
+          storeAccess.access.is_primary_admin === true,
+        ) || (accessRule.primary === true
+          ? storeAccess.access.is_primary_admin === true
+          : accessRule.all?.length
+            ? accessRule.all.every((permission) => hasStorePermission(permissionContext, permission))
+            : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission)));
+        if (!allowed) {
+          const fallback = firstAllowedAdminPath(currentStoreSlug, storeAccess.access);
+          if (!requestedSection && fallback && fallback !== canonicalAdminPath) return context.redirect(fallback);
+          return renderPermissionBlock(fallback || canonicalAdminPath);
+        }
+      }
+
+      if (isAdminRoute) {
+        return context.redirect(getStoreAdminPath(currentStoreSlug, getLegacyAdminSection(pathname)));
+      }
+
+      if (isProfessionalAdminRoute) {
+        const routeStoreSlug = String(professionalAdminMatch?.[1] || '').trim().toLowerCase();
+        if (routeStoreSlug !== currentStoreSlug) {
+          return renderAdminBlock('Este usuario no pertenece a esta tienda.');
+        }
       }
     }
   } catch (error) {
@@ -352,6 +443,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     [
       `pz-auth;dur=${authDurationMs.toFixed(1)}`,
       `pz-store;dur=${storeDurationMs.toFixed(1)}`,
+      `pz-promo-access;dur=${promoAccessDurationMs.toFixed(1)}`,
       `pz-permissions;dur=${permissionDurationMs.toFixed(1)}`,
       `pz-admin-total;dur=${totalDurationMs.toFixed(1)}`,
     ].join(', '),

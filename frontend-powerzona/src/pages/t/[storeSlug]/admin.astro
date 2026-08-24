@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import AdminDashboard from '../../admin/index.astro';
+import PromoAdminShell from '../../../components/admin/promo/PromoAdminShell.astro';
 import { getSettings } from '../../../lib/api';
 import { refreshAuthFromCookie } from '../../../lib/auth';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../lib/storeContext';
@@ -23,12 +24,13 @@ const authPb = Astro.locals.adminAuthPb
   ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 let showDashboard = false;
 let loginBlockMessage = '';
+let resolvedAdminContext = Astro.locals.adminContext ?? null;
 
 if (authPb.authStore.isValid && authPb.authStore.record) {
   try {
-    const adminContext = Astro.locals.adminContext
+    resolvedAdminContext = resolvedAdminContext
       ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
-    if (String(adminContext.store.slug || '').trim().toLowerCase() === storeSlug) {
+    if (String(resolvedAdminContext.store.slug || '').trim().toLowerCase() === storeSlug) {
       showDashboard = true;
     } else {
       loginBlockMessage = 'Este usuario no pertenece a esta tienda.';
@@ -43,6 +45,9 @@ if (authPb.authStore.isValid && authPb.authStore.record) {
   }
 }
 
+const promoAccessContext = Astro.locals.promoAccessContext ?? null;
+const showPromoDashboard = Boolean(showDashboard && resolvedAdminContext && promoAccessContext);
+
 function storeInitials(name: string) {
   return String(name || 'Tienda')
     .split(/\s+/)
@@ -53,7 +58,13 @@ function storeInitials(name: string) {
 }
 ---
 
-{showDashboard ? (
+{showPromoDashboard && resolvedAdminContext && promoAccessContext ? (
+  <PromoAdminShell
+    adminContext={resolvedAdminContext}
+    accessContext={promoAccessContext}
+    section="overview"
+  />
+) : showDashboard ? (
   <AdminDashboard />
 ) : (
 <Layout isMaster={true}>

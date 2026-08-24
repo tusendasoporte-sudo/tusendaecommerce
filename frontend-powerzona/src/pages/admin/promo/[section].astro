@@ -1,0 +1,24 @@
+---
+import PromoAdminShell from '../../../components/admin/promo/PromoAdminShell.astro';
+import {
+  canOpenPromoAdminSection,
+  getPromoAdminSectionPath,
+  normalizePromoAdminSection,
+} from '../../../lib/promoAdminShell';
+
+const adminContext = Astro.locals.adminContext;
+const accessContext = Astro.locals.promoAccessContext;
+const storeSlug = String(adminContext?.store.slug || '').trim().toLowerCase();
+const section = normalizePromoAdminSection(`promo/${String(Astro.params.section || '')}`);
+
+if (!adminContext || !accessContext) return Astro.redirect('/login');
+if (!section || section === 'overview' || !canOpenPromoAdminSection(accessContext, section)) {
+  return Astro.redirect(getPromoAdminSectionPath(storeSlug, 'overview'));
+}
+---
+
+<PromoAdminShell
+  adminContext={adminContext}
+  accessContext={accessContext}
+  section={section}
+/>

@@ -1,0 +1,293 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import type { AdminStoreContext } from '../../../lib/storeContext';
+import type { PromoAccessContext } from '../../../lib/promoAccess';
+import {
+  getPromoAdminModule,
+  getPromoAdminSectionPath,
+  visiblePromoAdminModules,
+  type PromoAdminModule,
+  type PromoAdminSection,
+} from '../../../lib/promoAdminShell';
+import '../../../styles/promo-admin-shell.css';
+
+interface Props {
+  adminContext: AdminStoreContext;
+  accessContext: PromoAccessContext;
+  section?: PromoAdminSection;
+}
+
+const {
+  adminContext,
+  accessContext,
+  section = 'overview',
+} = Astro.props;
+
+const storeSlug = String(accessContext.store.slug || adminContext.store.slug || '').trim().toLowerCase();
+const storeName = String(accessContext.store.name || adminContext.store.name || 'Tienda Promo').trim() || 'Tienda Promo';
+const userName = String(accessContext.user.display_name || 'Usuario').trim() || 'Usuario';
+const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
+const visibleModules = visiblePromoAdminModules(accessContext);
+const activeModule = section === 'overview' ? null : getPromoAdminModule(section);
+const primaryModules = visibleModules.filter((module) => (
+  ['content', 'gallery', 'appearance', 'languages', 'contact'] as PromoAdminModule['section'][]
+).includes(module.section));
+const audienceModules = visibleModules.filter((module) => !primaryModules.includes(module));
+const isMasterSupport = adminContext.isMasterSupport || accessContext.access.is_master;
+const masterReturnPath = `/master/stores/${encodeURIComponent(adminContext.storeId)}`;
+
+const siteStatusLabels: Record<string, string> = {
+  draft: 'Borrador',
+  active: 'Activo',
+  paused: 'Pausado',
+};
+const siteStatus = String(accessContext.site.status || '').trim().toLowerCase();
+const siteStatusLabel = siteStatusLabels[siteStatus] || 'No disponible';
+const pageTitle = activeModule ? activeModule.label : 'Resumen Promo';
+const pageDescription = activeModule
+  ? activeModule.description
+  : 'Organiza el trabajo de tu presencia promocional desde módulos separados y autorizados.';
+
+function modulePath(module: PromoAdminModule) {
+  return getPromoAdminSectionPath(storeSlug, module.section);
+}
+
+function initials(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'TP';
+}
+---
+
+<Layout isMaster={true}>
+  <div class="pz-promo-admin" data-promo-admin-root>
+    {isMasterSupport && (
+      <section class="pz-promo-admin__support" role="status" aria-label={`Modo soporte Master para ${storeName}`}>
+        <span class="pz-promo-admin__support-icon" aria-hidden="true">M</span>
+        <span class="pz-promo-admin__support-copy">
+          <strong>Modo soporte Master</strong>
+          <span>Las acciones permitidas conservan auditoría y contexto explícito de tienda.</span>
+        </span>
+        <a href={masterReturnPath}>Volver al control Master</a>
+      </section>
+    )}
+
+    <header class="pz-promo-admin__mobile-header">
+      <button
+        class="pz-promo-admin__menu-button"
+        type="button"
+        aria-label="Abrir navegación Promo"
+        aria-controls="pz-promo-admin-nav"
+        aria-expanded="false"
+        data-promo-admin-menu-open
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"></path></svg>
+      </button>
+      <span>
+        <small>Tienda Promo</small>
+        <strong>{pageTitle}</strong>
+      </span>
+      <span class:list={['pz-promo-admin__status', `is-${siteStatus || 'unknown'}`]}>{siteStatusLabel}</span>
+    </header>
+
+    <button class="pz-promo-admin__backdrop" type="button" aria-label="Cerrar navegación Promo" data-promo-admin-backdrop hidden></button>
+
+    <aside id="pz-promo-admin-nav" class="pz-promo-admin__sidebar" aria-label="Navegación de Tienda Promo" data-promo-admin-sidebar>
+      <div class="pz-promo-admin__brand">
+        <span class="pz-promo-admin__brandmark" aria-hidden="true">{initials(storeName)}</span>
+        <span class="pz-promo-admin__brandcopy">
+          <strong title={storeName}>{storeName}</strong>
+          <small>Admin Promo</small>
+        </span>
+        <button class="pz-promo-admin__close" type="button" aria-label="Cerrar navegación Promo" data-promo-admin-menu-close>×</button>
+      </div>
+
+      <nav class="pz-promo-admin__nav" aria-label="Módulos Promo">
+        <a class:list={['pz-promo-admin__nav-link', { 'is-active': section === 'overview' }]} href={homePath} aria-current={section === 'overview' ? 'page' : undefined}>
+          <span class="pz-promo-admin__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"></path></svg></span>
+          <span>Resumen</span>
+        </a>
+
+        {primaryModules.length > 0 && (
+          <section class="pz-promo-admin__nav-group" aria-labelledby="promo-nav-site">
+            <h2 id="promo-nav-site">Sitio</h2>
+            {primaryModules.map((module) => (
+              <a
+                class:list={['pz-promo-admin__nav-link', { 'is-active': section === module.section }]}
+                href={modulePath(module)}
+                aria-current={section === module.section ? 'page' : undefined}
+              >
+                <span class="pz-promo-admin__nav-dot" aria-hidden="true"></span>
+                <span>{module.shortLabel}</span>
+              </a>
+            ))}
+          </section>
+        )}
+
+        {audienceModules.length > 0 && (
+          <section class="pz-promo-admin__nav-group" aria-labelledby="promo-nav-growth">
+            <h2 id="promo-nav-growth">Audiencia y salida</h2>
+            {audienceModules.map((module) => (
+              <a
+                class:list={['pz-promo-admin__nav-link', { 'is-active': section === module.section }]}
+                href={modulePath(module)}
+                aria-current={section === module.section ? 'page' : undefined}
+              >
+                <span class="pz-promo-admin__nav-dot" aria-hidden="true"></span>
+                <span>{module.shortLabel}</span>
+              </a>
+            ))}
+          </section>
+        )}
+      </nav>
+
+      <div class="pz-promo-admin__sidebar-footer">
+        <span class="pz-promo-admin__user">
+          <span aria-hidden="true">{initials(userName)}</span>
+          <span><strong>{userName}</strong><small>{accessContext.user.role || 'Usuario Promo'}</small></span>
+        </span>
+        {!isMasterSupport && <button type="button" data-promo-admin-logout>Cerrar sesión</button>}
+      </div>
+    </aside>
+
+    <div class="pz-promo-admin__main" id="contenido-principal">
+      <div class="pz-promo-admin__content">
+        <header class="pz-promo-admin__page-header">
+          <div>
+            <span class="pz-promo-admin__eyebrow">Tienda Promo</span>
+            <h1>{pageTitle}</h1>
+            <p>{pageDescription}</p>
+          </div>
+          <span class:list={['pz-promo-admin__status', `is-${siteStatus || 'unknown'}`]} role="status">
+            Estado: {siteStatusLabel}
+          </span>
+        </header>
+
+        {section === 'overview' ? (
+          <>
+            <section class="pz-promo-admin__summary" aria-labelledby="promo-summary-title">
+              <div>
+                <span class="pz-promo-admin__summary-icon" aria-hidden="true">{visibleModules.length}</span>
+                <span><strong id="promo-summary-title">Módulos disponibles</strong><small>La lista responde a capacidades y permisos efectivos.</small></span>
+              </div>
+              <div>
+                <span class="pz-promo-admin__summary-icon" aria-hidden="true">{siteStatusLabel.slice(0, 1)}</span>
+                <span><strong>Estado del sitio</strong><small>{siteStatusLabel}</small></span>
+              </div>
+              <div>
+                <span class="pz-promo-admin__summary-icon" aria-hidden="true">{accessContext.access.is_primary_admin ? 'P' : 'G'}</span>
+                <span><strong>Nivel de acceso</strong><small>{accessContext.access.is_primary_admin ? 'Administrador principal' : 'Acceso granular'}</small></span>
+              </div>
+            </section>
+
+            <section class="pz-promo-admin__modules" aria-labelledby="promo-modules-title">
+              <div class="pz-promo-admin__section-heading">
+                <div><h2 id="promo-modules-title">Tus módulos Promo</h2><p>Solo aparecen las áreas habilitadas por el backend para esta sesión.</p></div>
+              </div>
+              {visibleModules.length > 0 ? (
+                <div class="pz-promo-admin__module-grid">
+                  {visibleModules.map((module, index) => (
+                    <article class="pz-promo-admin__module-card">
+                      <span class="pz-promo-admin__module-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                      <div><h3>{module.label}</h3><p>{module.description}</p></div>
+                      <a href={modulePath(module)} aria-label={`Abrir ${module.label}`}>Abrir módulo <span aria-hidden="true">→</span></a>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div class="pz-promo-admin__empty" role="status">
+                  <strong>No hay módulos operativos disponibles.</strong>
+                  <p>El acceso de lectura está activo, pero esta sesión no tiene otras acciones efectivas.</p>
+                </div>
+              )}
+            </section>
+          </>
+        ) : activeModule ? (
+          <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">
+            <span class="pz-promo-admin__module-state-icon" aria-hidden="true">✓</span>
+            <div>
+              <span class="pz-promo-admin__module-state-kicker">Acceso validado</span>
+              <h2 id="promo-module-state-title">La navegación de {activeModule.label} está lista</h2>
+              <p>{activeModule.delivery}</p>
+              <p class="pz-promo-admin__module-state-note">Este shell no guarda, publica ni modifica contenido. La autorización efectiva seguirá siendo validada por el backend cuando se incorpore la herramienta correspondiente.</p>
+              <a href={homePath}>Volver al resumen</a>
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const root = document.querySelector('[data-promo-admin-root]');
+    const sidebar = root?.querySelector('[data-promo-admin-sidebar]');
+    const openButton = root?.querySelector('[data-promo-admin-menu-open]');
+    const closeButton = root?.querySelector('[data-promo-admin-menu-close]');
+    const backdrop = root?.querySelector('[data-promo-admin-backdrop]');
+    const mobileMedia = window.matchMedia('(max-width: 900px)');
+    let returnFocus: HTMLElement | null = null;
+
+    function focusableItems(): HTMLElement[] {
+      if (!(sidebar instanceof HTMLElement)) return [];
+      return Array.from(sidebar.querySelectorAll('a[href], button:not([disabled])'))
+        .filter((item): item is HTMLElement => item instanceof HTMLElement && !item.hidden);
+    }
+
+    function setMenu(open: boolean) {
+      if (!(root instanceof HTMLElement) || !(sidebar instanceof HTMLElement)) return;
+      const mobile = mobileMedia.matches;
+      const expanded = mobile && open;
+      root.classList.toggle('is-nav-open', expanded);
+      openButton?.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      sidebar.setAttribute('aria-hidden', mobile && !expanded ? 'true' : 'false');
+      if ('inert' in sidebar) sidebar.inert = mobile && !expanded;
+      if (backdrop instanceof HTMLButtonElement) backdrop.hidden = !expanded;
+      document.documentElement.classList.toggle('pz-promo-admin-nav-open', expanded);
+      if (expanded) {
+        returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const first = focusableItems()[0];
+        first?.focus();
+      } else if (open === false && returnFocus instanceof HTMLElement) {
+        returnFocus.focus();
+        returnFocus = null;
+      }
+    }
+
+    openButton?.addEventListener('click', () => setMenu(true));
+    closeButton?.addEventListener('click', () => setMenu(false));
+    backdrop?.addEventListener('click', () => setMenu(false));
+    sidebar?.querySelectorAll('a[href]').forEach((link) => link.addEventListener('click', () => setMenu(false)));
+    document.addEventListener('keydown', (event) => {
+      if (!root?.classList.contains('is-nav-open')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMenu(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusableItems();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    });
+
+    const onMediaChange = () => setMenu(false);
+    mobileMedia.addEventListener?.('change', onMediaChange);
+    setMenu(false);
+
+    root?.querySelector('[data-promo-admin-logout]')?.addEventListener('click', () => {
+      document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+      window.location.assign('/login');
+    });
+  </script>
+</Layout>

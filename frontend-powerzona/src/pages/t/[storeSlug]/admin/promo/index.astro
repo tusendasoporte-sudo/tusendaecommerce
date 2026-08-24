@@ -1,0 +1,6 @@
+---
+import { getPromoAdminSectionPath } from '../../../../../lib/promoAdminShell';
+
+const storeSlug = String(Astro.locals.adminContext?.store.slug || Astro.params.storeSlug || '').trim().toLowerCase();
+return Astro.redirect(getPromoAdminSectionPath(storeSlug, 'overview'));
+---
