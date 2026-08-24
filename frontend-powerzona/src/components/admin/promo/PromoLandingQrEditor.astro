@@ -1,0 +1,127 @@
+---
+import { getLandingQrPath } from '../../../lib/landingQr';
+import '../../../styles/promo-landing-qr-admin.css';
+
+interface Props {
+  storeSlug: string;
+  canConfigure: boolean;
+}
+
+const { storeSlug, canConfigure } = Astro.props;
+const publicPath = getLandingQrPath(storeSlug);
+---
+
+<section
+  class="pz-promo-landing-qr"
+  data-promo-landing-qr-editor
+  data-store-slug={storeSlug}
+  data-can-configure={canConfigure ? 'true' : 'false'}
+  aria-labelledby="promo-landing-qr-title"
+>
+  <header class="pz-promo-landing-qr__header">
+    <div>
+      <span class="pz-promo-landing-qr__kicker">Puente de solo acceso</span>
+      <h2 id="promo-landing-qr-title">Landing QR existente</h2>
+      <p>Publica un enlace discreto hacia la página de enlaces actual sin duplicar su contenido ni convertirla en acción de contacto.</p>
+    </div>
+    <a href={publicPath}>Abrir Landing QR actual</a>
+  </header>
+
+  <div class="pz-promo-landing-qr__alert" data-landing-qr-alert role="status" aria-live="polite" hidden></div>
+
+  <section class="pz-promo-landing-qr__card" aria-labelledby="promo-landing-qr-config-title">
+    <div class="pz-promo-landing-qr__copy">
+      <span>Revisión Promo</span>
+      <h3 id="promo-landing-qr-config-title">Enlace público</h3>
+      <p>El cambio se guarda únicamente en el borrador. Debes publicar una revisión nueva para que el renderer Promo lo use.</p>
+    </div>
+
+    <label class="pz-promo-landing-qr__switch">
+      <input type="checkbox" data-landing-qr-enabled disabled={!canConfigure} />
+      <span>
+        <strong>Mostrar acceso a Landing QR</strong>
+        <small>Solo aparecerá mientras la Landing QR y sus capacidades vigentes estén activas.</small>
+      </span>
+    </label>
+
+    <button type="button" data-landing-qr-save disabled={!canConfigure}>Guardar en borrador</button>
+
+    {!canConfigure && (
+      <p class="pz-promo-landing-qr__permission" role="note">
+        Tu sesión no posee la acción promo.landing_qr.bridge.manage.
+      </p>
+    )}
+  </section>
+
+  <aside class="pz-promo-landing-qr__boundary" aria-label="Límites del puente Landing QR">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 6v6c0 5.1 3.8 9.7 9 10 5.2-.3 9-4.9 9-10V6l-9-4Zm0 3 6 2.7V12c0 3.5-2.4 6.8-6 7.6-3.6-.8-6-4.1-6-7.6V7.7L12 5Zm-1 3h2v5h-2V8Zm0 7h2v2h-2v-2Z"></path></svg>
+    <p>No genera un QR nuevo, no copia botones ni destinos, no cambia la analítica existente y no sustituye el CTA principal del sitio Promo.</p>
+  </aside>
+</section>
+
+<script>
+  import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
+  import { buildPromoLandingQrDocument, promoLandingQrErrorMessage } from '../../../lib/promoLandingQr';
+
+  document.querySelectorAll<HTMLElement>('[data-promo-landing-qr-editor]').forEach((root) => {
+    const storeSlug = String(root.dataset.storeSlug || '');
+    const canConfigure = root.dataset.canConfigure === 'true';
+    const enabled = root.querySelector<HTMLInputElement>('[data-landing-qr-enabled]');
+    const save = root.querySelector<HTMLButtonElement>('[data-landing-qr-save]');
+    const alertBox = root.querySelector<HTMLElement>('[data-landing-qr-alert]');
+    let draftVersion = 0;
+    let draftDocument: Record<string, any> | null = null;
+
+    function show(message: string, tone: 'success' | 'error' | 'info' = 'info') {
+      if (!alertBox) return;
+      alertBox.hidden = !message;
+      alertBox.textContent = message;
+      alertBox.dataset.tone = tone;
+    }
+
+    async function responseJson(response: Response) {
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(String(result?.error || 'promo_landing_qr_unavailable')) as Error & { code?: string };
+        error.code = String(result?.error || 'promo_landing_qr_unavailable');
+        throw error;
+      }
+      return result;
+    }
+
+    async function load() {
+      const result = await responseJson(await fetch(`/api/admin/promo-cms?store=${encodeURIComponent(storeSlug)}`, {
+        cache: 'no-store',
+      }));
+      const draft = normalizePromoCmsDraftResponse(result);
+      draftVersion = draft.version;
+      draftDocument = draft.document;
+      if (enabled) enabled.checked = draft.document.adapters.landing_qr_link.enabled === true;
+    }
+
+    async function persist() {
+      if (!canConfigure || !draftDocument || !draftVersion) return;
+      if (save) save.disabled = true;
+      try {
+        const document = buildPromoLandingQrDocument(draftDocument, enabled?.checked === true);
+        const result = await responseJson(await fetch(`/api/admin/promo-cms?store=${encodeURIComponent(storeSlug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: draftVersion, document }),
+        }));
+        const draft = normalizePromoCmsDraftResponse(result);
+        draftVersion = draft.version;
+        draftDocument = draft.document;
+        if (enabled) enabled.checked = draft.document.adapters.landing_qr_link.enabled === true;
+        show('Puente guardado en el borrador. Publica una revisión nueva para aplicarlo.', 'success');
+      } catch (error) {
+        show(promoLandingQrErrorMessage((error as { code?: string })?.code), 'error');
+      } finally {
+        if (save) save.disabled = !canConfigure;
+      }
+    }
+
+    save?.addEventListener('click', () => { void persist(); });
+    void load().catch((error) => show(promoLandingQrErrorMessage(error?.code), 'error'));
+  });
+</script>

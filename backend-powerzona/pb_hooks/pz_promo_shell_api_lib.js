@@ -29,6 +29,9 @@ const promoFooter = typeof __hooks === "undefined"
 const promoReviews = typeof __hooks === "undefined"
   ? require("./pz_promo_reviews_api_lib.js")
   : require(`${__hooks}/pz_promo_reviews_api_lib.js`);
+const promoLandingQr = typeof __hooks === "undefined"
+  ? require("./pz_promo_landing_qr_lib.js")
+  : require(`${__hooks}/pz_promo_landing_qr_lib.js`);
 
 function codedError(code, status) {
   const error = new Error(code);
@@ -154,11 +157,15 @@ function publishedPlatformContext(app, publicSlug) {
 
 function resolvePlatformShell(app, publicSlug, signals) {
   const context = publishedPlatformContext(app, publicSlug);
-  const localized = promoReviews.attachPublicRating(
+  const localized = promoLandingQr.attachPublicLandingQr(
     app,
-    promoContact.attachPublicContact(
-      promoFooter.attachPublicFooter(
-        localizeProjection(context.projection, signals || {}),
+    promoReviews.attachPublicRating(
+      app,
+      promoContact.attachPublicContact(
+        promoFooter.attachPublicFooter(
+          localizeProjection(context.projection, signals || {}),
+        ),
+        context,
       ),
       context,
     ),
@@ -174,11 +181,15 @@ function resolveHostShell(app, headers, signals) {
   } catch (_) { throw codedError("promo_host_unavailable", 421); }
   let localized;
   try {
-    localized = promoReviews.attachPublicRating(
+    localized = promoLandingQr.attachPublicLandingQr(
       app,
-      promoContact.attachPublicContact(
-        promoFooter.attachPublicFooter(
-          localizeProjection(context.projection, signals || {}),
+      promoReviews.attachPublicRating(
+        app,
+        promoContact.attachPublicContact(
+          promoFooter.attachPublicFooter(
+            localizeProjection(context.projection, signals || {}),
+          ),
+          context,
         ),
         context,
       ),

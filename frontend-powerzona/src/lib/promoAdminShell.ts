@@ -79,7 +79,7 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     shortLabel: 'Landing QR',
     description: 'Puente explícito a la Landing QR cuando el plan lo permite.',
     actions: Object.freeze(['promo.landing_qr.bridge.manage'] as PromoActionKey[]),
-    delivery: 'La integración de Landing QR se habilitará en su etapa específica sin alterar su flujo actual.',
+    delivery: 'Controla el enlace Promo hacia la Landing QR existente sin duplicar ni alterar su flujo.',
   }),
 ] as const);
 

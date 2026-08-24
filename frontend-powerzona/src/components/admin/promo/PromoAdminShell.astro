@@ -6,6 +6,7 @@ import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
+import PromoLandingQrEditor from './PromoLandingQrEditor.astro';
 import PromoPreviewEditor from './PromoPreviewEditor.astro';
 import PromoReviewsEditor from './PromoReviewsEditor.astro';
 import {
@@ -76,6 +77,7 @@ const maxLocales = Number(accessContext.capabilities.max_locales || 0);
 const canPreparePromoPreview = hasPromoAction(accessContext, 'promo.publication.publish');
 const canManagePromoReviews = hasPromoAction(accessContext, 'promo.reviews.manage');
 const canConfigurePromoReviews = canManagePromoReviews && hasPromoAction(accessContext, 'promo.content.manage');
+const canConfigurePromoLandingQr = hasPromoAction(accessContext, 'promo.landing_qr.bridge.manage');
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -275,6 +277,11 @@ function initials(value: string) {
             storeSlug={storeSlug}
             canModerate={canManagePromoReviews}
             canConfigure={canConfigurePromoReviews}
+          />
+        ) : activeModule && section === 'landing-qr' ? (
+          <PromoLandingQrEditor
+            storeSlug={storeSlug}
+            canConfigure={canConfigurePromoLandingQr}
           />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">

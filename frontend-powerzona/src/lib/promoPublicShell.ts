@@ -25,6 +25,8 @@ const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_ACTION_CONTRACT = 'promo.contact.action.v1';
 const FOOTER_CONTRACT = 'promo.footer.v1';
+const LANDING_QR_LINK_CONTRACT = 'promo.landing-qr-link.v1';
+const LANDING_QR_PLATFORM_ORIGIN = 'https://tusenda84.com';
 const RESERVED_FOOTER_BRAND = 'Tu Senda 84';
 const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
   label: string;
@@ -60,11 +62,12 @@ const SECTION_MEDIA_PURPOSES: Readonly<Record<string, readonly string[]>> = Obje
 });
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'a11y.contact_action', 'a11y.footer_links', 'a11y.footer_social', 'a11y.footer_social_link',
+  'a11y.landing_qr_link',
   'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation', 'a11y.skip_to_content',
   'contact.call', 'contact.email', 'contact.open_chat',
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
-  'footer.platform_branding',
+  'footer.platform_branding', 'landing_qr.open',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
   'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
@@ -183,6 +186,12 @@ export type PromoPublicFooter = Readonly<{
   sections: readonly PromoPublicFooterSection[];
 }>;
 
+export type PromoPublicLandingQrLink = Readonly<{
+  contract: typeof LANDING_QR_LINK_CONTRACT;
+  enabled: boolean;
+  link: Readonly<{ label: string; aria_label: string; href: string }> | null;
+}>;
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -213,6 +222,7 @@ export type PromoPublicProfile = Readonly<{
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
   store_rating: PromoPublicStoreRating;
+  landing_qr_link: PromoPublicLandingQrLink;
 }>;
 
 export type PromoPublicShellResult = Readonly<{
@@ -373,6 +383,41 @@ function normalizeContactAction(value: unknown): PromoPublicContactAction {
       label: safeText(action.label, 80, true),
       aria_label: safeText(action.aria_label, 160, true),
       href: safeContactHref(type, action.href),
+    },
+  };
+}
+
+function normalizeLandingQrLink(
+  value: unknown,
+  adapterEnabled: boolean,
+  messages: Readonly<Record<string, string>>,
+  business: string,
+): PromoPublicLandingQrLink {
+  const compiled = exactRecord(value, ['contract', 'enabled', 'link']);
+  if (compiled.contract !== LANDING_QR_LINK_CONTRACT || typeof compiled.enabled !== 'boolean') fail();
+  if (!compiled.enabled) {
+    if (compiled.link !== null) fail();
+    return { contract: LANDING_QR_LINK_CONTRACT, enabled: false, link: null };
+  }
+  if (!adapterEnabled) fail();
+  const link = exactRecord(compiled.link, ['label', 'aria_label', 'href']);
+  const expectedLabel = messages['landing_qr.open'];
+  const expectedAria = formatSystemMessage(messages['a11y.landing_qr_link'], { business });
+  if (link.label !== expectedLabel || link.aria_label !== expectedAria) fail();
+  const href = safeText(link.href, 420, true);
+  let parsed: URL;
+  try { parsed = new URL(href); } catch (_) { fail(); }
+  if (parsed.origin !== LANDING_QR_PLATFORM_ORIGIN || parsed.username || parsed.password || parsed.port
+    || parsed.search || parsed.hash
+    || !/^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*\/links$/.test(parsed.pathname)
+    || parsed.toString() !== href) fail();
+  return {
+    contract: LANDING_QR_LINK_CONTRACT,
+    enabled: true,
+    link: {
+      label: safeText(link.label, 80, true),
+      aria_label: safeText(link.aria_label, 240, true),
+      href,
     },
   };
 }
@@ -733,6 +778,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const profile = exactRecord(value, [
     'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
     'media', 'contact', 'contact_action', 'footer', 'content', 'adapters', 'store_rating',
+    'landing_qr_link',
   ]);
   const site = exactRecord(profile.site, ['public_slug']);
   const system = exactRecord(profile.system, ['catalog_version', 'messages']);
@@ -860,6 +906,12 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     rating.enabled,
     sections.some((section) => section.type === 'store_rating'),
   );
+  const landingQrLink = normalizeLandingQrLink(
+    profile.landing_qr_link,
+    landing.enabled,
+    systemMessages,
+    safeText(normalizedContent.identity.name, 140, true),
+  );
   return {
     site: { public_slug: slug },
     system: { catalog_version: 'promo.system.v1', messages: systemMessages },
@@ -883,6 +935,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },
     store_rating: storeRating,
+    landing_qr_link: landingQrLink,
   };
 }
 

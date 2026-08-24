@@ -27,11 +27,12 @@ const FOOTER_SOCIAL_PATTERNS: Readonly<Record<string, RegExp>> = Object.freeze({
 });
 const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'a11y.contact_action', 'a11y.footer_links', 'a11y.footer_social', 'a11y.footer_social_link',
+  'a11y.landing_qr_link',
   'a11y.language_selector', 'a11y.main_content', 'a11y.main_navigation', 'a11y.skip_to_content',
   'contact.call', 'contact.email', 'contact.open_chat',
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
-  'footer.platform_branding',
+  'footer.platform_branding', 'landing_qr.open',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
   'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',

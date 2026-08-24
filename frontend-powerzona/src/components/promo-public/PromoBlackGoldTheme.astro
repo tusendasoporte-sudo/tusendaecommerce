@@ -4,6 +4,7 @@ import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
 import PromoContact from './PromoContact.astro';
 import PromoFooter from './PromoFooter.astro';
+import PromoLandingQrLink from './PromoLandingQrLink.astro';
 import PromoReviews from './PromoReviews.astro';
 import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
@@ -55,24 +56,27 @@ const description = String(content.seo.description || identity.summary || '');
         </ul>
       </nav>
 
-      <nav class="promo-shell-locales" aria-label={selector.label}>
-        <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
-        <ul>
-          {selector.options.map((option) => (
-            <li>
-              <a
-                href={option.href}
-                aria-label={option.aria_label}
-                aria-current={option.active ? 'page' : undefined}
-                lang={option.locale}
-                hreflang={option.locale}
-              >
-                {option.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <div class="promo-shell-utilities">
+        <nav class="promo-shell-locales" aria-label={selector.label}>
+          <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
+          <ul>
+            {selector.options.map((option) => (
+              <li>
+                <a
+                  href={option.href}
+                  aria-label={option.aria_label}
+                  aria-current={option.active ? 'page' : undefined}
+                  lang={option.locale}
+                  hreflang={option.locale}
+                >
+                  {option.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <PromoLandingQrLink value={profile.landing_qr_link} />
+      </div>
     </header>
 
     <main id="promo-main" class="promo-shell-main" aria-label={system.messages['a11y.main_content']} tabindex="-1">
