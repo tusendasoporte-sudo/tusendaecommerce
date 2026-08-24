@@ -573,6 +573,14 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     })) fail();
   }
   const normalizedContent = normalizeContent(profile.content, sections, mediaKeys, actionKeys);
+  for (const section of sections.filter((item) => ['services', 'featured_work', 'gallery'].includes(item.type))) {
+    const configuredKeys = section.config.item_keys;
+    const localizedItems = normalizedContent.sections[section.key]?.items;
+    if (!Array.isArray(configuredKeys) || !Array.isArray(localizedItems)
+      || configuredKeys.length !== localizedItems.length
+      || configuredKeys.some((key: string, index: number) => localizedItems[index]?.key !== key)
+      || new Set(configuredKeys).size !== configuredKeys.length) fail();
+  }
   if (media.some((item) => {
     const localized = normalizedContent.media_alt[item.key];
     return !localized || localized.alt !== item.accessibility.alt

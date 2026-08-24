@@ -2,6 +2,7 @@
 import '../../styles/promo-black-gold.css';
 import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
+import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
 
 interface Props {
@@ -17,6 +18,7 @@ const orderedSections = profile.section_order
   .filter(Boolean) as PromoPublicSection[];
 const mainSections = orderedSections.filter((section) => section.type !== 'footer');
 const footerSections = orderedSections.filter((section) => section.type === 'footer');
+const specializedSectionTypes = new Set(['services', 'featured_work', 'gallery', 'owner']);
 const sectionId = (key: string) => `promo-section-${key}`;
 const localizedSection = (section: PromoPublicSection) => content.sections[section.key] || {};
 const title = String(content.seo.title || identity.name);
@@ -80,6 +82,18 @@ const description = String(content.seo.description || identity.summary || '');
         if (section.type === 'hero') {
           return (
             <PromoHero
+              profile={profile}
+              section={section}
+              localized={localized}
+              heading={heading}
+              navigationLabel={navigationLabel}
+              primaryHeading={index === 0}
+            />
+          );
+        }
+        if (specializedSectionTypes.has(section.type)) {
+          return (
+            <PromoSections
               profile={profile}
               section={section}
               localized={localized}

@@ -1,0 +1,157 @@
+---
+import '../../styles/promo-sections.css';
+import type {
+  PromoPublicMedia,
+  PromoPublicProfile,
+  PromoPublicSection,
+} from '../../lib/promoPublicShell';
+import PromoSectionMedia from './PromoSectionMedia.astro';
+
+interface Props {
+  profile: PromoPublicProfile;
+  section: PromoPublicSection;
+  localized: Record<string, any>;
+  heading: string;
+  navigationLabel: string;
+  primaryHeading: boolean;
+}
+
+const {
+  profile,
+  section,
+  localized,
+  heading,
+  navigationLabel,
+  primaryHeading,
+} = Astro.props;
+const sectionId = `promo-section-${section.key}`;
+const items = Array.isArray(localized.items) ? localized.items : [];
+const mediaByKey = new Map(profile.media.map((item) => [item.key, item]));
+const sectionMedia = section.media_use_keys
+  .map((key) => mediaByKey.get(key))
+  .filter((item): item is PromoPublicMedia => Boolean(item));
+const ownerMediaKey = String(section.config.media_use_key || section.media_use_keys[0] || '');
+const ownerMedia = ownerMediaKey ? mediaByKey.get(ownerMediaKey) : undefined;
+const itemMedia = (index: number) => sectionMedia[index];
+const itemLabel = (item: Record<string, string>, index: number) => (
+  String(item.name || item.caption || mediaByKey.get(section.media_use_keys[index])?.accessibility.alt
+    || `${navigationLabel} ${index + 1}`)
+);
+const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
+---
+
+<section
+  id={sectionId}
+  class:list={['promo-shell-section', 'promo-sections', `promo-sections--${section.type}`]}
+  aria-labelledby={`${sectionId}-heading`}
+  data-section-type={section.type}
+  data-section-variant={section.variant}
+  data-section-item-count={String(items.length)}
+  data-section-media-count={String(sectionMedia.length + (ownerMedia && !sectionMedia.includes(ownerMedia) ? 1 : 0))}
+>
+  <div class:list={['promo-shell-section__inner', 'promo-sections__inner', { 'promo-sections__inner--owner': section.type === 'owner' }]}>
+    {section.type === 'owner' && (
+      <div class:list={['promo-sections__owner-media', { 'promo-sections__owner-media--empty': !ownerMedia }]}>
+        {ownerMedia ? (
+          <figure>
+            <PromoSectionMedia media={ownerMedia} accessibleLabel={String(localized.name || navigationLabel)} />
+          </figure>
+        ) : (
+          <div class="promo-sections__media-placeholder" aria-hidden="true"><span></span></div>
+        )}
+      </div>
+    )}
+
+    <div class:list={['promo-shell-section__copy', 'promo-sections__intro', { 'promo-sections__owner-copy': section.type === 'owner' }]}>
+      <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
+      {primaryHeading
+        ? <h1 id={`${sectionId}-heading`}>{heading}</h1>
+        : <h2 id={`${sectionId}-heading`}>{heading}</h2>}
+      {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
+
+      {section.type === 'owner' && (
+        <div class="promo-sections__owner-story">
+          {localized.name && <h3>{localized.name}</h3>}
+          {localized.bio && <p>{localized.bio}</p>}
+        </div>
+      )}
+    </div>
+
+    {section.type === 'services' && items.length > 0 && (
+      <ul class="promo-sections__services-list">
+        {items.map((item: Record<string, string>, index: number) => {
+          const media = itemMedia(index);
+          return (
+            <li>
+              <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': media }]}>
+                <div class="promo-sections__service-media">
+                  {media ? (
+                    <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
+                  ) : (
+                    <div class="promo-sections__service-mark" aria-hidden="true"><span></span></div>
+                  )}
+                </div>
+                <div class="promo-sections__service-copy">
+                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                  {item.name && <h3>{item.name}</h3>}
+                  {item.summary && <p>{item.summary}</p>}
+                  {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+
+    {section.type === 'featured_work' && items.length > 0 && (
+      <ol class="promo-sections__featured-list">
+        {items.map((item: Record<string, string>, index: number) => {
+          const media = itemMedia(index);
+          return (
+            <li>
+              <article class="promo-sections__featured-card">
+                <div class:list={['promo-sections__featured-media', { 'promo-sections__featured-media--empty': !media }]}>
+                  {media ? (
+                    <figure>
+                      <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
+                      {item.caption && <figcaption>{item.caption}</figcaption>}
+                    </figure>
+                  ) : (
+                    <div class="promo-sections__media-placeholder" aria-hidden="true"><span></span></div>
+                  )}
+                </div>
+                <div class="promo-sections__featured-copy">
+                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                  {item.name && <h3>{item.name}</h3>}
+                  {item.summary && <p>{item.summary}</p>}
+                  {!media && item.caption && <p class="promo-sections__caption">{item.caption}</p>}
+                </div>
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+    )}
+
+    {section.type === 'gallery' && items.length > 0 && (
+      <ul class="promo-sections__gallery-list">
+        {items.map((item: Record<string, string>, index: number) => {
+          const media = itemMedia(index);
+          return (
+            <li class:list={{ 'promo-sections__gallery-item--empty': !media }}>
+              <figure>
+                {media ? (
+                  <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
+                ) : (
+                  <div class="promo-sections__media-placeholder" aria-hidden="true"><span></span></div>
+                )}
+                {item.caption && <figcaption>{item.caption}</figcaption>}
+              </figure>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+  </div>
+</section>

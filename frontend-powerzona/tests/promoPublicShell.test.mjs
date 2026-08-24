@@ -73,9 +73,17 @@ function imageDelivery({
   slug = 'demo-promo', key = 'hero-main-media', purpose = 'hero', width = 1280, height = 720,
   priority = true, poster = false, sha = 'a'.repeat(64),
 } = {}) {
-  const widths = purpose === 'video_poster' ? [480, 960] : [480, 768];
+  const policies = {
+    hero: { widths: [480, 768, 1280], sizes: '100vw' },
+    service: { widths: [320, 640, 960], sizes: '(min-width: 900px) 33vw, 100vw' },
+    gallery: { widths: [480, 768, 1280], sizes: '(min-width: 900px) 50vw, 100vw' },
+    owner: { widths: [320, 640, 960], sizes: '(min-width: 900px) 40vw, 100vw' },
+    video_poster: { widths: [480, 960, 1440], sizes: '100vw' },
+  };
+  const policy = policies[purpose];
+  assert.ok(policy, `purpose MEDIA sin fixture: ${purpose}`);
   const prefix = poster ? 'poster-' : '';
-  const sources = [...widths.filter((candidate) => candidate < width).map((candidate) => ({
+  const sources = [...policy.widths.filter((candidate) => candidate < width).map((candidate) => ({
     key: `w${candidate}`,
     width: candidate,
     height: Math.max(1, Math.round((height * candidate) / width)),
@@ -87,9 +95,97 @@ function imageDelivery({
   return {
     contract: 'promo.media.delivery.v1', mime: 'image/webp',
     src: sources.at(-1).url, srcset: sources,
-    sizes: '100vw', loading: priority ? 'eager' : 'lazy',
+    sizes: policy.sizes, loading: priority ? 'eager' : 'lazy',
     fetch_priority: priority ? 'high' : 'auto', decoding: 'async',
   };
+}
+
+function shellEnvelopeWithSections() {
+  const envelope = shellEnvelope();
+  envelope.profile.section_order = [
+    'services-main', 'featured-main', 'gallery-main', 'owner-main',
+  ];
+  envelope.profile.sections = [
+    {
+      key: 'services-main', type: 'services', variant: 'default',
+      config: { item_keys: ['service-clean', 'service-restore'] },
+      media_use_keys: ['service-clean-media', 'service-restore-media'],
+    },
+    {
+      key: 'featured-main', type: 'featured_work', variant: 'default',
+      config: { item_keys: ['featured-hall'] }, media_use_keys: ['featured-hall-media'],
+    },
+    {
+      key: 'gallery-main', type: 'gallery', variant: 'default',
+      config: { item_keys: ['gallery-room', 'gallery-stair'] },
+      media_use_keys: ['gallery-room-media', 'gallery-stair-media'],
+    },
+    {
+      key: 'owner-main', type: 'owner', variant: 'default',
+      config: { media_use_key: 'owner-portrait' }, media_use_keys: [],
+    },
+  ];
+  const mediaDefinitions = [
+    ['service-clean-media', 'service', 640, 640, 'Limpieza cuidadosa'],
+    ['service-restore-media', 'service', 640, 640, 'Restauración artesanal'],
+    ['featured-hall-media', 'gallery', 960, 720, 'Salón con alfombra restaurada'],
+    ['gallery-room-media', 'gallery', 960, 720, 'Detalle de una alfombra en sala'],
+    ['owner-portrait', 'owner', 640, 800, 'Retrato del propietario'],
+  ];
+  envelope.profile.media = mediaDefinitions.map(([key, purpose, width, height, alt], index) => ({
+    key, purpose, kind: 'image', width, height, duration_ms: 0,
+    delivery: imageDelivery({ key, purpose, width, height, priority: false, sha: String(index + 1).repeat(64) }),
+    accessibility: { alt, decorative: false },
+  }));
+  envelope.profile.media.push({
+    key: 'gallery-stair-media', purpose: 'gallery', kind: 'video', width: 960, height: 540,
+    duration_ms: 12_000,
+    delivery: {
+      contract: 'promo.media.delivery.v1', mime: 'video/webm',
+      src: `/api/pz/promo/public/v1/sites/demo-promo/media/gallery-stair-media/${'9'.repeat(64)}/original.webm`,
+      preload: 'none', controls_required: true, autoplay: false, plays_inline: true,
+      reduced_motion: 'poster', save_data: 'poster',
+      poster: imageDelivery({
+        key: 'gallery-stair-media', purpose: 'video_poster', width: 960, height: 540,
+        priority: false, poster: true, sha: '8'.repeat(64),
+      }),
+    },
+    accessibility: { alt: 'Escalera renovada con alfombra', decorative: false },
+  });
+  envelope.profile.content = {
+    identity: { name: 'Negocio demo', summary: 'Presentación pública' },
+    navigation: {
+      'services-main': 'Servicios', 'featured-main': 'Trabajo destacado',
+      'gallery-main': 'Galería', 'owner-main': 'Propietario',
+    },
+    sections: {
+      'services-main': {
+        heading: 'Cuidado para cada pieza', summary: 'Servicios especializados',
+        items: [
+          { key: 'service-clean', name: 'Limpieza', summary: 'Proceso delicado', caption: 'Cuidado experto' },
+          { key: 'service-restore', name: 'Restauración', summary: 'Detalle artesanal', caption: 'Acabado premium' },
+        ],
+      },
+      'featured-main': {
+        heading: 'Una pieza recuperada', summary: 'Trabajo destacado',
+        items: [{ key: 'featured-hall', name: 'Salón principal', summary: 'Restauración completa', caption: 'Proyecto reciente' }],
+      },
+      'gallery-main': {
+        heading: 'Nuestro trabajo', summary: 'Selección visual',
+        items: [
+          { key: 'gallery-room', caption: 'Detalle en sala' },
+          { key: 'gallery-stair', caption: 'Instalación en escalera' },
+        ],
+      },
+      'owner-main': { heading: 'Tradición personal', name: 'Dueño artesano', bio: 'Experiencia y oficio.' },
+    },
+    contact: {},
+    media_alt: Object.fromEntries(envelope.profile.media.map((media) => [
+      media.key, media.accessibility,
+    ])),
+    seo: { title: 'Negocio demo', description: 'Presentación pública' },
+  };
+  return envelope;
 }
 
 function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
@@ -209,6 +305,30 @@ test('HERO consume exclusivamente delivery MEDIA público, content-addressed y p
   assert.throws(() => normalizePromoPublicShellResponse(leakedDelivery), PromoPublicShellError);
 });
 
+test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
+  const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithSections());
+  assert.deepEqual(normalized.profile.section_order, [
+    'services-main', 'featured-main', 'gallery-main', 'owner-main',
+  ]);
+  assert.deepEqual(
+    normalized.profile.content.sections['services-main'].items.map((item) => item.key),
+    ['service-clean', 'service-restore'],
+  );
+  assert.ok(normalized.profile.media.every((media) => (
+    media.kind === 'image' ? media.delivery.loading === 'lazy' : media.delivery.preload === 'none'
+  )));
+  assert.equal(normalized.profile.media.find((media) => media.key === 'service-clean-media').purpose, 'service');
+  assert.equal(normalized.profile.media.find((media) => media.key === 'owner-portrait').purpose, 'owner');
+  assert.equal(normalized.profile.media.find((media) => media.key === 'gallery-stair-media').delivery.autoplay, false);
+
+  const reordered = shellEnvelopeWithSections();
+  reordered.profile.content.sections['services-main'].items.reverse();
+  assert.throws(() => normalizePromoPublicShellResponse(reordered), PromoPublicShellError);
+  const wrongPurpose = shellEnvelopeWithSections();
+  wrongPurpose.profile.media.find((media) => media.key === 'owner-portrait').purpose = 'gallery';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongPurpose), PromoPublicShellError);
+});
+
 test('rutas públicas separan plataforma, Host y paths custom allowlisted', () => {
   assert.equal(promoPlatformEndpoint('demo-promo'), '/api/pz/promo/public/v1/shell/sites/demo-promo');
   assert.equal(promoPlatformEndpoint('demo-promo', 'es'), '/api/pz/promo/public/v1/shell/sites/demo-promo/locales/es');
@@ -264,14 +384,17 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   const shell = read('../src/components/promo-public/PromoPublicShell.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const hero = read('../src/components/promo-public/PromoHero.astro');
+  const sections = read('../src/components/promo-public/PromoSections.astro');
+  const sectionMedia = read('../src/components/promo-public/PromoSectionMedia.astro');
   const styles = read('../src/styles/promo-public-shell.css');
   const themeStyles = read('../src/styles/promo-black-gold.css');
   const heroStyles = read('../src/styles/promo-hero.css');
+  const sectionStyles = read('../src/styles/promo-sections.css');
   const middleware = read('../src/middleware.ts');
   const platform = read('../src/pages/promo/[publicSlug]/index.astro');
   const localized = read('../src/pages/promo/[publicSlug]/[locale].astro');
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
-  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${styles}\n${themeStyles}\n${heroStyles}\n${platform}\n${localized}`;
+  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${sectionStyles}\n${platform}\n${localized}`;
   assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);
@@ -288,6 +411,8 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   assert.match(hero, /contact\.request_estimate/);
   assert.match(hero, /contact\.unavailable/);
   assert.match(heroStyles, /scroll-snap-type: inline mandatory/);
+  assert.match(theme, /specializedSectionTypes/);
+  assert.match(theme, /<PromoSections/);
   assert.doesNotMatch(combined, /<script|layouts\/Layout\.astro|PublicStoreHome|innerHTML|set:html/);
   assert.doesNotMatch(combined, /cart|checkout|products|categories|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
@@ -330,6 +455,38 @@ test('HERO no activa destinos de contacto ni adelanta SECTIONS/CONTACT', () => {
   assert.match(hero, /href=\{`#\$\{sectionId\}-media-/);
   assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}`, 'utf8') <= 50 * 1024,
     'CSS combinado ALADDIN/HERO excede el budget Theme de 50 KiB');
+});
+
+test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidratar ni activar Commerce/contacto', () => {
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const sections = read('../src/components/promo-public/PromoSections.astro');
+  const media = read('../src/components/promo-public/PromoSectionMedia.astro');
+  const sectionStyles = read('../src/styles/promo-sections.css');
+  const allThemeStyles = [
+    read('../src/styles/promo-black-gold.css'),
+    read('../src/styles/promo-hero.css'),
+    sectionStyles,
+  ].join('\n');
+  assert.match(theme, /'services', 'featured_work', 'gallery', 'owner'/);
+  assert.match(sections, /section\.type === 'services'/);
+  assert.match(sections, /section\.type === 'featured_work'/);
+  assert.match(sections, /section\.type === 'gallery'/);
+  assert.match(sections, /section\.type === 'owner'/);
+  assert.match(sections, /section\.config\.media_use_key/);
+  assert.match(sections, /data-section-item-count/);
+  assert.match(media, /loading=\{media\.delivery\.loading\}/);
+  assert.match(media, /fetchpriority=\{media\.delivery\.fetch_priority\}/);
+  assert.match(media, /controls=\{media\.delivery\.controls_required\}/);
+  assert.match(media, /preload=\{media\.delivery\.preload\}/);
+  assert.match(sectionStyles, /grid-template-columns: repeat\(12/);
+  assert.match(sectionStyles, /@media \(max-width: 720px\)/);
+  assert.match(sectionStyles, /@media \(max-width: 420px\)/);
+  assert.match(sectionStyles, /video:focus-visible/);
+  assert.doesNotMatch(`${sections}\n${media}`, /<script|<button|<form|href=|tel:|mailto:|wa\.me|onclick|addEventListener/i);
+  assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|products|orders|inventory|stock|price|currency|coupon|shipping/i);
+  assert.doesNotMatch(sectionStyles, /url\(|@import|https?:/i);
+  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 50 * 1024,
+    'CSS combinado ALADDIN/HERO/SECTIONS excede el budget Theme de 50 KiB');
 });
 
 test('shell público conserva no-store/noindex hasta SEO/PERF y no adelanta prompts posteriores', () => {

@@ -1,0 +1,40 @@
+---
+import type { PromoPublicMedia } from '../../lib/promoPublicShell';
+
+interface Props {
+  media: PromoPublicMedia;
+  accessibleLabel: string;
+}
+
+const { media, accessibleLabel } = Astro.props;
+const srcset = media.kind === 'image'
+  ? media.delivery.srcset.map((source) => `${source.url} ${source.width}w`).join(', ')
+  : '';
+const videoLabel = media.accessibility.alt || accessibleLabel;
+---
+
+{media.kind === 'image' ? (
+  <img
+    src={media.delivery.src}
+    srcset={srcset}
+    sizes={media.delivery.sizes}
+    width={media.width}
+    height={media.height}
+    loading={media.delivery.loading}
+    fetchpriority={media.delivery.fetch_priority}
+    decoding={media.delivery.decoding}
+    alt={media.accessibility.alt}
+  />
+) : (
+  <video
+    controls={media.delivery.controls_required}
+    preload={media.delivery.preload}
+    playsinline={media.delivery.plays_inline}
+    poster={media.delivery.poster.src}
+    width={media.width}
+    height={media.height}
+    aria-label={videoLabel}
+  >
+    <source src={media.delivery.src} type={media.delivery.mime} />
+  </video>
+)}
