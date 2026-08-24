@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import type { AdminStoreContext } from '../../../lib/storeContext';
 import { hasPromoAction, type PromoAccessContext } from '../../../lib/promoAccess';
+import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import {
@@ -63,6 +64,9 @@ const canManageGalleryVideo = hasPromoAction(accessContext, 'promo.media.video.m
 const maxGalleryAssets = Number(accessContext.capabilities.max_gallery_assets || 0);
 const maxVideos = Number(accessContext.capabilities.max_videos || 0);
 const maxStorageBytes = Number(accessContext.capabilities.max_storage_bytes || 0);
+const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
+const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
+const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appearance.manage');
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -237,6 +241,13 @@ function initials(value: string) {
             canSave={canSaveGallery}
             canManageMedia={canManageGalleryMedia}
             canManageVideo={canManageGalleryVideo}
+          />
+        ) : activeModule && section === 'appearance' ? (
+          <PromoAppearanceEditor
+            storeSlug={storeSlug}
+            canManageContent={canManageAppearanceContent}
+            canSelectTheme={canSelectPromoTheme}
+            canManageAppearance={canCustomizePromoAppearance}
           />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">

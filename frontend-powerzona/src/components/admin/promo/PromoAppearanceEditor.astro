@@ -1,0 +1,602 @@
+---
+import '../../../styles/promo-appearance.css';
+
+interface Props {
+  storeSlug: string;
+  canManageContent: boolean;
+  canSelectTheme: boolean;
+  canManageAppearance: boolean;
+}
+
+const {
+  storeSlug,
+  canManageContent,
+  canSelectTheme,
+  canManageAppearance,
+} = Astro.props;
+---
+
+<section
+  class="pz-promo-appearance"
+  data-promo-appearance
+  data-store-slug={storeSlug}
+  data-can-content={canManageContent ? 'true' : 'false'}
+  data-can-select={canSelectTheme ? 'true' : 'false'}
+  data-can-customize={canManageAppearance ? 'true' : 'false'}
+  aria-labelledby="promo-appearance-title"
+>
+  <header class="pz-promo-appearance__intro">
+    <div>
+      <span class="pz-promo-appearance__kicker">Borrador privado</span>
+      <h2 id="promo-appearance-title">Apariencia del sitio</h2>
+      <p>Elige únicamente temas aprobados y ajusta sus valores visuales permitidos. Guardar no publica los cambios.</p>
+    </div>
+    <div class="pz-promo-appearance__draft-meta" aria-label="Estado del borrador visual">
+      <span data-appearance-current>Tema actual: —</span>
+      <span data-appearance-version>Versión del borrador: —</span>
+    </div>
+  </header>
+
+  {(!canManageContent || (!canSelectTheme && !canManageAppearance)) && (
+    <div class="pz-promo-appearance__notice is-warning" role="status">
+      <strong>Acceso de solo lectura</strong>
+      <p>
+        {!canManageContent
+          ? 'El backend exige también Contenido para reemplazar el borrador completo mediante CAS.'
+          : 'Esta sesión puede consultar la apariencia, pero no seleccionar temas ni editar tokens.'}
+      </p>
+    </div>
+  )}
+
+  <div class="pz-promo-appearance__notice" role="status" aria-live="polite" data-appearance-status>
+    <span class="pz-promo-appearance__spinner" aria-hidden="true"></span>
+    <span>Cargando catálogo aprobado y borrador…</span>
+  </div>
+
+  <div class="pz-promo-appearance__error" role="alert" tabindex="-1" data-appearance-error hidden>
+    <strong>No se pudo continuar</strong>
+    <p data-appearance-error-message></p>
+    <button type="button" data-appearance-reload>Recargar editor</button>
+  </div>
+
+  <form class="pz-promo-appearance__form" data-appearance-form hidden novalidate>
+    <div class="pz-promo-appearance__workspace">
+      <div class="pz-promo-appearance__controls">
+        <section class="pz-promo-appearance__panel" aria-labelledby="appearance-themes-title">
+          <div class="pz-promo-appearance__panel-heading">
+            <span class="pz-promo-appearance__step" aria-hidden="true">01</span>
+            <div>
+              <h3 id="appearance-themes-title">Temas aprobados</h3>
+              <p>La lista llega del catálogo privado del backend. Temas draft, retirados o incompatibles no aparecen como opciones.</p>
+            </div>
+          </div>
+          <div class="pz-promo-appearance__legacy" role="status" data-appearance-legacy hidden></div>
+          <fieldset class="pz-promo-appearance__theme-list" data-appearance-themes>
+            <legend class="sr-only">Selecciona un tema aprobado</legend>
+          </fieldset>
+        </section>
+
+        <section class="pz-promo-appearance__panel" aria-labelledby="appearance-tokens-title">
+          <div class="pz-promo-appearance__panel-heading with-action">
+            <span class="pz-promo-appearance__step" aria-hidden="true">02</span>
+            <div>
+              <h3 id="appearance-tokens-title">Valores visuales permitidos</h3>
+              <p>Solo se guardan overrides distintos al default. No se aceptan colores, CSS, fuentes remotas ni código libre.</p>
+            </div>
+            <button class="pz-promo-appearance__secondary" type="button" data-appearance-reset>
+              Restaurar defaults
+            </button>
+          </div>
+          <div class="pz-promo-appearance__token-grid" data-appearance-tokens></div>
+          <p class="pz-promo-appearance__token-note" data-appearance-token-note>
+            Selecciona un tema aprobado para habilitar sus tokens.
+          </p>
+        </section>
+      </div>
+
+      <aside class="pz-promo-appearance__preview-panel" aria-labelledby="appearance-preview-title">
+        <div class="pz-promo-appearance__preview-heading">
+          <div>
+            <span class="pz-promo-appearance__step" aria-hidden="true">03</span>
+            <div>
+              <h3 id="appearance-preview-title">Vista previa visual</h3>
+              <p>Ilustración local del tema y tokens; no es una candidata ni el preview integral del sitio.</p>
+            </div>
+          </div>
+          <span data-appearance-preview-label>—</span>
+        </div>
+
+        <div class="pz-promo-appearance__preview-frame" data-appearance-preview-frame>
+          <article class="pz-promo-appearance__preview" data-appearance-preview role="img" aria-label="Muestra visual de apariencia">
+            <header class="pz-promo-appearance__sample-nav">
+              <span class="pz-promo-appearance__sample-brand">TU SENDA <b>84</b></span>
+              <span aria-hidden="true">Inicio&nbsp;&nbsp; Servicios&nbsp;&nbsp; Contacto</span>
+            </header>
+            <div class="pz-promo-appearance__sample-hero">
+              <span>EXPERIENCIA PREMIUM</span>
+              <h4>Una presencia que refleja tu oficio</h4>
+              <p>Composición ilustrativa para revisar color, tipografía, densidad, radios, sombra y movimiento.</p>
+              <button type="button" tabindex="-1" aria-hidden="true">Solicitar estimado</button>
+            </div>
+            <div class="pz-promo-appearance__sample-services" aria-hidden="true">
+              <div><i>01</i><strong>Servicio destacado</strong><span>Cuidado y detalle</span></div>
+              <div><i>02</i><strong>Trabajo artesanal</strong><span>Atención personalizada</span></div>
+            </div>
+            <footer><span>Calidad que se siente</span><b>✦</b></footer>
+          </article>
+          <div class="pz-promo-appearance__preview-unavailable" role="status" data-appearance-preview-unavailable hidden>
+            El renderer de muestra para esta versión todavía no está empaquetado en el panel.
+          </div>
+        </div>
+
+        <dl class="pz-promo-appearance__quality" data-appearance-quality>
+          <div><dt>Contraste texto</dt><dd>—</dd></div>
+          <div><dt>Contraste foco</dt><dd>—</dd></div>
+          <div><dt>Movimiento reducido</dt><dd>—</dd></div>
+          <div><dt>Scripts externos</dt><dd>—</dd></div>
+        </dl>
+      </aside>
+    </div>
+
+    <footer class="pz-promo-appearance__actions">
+      <div>
+        <strong data-appearance-unsaved>Sin cambios pendientes</strong>
+        <small data-appearance-authority>La autoridad efectiva se volverá a comprobar en el backend.</small>
+      </div>
+      <button class="pz-promo-appearance__save" type="submit" data-appearance-save disabled>
+        <span data-appearance-save-label>Guardar apariencia</span>
+      </button>
+    </footer>
+  </form>
+</section>
+
+<script>
+  import {
+    buildPromoAppearanceDocument,
+    findPromoAppearanceTheme,
+    normalizePromoAppearanceCatalog,
+    promoAppearanceChangeRequirements,
+    promoAppearanceEffectiveTokens,
+    promoAppearanceErrorMessage,
+    promoAppearancePreview,
+    promoAppearanceThemeKey,
+    promoAppearanceThemeLabel,
+    promoAppearanceTokenLabel,
+    promoAppearanceValueLabel,
+    PROMO_APPEARANCE_CATALOG_API_PATH,
+    PROMO_APPEARANCE_DRAFT_API_PATH,
+    type PromoAppearanceCatalog,
+    type PromoAppearanceTheme,
+  } from '../../../lib/promoAppearance';
+  import {
+    normalizePromoCmsDraftResponse,
+    type PromoCmsDraft,
+  } from '../../../lib/promoCms';
+
+  document.querySelectorAll<HTMLElement>('[data-promo-appearance]').forEach((root) => {
+    const storeSlug = root.dataset.storeSlug || '';
+    const canManageContent = root.dataset.canContent === 'true';
+    const canSelectTheme = root.dataset.canSelect === 'true';
+    const canManageAppearance = root.dataset.canCustomize === 'true';
+    const canChooseTheme = canManageContent && canSelectTheme;
+    const canEditTokens = canManageContent && canManageAppearance;
+    const endpoint = (path: string) => `${path}?store=${encodeURIComponent(storeSlug)}`;
+    const form = root.querySelector<HTMLFormElement>('[data-appearance-form]');
+    const status = root.querySelector<HTMLElement>('[data-appearance-status]');
+    const errorBox = root.querySelector<HTMLElement>('[data-appearance-error]');
+    const errorMessage = root.querySelector<HTMLElement>('[data-appearance-error-message]');
+    const themesContainer = root.querySelector<HTMLElement>('[data-appearance-themes]');
+    const tokensContainer = root.querySelector<HTMLElement>('[data-appearance-tokens]');
+    const tokenNote = root.querySelector<HTMLElement>('[data-appearance-token-note]');
+    const legacy = root.querySelector<HTMLElement>('[data-appearance-legacy]');
+    const preview = root.querySelector<HTMLElement>('[data-appearance-preview]');
+    const previewUnavailable = root.querySelector<HTMLElement>('[data-appearance-preview-unavailable]');
+    const previewLabel = root.querySelector<HTMLElement>('[data-appearance-preview-label]');
+    const quality = root.querySelector<HTMLElement>('[data-appearance-quality]');
+    const currentLabel = root.querySelector<HTMLElement>('[data-appearance-current]');
+    const versionLabel = root.querySelector<HTMLElement>('[data-appearance-version]');
+    const unsaved = root.querySelector<HTMLElement>('[data-appearance-unsaved]');
+    const authority = root.querySelector<HTMLElement>('[data-appearance-authority]');
+    const saveButton = root.querySelector<HTMLButtonElement>('[data-appearance-save]');
+    const saveLabel = root.querySelector<HTMLElement>('[data-appearance-save-label]');
+    const resetButton = root.querySelector<HTMLButtonElement>('[data-appearance-reset]');
+    let draft: PromoCmsDraft | null = null;
+    let catalog: PromoAppearanceCatalog | null = null;
+    let selectedTheme: PromoAppearanceTheme | null = null;
+    let selectedThemeKey = '';
+    let tokenValues: Record<string, string> = {};
+    let dirty = false;
+    let busy = false;
+
+    function setStatus(message: string, success = false) {
+      if (!status) return;
+      status.hidden = !message;
+      status.classList.toggle('is-success', success);
+      const text = status.querySelector<HTMLElement>('span:last-child');
+      if (text) text.textContent = message;
+    }
+
+    function clearError() {
+      if (errorBox) errorBox.hidden = true;
+    }
+
+    function showError(error: unknown) {
+      const code = (error as { code?: string })?.code || 'promo_appearance_unavailable';
+      if (errorMessage) errorMessage.textContent = promoAppearanceErrorMessage(code);
+      if (errorBox) {
+        errorBox.hidden = false;
+        errorBox.focus();
+      }
+    }
+
+    async function responseJson(response: Response) {
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        throw Object.assign(new Error('promo_appearance_unavailable'), {
+          code: result?.error || 'promo_appearance_unavailable',
+        });
+      }
+      return result;
+    }
+
+    function setBusy(next: boolean, message = '') {
+      busy = next;
+      root.setAttribute('aria-busy', next ? 'true' : 'false');
+      if (message) setStatus(message);
+      root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('input, select, button')
+        .forEach((control) => {
+          if (control.matches('[data-appearance-reload]')) return;
+          if (control.matches('[data-appearance-reset]')) {
+            control.disabled = next || !canEditTokens || !selectedThemeKey;
+          } else if (control.matches('[data-appearance-save]')) {
+            control.disabled = true;
+          } else if (control.matches('[data-theme-choice]')) {
+            control.disabled = next || !canChooseTheme;
+          } else if (control.matches('[data-token-select]')) {
+            const fixed = control.dataset.fixed === 'true';
+            control.disabled = next || !canEditTokens || !selectedThemeKey || fixed;
+          } else {
+            control.disabled = next;
+          }
+        });
+      if (saveLabel) saveLabel.textContent = next ? 'Guardando…' : 'Guardar apariencia';
+      if (!next) updateChangeState();
+    }
+
+    function selectedManifest() {
+      if (!catalog || !selectedThemeKey) return null;
+      return catalog.themes.find((theme) => (
+        promoAppearanceThemeKey(theme.themeId, theme.version) === selectedThemeKey
+      )) || null;
+    }
+
+    function updatePreview(theme: PromoAppearanceTheme | null = selectedTheme) {
+      if (!theme || !preview) return;
+      try {
+        const model = promoAppearancePreview(theme, tokenValues);
+        const propertyMap: Record<string, string> = {
+          '--appearance-surface': model.style.surface,
+          '--appearance-surface-raised': model.style.surfaceRaised,
+          '--appearance-text': model.style.text,
+          '--appearance-muted': model.style.muted,
+          '--appearance-accent': model.style.accent,
+          '--appearance-border': model.style.border,
+          '--appearance-focus': model.style.focus,
+          '--appearance-heading-font': model.style.headingFont,
+          '--appearance-body-font': model.style.bodyFont,
+          '--appearance-radius': model.style.radius,
+          '--appearance-shadow': model.style.shadow,
+          '--appearance-spacing': model.style.spacing,
+          '--appearance-motion-duration': model.style.motionDuration,
+        };
+        Object.entries(propertyMap).forEach(([key, value]) => preview.style.setProperty(key, value));
+        if (previewLabel) previewLabel.textContent = `${model.themeLabel} · ${model.version}`;
+        if (previewUnavailable) previewUnavailable.hidden = model.rendererAvailable;
+        preview.dataset.motion = tokenValues.motion || 'subtle';
+      } catch (error) {
+        showError(error);
+      }
+    }
+
+    function updateQuality(theme: PromoAppearanceTheme | null) {
+      if (!quality || !theme) return;
+      const values = [
+        `${theme.accessibility.normalTextContrastMin}:1 mínimo`,
+        `${theme.accessibility.focusContrastMin}:1 mínimo`,
+        theme.accessibility.reducedMotionSupported ? 'Compatible' : 'No declarado',
+        theme.performance.thirdPartyScripts ? 'Declarados' : 'Ninguno',
+      ];
+      quality.querySelectorAll<HTMLElement>('dd').forEach((item, index) => {
+        item.textContent = values[index] || '—';
+      });
+    }
+
+    function prospectiveDocument() {
+      if (!draft || !catalog || !selectedTheme) return null;
+      return buildPromoAppearanceDocument(draft.document, catalog, {
+        themeId: selectedTheme.themeId,
+        version: selectedTheme.version,
+        tokenValues,
+      });
+    }
+
+    function updateChangeState() {
+      let requirements = null;
+      try {
+        const next = prospectiveDocument();
+        requirements = next && draft ? promoAppearanceChangeRequirements(draft.document, next) : null;
+        clearError();
+      } catch (error) {
+        showError(error);
+      }
+      dirty = requirements?.changed === true;
+      const missingContent = dirty && !canManageContent;
+      const missingSelect = requirements?.themeSelect === true && !canSelectTheme;
+      const missingAppearance = requirements?.appearanceManage === true && !canManageAppearance;
+      const allowed = dirty && !busy && !missingContent && !missingSelect && !missingAppearance;
+      if (saveButton) saveButton.disabled = !allowed;
+      if (unsaved) unsaved.textContent = dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes';
+      if (authority) {
+        authority.textContent = !selectedThemeKey
+          ? 'Selecciona explícitamente un tema aprobado para guardarlo en el borrador.'
+          : missingContent
+            ? 'Falta la acción Contenido requerida por el reemplazo completo del borrador.'
+            : missingSelect
+              ? 'Cambiar ID o versión requiere la acción Seleccionar tema.'
+              : missingAppearance
+                ? 'Cambiar overrides requiere la capacidad y acción Administrar apariencia.'
+                : dirty
+                  ? 'El backend volverá a validar tenant, release, tokens, permisos y CAS.'
+                  : 'La autoridad efectiva se volverá a comprobar en el backend.';
+      }
+    }
+
+    function renderTokens(theme: PromoAppearanceTheme, activeSelection: boolean) {
+      if (!tokensContainer || !tokenNote) return;
+      tokensContainer.replaceChildren();
+      Object.entries(theme.tokens).forEach(([key, definition]) => {
+        const label = document.createElement('label');
+        label.className = 'pz-promo-appearance__token';
+        const heading = document.createElement('span');
+        heading.textContent = promoAppearanceTokenLabel(key);
+        const select = document.createElement('select');
+        select.dataset.tokenSelect = key;
+        select.dataset.fixed = definition.values.length === 1 ? 'true' : 'false';
+        select.setAttribute('aria-label', promoAppearanceTokenLabel(key));
+        definition.values.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = `${promoAppearanceValueLabel(value)}${value === definition.default ? ' · Default' : ''}`;
+          option.selected = tokenValues[key] === value;
+          select.append(option);
+        });
+        select.disabled = busy || !canEditTokens || !activeSelection || definition.values.length === 1;
+        select.addEventListener('change', () => {
+          tokenValues[key] = select.value;
+          if (theme.themeId === 'promo.black-gold' && ['accent', 'border'].includes(key)) {
+            const pairedKey = key === 'accent' ? 'border' : 'accent';
+            tokenValues[pairedKey] = select.value;
+            const paired = tokensContainer.querySelector<HTMLSelectElement>(`[data-token-select="${pairedKey}"]`);
+            if (paired) paired.value = select.value;
+          }
+          updatePreview(theme);
+          updateChangeState();
+        });
+        const help = document.createElement('small');
+        help.textContent = definition.values.length === 1
+          ? 'Valor fijo y aprobado por el tema.'
+          : 'Enum cerrado proyectado por el backend.';
+        label.append(heading, select, help);
+        tokensContainer.append(label);
+      });
+      tokenNote.textContent = activeSelection
+        ? theme.themeId === 'promo.black-gold'
+          ? 'Acento y borde se mantienen juntos para conservar una combinación aprobada y contrastante.'
+          : 'La combinación completa será validada nuevamente por el backend antes de guardar.'
+        : 'Esta muestra usa el fallback seguro. Selecciona explícitamente el tema para editar y guardar.';
+      if (resetButton) resetButton.disabled = busy || !canEditTokens || !activeSelection;
+      updatePreview(theme);
+      updateQuality(theme);
+    }
+
+    function chooseTheme(theme: PromoAppearanceTheme) {
+      if (!draft) return;
+      selectedTheme = theme;
+      selectedThemeKey = promoAppearanceThemeKey(theme.themeId, theme.version);
+      const sameSelection = draft.document.theme.theme_id === theme.themeId
+        && draft.document.theme.version === theme.version;
+      try {
+        tokenValues = { ...promoAppearanceEffectiveTokens(
+          theme,
+          sameSelection || !canManageAppearance ? draft.document.theme.tokens : {},
+        ) };
+      } catch (_) {
+        tokenValues = { ...theme.defaultTokens };
+      }
+      renderTokens(theme, true);
+      updateChangeState();
+    }
+
+    function renderThemes() {
+      if (!themesContainer || !catalog || !draft) return;
+      themesContainer.replaceChildren();
+      const persistedKey = draft.document.theme.theme_id
+        ? promoAppearanceThemeKey(draft.document.theme.theme_id, draft.document.theme.version)
+        : '';
+      catalog.themes.forEach((theme, index) => {
+        const key = promoAppearanceThemeKey(theme.themeId, theme.version);
+        const label = document.createElement('label');
+        label.className = 'pz-promo-appearance__theme-card';
+        label.classList.toggle('is-current', key === persistedKey);
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'promo-approved-theme';
+        input.value = key;
+        input.id = `promo-approved-theme-${index}`;
+        input.dataset.themeChoice = 'true';
+        input.checked = key === selectedThemeKey;
+        input.disabled = busy || !canChooseTheme;
+        const swatch = document.createElement('span');
+        swatch.className = 'pz-promo-appearance__theme-swatch';
+        swatch.setAttribute('aria-hidden', 'true');
+        const copy = document.createElement('span');
+        copy.className = 'pz-promo-appearance__theme-copy';
+        const name = document.createElement('strong');
+        name.textContent = promoAppearanceThemeLabel(theme.themeId);
+        const detail = document.createElement('small');
+        detail.textContent = `Versión ${theme.version} · ${Object.keys(theme.tokens).length} tokens seguros`;
+        const badges = document.createElement('span');
+        badges.className = 'pz-promo-appearance__badges';
+        const approved = document.createElement('b');
+        approved.textContent = 'Aprobado';
+        badges.append(approved);
+        if (key === persistedKey) {
+          const current = document.createElement('b');
+          current.textContent = 'En borrador';
+          badges.append(current);
+        }
+        if (catalog?.fallback.selectable
+          && key === promoAppearanceThemeKey(catalog.fallback.themeId, catalog.fallback.version)) {
+          const fallback = document.createElement('b');
+          fallback.textContent = 'Fallback seguro';
+          badges.append(fallback);
+        }
+        copy.append(name, detail, badges);
+        label.append(input, swatch, copy);
+        input.addEventListener('change', () => {
+          if (input.checked) chooseTheme(theme);
+        });
+        themesContainer.append(label);
+      });
+      if (!catalog.themes.length) {
+        const empty = document.createElement('p');
+        empty.className = 'pz-promo-appearance__empty';
+        empty.textContent = 'No hay releases aprobados y seleccionables para esta tienda.';
+        themesContainer.append(empty);
+      }
+    }
+
+    function initializeWorkspace() {
+      if (!draft || !catalog || !form) return;
+      selectedThemeKey = draft.document.theme.theme_id
+        ? promoAppearanceThemeKey(draft.document.theme.theme_id, draft.document.theme.version)
+        : '';
+      selectedTheme = draft.document.theme.theme_id
+        ? findPromoAppearanceTheme(catalog, draft.document.theme.theme_id, draft.document.theme.version)
+        : null;
+      if (legacy) {
+        const unavailable = Boolean(draft.document.theme.theme_id && !selectedTheme);
+        legacy.hidden = !unavailable;
+        legacy.textContent = unavailable
+          ? `El tema actual ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} ${draft.document.theme.version} se conserva en el borrador, pero no está disponible para una nueva selección. Elige un release aprobado para cambiarlo.`
+          : '';
+      }
+
+      let previewTheme = selectedTheme;
+      if (selectedTheme) {
+        try {
+          tokenValues = { ...promoAppearanceEffectiveTokens(selectedTheme, draft.document.theme.tokens) };
+        } catch (error) {
+          showError(error);
+          tokenValues = { ...selectedTheme.defaultTokens };
+        }
+      } else {
+        previewTheme = findPromoAppearanceTheme(catalog, catalog.fallback.themeId, catalog.fallback.version)
+          || catalog.themes[0]
+          || null;
+        tokenValues = previewTheme ? { ...previewTheme.defaultTokens } : {};
+      }
+      renderThemes();
+      if (previewTheme) renderTokens(previewTheme, Boolean(selectedThemeKey && selectedTheme));
+      else if (tokensContainer) tokensContainer.replaceChildren();
+      if (currentLabel) {
+        currentLabel.textContent = draft.document.theme.theme_id
+          ? `Tema actual: ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} · ${draft.document.theme.version}`
+          : 'Tema actual: sin selección; se muestra el fallback seguro';
+      }
+      if (versionLabel) versionLabel.textContent = `Versión del borrador: ${draft.version}`;
+      form.hidden = false;
+      dirty = false;
+      updateChangeState();
+      setStatus('');
+    }
+
+    async function loadEditor() {
+      clearError();
+      if (form) form.hidden = true;
+      setBusy(true, 'Cargando catálogo aprobado y borrador…');
+      try {
+        const [draftResult, catalogResult] = await Promise.all([
+          responseJson(await fetch(endpoint(PROMO_APPEARANCE_DRAFT_API_PATH), {
+            headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store',
+          })),
+          responseJson(await fetch(endpoint(PROMO_APPEARANCE_CATALOG_API_PATH), {
+            headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store',
+          })),
+        ]);
+        draft = normalizePromoCmsDraftResponse(draftResult);
+        catalog = normalizePromoAppearanceCatalog(catalogResult);
+        initializeWorkspace();
+      } catch (error) {
+        setStatus('');
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    root.querySelector('[data-appearance-reload]')?.addEventListener('click', loadEditor);
+    resetButton?.addEventListener('click', () => {
+      const theme = selectedManifest();
+      if (!theme || !canEditTokens) return;
+      tokenValues = { ...theme.defaultTokens };
+      renderTokens(theme, true);
+      updateChangeState();
+    });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearError();
+      if (!draft || !catalog || !selectedTheme || busy || !form.reportValidity()) return;
+      try {
+        const document = prospectiveDocument();
+        if (!document) return;
+        const requirements = promoAppearanceChangeRequirements(draft.document, document);
+        if (!requirements.changed) return;
+        if (!canManageContent
+          || (requirements.themeSelect && !canSelectTheme)
+          || (requirements.appearanceManage && !canManageAppearance)) {
+          throw Object.assign(new Error('promo_permission_denied'), { code: 'promo_permission_denied' });
+        }
+        setBusy(true, 'Guardando borrador con CAS…');
+        const result = await responseJson(await fetch(endpoint(PROMO_APPEARANCE_DRAFT_API_PATH), {
+          method: 'PUT',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: draft.version, document }),
+          credentials: 'same-origin',
+          cache: 'no-store',
+        }));
+        draft = normalizePromoCmsDraftResponse({ ok: result.ok, contract: result.contract, draft: result.draft });
+        const catalogResult = await responseJson(await fetch(endpoint(PROMO_APPEARANCE_CATALOG_API_PATH), {
+          headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store',
+        }));
+        catalog = normalizePromoAppearanceCatalog(catalogResult);
+        initializeWorkspace();
+        setStatus(result.changed === true
+          ? 'Apariencia guardada en el borrador. El sitio publicado no cambió.'
+          : 'El borrador ya tenía esa apariencia.', true);
+      } catch (error) {
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+    });
+
+    loadEditor();
+  });
+</script>
