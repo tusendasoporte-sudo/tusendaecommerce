@@ -8,6 +8,7 @@ import {
   PromoMediaError,
   promoMediaErrorStatus,
 } from '../../../lib/promoMedia';
+import { promoCmsStoreSlug } from '../../../lib/promoCms';
 import { storefrontPushMediaSameOriginMutation, withStorefrontPushMediaConversionSlot } from '../../../lib/storefrontPushMedia';
 
 const UPLOAD_PATH = '/api/pz/promo/private/v1/media/upload';
@@ -22,6 +23,7 @@ const SAFE_ERROR_CODES = new Set([
   'promo_media_video_dimensions_invalid', 'promo_media_video_bitrate_invalid', 'promo_media_poster_required',
   'promo_media_duplicate', 'promo_media_count_exceeded', 'promo_media_storage_exceeded',
   'promo_media_in_use', 'promo_media_conflict', 'promo_media_not_found', 'promo_media_variant_invalid',
+  'invalid_origin',
 ]);
 
 function json(payload: unknown, status = 200) {
@@ -51,10 +53,37 @@ function exactObject(value: unknown, expected: readonly string[]) {
   return actual.length === target.length && actual.every((key, index) => key === target[index]);
 }
 
-async function adminContext(request: Request) {
+function exactMediaQuery(request: Request, allowAsset = false) {
+  const entries = Array.from(new URL(request.url).searchParams.entries());
+  const expected = allowAsset ? ['asset', 'store'] : ['store'];
+  if (entries.length !== expected.length
+    || entries.map(([key]) => key).sort().some((key, index) => key !== expected[index])) {
+    const error = new Error('invalid_payload') as Error & { status?: number; code?: string };
+    error.status = 400;
+    error.code = 'invalid_payload';
+    throw error;
+  }
+  const parameters = new Map(entries);
+  const storeSlug = promoCmsStoreSlug(parameters.get('store'));
+  const assetId = String(parameters.get('asset') || '');
+  if (!storeSlug || (allowAsset && !/^[a-z0-9]{15}$/.test(assetId))) {
+    const error = new Error('invalid_payload') as Error & { status?: number; code?: string };
+    error.status = 400;
+    error.code = 'invalid_payload';
+    throw error;
+  }
+  return { storeSlug, assetId };
+}
+
+async function adminContext(request: Request, storeSlug: string) {
   const authPb = await refreshAuthFromCookie(request.headers.get('cookie') || '');
-  const supportStoreSlug = String(new URL(request.url).searchParams.get('store') || '').trim().toLowerCase();
-  const context = await requireCurrentStoreForAdmin(authPb, { storeSlug: supportStoreSlug });
+  const context = await requireCurrentStoreForAdmin(authPb, { storeSlug });
+  if (String(context.store.slug || '').trim().toLowerCase() !== storeSlug) {
+    const error = new Error('promo_not_found') as Error & { status?: number; code?: string };
+    error.status = 404;
+    error.code = 'promo_not_found';
+    throw error;
+  }
   return { authPb, context };
 }
 
@@ -99,9 +128,92 @@ function errorResponse(error: any, fallback: string) {
   return json({ ok: false, error: fallback }, 500);
 }
 
+async function privatePreviewResponse(
+  result: any,
+  assetId: string,
+  token: string,
+  supportStoreId: string,
+  rangeHeader: string,
+) {
+  const asset = Array.isArray(result?.assets)
+    ? result.assets.find((candidate: any) => candidate?.asset_id === assetId)
+    : null;
+  const previewPath = String(asset?.preview?.url || '');
+  const escapedAssetId = assetId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (asset?.status !== 'ready'
+    || !(new RegExp(`^/api/pz/promo/private/v1/media/${escapedAssetId}/[a-f0-9]{64}/original\\.(?:webp|mp4|webm)$`)).test(previewPath)) {
+    const error = new Error('promo_media_not_found') as Error & { status?: number; code?: string };
+    error.status = 404;
+    error.code = 'promo_media_not_found';
+    throw error;
+  }
+  const baseUrl = serverPocketBaseUrl();
+  if (!baseUrl) throw new Error('promo_media_unavailable');
+  if (rangeHeader && (rangeHeader.length > 80 || !/^bytes=[0-9]*-[0-9]*$/.test(rangeHeader))) {
+    const error = new Error('invalid_payload') as Error & { status?: number; code?: string };
+    error.status = 400;
+    error.code = 'invalid_payload';
+    throw error;
+  }
+  const response = await fetch(`${baseUrl}${previewPath}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'image/webp,video/mp4,video/webm',
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+      ...(supportStoreId ? { 'X-PZ-Promo-Store': supportStoreId } : {}),
+    },
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(20_000),
+  });
+  const contentType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (![200, 206].includes(response.status) || !response.body
+    || !['image/webp', 'video/mp4', 'video/webm'].includes(contentType)) {
+    const error = new Error('promo_media_not_found') as Error & { status?: number; code?: string };
+    error.status = 404;
+    error.code = 'promo_media_not_found';
+    throw error;
+  }
+  const contentRange = String(response.headers.get('content-range') || '');
+  const acceptRanges = String(response.headers.get('accept-ranges') || '').toLowerCase();
+  const contentLength = String(response.headers.get('content-length') || '');
+  if ((response.status === 206 && !/^bytes [0-9]+-[0-9]+\/[0-9]+$/.test(contentRange))
+    || (contentLength && !/^[0-9]{1,12}$/.test(contentLength))) {
+    const error = new Error('promo_media_not_found') as Error & { status?: number; code?: string };
+    error.status = 404;
+    error.code = 'promo_media_not_found';
+    throw error;
+  }
+  return new Response(response.body, {
+    status: response.status,
+    headers: {
+      'Content-Type': contentType,
+      ...(contentRange ? { 'Content-Range': contentRange } : {}),
+      ...(acceptRanges === 'bytes' ? { 'Accept-Ranges': 'bytes' } : {}),
+      ...(contentLength ? { 'Content-Length': contentLength } : {}),
+      'Cache-Control': 'private, no-store, max-age=0',
+      Pragma: 'no-cache',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+    },
+  });
+}
+
 export const GET: APIRoute = async ({ request }) => {
   try {
-    const { authPb, context } = await adminContext(request);
+    const fetchSite = String(request.headers.get('sec-fetch-site') || '').trim().toLowerCase();
+    if (fetchSite && fetchSite !== 'same-origin') {
+      const error = new Error('invalid_origin') as Error & { status?: number; code?: string };
+      error.status = 403;
+      error.code = 'invalid_origin';
+      throw error;
+    }
+    const url = new URL(request.url);
+    const hasAsset = url.searchParams.has('asset');
+    const query = exactMediaQuery(request, hasAsset);
+    const { authPb, context } = await adminContext(request, query.storeSlug);
     const result = await backendRequest(
       LIST_PATH,
       authPb.authStore.token,
@@ -109,6 +221,15 @@ export const GET: APIRoute = async ({ request }) => {
       'application/json',
       context.isMasterSupport ? context.storeId : '',
     );
+    if (hasAsset) {
+      return privatePreviewResponse(
+        result,
+        query.assetId,
+        authPb.authStore.token,
+        context.isMasterSupport ? context.storeId : '',
+        String(request.headers.get('range') || '').trim(),
+      );
+    }
     return json(result);
   } catch (error) {
     return errorResponse(error, 'promo_media_list_failed');
@@ -122,7 +243,8 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: 'promo_media_size_invalid' }, 413);
   }
   try {
-    const { authPb, context } = await adminContext(request);
+    const query = exactMediaQuery(request);
+    const { authPb, context } = await adminContext(request, query.storeSlug);
     const formData = await request.formData();
     if (!exactFormData(formData, ['file', 'poster_asset_id', 'purpose'])) {
       return json({ ok: false, error: 'invalid_payload' }, 400);
@@ -166,7 +288,8 @@ export const POST: APIRoute = async ({ request }) => {
 export const DELETE: APIRoute = async ({ request }) => {
   if (!storefrontPushMediaSameOriginMutation(request)) return json({ ok: false, error: 'invalid_origin' }, 403);
   try {
-    const { authPb, context } = await adminContext(request);
+    const query = exactMediaQuery(request);
+    const { authPb, context } = await adminContext(request, query.storeSlug);
     const body = await request.json().catch(() => null) as any;
     if (!exactObject(body, ['asset_id']) || !/^[a-z0-9]{15}$/.test(String(body?.asset_id || ''))) {
       return json({ ok: false, error: 'invalid_payload' }, 400);
