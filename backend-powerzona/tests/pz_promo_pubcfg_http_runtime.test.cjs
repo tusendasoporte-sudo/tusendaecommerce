@@ -171,22 +171,31 @@ function publishedDocument(name, themeVersion = '1.0.0') {
     section_order: ['hero-main'],
     sections: [{
       key: 'hero-main', type: 'hero', variant: 'default', visible: true,
-      config: { media_use_key: '', action_key: '' }, media_use_keys: [],
+      config: { media_use_key: '', action_key: 'estimate' }, media_use_keys: [],
     }],
     media_refs: {},
-    contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
+    contact: {
+      enabled: true, primary_action_key: 'estimate', secondary_action_keys: [],
+      actions: [{ key: 'estimate', type: 'whatsapp', enabled: true, config: { phone_e164: '+5351234567' } }],
+    },
     content_by_locale: {
       en: {
         identity: { name: `${name} EN`, summary: 'Public Promo identity' },
         navigation: { 'hero-main': 'Home' },
         sections: { 'hero-main': { heading: `${name} EN`, summary: 'Informational content' } },
-        contact: {}, media_alt: {}, seo: { title: `${name} EN`, description: `Public presentation of ${name}` },
+        contact: {
+          estimate: { label: 'Request an estimate', aria_label: 'Request an estimate through WhatsApp', message: 'Hello, I would like an estimate.' },
+        },
+        media_alt: {}, seo: { title: `${name} EN`, description: `Public presentation of ${name}` },
       },
       es: {
         identity: { name, summary: 'Identidad pública Promo' },
         navigation: { 'hero-main': 'Inicio' },
         sections: { 'hero-main': { heading: name, summary: 'Contenido informativo' } },
-        contact: {}, media_alt: {}, seo: { title: name, description: `Presentación pública de ${name}` },
+        contact: {
+          estimate: { label: 'Solicitar estimado', aria_label: 'Solicitar un estimado por WhatsApp', message: 'Hola, deseo un estimado.' },
+        },
+        media_alt: {}, seo: { title: name, description: `Presentación pública de ${name}` },
       },
     },
     adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
@@ -548,6 +557,14 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(platformShell.data.profile.locale.effective, 'es');
     assert.equal(platformShell.data.profile.content.identity.name, 'Publicado A');
     assert.equal(platformShell.data.profile.locale.canonical_path, '/promo/promo-pubcfg-a/es');
+    assert.deepEqual(platformShell.data.profile.contact_action, {
+      contract: 'promo.contact.action.v1', available: true,
+      action: {
+        key: 'estimate', type: 'whatsapp', label: 'Solicitar estimado',
+        aria_label: 'Solicitar un estimado por WhatsApp',
+        href: 'https://wa.me/5351234567?text=Hola%2C%20deseo%20un%20estimado.',
+      },
+    });
     assert.deepEqual(platformShell.data.profile.selector.options.map((option) => option.href), [
       '/promo/promo-pubcfg-a/en', '/promo/promo-pubcfg-a/es',
     ]);
@@ -556,6 +573,11 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(explicitShell, 200, 'SHELL SSR aplica locale explícito publicado');
     assert.equal(explicitShell.data.profile.locale.effective, 'en');
     assert.equal(explicitShell.data.profile.content.identity.name, 'Publicado A EN');
+    assert.equal(explicitShell.data.profile.contact_action.action.label, 'Request an estimate');
+    assert.equal(
+      explicitShell.data.profile.contact_action.action.href,
+      'https://wa.me/5351234567?text=Hello%2C%20I%20would%20like%20an%20estimate.',
+    );
     assert.equal(JSON.stringify(explicitShell.data).includes('Identidad pública Promo'), false, 'SHELL no mezcla locale español');
     const commerceBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
     assertStatus(commerceBridge, 200, 'guard Commerce reconoce solo Promo activa publicada');
@@ -998,6 +1020,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.deepEqual(customShell.data.route, { source: 'custom', action: 'serve' });
     assert.equal(customShell.data.profile.locale.effective, 'en');
     assert.equal(customShell.data.profile.content.identity.name, 'Solo borrador A EN');
+    assert.equal(customShell.data.profile.contact_action.action.label, 'Request an estimate');
     assert.equal(customShell.data.profile.locale.canonical_path, '/en');
     assert.deepEqual(customShell.data.profile.selector.options.map((option) => option.href), ['/en', '/es']);
     const customBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');

@@ -20,6 +20,9 @@ const pubcfgApi = typeof __hooks === "undefined"
 const shell = typeof __hooks === "undefined"
   ? require("./pz_promo_shell_lib.js")
   : require(`${__hooks}/pz_promo_shell_lib.js`);
+const promoContact = typeof __hooks === "undefined"
+  ? require("./pz_promo_contact_lib.js")
+  : require(`${__hooks}/pz_promo_contact_lib.js`);
 const promoReviews = typeof __hooks === "undefined"
   ? require("./pz_promo_reviews_api_lib.js")
   : require(`${__hooks}/pz_promo_reviews_api_lib.js`);
@@ -150,7 +153,10 @@ function resolvePlatformShell(app, publicSlug, signals) {
   const context = publishedPlatformContext(app, publicSlug);
   const localized = promoReviews.attachPublicRating(
     app,
-    localizeProjection(context.projection, signals || {}),
+    promoContact.attachPublicContact(
+      localizeProjection(context.projection, signals || {}),
+      context,
+    ),
     context,
   );
   return shell.shellResponse(localized, context);
@@ -165,7 +171,10 @@ function resolveHostShell(app, headers, signals) {
   try {
     localized = promoReviews.attachPublicRating(
       app,
-      localizeProjection(context.projection, signals || {}),
+      promoContact.attachPublicContact(
+        localizeProjection(context.projection, signals || {}),
+        context,
+      ),
       context,
     );
   }

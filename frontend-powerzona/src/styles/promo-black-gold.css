@@ -408,24 +408,6 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 .promo-shell-items h3 { font-size: clamp(1.25rem, 2vw, 1.6rem); }
 .promo-shell-item__caption { font-size: .9rem !important; }
 
-.promo-shell-contact-state {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  min-height: 52px;
-  align-items: center;
-  margin-block-start: 2rem !important;
-  border: 1px solid var(--promo-border);
-  border-radius: var(--promo-radius);
-  background: var(--promo-accent);
-  color: var(--promo-surface) !important;
-  font-size: .78rem !important;
-  font-weight: 850;
-  letter-spacing: .14em;
-  padding: .85rem 1.3rem;
-  text-transform: uppercase;
-}
-
 .promo-shell-footer {
   position: relative;
   z-index: 1;

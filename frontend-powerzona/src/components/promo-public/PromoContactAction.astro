@@ -1,0 +1,38 @@
+---
+import '../../styles/promo-contact.css';
+import type { PromoPublicProfile } from '../../lib/promoPublicShell';
+
+interface Props {
+  profile: PromoPublicProfile;
+  className?: string;
+  fallbackLabel: string;
+  enabled?: boolean;
+}
+
+const { profile, className = '', fallbackLabel, enabled = true } = Astro.props;
+const action = enabled && profile.contact_action.available ? profile.contact_action.action : null;
+const unavailable = profile.system.messages['contact.unavailable'];
+---
+
+{action ? (
+  <a
+    class:list={['promo-contact-action', className]}
+    href={action.href}
+    aria-label={action.aria_label}
+    rel={action.type === 'whatsapp' ? 'noopener noreferrer' : undefined}
+    data-contact-action="primary"
+    data-contact-type={action.type}
+  >
+    <span class="promo-contact-action__label">{action.label}</span>
+    <span class="promo-contact-action__mark" aria-hidden="true">→</span>
+  </a>
+) : (
+  <span
+    class:list={['promo-contact-action', 'promo-contact-action--unavailable', className]}
+    role="status"
+    data-contact-action="unavailable"
+  >
+    <span class="promo-contact-action__label">{fallbackLabel}</span>
+    <span class="promo-contact-action__state">{unavailable}</span>
+  </span>
+)}

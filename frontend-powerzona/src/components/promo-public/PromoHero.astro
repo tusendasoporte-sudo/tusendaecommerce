@@ -5,6 +5,7 @@ import type {
   PromoPublicProfile,
   PromoPublicSection,
 } from '../../lib/promoPublicShell';
+import PromoContactAction from './PromoContactAction.astro';
 
 interface Props {
   profile: PromoPublicProfile;
@@ -31,11 +32,11 @@ const heroMediaKeys = [primaryMediaKey, ...section.media_use_keys]
 const heroMedia = heroMediaKeys
   .map((key) => mediaByKey.get(key))
   .filter((item): item is PromoPublicMedia => Boolean(item && item.purpose === 'hero'));
-const requestedActionKey = String(section.config.action_key || profile.contact.primary_action_key || '');
-const actionCopy = requestedActionKey ? profile.content.contact[requestedActionKey] : undefined;
+const primaryActionKey = String(profile.contact.primary_action_key || '');
+const actionCopy = primaryActionKey ? profile.content.contact[primaryActionKey] : undefined;
 const ctaLabel = String(actionCopy?.label || profile.system.messages['contact.request_estimate']);
-const ctaAria = String(actionCopy?.aria_label || profile.system.messages['a11y.contact_action']);
-const unavailable = profile.system.messages['contact.unavailable'];
+const requestedActionKey = String(section.config.action_key || primaryActionKey);
+const contactEnabled = Boolean(primaryActionKey && requestedActionKey === primaryActionKey);
 const srcset = (media: PromoPublicMedia) => media.kind === 'image'
   ? media.delivery.srcset.map((source) => `${source.url} ${source.width}w`).join(', ')
   : '';
@@ -60,10 +61,12 @@ const mediaLabel = (media: PromoPublicMedia, index: number) => (
         : <h2 id={`${sectionId}-heading`}>{heading}</h2>}
       {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
 
-      <div class="promo-hero__cta" role="group" aria-label={ctaAria}>
-        <span class="promo-hero__cta-label">{ctaLabel}</span>
-        <span class="promo-hero__cta-state" role="status">{unavailable}</span>
-      </div>
+      <PromoContactAction
+        profile={profile}
+        className="promo-hero__cta"
+        fallbackLabel={ctaLabel}
+        enabled={contactEnabled}
+      />
     </div>
 
     {heroMedia.length > 0 ? (

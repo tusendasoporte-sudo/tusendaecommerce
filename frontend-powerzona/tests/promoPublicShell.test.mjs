@@ -60,6 +60,7 @@ function shellEnvelope(source = 'platform') {
       }],
       media: [],
       contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
+      contact_action: { contract: 'promo.contact.action.v1', available: false, action: null },
       content: {
         identity: { name: 'Negocio demo', summary: 'Presentación pública' },
         navigation: { 'hero-main': 'Inicio' },
@@ -207,6 +208,14 @@ function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
   envelope.profile.content.contact = {
     estimate: { label: 'Solicitar estimado', aria_label: 'Solicitar un estimado', message: 'Cuéntanos tu idea' },
   };
+  envelope.profile.contact_action = {
+    contract: 'promo.contact.action.v1',
+    available: true,
+    action: {
+      key: 'estimate', type: 'phone', label: 'Solicitar estimado',
+      aria_label: 'Solicitar un estimado', href: 'tel:+5351234567',
+    },
+  };
   envelope.profile.content.media_alt = {
     'hero-main-media': { alt: 'Alfombra artesanal terminada', decorative: false },
     'hero-second-media': { alt: 'Detalle del tejido artesanal', decorative: false },
@@ -311,6 +320,30 @@ test('HERO consume exclusivamente delivery MEDIA público, content-addressed y p
   assert.throws(() => normalizePromoPublicShellResponse(leakedDelivery), PromoPublicShellError);
 });
 
+test('CONTACT acepta solo la acción principal compilada, allowlisted y localized', () => {
+  const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithHeroMedia());
+  assert.equal(normalized.profile.contact_action.available, true);
+  assert.deepEqual(normalized.profile.contact_action.action, {
+    key: 'estimate', type: 'phone', label: 'Solicitar estimado',
+    aria_label: 'Solicitar un estimado', href: 'tel:+5351234567',
+  });
+
+  const external = shellEnvelopeWithHeroMedia();
+  external.profile.contact_action.action.href = 'https://tenant.example/contact';
+  assert.throws(() => normalizePromoPublicShellResponse(external), PromoPublicShellError);
+  const secondary = shellEnvelopeWithHeroMedia();
+  secondary.profile.contact_action.action.key = 'secondary-contact';
+  assert.throws(() => normalizePromoPublicShellResponse(secondary), PromoPublicShellError);
+  const leaked = shellEnvelopeWithHeroMedia();
+  leaked.profile.contact_action.action.phone_e164 = '+5351234567';
+  assert.throws(() => normalizePromoPublicShellResponse(leaked), PromoPublicShellError);
+  const unsafeMail = shellEnvelopeWithHeroMedia();
+  unsafeMail.profile.contact_action.action.type = 'email';
+  unsafeMail.profile.contact.actions[0].type = 'email';
+  unsafeMail.profile.contact_action.action.href = 'mailto:demo@example.com?body=ok%0D%0ABcc%3Aattacker%40example.com';
+  assert.throws(() => normalizePromoPublicShellResponse(unsafeMail), PromoPublicShellError);
+});
+
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithSections());
   assert.deepEqual(normalized.profile.section_order, [
@@ -390,17 +423,20 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   const shell = read('../src/components/promo-public/PromoPublicShell.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const hero = read('../src/components/promo-public/PromoHero.astro');
+  const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
+  const contact = read('../src/components/promo-public/PromoContact.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const sectionMedia = read('../src/components/promo-public/PromoSectionMedia.astro');
   const styles = read('../src/styles/promo-public-shell.css');
   const themeStyles = read('../src/styles/promo-black-gold.css');
   const heroStyles = read('../src/styles/promo-hero.css');
+  const contactStyles = read('../src/styles/promo-contact.css');
   const sectionStyles = read('../src/styles/promo-sections.css');
   const middleware = read('../src/middleware.ts');
   const platform = read('../src/pages/promo/[publicSlug]/index.astro');
   const localized = read('../src/pages/promo/[publicSlug]/[locale].astro');
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
-  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${sectionStyles}\n${platform}\n${localized}`;
+  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${contactStyles}\n${sectionStyles}\n${platform}\n${localized}`;
   assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);
@@ -415,7 +451,8 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   assert.match(hero, /preload=\{media\.delivery\.preload\}/);
   assert.match(hero, /promo-hero__controls/);
   assert.match(hero, /contact\.request_estimate/);
-  assert.match(hero, /contact\.unavailable/);
+  assert.match(contactAction, /contact\.unavailable/);
+  assert.match(contactAction, /href=\{action\.href\}/);
   assert.match(heroStyles, /scroll-snap-type: inline mandatory/);
   assert.match(theme, /specializedSectionTypes/);
   assert.match(theme, /<PromoSections/);
@@ -430,9 +467,10 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   assert.doesNotMatch(commerce, /storeSlug[^\n]*toLowerCase/);
 });
 
-test('renderer ALADDIN aplica únicamente la release negra/dorada y conserva prompts posteriores inertes', () => {
+test('renderer ALADDIN aplica únicamente la release negra/dorada y delega contacto al renderer focal', () => {
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const contact = read('../src/components/promo-public/PromoContact.astro');
   const styles = read('../src/styles/promo-black-gold.css');
   assert.match(styles, /body\[data-promo-theme-renderer="promo\.black-gold"\]/);
   assert.match(styles, /--promo-surface: #0b0b0b/);
@@ -443,8 +481,8 @@ test('renderer ALADDIN aplica únicamente la release negra/dorada y conserva pro
   assert.match(styles, /data-promo-token-motion="reduced"/);
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
-  assert.match(theme, /role="status"/);
-  assert.match(theme, /system\.messages\['contact\.unavailable'\]/);
+  assert.match(theme, /<PromoContact/);
+  assert.match(contact, /data-contact-available/);
   assert.match(theme, /promo-shell-section__ornament/);
   assert.match(layout, /data-promo-token-accent=\{themeTokens\.accent\}/);
   assert.ok(Buffer.byteLength(styles, 'utf8') <= 50 * 1024, 'CSS del renderer excede el budget Theme de 50 KiB');
@@ -452,15 +490,24 @@ test('renderer ALADDIN aplica únicamente la release negra/dorada y conserva pro
   assert.doesNotMatch(styles, /url\(|@import|https?:/i);
 });
 
-test('HERO no activa destinos de contacto ni adelanta SECTIONS/CONTACT', () => {
+test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () => {
   const hero = read('../src/components/promo-public/PromoHero.astro');
+  const action = read('../src/components/promo-public/PromoContactAction.astro');
+  const contactStyles = read('../src/styles/promo-contact.css');
   const heroStyles = read('../src/styles/promo-hero.css');
-  assert.doesNotMatch(hero, /<button|<form|tel:|mailto:|wa\.me|target=|onclick|addEventListener|<script/i);
+  assert.match(hero, /<PromoContactAction/);
+  assert.match(hero, /profile\.contact\.primary_action_key/);
+  assert.match(hero, /requestedActionKey === primaryActionKey/);
+  assert.match(action, /href=\{action\.href\}/);
+  assert.match(action, /aria-label=\{action\.aria_label\}/);
+  assert.match(action, /data-contact-action="primary"/);
+  assert.match(action, /role="status"/);
+  assert.doesNotMatch(`${hero}\n${action}`, /<button|<form|target=|onclick|addEventListener|<script/i);
   assert.doesNotMatch(heroStyles, /url\(|@import|https?:/i);
-  assert.match(hero, /role="status"/);
   assert.match(hero, /href=\{`#\$\{sectionId\}-media-/);
-  assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}`, 'utf8') <= 50 * 1024,
-    'CSS combinado ALADDIN/HERO excede el budget Theme de 50 KiB');
+  assert.doesNotMatch(contactStyles, /url\(|@import|https?:/i);
+  assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}\n${contactStyles}`, 'utf8') <= 50 * 1024,
+    'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
 });
 
 test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidratar ni activar Commerce/contacto', () => {
@@ -503,5 +550,7 @@ test('shell público conserva no-store/noindex hasta SEO/PERF y no adelanta prom
   assert.match(client, /localeCookie/);
   assert.match(client, /requestBackendWithAuthoritativeHost/);
   assert.match(client, /nodeHttpRequest/);
-  assert.doesNotMatch(client, /Cloudflare|Coolify|hreflang.*canonical|analytics|contact\.activate|tel:|mailto:|wa\.me/i);
+  assert.match(client, /CONTACT_ACTION_CONTRACT = 'promo\.contact\.action\.v1'/);
+  assert.match(client, /safeContactHref/);
+  assert.doesNotMatch(client, /Cloudflare|Coolify|hreflang.*canonical|analytics|contact\.activate/i);
 });

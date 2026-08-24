@@ -2,6 +2,7 @@
 import '../../styles/promo-black-gold.css';
 import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
+import PromoContact from './PromoContact.astro';
 import PromoReviews from './PromoReviews.astro';
 import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
@@ -104,6 +105,18 @@ const description = String(content.seo.description || identity.summary || '');
             />
           );
         }
+        if (section.type === 'contact') {
+          return (
+            <PromoContact
+              profile={profile}
+              section={section}
+              localized={localized}
+              heading={heading}
+              navigationLabel={navigationLabel}
+              primaryHeading={index === 0}
+            />
+          );
+        }
         if (specializedSectionTypes.has(section.type)) {
           return (
             <PromoSections
@@ -153,11 +166,6 @@ const description = String(content.seo.description || identity.summary || '');
                 </ul>
               )}
 
-              {section.type === 'contact' && (
-                <p class="promo-shell-contact-state" role="status">
-                  <span>{system.messages['contact.unavailable']}</span>
-                </p>
-              )}
             </div>
           </section>
         );

@@ -20,6 +20,10 @@ const SECTION_TYPES = new Set([
   'hero', 'services', 'featured_work', 'gallery', 'owner', 'store_rating', 'contact', 'footer',
 ]);
 const CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email', 'internal_form', 'approved_live_chat']);
+const EXECUTABLE_CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email']);
+const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CONTACT_ACTION_CONTRACT = 'promo.contact.action.v1';
 const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster']);
 const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
 const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
@@ -134,6 +138,18 @@ export type PromoPublicStoreRating = Readonly<{
   reviews: readonly PromoPublicStoreReview[];
 }>;
 
+export type PromoPublicContactAction = Readonly<{
+  contract: typeof CONTACT_ACTION_CONTRACT;
+  available: boolean;
+  action: Readonly<{
+    key: string;
+    type: 'whatsapp' | 'phone' | 'email';
+    label: string;
+    aria_label: string;
+    href: string;
+  }> | null;
+}>;
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -159,6 +175,7 @@ export type PromoPublicProfile = Readonly<{
   sections: readonly PromoPublicSection[];
   media: readonly PromoPublicMedia[];
   contact: Readonly<JsonRecord>;
+  contact_action: PromoPublicContactAction;
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
   store_rating: PromoPublicStoreRating;
@@ -268,6 +285,62 @@ function safeRedirect(value: unknown) {
     || parsed.search || parsed.hash || !parsed.hostname || parsed.pathname.startsWith('//')
     || (parsed.pathname !== '/' && !LOCALE_PATH_PATTERN.test(parsed.pathname))) fail();
   return parsed.toString();
+}
+
+function decodedCanonicalComponent(value: string, max: number) {
+  let decoded = '';
+  try { decoded = decodeURIComponent(value); } catch (_) { fail(); }
+  if (encodeURIComponent(decoded) !== value) fail();
+  return safeText(decoded, max, true);
+}
+
+function safeContactHref(type: string, value: unknown) {
+  const href = safeText(value, 4096, true);
+  if (type === 'phone') {
+    const phone = href.slice(4);
+    if (!href.startsWith('tel:') || !E164_PATTERN.test(phone)) fail();
+    return href;
+  }
+  if (type === 'whatsapp') {
+    const match = href.match(/^https:\/\/wa\.me\/([1-9][0-9]{7,14})(?:\?text=(.+))?$/);
+    if (!match) fail();
+    if (match[2]) decodedCanonicalComponent(match[2], 1000);
+    return href;
+  }
+  if (type === 'email') {
+    const match = href.match(/^mailto:([^?]+)(?:\?body=(.+))?$/);
+    if (!match) fail();
+    let address = '';
+    try { address = decodeURIComponent(match[1]); } catch (_) { fail(); }
+    if (safeText(address, 254, true) !== address || !EMAIL_PATTERN.test(address)
+      || encodeURIComponent(address).replace(/%40/gi, '@') !== match[1]) fail();
+    if (match[2]) decodedCanonicalComponent(match[2], 1000);
+    return href;
+  }
+  return fail();
+}
+
+function normalizeContactAction(value: unknown): PromoPublicContactAction {
+  const compiled = exactRecord(value, ['contract', 'available', 'action']);
+  if (compiled.contract !== CONTACT_ACTION_CONTRACT || typeof compiled.available !== 'boolean') fail();
+  if (!compiled.available) {
+    if (compiled.action !== null) fail();
+    return { contract: CONTACT_ACTION_CONTRACT, available: false, action: null };
+  }
+  const action = exactRecord(compiled.action, ['key', 'type', 'label', 'aria_label', 'href']);
+  if (!EXECUTABLE_CONTACT_TYPES.has(action.type)) fail();
+  const type = action.type as 'whatsapp' | 'phone' | 'email';
+  return {
+    contract: CONTACT_ACTION_CONTRACT,
+    available: true,
+    action: {
+      key: safePattern(action.key, KEY_PATTERN),
+      type,
+      label: safeText(action.label, 80, true),
+      aria_label: safeText(action.aria_label, 160, true),
+      href: safeContactHref(type, action.href),
+    },
+  };
 }
 
 function safePublicMediaPath(value: unknown, input: {
@@ -532,7 +605,7 @@ function normalizeStoreRating(value: unknown, adapterEnabled: boolean, sectionAv
 function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoPublicProfile {
   const profile = exactRecord(value, [
     'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
-    'media', 'contact', 'content', 'adapters', 'store_rating',
+    'media', 'contact', 'contact_action', 'content', 'adapters', 'store_rating',
   ]);
   const site = exactRecord(profile.site, ['public_slug']);
   const system = exactRecord(profile.system, ['catalog_version', 'messages']);
@@ -627,6 +700,15 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     })) fail();
   }
   const normalizedContent = normalizeContent(profile.content, sections, mediaKeys, actionKeys);
+  const contactAction = normalizeContactAction(profile.contact_action);
+  if (contactAction.available) {
+    const action = contactAction.action;
+    const sourceAction = actions.find((candidate) => candidate.key === action?.key);
+    const sourceCopy = action ? normalizedContent.contact[action.key] : null;
+    if (!action || !normalizedContact.enabled || action.key !== normalizedContact.primary_action_key
+      || !sourceAction || sourceAction.type !== action.type || !sourceCopy
+      || sourceCopy.label !== action.label || sourceCopy.aria_label !== action.aria_label) fail();
+  }
   for (const section of sections.filter((item) => ['services', 'featured_work', 'gallery'].includes(item.type))) {
     const configuredKeys = section.config.item_keys;
     const localizedItems = normalizedContent.sections[section.key]?.items;
@@ -667,6 +749,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     sections,
     media,
     contact: normalizedContact,
+    contact_action: contactAction,
     content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },
     store_rating: storeRating,
