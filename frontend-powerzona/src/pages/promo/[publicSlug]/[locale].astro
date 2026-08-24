@@ -1,0 +1,30 @@
+---
+import PromoPublicShell from '../../../components/promo-public/PromoPublicShell.astro';
+import {
+  applyPromoPublicHeaders,
+  PromoPublicShellError,
+  promoPublicUnavailable,
+  readPlatformPromoShell,
+} from '../../../lib/promoPublicShell';
+
+const publicSlug = String(Astro.params.publicSlug || '');
+const locale = String(Astro.params.locale || '');
+let resolved;
+
+if (Astro.url.search) return promoPublicUnavailable(404);
+
+try {
+  resolved = await readPlatformPromoShell(Astro.request, publicSlug, locale);
+} catch (error) {
+  return promoPublicUnavailable(error instanceof PromoPublicShellError ? error.status : 503);
+}
+
+if (resolved.route.action === 'redirect' && resolved.route.location) {
+  return applyPromoPublicHeaders(Astro.redirect(resolved.route.location, 307), resolved);
+}
+if (!resolved.profile) return promoPublicUnavailable(404);
+
+applyPromoPublicHeaders(Astro.response, resolved);
+---
+
+<PromoPublicShell profile={resolved.profile} />

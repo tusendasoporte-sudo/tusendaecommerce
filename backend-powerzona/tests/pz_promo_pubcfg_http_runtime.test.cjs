@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
 const { createHash, randomBytes } = require('node:crypto');
 const fs = require('node:fs');
+const http = require('node:http');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
@@ -106,13 +107,43 @@ async function apiRequest(baseUrl, route, options = {}) {
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(options.json);
   }
-  const response = await fetch(`${baseUrl}${route}`, {
-    method: options.method || (body ? 'POST' : 'GET'), headers, body,
-  });
-  const raw = await response.text();
+  const method = options.method || (body ? 'POST' : 'GET');
+  const hasAuthoritativeHost = Object.keys(headers).some((key) => key.toLowerCase() === 'host');
+  let status;
+  let raw;
+  let responseHeaders;
+  if (hasAuthoritativeHost) {
+    const target = new URL(`${baseUrl}${route}`);
+    const result = await new Promise((resolve, reject) => {
+      const request = http.request({
+        hostname: target.hostname,
+        port: target.port,
+        path: `${target.pathname}${target.search}`,
+        method,
+        headers,
+      }, (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve({
+          status: response.statusCode || 0,
+          raw: Buffer.concat(chunks).toString('utf8'),
+          headers: new Headers(response.headers),
+        }));
+      });
+      request.on('error', reject);
+      if (body) request.write(body);
+      request.end();
+    });
+    ({ status, raw, headers: responseHeaders } = result);
+  } else {
+    const response = await fetch(`${baseUrl}${route}`, { method, headers, body });
+    status = response.status;
+    raw = await response.text();
+    responseHeaders = response.headers;
+  }
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
-  return { status: response.status, data, raw, headers: response.headers };
+  return { status, data, raw, headers: responseHeaders };
 }
 
 function assertStatus(result, expected, label) {
@@ -509,6 +540,38 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(localizedB, 200, 'I18N tenant B');
     assert.equal(localizedB.data.content.identity.name, 'Publicado B EN');
     assert.equal(JSON.stringify(localizedB.data).includes('Publicado A'), false, 'I18N no mezcla tenant A/B');
+
+    const platformShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a');
+    assertStatus(platformShell, 200, 'SHELL SSR resuelve canonical plataforma publicado');
+    assert.equal(platformShell.data.contract, 'promo.public.shell.v1');
+    assert.deepEqual(platformShell.data.route, { source: 'platform', action: 'serve' });
+    assert.equal(platformShell.data.profile.locale.effective, 'es');
+    assert.equal(platformShell.data.profile.content.identity.name, 'Publicado A');
+    assert.equal(platformShell.data.profile.locale.canonical_path, '/promo/promo-pubcfg-a/es');
+    assert.deepEqual(platformShell.data.profile.selector.options.map((option) => option.href), [
+      '/promo/promo-pubcfg-a/en', '/promo/promo-pubcfg-a/es',
+    ]);
+    assert.equal(platformShell.headers.get('cache-control').includes('no-store'), true);
+    const explicitShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/en');
+    assertStatus(explicitShell, 200, 'SHELL SSR aplica locale explícito publicado');
+    assert.equal(explicitShell.data.profile.locale.effective, 'en');
+    assert.equal(explicitShell.data.profile.content.identity.name, 'Publicado A EN');
+    assert.equal(JSON.stringify(explicitShell.data).includes('Identidad pública Promo'), false, 'SHELL no mezcla locale español');
+    const commerceBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
+    assertStatus(commerceBridge, 200, 'guard Commerce reconoce solo Promo activa publicada');
+    assert.deepEqual(commerceBridge.data.route, {
+      source: 'commerce-bridge', action: 'redirect', location: '/promo/promo-pubcfg-a',
+    });
+    assertStatus(
+      await request('/api/pz/promo/public/v1/shell/stores/commerce-pubcfg'),
+      404,
+      'guard Commerce conserva tienda no Promo sin fallback',
+    );
+    assertStatus(
+      await request('/api/pz/promo/public/v1/shell/host', { headers: { Host: 'unknown.example.test' } }),
+      421,
+      'SHELL Host unknown falla cerrado',
+    );
 
     for (const query of [
       '?store_id=attacker', '?site_id=attacker', '?revision_id=attacker', '?filter=id%21%3D%22%22',
@@ -923,6 +986,23 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(switchCustom.data.canonical.primary_binding_id, localBinding.id);
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404,
       'ruta plataforma no suplanta custom después del switch');
+    const platformRedirect = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a');
+    assertStatus(platformRedirect, 200, 'SHELL plataforma materializa redirect custom validado');
+    assert.deepEqual(platformRedirect.data.route, {
+      source: 'custom', action: 'redirect', location: 'https://promo-a.example.test/es',
+    });
+    const customShell = await request('/api/pz/promo/public/v1/shell/host', {
+      headers: { Host: 'promo-a.example.test', 'Accept-Language': 'en' },
+    });
+    assertStatus(customShell, 200, `SHELL Host primary sirve revisión custom exacta\n${runtime.output()}`);
+    assert.deepEqual(customShell.data.route, { source: 'custom', action: 'serve' });
+    assert.equal(customShell.data.profile.locale.effective, 'en');
+    assert.equal(customShell.data.profile.content.identity.name, 'Solo borrador A EN');
+    assert.equal(customShell.data.profile.locale.canonical_path, '/en');
+    assert.deepEqual(customShell.data.profile.selector.options.map((option) => option.href), ['/en', '/es']);
+    const customBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
+    assertStatus(customBridge, 200, 'guard Commerce usa primary custom exacto');
+    assert.equal(customBridge.data.route.location, 'https://promo-a.example.test/');
     const switchPlatform = await request('/api/pz/promo/private/v1/publication/canonical/switch', {
       token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
       json: {
@@ -968,6 +1048,8 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(unpublishA.data.revision, null);
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404,
       'unpublish nunca cae a draft/latest/candidate/Commerce');
+    assertStatus(await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store'), 503,
+      'guard /t falla cerrado para Promo reconocida pero no publicada');
     const republishA = await request('/api/pz/promo/private/v1/publication/publish', {
       token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
       json: {

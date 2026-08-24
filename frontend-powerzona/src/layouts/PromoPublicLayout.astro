@@ -1,0 +1,29 @@
+---
+import '../styles/promo-public-shell.css';
+
+interface Props {
+  lang: string;
+  direction: 'ltr' | 'rtl';
+  title: string;
+  description: string;
+  themeId: string;
+  themeVersion: string;
+}
+
+const { lang, direction, title, description, themeId, themeVersion } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang} dir={direction}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta name="color-scheme" content="light" />
+    <title>{title}</title>
+  </head>
+  <body data-promo-theme={themeId} data-promo-theme-version={themeVersion}>
+    <slot />
+  </body>
+</html>

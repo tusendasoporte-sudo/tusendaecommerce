@@ -1,6 +1,25 @@
 ---
-import PublicStoreHome from '../../../components/public-store/PublicStoreHome.astro';
-import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
+import {
+  applyPromoPublicHeaders,
+  PromoPublicShellError,
+  promoPublicUnavailable,
+  readPromoCommerceBridge,
+} from '../../../lib/promoPublicShell';
+
+const storeSlug = String(Astro.params.storeSlug || '').trim();
+
+try {
+  const promoLocation = await readPromoCommerceBridge(Astro.request, storeSlug);
+  if (promoLocation) return applyPromoPublicHeaders(Astro.redirect(promoLocation, 307));
+  return promoPublicUnavailable(503);
+} catch (error) {
+  if (!(error instanceof PromoPublicShellError) || error.status !== 404) {
+    return promoPublicUnavailable(error instanceof PromoPublicShellError ? error.status : 503);
+  }
+}
+
+const { default: PublicStoreHome } = await import('../../../components/public-store/PublicStoreHome.astro');
+const { StoreResolutionError, getCurrentStore } = await import('../../../lib/stores');
 
 let currentStore;
 

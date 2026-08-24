@@ -27,6 +27,15 @@ import {
   normalizePromoAdminSection,
   resolvePromoAdminStore,
 } from './lib/promoAdminShell';
+import {
+  applyPromoPublicHeaders,
+  customPromoPublicPath,
+  isPromoPlatformRequest,
+  PROMO_PUBLIC_INTERNAL_PATH,
+  PromoPublicShellError,
+  promoPublicUnavailable,
+  readCustomHostPromoShell,
+} from './lib/promoPublicShell';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -206,6 +215,30 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isAdminApiRoute = pathname.startsWith('/api/admin/');
   const isAdminAppControlApi = pathname.startsWith('/api/admin/mobile-app/');
   const nativeAdminApp = parseNativeAdminAppUserAgent(context.request.headers.get('user-agent') || '');
+
+  if (context.locals.promoPublicProfile) return await next();
+
+  if (!isPromoPlatformRequest(context.request)) {
+    const publicPath = customPromoPublicPath(pathname);
+    let resolved;
+    try {
+      resolved = await readCustomHostPromoShell(
+        context.request,
+        publicPath.allowed && !context.url.search ? publicPath.locale : undefined,
+      );
+    } catch (error) {
+      const status = error instanceof PromoPublicShellError ? error.status : 421;
+      return promoPublicUnavailable(status === 404 && publicPath.allowed ? 404 : 421);
+    }
+    if (!publicPath.allowed || context.url.search) return promoPublicUnavailable(404);
+    if (resolved.route.action === 'redirect' && resolved.route.location) {
+      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 307), resolved);
+    }
+    if (!resolved.profile) return promoPublicUnavailable(421);
+    context.locals.promoPublicProfile = resolved.profile;
+    const response = await context.rewrite(PROMO_PUBLIC_INTERNAL_PATH);
+    return applyPromoPublicHeaders(response, resolved);
+  }
 
   if (nativeAdminApp && isAdminApiRoute && !isAdminAppControlApi) {
     const cookie = context.request.headers.get('cookie') || '';
