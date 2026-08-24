@@ -25,7 +25,9 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
-  'navigation.services', 'state.available', 'state.loading', 'state.unavailable',
+  'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
+  'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
+  'state.available', 'state.loading', 'state.unavailable',
 ]);
 const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
   hero: Object.freeze(['media_use_key', 'action_key']),

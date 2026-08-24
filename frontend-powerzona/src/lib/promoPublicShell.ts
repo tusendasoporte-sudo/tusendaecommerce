@@ -48,7 +48,9 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
-  'navigation.services', 'state.available', 'state.loading', 'state.unavailable',
+  'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
+  'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
+  'state.available', 'state.loading', 'state.unavailable',
 ]);
 const THEME_TOKEN_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   surface: ['obsidian'],
@@ -118,6 +120,20 @@ export type PromoPublicMedia =
   | (PromoPublicMediaBase & Readonly<{ kind: 'image'; delivery: PromoPublicImageDelivery }>)
   | (PromoPublicMediaBase & Readonly<{ kind: 'video'; delivery: PromoPublicVideoDelivery }>);
 
+export type PromoPublicStoreReview = Readonly<{
+  rating: number;
+  name: string;
+  comment: string;
+  date: string;
+}>;
+
+export type PromoPublicStoreRating = Readonly<{
+  contract: 'promo.store-rating.v1';
+  enabled: boolean;
+  summary: Readonly<{ average: number; count: number }>;
+  reviews: readonly PromoPublicStoreReview[];
+}>;
+
 export type PromoPublicProfile = Readonly<{
   site: Readonly<{ public_slug: string }>;
   system: Readonly<{ catalog_version: 'promo.system.v1'; messages: Readonly<Record<string, string>> }>;
@@ -145,6 +161,7 @@ export type PromoPublicProfile = Readonly<{
   contact: Readonly<JsonRecord>;
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
+  store_rating: PromoPublicStoreRating;
 }>;
 
 export type PromoPublicShellResult = Readonly<{
@@ -475,10 +492,47 @@ function normalizeContent(value: unknown, sections: readonly PromoPublicSection[
   return { identity, navigation, sections: normalizedSections, contact: normalizedContact, media_alt: normalizedMediaAlt, seo };
 }
 
+function normalizeStoreRating(value: unknown, adapterEnabled: boolean, sectionAvailable: boolean): PromoPublicStoreRating {
+  const rating = exactRecord(value, ['contract', 'enabled', 'summary', 'reviews']);
+  const summary = exactRecord(rating.summary, ['average', 'count']);
+  if (rating.contract !== 'promo.store-rating.v1' || typeof rating.enabled !== 'boolean'
+    || !Number.isFinite(summary.average) || summary.average < 0 || summary.average > 5
+    || Math.round(Number(summary.average) * 10) / 10 !== summary.average
+    || !Number.isSafeInteger(summary.count) || summary.count < 0 || summary.count > 1_000_000
+    || !Array.isArray(rating.reviews) || rating.reviews.length > 12) fail();
+  const normalizedReviews = rating.reviews.map((raw: unknown) => {
+    const review = exactRecord(raw, ['rating', 'name', 'comment', 'date']);
+    const date = safeText(review.date, 10);
+    let validDate = !date;
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      try { validDate = new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date; }
+      catch (_) { validDate = false; }
+    }
+    if (!Number.isSafeInteger(review.rating) || review.rating < 1 || review.rating > 5
+      || !validDate) fail();
+    return {
+      rating: review.rating,
+      name: safeText(review.name, 120, true),
+      comment: safeText(review.comment, 1200),
+      date,
+    };
+  });
+  if (rating.enabled && (!adapterEnabled || !sectionAvailable)) fail();
+  if (!rating.enabled && (summary.average !== 0 || summary.count !== 0 || normalizedReviews.length)) fail();
+  if (rating.enabled && ((summary.count === 0 && summary.average !== 0)
+    || (summary.count > 0 && (summary.average < 1 || summary.average > 5)))) fail();
+  return {
+    contract: 'promo.store-rating.v1',
+    enabled: rating.enabled,
+    summary: { average: summary.average, count: summary.count },
+    reviews: normalizedReviews,
+  };
+}
+
 function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoPublicProfile {
   const profile = exactRecord(value, [
     'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
-    'media', 'contact', 'content', 'adapters',
+    'media', 'contact', 'content', 'adapters', 'store_rating',
   ]);
   const site = exactRecord(profile.site, ['public_slug']);
   const system = exactRecord(profile.system, ['catalog_version', 'messages']);
@@ -590,6 +644,11 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const rating = exactRecord(adapters.store_rating, ['enabled']);
   const landing = exactRecord(adapters.landing_qr_link, ['enabled']);
   if (typeof rating.enabled !== 'boolean' || typeof landing.enabled !== 'boolean') fail();
+  const storeRating = normalizeStoreRating(
+    profile.store_rating,
+    rating.enabled,
+    sections.some((section) => section.type === 'store_rating'),
+  );
   return {
     site: { public_slug: slug },
     system: { catalog_version: 'promo.system.v1', messages: exactStringMap(system.messages, SYSTEM_MESSAGE_KEYS, 240) },
@@ -610,6 +669,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     contact: normalizedContact,
     content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },
+    store_rating: storeRating,
   };
 }
 

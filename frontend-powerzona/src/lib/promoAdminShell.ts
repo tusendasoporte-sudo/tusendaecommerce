@@ -55,7 +55,7 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     shortLabel: 'Reseñas',
     description: 'Presentación y moderación de reseñas de la tienda.',
     actions: Object.freeze(['promo.reviews.manage'] as PromoActionKey[]),
-    delivery: 'La herramienta de reseñas Promo se habilitará en su etapa específica.',
+    delivery: 'Gestiona únicamente reseñas generales de tienda con moderación Promo separada de pedidos.',
   }),
   Object.freeze({
     section: 'analytics',

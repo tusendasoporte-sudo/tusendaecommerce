@@ -23,7 +23,9 @@ const messages = Object.fromEntries([
   'contact.request_estimate', 'contact.send_message', 'contact.unavailable', 'contact.whatsapp',
   'error.locale_unavailable', 'error.site_unavailable', 'locale.current', 'locale.option_aria',
   'navigation.contact', 'navigation.gallery', 'navigation.home', 'navigation.owner',
-  'navigation.services', 'state.available', 'state.loading', 'state.unavailable',
+  'navigation.services', 'reviews.average', 'reviews.count.many', 'reviews.count.one',
+  'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
+  'state.available', 'state.loading', 'state.unavailable',
 ].map((key) => [key, key]));
 
 function shellEnvelope(source = 'platform') {
@@ -65,6 +67,10 @@ function shellEnvelope(source = 'platform') {
         contact: {}, media_alt: {}, seo: { title: 'Negocio demo', description: 'Presentación pública' },
       },
       adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
+      store_rating: {
+        contract: 'promo.store-rating.v1', enabled: false,
+        summary: { average: 0, count: 0 }, reviews: [],
+      },
     },
   };
 }

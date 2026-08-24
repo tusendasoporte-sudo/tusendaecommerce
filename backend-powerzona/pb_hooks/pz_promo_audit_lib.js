@@ -8,7 +8,7 @@ const PATH_PATTERN = /^\/[a-z][a-z0-9_-]*(?:\/[a-z0-9_-]+)*$/;
 const ORIGINS = Object.freeze(["store_admin", "master_admin", "system", "migration"]);
 const MODULES = Object.freeze([
   "content", "media", "publication", "domain", "theme", "localization",
-  "contact", "entitlement", "security", "support",
+  "contact", "reviews", "entitlement", "security", "support",
 ]);
 const SEVERITIES = Object.freeze(["normal", "important", "critical"]);
 const ACTOR_ROLES = Object.freeze(["master_admin", "store_admin", "store_staff", "system", "migration"]);
@@ -43,6 +43,7 @@ const ACTION_CATALOG = Object.freeze({
   "promo.theme.selection.update": definition("theme", "critical", ["promo_draft_document"], "Cambió la selección de tema Promo"),
   "promo.localization.update": definition("localization", "important", ["promo_draft_document"], "Cambió locales o traducciones Promo"),
   "promo.contact.update": definition("contact", "critical", ["promo_draft_document"], "Cambió la configuración de contacto Promo"),
+  "promo.reviews.moderate": definition("reviews", "important", ["promo_store_review"], "Moderó una reseña de tienda en Promo"),
   "promo.publication.publish": definition("publication", "critical", ["promo_publication_slot"], "Publicó una revisión Promo"),
   "promo.publication.rollback": definition("publication", "critical", ["promo_publication_slot"], "Revirtió la publicación Promo"),
   "promo.publication.unpublish": definition("publication", "critical", ["promo_publication_slot"], "Despublicó la Tienda Promo"),
@@ -68,6 +69,7 @@ const RESOURCE_SAFE_FIELDS = Object.freeze({
   promo_theme_release: Object.freeze(["theme_id", "version", "status", "renderer_key", "contract_version"]),
   promo_publication_slot: Object.freeze(["state", "generation", "canonical_mode", "revision_digest", "binding_state", "reason_code"]),
   promo_domain_binding: Object.freeze(["role", "status", "is_current", "state_version", "verification_method"]),
+  promo_store_review: Object.freeze(["status", "featured", "approved"]),
   promo_security_event: Object.freeze(["class", "result", "reason_code"]),
 });
 
@@ -84,6 +86,7 @@ const RESOURCE_PATH_PREFIXES = Object.freeze({
   promo_theme_release: Object.freeze(["/theme_id", "/version", "/status", "/renderer_key", "/contract_version"]),
   promo_publication_slot: Object.freeze(["/state", "/generation", "/canonical_mode", "/revision_digest", "/binding_state", "/reason_code"]),
   promo_domain_binding: Object.freeze(["/role", "/status", "/is_current", "/state_version", "/verification_method"]),
+  promo_store_review: Object.freeze(["/status", "/featured", "/approved"]),
   promo_security_event: Object.freeze(["/class", "/result", "/reason_code"]),
 });
 

@@ -1,0 +1,75 @@
+.pz-promo-reviews-admin { display: grid; gap: 1.25rem; }
+.pz-promo-reviews-admin__header,
+.pz-promo-reviews-admin__toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.pz-promo-reviews-admin__header h2,
+.pz-promo-reviews-admin__config h3,
+.pz-promo-reviews-admin__toolbar h3 { margin: .25rem 0 0; color: #111827; }
+.pz-promo-reviews-admin__header p,
+.pz-promo-reviews-admin__config p { max-width: 52rem; margin: .55rem 0 0; color: #64748b; line-height: 1.55; }
+.pz-promo-reviews-admin__kicker,
+.pz-promo-reviews-admin__section-label { color: #8b6a23; font-size: .72rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.pz-promo-reviews-admin button,
+.pz-promo-reviews-admin select,
+.pz-promo-reviews-admin input { min-height: 44px; border-radius: 10px; font: inherit; }
+.pz-promo-reviews-admin button { border: 1px solid #d9c284; background: #111827; color: #fff; padding: .7rem 1rem; font-weight: 850; cursor: pointer; }
+.pz-promo-reviews-admin button[data-tone="danger"] { border-color: #fecaca; background: #fff; color: #b42318; }
+.pz-promo-reviews-admin button:disabled { cursor: not-allowed; opacity: .55; }
+.pz-promo-reviews-admin button:focus-visible,
+.pz-promo-reviews-admin select:focus-visible,
+.pz-promo-reviews-admin input:focus-visible { outline: 3px solid #c8a45a; outline-offset: 2px; }
+.pz-promo-reviews-admin__refresh { flex: none; }
+.pz-promo-reviews-admin__alert { border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; color: #1e3a8a; padding: .8rem 1rem; font-weight: 750; }
+.pz-promo-reviews-admin__alert[data-tone="success"] { border-color: #bbf7d0; background: #ecfdf3; color: #166534; }
+.pz-promo-reviews-admin__alert[data-tone="error"] { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+.pz-promo-reviews-admin__config,
+.pz-promo-reviews-admin__moderation { display: grid; gap: 1rem; border: 1px solid #e4e7ec; border-radius: 16px; background: #fff; box-shadow: 0 12px 36px rgb(15 23 42 / 6%); padding: clamp(1rem, 2.5vw, 1.5rem); }
+.pz-promo-reviews-admin__config { grid-template-columns: minmax(0, 1.4fr) minmax(13rem, .6fr); align-items: end; }
+.pz-promo-reviews-admin__config > div:first-child { grid-column: 1 / -1; }
+.pz-promo-reviews-admin__switch { display: flex; min-height: 44px; align-items: center; gap: .7rem; color: #344054; font-weight: 800; }
+.pz-promo-reviews-admin__switch input { width: 1.2rem; min-height: auto; accent-color: #8b6a23; }
+.pz-promo-reviews-admin__field { display: grid; gap: .4rem; color: #475467; font-size: .82rem; font-weight: 800; }
+.pz-promo-reviews-admin__field input,
+.pz-promo-reviews-admin__toolbar select { width: 100%; border: 1px solid #d0d5dd; background: #fff; color: #101828; padding: .65rem .75rem; }
+.pz-promo-reviews-admin__permission-note { grid-column: 1 / -1; border-inline-start: 3px solid #d9c284; padding-inline-start: .75rem; }
+.pz-promo-reviews-admin__toolbar label { display: grid; min-width: 11rem; gap: .35rem; color: #475467; font-size: .78rem; font-weight: 850; }
+.pz-promo-reviews-admin__metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 0; }
+.pz-promo-reviews-admin__metrics > div { border: 1px solid #eaecf0; border-radius: 12px; background: #f9fafb; padding: .9rem; }
+.pz-promo-reviews-admin__metrics dt { color: #667085; font-size: .72rem; font-weight: 800; }
+.pz-promo-reviews-admin__metrics dd { margin: .25rem 0 0; color: #111827; font-size: 1.55rem; font-weight: 950; }
+.pz-promo-reviews-admin__list { display: grid; gap: .8rem; }
+.pz-promo-reviews-admin__card { display: grid; gap: .8rem; border: 1px solid #e4e7ec; border-radius: 14px; background: #fff; padding: 1rem; }
+.pz-promo-reviews-admin__card-top,
+.pz-promo-reviews-admin__card footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.pz-promo-reviews-admin__card h4 { margin: 0; color: #101828; }
+.pz-promo-reviews-admin__card-top p { margin: .25rem 0 0; color: #b88926; font-weight: 850; letter-spacing: .08em; }
+.pz-promo-reviews-admin__status { border-radius: 999px; background: #f2f4f7; color: #344054; padding: .35rem .6rem; font-size: .72rem; font-weight: 850; }
+.pz-promo-reviews-admin__status[data-status="approved"] { background: #ecfdf3; color: #166534; }
+.pz-promo-reviews-admin__status[data-status="pending"] { background: #fffaeb; color: #854a0e; }
+.pz-promo-reviews-admin__status[data-status="rejected"] { background: #fff1f2; color: #991b1b; }
+.pz-promo-reviews-admin__comment { margin: 0; color: #344054; line-height: 1.55; white-space: pre-line; }
+.pz-promo-reviews-admin__card footer { align-items: center; border-block-start: 1px solid #eaecf0; padding-block-start: .8rem; }
+.pz-promo-reviews-admin__card time { color: #667085; font-size: .78rem; }
+.pz-promo-reviews-admin__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .45rem; }
+.pz-promo-reviews-admin__actions button { min-height: 36px; background: #fff; color: #344054; padding: .45rem .7rem; font-size: .75rem; }
+.pz-promo-reviews-admin__empty { margin: 0; border: 1px dashed #d0d5dd; border-radius: 12px; color: #667085; padding: 1.5rem; text-align: center; }
+.pz-promo-reviews-admin__pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+.pz-promo-reviews-admin__pagination span { min-width: 5rem; color: #475467; font-size: .82rem; font-weight: 850; text-align: center; }
+
+@media (max-width: 760px) {
+  .pz-promo-reviews-admin__header,
+  .pz-promo-reviews-admin__toolbar,
+  .pz-promo-reviews-admin__card-top,
+  .pz-promo-reviews-admin__card footer { align-items: stretch; flex-direction: column; }
+  .pz-promo-reviews-admin__config { grid-template-columns: minmax(0, 1fr); }
+  .pz-promo-reviews-admin__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pz-promo-reviews-admin__actions { justify-content: flex-start; }
+}
+
+@media (max-width: 420px) {
+  .pz-promo-reviews-admin__metrics { grid-template-columns: minmax(0, 1fr); }
+  .pz-promo-reviews-admin__pagination { justify-content: space-between; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pz-promo-reviews-admin * { scroll-behavior: auto; }
+}

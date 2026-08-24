@@ -2,6 +2,7 @@
 import '../../styles/promo-black-gold.css';
 import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
+import PromoReviews from './PromoReviews.astro';
 import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
 
@@ -82,6 +83,18 @@ const description = String(content.seo.description || identity.summary || '');
         if (section.type === 'hero') {
           return (
             <PromoHero
+              profile={profile}
+              section={section}
+              localized={localized}
+              heading={heading}
+              navigationLabel={navigationLabel}
+              primaryHeading={index === 0}
+            />
+          );
+        }
+        if (section.type === 'store_rating') {
+          return (
+            <PromoReviews
               profile={profile}
               section={section}
               localized={localized}

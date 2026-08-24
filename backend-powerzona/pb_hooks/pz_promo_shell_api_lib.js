@@ -20,6 +20,9 @@ const pubcfgApi = typeof __hooks === "undefined"
 const shell = typeof __hooks === "undefined"
   ? require("./pz_promo_shell_lib.js")
   : require(`${__hooks}/pz_promo_shell_lib.js`);
+const promoReviews = typeof __hooks === "undefined"
+  ? require("./pz_promo_reviews_api_lib.js")
+  : require(`${__hooks}/pz_promo_reviews_api_lib.js`);
 
 function codedError(code, status) {
   const error = new Error(code);
@@ -145,7 +148,11 @@ function publishedPlatformContext(app, publicSlug) {
 
 function resolvePlatformShell(app, publicSlug, signals) {
   const context = publishedPlatformContext(app, publicSlug);
-  const localized = localizeProjection(context.projection, signals || {});
+  const localized = promoReviews.attachPublicRating(
+    app,
+    localizeProjection(context.projection, signals || {}),
+    context,
+  );
   return shell.shellResponse(localized, context);
 }
 
@@ -155,7 +162,13 @@ function resolveHostShell(app, headers, signals) {
     context = domain.resolveHostContext(app, headers, { trustedProxy: false });
   } catch (_) { throw codedError("promo_host_unavailable", 421); }
   let localized;
-  try { localized = localizeProjection(context.projection, signals || {}); }
+  try {
+    localized = promoReviews.attachPublicRating(
+      app,
+      localizeProjection(context.projection, signals || {}),
+      context,
+    );
+  }
   catch (_) { throw codedError("promo_public_unavailable", 404); }
   return shell.shellResponse(localized, {
     source: "custom",

@@ -1,0 +1,193 @@
+.promo-reviews {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 82% 18%, rgb(200 164 90 / 10%), transparent 24rem),
+    var(--promo-surface);
+}
+
+.promo-reviews__inner {
+  gap: clamp(2.25rem, 5vw, 4rem);
+}
+
+.promo-reviews__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(2rem, 6vw, 6rem);
+  align-items: end;
+}
+
+.promo-reviews__intro {
+  max-width: 48rem;
+}
+
+.promo-reviews__summary {
+  display: grid;
+  min-width: 11rem;
+  justify-items: end;
+  border-inline-end: 1px solid var(--promo-border);
+  padding-inline-end: 1.4rem;
+  color: var(--promo-text-soft);
+  text-align: end;
+}
+
+.promo-reviews__summary strong {
+  color: var(--promo-text);
+  font-family: var(--promo-heading-font);
+  font-size: clamp(3.2rem, 7vw, 5.5rem);
+  font-weight: 500;
+  letter-spacing: -.06em;
+  line-height: .85;
+}
+
+.promo-reviews__summary-stars,
+.promo-reviews__stars {
+  color: var(--promo-accent-bright);
+  letter-spacing: .14em;
+}
+
+.promo-reviews__summary-stars {
+  margin-block: .8rem .35rem;
+  font-size: .8rem;
+}
+
+.promo-reviews__summary > span:last-child {
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.promo-reviews__viewport {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: .4rem .15rem 1.1rem;
+  scrollbar-color: var(--promo-accent) var(--promo-surface-soft);
+  scrollbar-width: thin;
+  scroll-snap-type: inline mandatory;
+}
+
+.promo-reviews__viewport:focus-visible {
+  border-radius: var(--promo-radius);
+  outline: 3px solid var(--promo-focus);
+  outline-offset: 4px;
+}
+
+.promo-reviews__list {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(16rem, 1fr));
+  gap: clamp(1rem, 2.2vw, 1.5rem);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.promo-reviews__list > li {
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.promo-reviews__card {
+  position: relative;
+  display: grid;
+  min-height: 20rem;
+  height: 100%;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.3rem;
+  overflow: hidden;
+  border: 1px solid rgb(200 164 90 / 30%);
+  border-radius: var(--promo-radius);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 3%), transparent 42%),
+    var(--promo-surface-raised);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 24%);
+  padding: clamp(1.4rem, 3vw, 2rem);
+}
+
+.promo-reviews__quote {
+  position: absolute;
+  inset: -.45rem .7rem auto auto;
+  color: rgb(200 164 90 / 13%);
+  font-family: var(--promo-heading-font);
+  font-size: 8.5rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.promo-reviews__stars {
+  position: relative;
+  width: fit-content;
+  font-size: .92rem;
+}
+
+.promo-reviews blockquote {
+  position: relative;
+  margin: 0;
+}
+
+.promo-reviews blockquote p {
+  margin: 0;
+  color: var(--promo-text);
+  font-family: var(--promo-heading-font);
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-style: italic;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.promo-reviews__card footer {
+  display: grid;
+  gap: .3rem;
+  border-block-start: 1px solid rgb(200 164 90 / 22%);
+  padding-block-start: 1rem;
+}
+
+.promo-reviews__card footer strong {
+  color: var(--promo-accent-bright);
+  font-size: .85rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.promo-reviews__card time {
+  color: var(--promo-text-soft);
+  font-size: .76rem;
+}
+
+.promo-reviews__state {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  margin: 0;
+  border: 1px dashed rgb(200 164 90 / 34%);
+  border-radius: var(--promo-radius);
+  background: var(--promo-surface-soft);
+  color: var(--promo-text-soft);
+  padding: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 1000px) {
+  .promo-reviews__list {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(18rem, 70vw);
+  }
+}
+
+@media (max-width: 720px) {
+  .promo-reviews__heading { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+  .promo-reviews__summary { width: fit-content; justify-items: start; border-inline: 1px solid var(--promo-border); padding-inline: 1.25rem; text-align: start; }
+  .promo-reviews__list { grid-auto-columns: minmax(17rem, 84vw); }
+  .promo-reviews__card { min-height: 18rem; }
+}
+
+@media (max-width: 420px) {
+  .promo-reviews__list { grid-auto-columns: minmax(15rem, 86vw); }
+  .promo-reviews__card { padding: 1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-reviews__viewport { scroll-behavior: auto; }
+}

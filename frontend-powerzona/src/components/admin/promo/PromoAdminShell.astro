@@ -7,6 +7,7 @@ import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
 import PromoPreviewEditor from './PromoPreviewEditor.astro';
+import PromoReviewsEditor from './PromoReviewsEditor.astro';
 import {
   getPromoAdminModule,
   getPromoAdminSectionPath,
@@ -73,6 +74,8 @@ const canManageLocaleContent = hasPromoAction(accessContext, 'promo.content.mana
 const canManagePromoTranslations = hasPromoAction(accessContext, 'promo.translations.manage');
 const maxLocales = Number(accessContext.capabilities.max_locales || 0);
 const canPreparePromoPreview = hasPromoAction(accessContext, 'promo.publication.publish');
+const canManagePromoReviews = hasPromoAction(accessContext, 'promo.reviews.manage');
+const canConfigurePromoReviews = canManagePromoReviews && hasPromoAction(accessContext, 'promo.content.manage');
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -266,6 +269,12 @@ function initials(value: string) {
           <PromoPreviewEditor
             storeSlug={storeSlug}
             canPrepare={canPreparePromoPreview}
+          />
+        ) : activeModule && section === 'reviews' ? (
+          <PromoReviewsEditor
+            storeSlug={storeSlug}
+            canModerate={canManagePromoReviews}
+            canConfigure={canConfigurePromoReviews}
           />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">

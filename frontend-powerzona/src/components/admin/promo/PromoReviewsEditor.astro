@@ -1,0 +1,296 @@
+---
+import '../../../styles/promo-reviews-admin.css';
+
+interface Props {
+  storeSlug: string;
+  canModerate: boolean;
+  canConfigure: boolean;
+}
+
+const { storeSlug, canModerate, canConfigure } = Astro.props;
+---
+
+<section
+  class="pz-promo-reviews-admin"
+  data-promo-reviews-editor
+  data-store-slug={storeSlug}
+  data-can-moderate={canModerate ? 'true' : 'false'}
+  data-can-configure={canConfigure ? 'true' : 'false'}
+  aria-labelledby="promo-reviews-editor-title"
+>
+  <header class="pz-promo-reviews-admin__header">
+    <div>
+      <span class="pz-promo-reviews-admin__kicker">Reseñas de tienda</span>
+      <h2 id="promo-reviews-editor-title">Presentación pública y moderación</h2>
+      <p>Solo se gestionan reseñas generales de esta tienda. Productos y pedidos permanecen fuera de Promo.</p>
+    </div>
+    <button type="button" class="pz-promo-reviews-admin__refresh" data-reviews-refresh>Actualizar</button>
+  </header>
+
+  <div class="pz-promo-reviews-admin__alert" data-reviews-alert role="status" aria-live="polite" hidden></div>
+
+  <section class="pz-promo-reviews-admin__config" aria-labelledby="promo-reviews-config-title">
+    <div>
+      <span class="pz-promo-reviews-admin__section-label">Sitio publicado</span>
+      <h3 id="promo-reviews-config-title">Sección de reseñas</h3>
+      <p>La revisión publicada decide si el adaptador puede aparecer; los cambios se guardan primero en el borrador.</p>
+    </div>
+    <label class="pz-promo-reviews-admin__switch">
+      <input type="checkbox" data-reviews-enabled disabled={!canConfigure} />
+      <span>Mostrar reseñas aprobadas</span>
+    </label>
+    <label class="pz-promo-reviews-admin__field">
+      <span>Título en el idioma principal</span>
+      <input type="text" maxlength="160" data-reviews-heading disabled={!canConfigure} />
+    </label>
+    <button type="button" data-reviews-save-config disabled={!canConfigure}>Guardar en borrador</button>
+    {!canConfigure && (
+      <p class="pz-promo-reviews-admin__permission-note" role="note">
+        Para cambiar la presentación se requieren `promo.content.manage` y `promo.reviews.manage`.
+      </p>
+    )}
+  </section>
+
+  <section class="pz-promo-reviews-admin__moderation" aria-labelledby="promo-reviews-moderation-title">
+    <div class="pz-promo-reviews-admin__toolbar">
+      <div>
+        <span class="pz-promo-reviews-admin__section-label">Datos operativos</span>
+        <h3 id="promo-reviews-moderation-title">Moderación</h3>
+      </div>
+      <label>
+        <span>Estado</span>
+        <select data-reviews-filter disabled={!canModerate}>
+          <option value="all">Todas</option>
+          <option value="pending">Pendientes</option>
+          <option value="approved">Aprobadas</option>
+          <option value="hidden">Ocultas</option>
+          <option value="rejected">Rechazadas</option>
+        </select>
+      </label>
+    </div>
+
+    <dl class="pz-promo-reviews-admin__metrics" data-reviews-metrics>
+      <div><dt>Promedio aprobado</dt><dd data-review-metric="average">—</dd></div>
+      <div><dt>Pendientes</dt><dd data-review-metric="pending">—</dd></div>
+      <div><dt>Aprobadas</dt><dd data-review-metric="approved">—</dd></div>
+      <div><dt>Total tienda</dt><dd data-review-metric="total">—</dd></div>
+    </dl>
+
+    <div class="pz-promo-reviews-admin__list" data-reviews-list aria-live="polite">
+      <p class="pz-promo-reviews-admin__empty">Cargando reseñas…</p>
+    </div>
+
+    <nav class="pz-promo-reviews-admin__pagination" aria-label="Paginación de reseñas">
+      <button type="button" data-reviews-previous disabled>Anterior</button>
+      <span data-reviews-page>1 de 1</span>
+      <button type="button" data-reviews-next disabled>Siguiente</button>
+    </nav>
+  </section>
+</section>
+
+<script>
+  import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
+  import {
+    buildPromoReviewsDisplayDocument,
+    normalizePromoReviewModeration,
+    normalizePromoReviewsPage,
+    PROMO_REVIEWS_API_PATH,
+    promoReviewsErrorMessage,
+  } from '../../../lib/promoReviews';
+
+  document.querySelectorAll<HTMLElement>('[data-promo-reviews-editor]').forEach((root) => {
+    const storeSlug = String(root.dataset.storeSlug || '');
+    const canModerate = root.dataset.canModerate === 'true';
+    const canConfigure = root.dataset.canConfigure === 'true';
+    const alertBox = root.querySelector<HTMLElement>('[data-reviews-alert]');
+    const list = root.querySelector<HTMLElement>('[data-reviews-list]');
+    const filter = root.querySelector<HTMLSelectElement>('[data-reviews-filter]');
+    const enabled = root.querySelector<HTMLInputElement>('[data-reviews-enabled]');
+    const heading = root.querySelector<HTMLInputElement>('[data-reviews-heading]');
+    const saveConfig = root.querySelector<HTMLButtonElement>('[data-reviews-save-config]');
+    const refresh = root.querySelector<HTMLButtonElement>('[data-reviews-refresh]');
+    const previous = root.querySelector<HTMLButtonElement>('[data-reviews-previous]');
+    const next = root.querySelector<HTMLButtonElement>('[data-reviews-next]');
+    const pageLabel = root.querySelector<HTMLElement>('[data-reviews-page]');
+    let currentPage = 1;
+    let totalPages = 1;
+    let draftVersion = 0;
+    let draftDocument: Record<string, any> | null = null;
+
+    function show(message: string, tone: 'success' | 'error' | 'info' = 'info') {
+      if (!alertBox) return;
+      alertBox.hidden = !message;
+      alertBox.textContent = message;
+      alertBox.dataset.tone = tone;
+    }
+
+    async function responseJson(response: Response) {
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(String(result?.error || 'promo_reviews_unavailable')) as Error & { code?: string };
+        error.code = String(result?.error || 'promo_reviews_unavailable');
+        throw error;
+      }
+      return result;
+    }
+
+    function statusLabel(status: string) {
+      return ({ pending: 'Pendiente', approved: 'Aprobada', hidden: 'Oculta', rejected: 'Rechazada' } as Record<string, string>)[status] || status;
+    }
+
+    function actionButton(label: string, action: string, review: Record<string, any>, tone = '') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.dataset.reviewAction = action;
+      button.dataset.reviewId = review.id;
+      button.dataset.reviewUpdated = review.updated;
+      if (tone) button.dataset.tone = tone;
+      button.disabled = !canModerate;
+      return button;
+    }
+
+    function reviewCard(review: Record<string, any>) {
+      const article = document.createElement('article');
+      article.className = 'pz-promo-reviews-admin__card';
+      article.dataset.reviewId = review.id;
+      const top = document.createElement('div');
+      top.className = 'pz-promo-reviews-admin__card-top';
+      const identity = document.createElement('div');
+      const name = document.createElement('h4');
+      name.textContent = review.name;
+      const meta = document.createElement('p');
+      meta.textContent = `${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)} · ${statusLabel(review.status)}`;
+      meta.setAttribute('aria-label', `${review.rating} de 5 estrellas. Estado: ${statusLabel(review.status)}`);
+      identity.append(name, meta);
+      const badge = document.createElement('span');
+      badge.className = 'pz-promo-reviews-admin__status';
+      badge.dataset.status = review.status;
+      badge.textContent = review.featured ? 'Destacada' : statusLabel(review.status);
+      top.append(identity, badge);
+      article.append(top);
+      if (review.comment) {
+        const comment = document.createElement('p');
+        comment.className = 'pz-promo-reviews-admin__comment';
+        comment.textContent = review.comment;
+        article.append(comment);
+      }
+      const footer = document.createElement('footer');
+      const date = document.createElement('time');
+      date.textContent = review.created ? new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(new Date(review.created)) : 'Sin fecha';
+      const actions = document.createElement('div');
+      actions.className = 'pz-promo-reviews-admin__actions';
+      if (review.status !== 'approved') actions.append(actionButton('Aprobar', 'approve', review));
+      if (review.status !== 'rejected') actions.append(actionButton('Rechazar', 'reject', review, 'danger'));
+      if (review.status === 'approved') {
+        actions.append(actionButton('Ocultar', 'hide', review));
+        actions.append(actionButton(review.featured ? 'Quitar destacado' : 'Destacar', review.featured ? 'unfeature' : 'feature', review));
+      }
+      footer.append(date, actions);
+      article.append(footer);
+      return article;
+    }
+
+    function renderPage(page: ReturnType<typeof normalizePromoReviewsPage>) {
+      totalPages = page.totalPages;
+      root.querySelector<HTMLElement>('[data-review-metric="average"]')!.textContent = page.summary.approvedAverage.toFixed(1);
+      root.querySelector<HTMLElement>('[data-review-metric="pending"]')!.textContent = String(page.summary.pending);
+      root.querySelector<HTMLElement>('[data-review-metric="approved"]')!.textContent = String(page.summary.approved);
+      root.querySelector<HTMLElement>('[data-review-metric="total"]')!.textContent = String(page.summary.total);
+      if (list) {
+        list.replaceChildren();
+        if (!page.reviews.length) {
+          const empty = document.createElement('p');
+          empty.className = 'pz-promo-reviews-admin__empty';
+          empty.textContent = 'No hay reseñas de tienda para este filtro.';
+          list.append(empty);
+        } else page.reviews.forEach((review) => list.append(reviewCard(review)));
+      }
+      if (pageLabel) pageLabel.textContent = `${page.page} de ${page.totalPages}`;
+      if (previous) previous.disabled = page.page <= 1;
+      if (next) next.disabled = page.page >= page.totalPages;
+    }
+
+    async function loadReviews() {
+      if (!canModerate) {
+        if (list) {
+          const empty = document.createElement('p');
+          empty.className = 'pz-promo-reviews-admin__empty';
+          empty.textContent = 'Tu sesión no tiene acceso a moderación.';
+          list.replaceChildren(empty);
+        }
+        return;
+      }
+      const url = new URL(PROMO_REVIEWS_API_PATH, window.location.origin);
+      url.searchParams.set('store', storeSlug);
+      url.searchParams.set('status', filter?.value || 'all');
+      url.searchParams.set('page', String(currentPage));
+      renderPage(normalizePromoReviewsPage(await responseJson(await fetch(url, { cache: 'no-store' }))));
+    }
+
+    async function loadConfig() {
+      const result = await responseJson(await fetch(`/api/admin/promo-cms?store=${encodeURIComponent(storeSlug)}`, { cache: 'no-store' }));
+      const draft = normalizePromoCmsDraftResponse(result);
+      draftVersion = draft.version;
+      draftDocument = draft.document;
+      const section = draft.document.sections.find((item: Record<string, any>) => item.type === 'store_rating');
+      const active = draft.document.adapters.store_rating.enabled === true && section?.visible === true;
+      if (enabled) enabled.checked = active;
+      const locale = draft.document.locales.default;
+      if (heading) heading.value = String(section && draft.document.content_by_locale[locale]?.sections?.[section.key]?.heading || '');
+    }
+
+    async function saveDisplayConfig() {
+      if (!canConfigure || !draftDocument || !draftVersion) return;
+      if (saveConfig) saveConfig.disabled = true;
+      try {
+        const document = buildPromoReviewsDisplayDocument(draftDocument, {
+          enabled: enabled?.checked === true,
+          heading: String(heading?.value || ''),
+        });
+        const result = await responseJson(await fetch(`/api/admin/promo-cms?store=${encodeURIComponent(storeSlug)}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: draftVersion, document }),
+        }));
+        const draft = normalizePromoCmsDraftResponse(result);
+        draftVersion = draft.version;
+        draftDocument = draft.document;
+        show('Configuración guardada en el borrador. Publica una revisión nueva para hacerla visible.', 'success');
+      } catch (error) {
+        show(promoReviewsErrorMessage((error as { code?: string })?.code), 'error');
+      } finally { if (saveConfig) saveConfig.disabled = !canConfigure; }
+    }
+
+    async function moderate(button: HTMLButtonElement) {
+      button.disabled = true;
+      try {
+        const result = await responseJson(await fetch(`${PROMO_REVIEWS_API_PATH}?store=${encodeURIComponent(storeSlug)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            review_id: button.dataset.reviewId,
+            action: button.dataset.reviewAction,
+            expected_updated: button.dataset.reviewUpdated,
+          }),
+        }));
+        normalizePromoReviewModeration(result);
+        show('Reseña actualizada correctamente.', 'success');
+        await loadReviews();
+      } catch (error) {
+        show(promoReviewsErrorMessage((error as { code?: string })?.code), 'error');
+        button.disabled = false;
+      }
+    }
+
+    filter?.addEventListener('change', () => { currentPage = 1; void loadReviews().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error')); });
+    previous?.addEventListener('click', () => { if (currentPage > 1) { currentPage -= 1; void loadReviews(); } });
+    next?.addEventListener('click', () => { if (currentPage < totalPages) { currentPage += 1; void loadReviews(); } });
+    refresh?.addEventListener('click', () => { void Promise.all([loadConfig(), loadReviews()]).catch((error) => show(promoReviewsErrorMessage(error?.code), 'error')); });
+    saveConfig?.addEventListener('click', () => { void saveDisplayConfig(); });
+    list?.addEventListener('click', (event) => {
+      const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-review-action]') : null;
+      if (button) void moderate(button);
+    });
+
+    void Promise.all([loadConfig(), loadReviews()]).catch((error) => show(promoReviewsErrorMessage(error?.code), 'error'));
+  });
+</script>

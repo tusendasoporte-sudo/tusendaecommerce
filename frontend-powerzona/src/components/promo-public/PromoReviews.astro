@@ -1,0 +1,100 @@
+---
+import '../../styles/promo-reviews.css';
+import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
+
+interface Props {
+  profile: PromoPublicProfile;
+  section: PromoPublicSection;
+  localized: Record<string, any>;
+  heading: string;
+  navigationLabel: string;
+  primaryHeading: boolean;
+}
+
+const { profile, section, localized, heading, navigationLabel, primaryHeading } = Astro.props;
+const sectionId = `promo-section-${section.key}`;
+const rating = profile.store_rating;
+const messages = profile.system.messages;
+
+function message(key: string, values: Record<string, string | number> = {}) {
+  return String(messages[key] || '').replace(/\{([a-z_]+)\}/g, (_, name) => String(values[name] ?? ''));
+}
+
+function reviewDate(value: string) {
+  if (!value) return '';
+  try {
+    return new Intl.DateTimeFormat(profile.locale.effective, {
+      year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
+    }).format(new Date(`${value}T00:00:00Z`));
+  } catch (_) { return ''; }
+}
+
+const countCopy = rating.summary.count === 1
+  ? message('reviews.count.one')
+  : message('reviews.count.many', { count: rating.summary.count });
+---
+
+<section
+  id={sectionId}
+  class="promo-shell-section promo-reviews"
+  aria-labelledby={`${sectionId}-heading`}
+  data-section-type="store_rating"
+  data-section-variant={section.variant}
+  data-review-count={String(rating.summary.count)}
+  data-visible-review-count={String(rating.reviews.length)}
+>
+  <div class="promo-shell-section__inner promo-reviews__inner">
+    <div class="promo-reviews__heading">
+      <div class="promo-shell-section__copy promo-reviews__intro">
+        <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
+        {primaryHeading
+          ? <h1 id={`${sectionId}-heading`}>{heading}</h1>
+          : <h2 id={`${sectionId}-heading`}>{heading}</h2>}
+        {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
+      </div>
+
+      {rating.enabled && rating.summary.count > 0 && (
+        <div class="promo-reviews__summary" aria-label={`${message('reviews.average', { average: rating.summary.average })}, ${countCopy}`}>
+          <strong>{rating.summary.average.toFixed(1)}</strong>
+          <span class="promo-reviews__summary-stars" aria-hidden="true">★★★★★</span>
+          <span>{countCopy}</span>
+        </div>
+      )}
+    </div>
+
+    {!rating.enabled ? (
+      <p class="promo-reviews__state" role="status">{message('reviews.unavailable')}</p>
+    ) : rating.reviews.length === 0 ? (
+      <p class="promo-reviews__state" role="status">{message('reviews.empty')}</p>
+    ) : (
+      <div
+        class="promo-reviews__viewport"
+        tabindex="0"
+        role="region"
+        aria-label={message('reviews.list')}
+      >
+        <ol class="promo-reviews__list">
+          {rating.reviews.map((review) => {
+            const date = reviewDate(review.date);
+            const ratingLabel = message('reviews.rating', { rating: review.rating });
+            return (
+              <li>
+                <article class="promo-reviews__card">
+                  <span class="promo-reviews__quote" aria-hidden="true">“</span>
+                  <div class="promo-reviews__stars" aria-label={ratingLabel}>
+                    <span aria-hidden="true">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+                  </div>
+                  {review.comment && <blockquote><p>{review.comment}</p></blockquote>}
+                  <footer>
+                    <strong>{review.name}</strong>
+                    {date && <time datetime={review.date}>{date}</time>}
+                  </footer>
+                </article>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    )}
+  </div>
+</section>
