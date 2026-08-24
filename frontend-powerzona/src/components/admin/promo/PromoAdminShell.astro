@@ -1,7 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import type { AdminStoreContext } from '../../../lib/storeContext';
-import type { PromoAccessContext } from '../../../lib/promoAccess';
+import { hasPromoAction, type PromoAccessContext } from '../../../lib/promoAccess';
+import PromoCmsEditor from './PromoCmsEditor.astro';
 import {
   getPromoAdminModule,
   getPromoAdminSectionPath,
@@ -47,6 +48,14 @@ const pageTitle = activeModule ? activeModule.label : 'Resumen Promo';
 const pageDescription = activeModule
   ? activeModule.description
   : 'Organiza el trabajo de tu presencia promocional desde módulos separados y autorizados.';
+const cmsScope = section === 'content' || section === 'contact' ? section : null;
+const canSaveCms = section === 'content'
+  ? hasPromoAction(accessContext, 'promo.content.manage')
+  : section === 'contact'
+    ? hasPromoAction(accessContext, 'promo.content.manage')
+      && hasPromoAction(accessContext, 'promo.contact.manage')
+    : false;
+const maxServices = Number(accessContext.capabilities.max_services || 0);
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -205,6 +214,13 @@ function initials(value: string) {
               )}
             </section>
           </>
+        ) : activeModule && cmsScope ? (
+          <PromoCmsEditor
+            storeSlug={storeSlug}
+            scope={cmsScope}
+            maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
+            canSave={canSaveCms}
+          />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">
             <span class="pz-promo-admin__module-state-icon" aria-hidden="true">✓</span>
