@@ -69,9 +69,9 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     section: 'publication',
     label: 'Publicación',
     shortLabel: 'Publicar',
-    description: 'Preparación del borrador y acceso al flujo de publicación.',
+    description: 'Vista privada desktop/móvil y comparación con la revisión publicada.',
     actions: Object.freeze(['promo.publication.publish'] as PromoActionKey[]),
-    delivery: 'Los controles operativos del Admin se habilitarán con el editor y la vista previa aprobados.',
+    delivery: 'La vista privada prepara candidatas exactas sin publicar ni modificar el slot.',
   }),
   Object.freeze({
     section: 'landing-qr',

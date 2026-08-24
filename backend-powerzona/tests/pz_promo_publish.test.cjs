@@ -31,6 +31,12 @@ test('PUBLISH fija contratos versionados exactos sin tenant, actor ni filtros ap
   assert.equal(publish.parsePreview({
     contract: 'promo.preview.read.v1', candidate_revision_id: 'revisionaaaaaaa', locale: 'ES',
   }), null, 'el preview exige locale ya canonical');
+  assert.equal(publish.parsePreviewContext({
+    contract: 'promo.preview.context.read.v1',
+  }), true);
+  assert.equal(publish.parsePreviewContext({
+    contract: 'promo.preview.context.read.v1', site_id: 'siteaaaaaaaaaaa',
+  }), false, 'el contexto de preview tampoco acepta tenant aportado');
 
   const parsed = publish.parseTransition('publish', {
     contract: 'promo.publication.publish.v1', candidate_revision_id: 'revisionaaaaaaa',
@@ -98,6 +104,13 @@ test('candidata y snapshots de AUDIT exponen solo metadata operacional saneada',
   assert.deepEqual(Object.keys(candidate).sort(), [
     'created', 'digest', 'reused', 'revision_id', 'sequence', 'source_draft_version',
   ]);
+  const previewRevision = publish.previewRevisionProjection(revision, {
+    locales: { default: 'es', published: ['en', 'es'] },
+  });
+  assert.deepEqual(Object.keys(previewRevision).sort(), [
+    'created', 'digest', 'locales', 'revision_id', 'sequence', 'source_draft_version',
+  ]);
+  assert.deepEqual(previewRevision.locales, { default: 'es', published: ['en', 'es'] });
   const revisionSnapshot = publish.revisionAuditSnapshot(revision, {
     theme: { theme_id: 'promo.black-gold', version: '1.0.0' },
     locales: { default: 'es', published: ['en', 'es'] },
@@ -176,12 +189,12 @@ test('máquina de estados permite primera/posterior, rollback, pausa, resume y u
 
 test('hook registra solo POST privados autenticados y no crea serving alternativo', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_publish.pb.js'), 'utf8');
-  assert.equal((source.match(/routerAdd\(/g) || []).length, 8);
-  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 8);
-  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 8);
+  assert.equal((source.match(/routerAdd\(/g) || []).length, 9);
+  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 9);
+  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 9);
   assert.doesNotMatch(source, /"GET"|\/public\/|Cloudflare|Coolify|DNS/);
   for (const route of [
-    'candidates/create', 'preview', 'publish', 'rollback', 'unpublish',
+    'candidates/create', 'preview', 'preview/context', 'publish', 'rollback', 'unpublish',
     'canonical/switch', 'pause', 'resume',
   ]) assert.match(source, new RegExp(route.replace('/', '\\/')));
 });

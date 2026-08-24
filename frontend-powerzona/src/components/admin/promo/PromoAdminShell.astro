@@ -6,6 +6,7 @@ import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
+import PromoPreviewEditor from './PromoPreviewEditor.astro';
 import {
   getPromoAdminModule,
   getPromoAdminSectionPath,
@@ -71,6 +72,7 @@ const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appeara
 const canManageLocaleContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canManagePromoTranslations = hasPromoAction(accessContext, 'promo.translations.manage');
 const maxLocales = Number(accessContext.capabilities.max_locales || 0);
+const canPreparePromoPreview = hasPromoAction(accessContext, 'promo.publication.publish');
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -259,6 +261,11 @@ function initials(value: string) {
             maxLocales={Number.isSafeInteger(maxLocales) && maxLocales >= 0 ? maxLocales : 0}
             canManageContent={canManageLocaleContent}
             canManageTranslations={canManagePromoTranslations}
+          />
+        ) : activeModule && section === 'publication' ? (
+          <PromoPreviewEditor
+            storeSlug={storeSlug}
+            canPrepare={canPreparePromoPreview}
           />
         ) : activeModule ? (
           <section class="pz-promo-admin__module-state" aria-labelledby="promo-module-state-title">

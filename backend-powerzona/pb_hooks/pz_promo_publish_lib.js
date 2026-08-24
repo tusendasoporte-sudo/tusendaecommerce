@@ -14,6 +14,8 @@ const CANDIDATE_CREATE_CONTRACT = "promo.candidate.create.v1";
 const CANDIDATE_RESPONSE_CONTRACT = "promo.candidate.v1";
 const PREVIEW_READ_CONTRACT = "promo.preview.read.v1";
 const PREVIEW_RESPONSE_CONTRACT = "promo.preview.v1";
+const PREVIEW_CONTEXT_READ_CONTRACT = "promo.preview.context.read.v1";
+const PREVIEW_CONTEXT_RESPONSE_CONTRACT = "promo.preview.context.v1";
 const PUBLISH_CONTRACT = "promo.publication.publish.v1";
 const ROLLBACK_CONTRACT = "promo.publication.rollback.v1";
 const UNPUBLISH_CONTRACT = "promo.publication.unpublish.v1";
@@ -116,6 +118,11 @@ function parsePreview(value) {
   return Object.freeze({ revisionId: body.candidate_revision_id, locale });
 }
 
+function parsePreviewContext(value) {
+  const body = exactKeys(value, ["contract"]);
+  return !!body && body.contract === PREVIEW_CONTEXT_READ_CONTRACT;
+}
+
 function parseTransition(operation, value) {
   const contract = OPERATION_CONTRACTS[operation];
   const reasons = REASON_CODES[operation];
@@ -194,6 +201,26 @@ function candidateProjection(record, reused) {
     source_draft_version: sourceVersion,
     created: recordString(record, "created"),
     reused: reused === true,
+  });
+}
+
+function previewRevisionProjection(record, document) {
+  const candidate = candidateProjection(record, false);
+  const locales = document && document.locales;
+  if (!locales || typeof locales.default !== "string" || !Array.isArray(locales.published)
+    || !locales.published.length || !locales.published.includes(locales.default)) {
+    fail("promo_preview_unavailable", 503);
+  }
+  return Object.freeze({
+    revision_id: candidate.revision_id,
+    sequence: candidate.sequence,
+    digest: candidate.digest,
+    source_draft_version: candidate.source_draft_version,
+    created: candidate.created,
+    locales: Object.freeze({
+      default: locales.default,
+      published: Object.freeze(locales.published.slice()),
+    }),
   });
 }
 
@@ -311,6 +338,8 @@ module.exports = {
   IDEMPOTENCY_KEY_PATTERN,
   OPERATION_CONTRACTS,
   PAUSE_CONTRACT,
+  PREVIEW_CONTEXT_READ_CONTRACT,
+  PREVIEW_CONTEXT_RESPONSE_CONTRACT,
   PREVIEW_MEDIA_CONTRACT,
   PREVIEW_READ_CONTRACT,
   PREVIEW_RESPONSE_CONTRACT,
@@ -328,9 +357,11 @@ module.exports = {
   idempotencyKey,
   parseCandidateCreate,
   parsePreview,
+  parsePreviewContext,
   parseTransition,
   previewMediaDescriptor,
   previewProjection,
+  previewRevisionProjection,
   publicationAuditSnapshot,
   recordBool,
   recordId,

@@ -1,0 +1,587 @@
+---
+import '../../../styles/promo-preview.css';
+
+interface Props {
+  storeSlug: string;
+  canPrepare: boolean;
+}
+
+const { storeSlug, canPrepare } = Astro.props;
+---
+
+<section
+  class="pz-promo-preview"
+  data-promo-preview
+  data-store-slug={storeSlug}
+  data-can-prepare={canPrepare ? 'true' : 'false'}
+  aria-labelledby="promo-preview-title"
+>
+  <header class="pz-promo-preview__intro">
+    <div>
+      <span class="pz-promo-preview__eyebrow">Vista privada</span>
+      <h2 id="promo-preview-title">Revisa el borrador antes de publicar</h2>
+      <p>Prepara una candidata inmutable con la versión exacta del borrador y compárala con la revisión publicada. Esta herramienta no publica, no cambia el slot y no crea una URL compartible.</p>
+    </div>
+    <span class="pz-promo-preview__privacy" aria-label="Vista privada y no indexable">
+      <span aria-hidden="true">●</span> Privada · noindex · no-store
+    </span>
+  </header>
+
+  <div class="pz-promo-preview__alert" role="alert" tabindex="-1" data-preview-error hidden></div>
+  <p class="pz-promo-preview__status" role="status" aria-live="polite" data-preview-status>
+    Validando el contexto de la tienda…
+  </p>
+
+  <section class="pz-promo-preview__toolbar" aria-label="Controles de vista previa">
+    <label class="pz-promo-preview__field">
+      <span>Idioma de la revisión</span>
+      <select data-preview-locale disabled aria-describedby="promo-preview-locale-help"></select>
+      <small id="promo-preview-locale-help">Solo se ofrecen locales incluidos en la candidata.</small>
+    </label>
+
+    <fieldset class="pz-promo-preview__segmented" data-preview-device-controls>
+      <legend>Viewport</legend>
+      <label><input type="radio" name="promo-preview-device" value="desktop" checked /> Desktop <small>1280 × 800</small></label>
+      <label><input type="radio" name="promo-preview-device" value="mobile" /> Móvil <small>390 × 844</small></label>
+    </fieldset>
+
+    <fieldset class="pz-promo-preview__segmented pz-promo-preview__view-modes">
+      <legend>Fuente visible</legend>
+      <button type="button" data-preview-mode="draft" aria-pressed="false">Borrador</button>
+      <button type="button" data-preview-mode="published" aria-pressed="true">Publicada</button>
+      <button type="button" data-preview-mode="compare" aria-pressed="false">Comparar</button>
+    </fieldset>
+
+    <div class="pz-promo-preview__actions">
+      <button type="button" class="pz-promo-preview__refresh" data-preview-refresh>Recargar contexto</button>
+      <button type="button" class="pz-promo-preview__prepare" data-preview-prepare disabled>
+        Preparar vista del borrador
+      </button>
+    </div>
+  </section>
+
+  {!canPrepare && (
+    <p class="pz-promo-preview__authority" role="status">
+      Esta sesión puede consultar la revisión publicada, pero el backend no proyectó autoridad para crear una candidata del borrador.
+    </p>
+  )}
+
+  <section class="pz-promo-preview__metadata" aria-label="Revisiones seleccionadas">
+    <article>
+      <span>Borrador</span>
+      <strong data-preview-draft-meta>Sin contexto</strong>
+      <small data-preview-draft-detail>—</small>
+    </article>
+    <article>
+      <span>Publicada</span>
+      <strong data-preview-published-meta>Sin contexto</strong>
+      <small data-preview-published-detail>—</small>
+    </article>
+    <article>
+      <span>Comparación</span>
+      <strong data-preview-diff-meta>Prepara el borrador</strong>
+      <small data-preview-diff-detail>No se ha creado ninguna candidata desde esta vista.</small>
+    </article>
+  </section>
+
+  <div class="pz-promo-preview__workspace" data-preview-workspace data-device="desktop" data-mode="published">
+    <article class="pz-promo-preview__panel" data-preview-panel="draft">
+      <header><div><span>Candidata de borrador</span><strong data-preview-draft-label>Sin preparar</strong></div><span aria-hidden="true">D</span></header>
+      <div class="pz-promo-preview__frame-shell" data-preview-frame-shell>
+        <div class="pz-promo-preview__frame-empty" data-preview-draft-empty>
+          <strong>Prepara una candidata exacta</strong>
+          <p>El borrador mutable nunca se renderiza directamente. El backend debe validarlo y congelarlo primero.</p>
+        </div>
+        <div class="pz-promo-preview__frame" data-preview-frame="draft" hidden></div>
+      </div>
+    </article>
+
+    <article class="pz-promo-preview__panel" data-preview-panel="published">
+      <header><div><span>Revisión publicada</span><strong data-preview-published-label>Consultando…</strong></div><span aria-hidden="true">P</span></header>
+      <div class="pz-promo-preview__frame-shell" data-preview-frame-shell>
+        <div class="pz-promo-preview__frame-empty" data-preview-published-empty>
+          <strong>No hay revisión publicada disponible</strong>
+          <p>La comparación permanece cerrada hasta que el slot señale una revisión íntegra del mismo tenant.</p>
+        </div>
+        <div class="pz-promo-preview__frame" data-preview-frame="published" hidden></div>
+      </div>
+    </article>
+  </div>
+
+  <footer class="pz-promo-preview__note">
+    <strong>Interacciones seguras.</strong>
+    <span>Los CTA no contienen destinos en esta proyección y se muestran sin navegación. Los medios se resuelven nuevamente por revisión, locale y tenant en cada solicitud.</span>
+  </footer>
+</section>
+
+<script>
+  import {
+    comparePromoPreviews,
+    normalizePromoPreviewContext,
+    normalizePromoPreviewResponse,
+    PROMO_PREVIEW_API_PATH,
+    PROMO_PREVIEW_PREPARE_CONTRACT,
+    PROMO_PREVIEW_READ_CONTRACT,
+    promoPreviewErrorMessage,
+    promoPreviewThemeStyle,
+    type PromoPreviewContext,
+    type PromoPreviewResult,
+  } from '../../../lib/promoPreview';
+
+  type ViewMode = 'draft' | 'published' | 'compare';
+  type DeviceMode = 'desktop' | 'mobile';
+
+  document.querySelectorAll<HTMLElement>('[data-promo-preview]').forEach((root) => {
+    const storeSlug = root.dataset.storeSlug || '';
+    const canPrepare = root.dataset.canPrepare === 'true';
+    const endpoint = `${PROMO_PREVIEW_API_PATH}?store=${encodeURIComponent(storeSlug)}`;
+    const status = root.querySelector<HTMLElement>('[data-preview-status]');
+    const errorBox = root.querySelector<HTMLElement>('[data-preview-error]');
+    const localeSelect = root.querySelector<HTMLSelectElement>('[data-preview-locale]');
+    const prepareButton = root.querySelector<HTMLButtonElement>('[data-preview-prepare]');
+    const refreshButton = root.querySelector<HTMLButtonElement>('[data-preview-refresh]');
+    const workspace = root.querySelector<HTMLElement>('[data-preview-workspace]');
+    const draftFrame = root.querySelector<HTMLElement>('[data-preview-frame="draft"]');
+    const publishedFrame = root.querySelector<HTMLElement>('[data-preview-frame="published"]');
+    const draftEmpty = root.querySelector<HTMLElement>('[data-preview-draft-empty]');
+    const publishedEmpty = root.querySelector<HTMLElement>('[data-preview-published-empty]');
+    const draftMeta = root.querySelector<HTMLElement>('[data-preview-draft-meta]');
+    const draftDetail = root.querySelector<HTMLElement>('[data-preview-draft-detail]');
+    const publishedMeta = root.querySelector<HTMLElement>('[data-preview-published-meta]');
+    const publishedDetail = root.querySelector<HTMLElement>('[data-preview-published-detail]');
+    const diffMeta = root.querySelector<HTMLElement>('[data-preview-diff-meta]');
+    const diffDetail = root.querySelector<HTMLElement>('[data-preview-diff-detail]');
+    const draftLabel = root.querySelector<HTMLElement>('[data-preview-draft-label]');
+    const publishedLabel = root.querySelector<HTMLElement>('[data-preview-published-label]');
+    let context: PromoPreviewContext | null = null;
+    let draftPreview: PromoPreviewResult | null = null;
+    let publishedPreview: PromoPreviewResult | null = null;
+    let mode: ViewMode = 'published';
+    let device: DeviceMode = 'desktop';
+    let busy = false;
+
+    function setStatus(message: string) {
+      if (status) status.textContent = message;
+    }
+
+    function clearError() {
+      if (!errorBox) return;
+      errorBox.hidden = true;
+      errorBox.textContent = '';
+    }
+
+    function showError(error: unknown) {
+      const code = typeof error === 'string'
+        ? error
+        : String((error as { code?: string; message?: string })?.code
+          || (error as { message?: string })?.message || 'promo_preview_unavailable');
+      if (errorBox) {
+        errorBox.textContent = promoPreviewErrorMessage(code);
+        errorBox.hidden = false;
+        errorBox.focus();
+      }
+      setStatus('La vista privada permanece cerrada hasta corregir el problema.');
+    }
+
+    function setBusy(next: boolean) {
+      busy = next;
+      if (prepareButton) {
+        prepareButton.disabled = next || !canPrepare || !context || !localeSelect?.value;
+        prepareButton.textContent = next ? 'Preparando candidata…' : 'Preparar vista del borrador';
+      }
+      if (refreshButton) refreshButton.disabled = next;
+      if (localeSelect) localeSelect.disabled = next || !context;
+      root.querySelectorAll<HTMLButtonElement>('[data-preview-mode]').forEach((button) => {
+        button.disabled = next || (button.dataset.previewMode !== 'draft' && !context?.publication.current);
+      });
+      root.setAttribute('aria-busy', next ? 'true' : 'false');
+    }
+
+    async function requestJson(method: 'GET' | 'POST', body?: Record<string, unknown>) {
+      const response = await fetch(endpoint, {
+        method,
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(String(result?.error || 'promo_preview_unavailable')) as Error & { code?: string };
+        error.code = String(result?.error || 'promo_preview_unavailable');
+        throw error;
+      }
+      return result;
+    }
+
+    function option(label: string, value: string) {
+      const item = document.createElement('option');
+      item.value = value;
+      item.textContent = label;
+      return item;
+    }
+
+    function updateLocaleOptions() {
+      if (!localeSelect || !context) return;
+      const previous = localeSelect.value;
+      localeSelect.replaceChildren(...context.draft.locales.published.map((locale) => option(locale.toUpperCase(), locale)));
+      localeSelect.value = context.draft.locales.published.includes(previous)
+        ? previous
+        : context.draft.locales.default;
+    }
+
+    function setMode(next: ViewMode) {
+      if ((next === 'published' || next === 'compare') && !context?.publication.current) next = 'draft';
+      mode = next;
+      if (workspace) workspace.dataset.mode = mode;
+      root.querySelectorAll<HTMLButtonElement>('[data-preview-mode]').forEach((button) => {
+        const active = button.dataset.previewMode === mode;
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+      requestAnimationFrame(scaleFrames);
+    }
+
+    function setDevice(next: DeviceMode) {
+      device = next;
+      if (workspace) workspace.dataset.device = device;
+      requestAnimationFrame(scaleFrames);
+    }
+
+    function element<K extends keyof HTMLElementTagNameMap>(
+      tag: K,
+      className = '',
+      text = '',
+    ) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    }
+
+    function mediaNode(preview: any, useKey: string) {
+      const descriptor = preview.media.find((item: any) => item.key === useKey);
+      if (!descriptor) return null;
+      const accessibility = preview.content.media_alt[useKey] || { alt: '', decorative: true };
+      const wrapper = element('div', 'pz-promo-site__media');
+      if (descriptor.kind === 'video') {
+        const video = document.createElement('video');
+        video.controls = true;
+        video.preload = 'none';
+        video.playsInline = true;
+        video.autoplay = false;
+        video.src = descriptor.delivery.src;
+        video.poster = descriptor.delivery.poster.src;
+        if (accessibility.decorative) {
+          video.setAttribute('aria-hidden', 'true');
+          video.tabIndex = -1;
+        } else {
+          video.setAttribute('aria-label', accessibility.alt);
+        }
+        wrapper.append(video);
+      } else {
+        const image = document.createElement('img');
+        image.src = descriptor.delivery.src;
+        image.srcset = descriptor.delivery.srcset.map((item: any) => `${item.url} ${item.width}w`).join(', ');
+        image.sizes = '(max-width: 480px) 100vw, 50vw';
+        image.alt = accessibility.decorative ? '' : accessibility.alt;
+        image.loading = descriptor.delivery.loading;
+        image.decoding = 'async';
+        if (descriptor.delivery.fetch_priority === 'high') image.setAttribute('fetchpriority', 'high');
+        wrapper.append(image);
+      }
+      return wrapper;
+    }
+
+    function sectionTitle(localized: any) {
+      const group = element('div', 'pz-promo-site__section-heading');
+      if (localized.heading) group.append(element('h2', '', localized.heading));
+      if (localized.summary) group.append(element('p', '', localized.summary));
+      return group;
+    }
+
+    function renderPreview(frame: HTMLElement | null, result: PromoPreviewResult | null) {
+      if (!frame || !result) return;
+      const preview = result.preview;
+      const theme = promoPreviewThemeStyle(preview.theme);
+      frame.replaceChildren();
+      if (!theme.rendererAvailable) {
+        frame.append(element('p', 'pz-promo-preview__renderer-error', promoPreviewErrorMessage('promo_preview_renderer_unavailable')));
+        frame.hidden = false;
+        return;
+      }
+      const site = element('article', 'pz-promo-site');
+      site.lang = preview.locale.lang;
+      site.dir = preview.locale.direction;
+      const propertyMap: Record<string, string> = {
+        '--promo-site-surface': theme.style.surface,
+        '--promo-site-raised': theme.style.surfaceRaised,
+        '--promo-site-text': theme.style.text,
+        '--promo-site-muted': theme.style.muted,
+        '--promo-site-accent': theme.style.accent,
+        '--promo-site-border': theme.style.border,
+        '--promo-site-focus': theme.style.focus,
+        '--promo-site-heading-font': theme.style.headingFont,
+        '--promo-site-body-font': theme.style.bodyFont,
+        '--promo-site-radius': theme.style.radius,
+        '--promo-site-shadow': theme.style.shadow,
+        '--promo-site-spacing': theme.style.spacing,
+        '--promo-site-motion': theme.style.motionDuration,
+      };
+      Object.entries(propertyMap).forEach(([key, value]) => site.style.setProperty(key, value));
+
+      const header = element('header', 'pz-promo-site__header');
+      const identityName = preview.content.identity.name;
+      header.append(element('strong', 'pz-promo-site__brand', identityName));
+      const nav = element('nav', 'pz-promo-site__nav');
+      nav.setAttribute('aria-label', preview.system.messages['a11y.main_navigation']);
+      preview.section_order.forEach((sectionKey: string) => {
+        nav.append(element('span', '', preview.content.navigation[sectionKey] || sectionKey));
+      });
+      header.append(nav);
+      const locale = element('span', 'pz-promo-site__locale', preview.locale.effective.toUpperCase());
+      locale.setAttribute('aria-label', `${preview.system.messages['locale.current']}: ${preview.locale.effective}`);
+      header.append(locale);
+      site.append(header);
+
+      const main = element('main', 'pz-promo-site__main');
+      main.setAttribute('aria-label', preview.system.messages['a11y.main_content']);
+      preview.section_order.forEach((sectionKey: string) => {
+        const section = preview.sections.find((item: any) => item.key === sectionKey);
+        const localized = preview.content.sections[sectionKey] || {};
+        if (!section) return;
+        const block = element('section', `pz-promo-site__section is-${section.type}`);
+        block.dataset.sectionType = section.type;
+        if (section.type === 'hero') {
+          const copy = element('div', 'pz-promo-site__hero-copy');
+          copy.append(element('span', 'pz-promo-site__kicker', preview.content.identity.summary || identityName));
+          copy.append(element('h1', '', localized.heading || identityName));
+          if (localized.summary) copy.append(element('p', '', localized.summary));
+          const actionKey = section.config.action_key || preview.contact.primary_action_key;
+          const action = preview.content.contact[actionKey];
+          if (action?.label) {
+            const cta = element('span', 'pz-promo-site__cta', action.label);
+            cta.setAttribute('aria-label', action.aria_label || action.label);
+            copy.append(cta);
+          }
+          block.append(copy);
+          const heroMedia = mediaNode(preview, section.config.media_use_key || section.media_use_keys[0] || '');
+          if (heroMedia) block.append(heroMedia);
+        } else if (['services', 'featured_work', 'gallery'].includes(section.type)) {
+          block.append(sectionTitle(localized));
+          const grid = element('div', 'pz-promo-site__cards');
+          (section.config.item_keys || []).forEach((itemKey: string, index: number) => {
+            const item = (localized.items || []).find((candidate: any) => candidate.key === itemKey) || {};
+            const card = element('article', 'pz-promo-site__card');
+            const media = mediaNode(preview, section.media_use_keys[index] || '');
+            if (media) card.append(media);
+            if (item.name) card.append(element('h3', '', item.name));
+            if (item.summary) card.append(element('p', '', item.summary));
+            if (item.caption) card.append(element('small', '', item.caption));
+            grid.append(card);
+          });
+          block.append(grid);
+        } else if (section.type === 'owner') {
+          const media = mediaNode(preview, section.config.media_use_key || section.media_use_keys[0] || '');
+          if (media) block.append(media);
+          const copy = element('div', 'pz-promo-site__owner-copy');
+          copy.append(sectionTitle(localized));
+          if (localized.name) copy.append(element('h3', '', localized.name));
+          if (localized.bio) copy.append(element('p', '', localized.bio));
+          block.append(copy);
+        } else if (section.type === 'contact') {
+          block.append(sectionTitle(localized));
+          const actions = element('div', 'pz-promo-site__contact-actions');
+          [preview.contact.primary_action_key, ...preview.contact.secondary_action_keys].filter(Boolean).forEach((key: string) => {
+            const action = preview.content.contact[key];
+            if (!action?.label) return;
+            const item = element('span', 'pz-promo-site__cta', action.label);
+            item.setAttribute('aria-label', action.aria_label || action.label);
+            actions.append(item);
+          });
+          block.append(actions);
+        } else if (section.type === 'footer') {
+          block.append(element('p', '', localized.text || ''));
+        } else {
+          block.append(sectionTitle(localized));
+        }
+        main.append(block);
+      });
+      site.append(main);
+      frame.append(site);
+      frame.hidden = false;
+      requestAnimationFrame(scaleFrames);
+    }
+
+    function scaleFrames() {
+      root.querySelectorAll<HTMLElement>('[data-preview-frame-shell]').forEach((shell) => {
+        const frame = shell.querySelector<HTMLElement>('[data-preview-frame]:not([hidden])');
+        if (!frame) {
+          shell.style.removeProperty('--preview-frame-height');
+          return;
+        }
+        const viewportWidth = device === 'mobile' ? 390 : 1280;
+        frame.style.width = `${viewportWidth}px`;
+        frame.dataset.device = device;
+        const scale = Math.min(1, Math.max(0.2, shell.clientWidth / viewportWidth));
+        frame.style.setProperty('--preview-scale', String(scale));
+        shell.style.setProperty('--preview-frame-height', `${Math.ceil(frame.scrollHeight * scale)}px`);
+      });
+    }
+
+    function updateComparison() {
+      if (!diffMeta || !diffDetail) return;
+      if (!draftPreview) {
+        diffMeta.textContent = 'Prepara el borrador';
+        diffDetail.textContent = 'La comparación requiere una candidata inmutable.';
+        return;
+      }
+      if (!publishedPreview) {
+        diffMeta.textContent = 'Sin revisión comparable';
+        diffDetail.textContent = 'No existe una revisión publicada íntegra para este locale.';
+        return;
+      }
+      if (draftPreview.candidate.digest === publishedPreview.candidate.digest) {
+        diffMeta.textContent = 'Sin cambios exactos';
+        diffDetail.textContent = 'El digest de ambas revisiones coincide.';
+        return;
+      }
+      const comparison = comparePromoPreviews(draftPreview, publishedPreview);
+      diffMeta.textContent = comparison.identical ? 'Misma representación localizada' : `${comparison.changed.length} áreas cambiaron`;
+      diffDetail.textContent = comparison.identical
+        ? 'Los snapshots difieren fuera de esta representación, pero el locale visible coincide.'
+        : comparison.changed.map((item) => item.label).join(' · ');
+    }
+
+    function updateMetadata() {
+      if (!context) return;
+      if (draftMeta) draftMeta.textContent = draftPreview
+        ? `Candidata #${draftPreview.candidate.sequence}`
+        : `Borrador v${context.draft.version}`;
+      if (draftDetail) draftDetail.textContent = draftPreview
+        ? `Origen v${draftPreview.candidate.sourceDraftVersion} · ${draftPreview.candidate.digest.slice(0, 10)}…`
+        : `${context.draft.locales.published.length} locale(s) anunciado(s)`;
+      const current = context.publication.current;
+      if (publishedMeta) publishedMeta.textContent = current ? `Revisión #${current.sequence}` : 'No disponible';
+      if (publishedDetail) publishedDetail.textContent = current
+        ? `${context.publication.state} · generación ${context.publication.generation} · ${current.digest.slice(0, 10)}…`
+        : `${context.publication.state} · generación ${context.publication.generation}`;
+      if (draftLabel) draftLabel.textContent = draftPreview ? `Revisión #${draftPreview.candidate.sequence}` : 'Sin preparar';
+      if (publishedLabel) publishedLabel.textContent = current ? `Revisión #${current.sequence}` : 'No disponible';
+      updateComparison();
+    }
+
+    async function readRevision(revisionId: string, locale: string) {
+      const result = await requestJson('POST', {
+        contract: PROMO_PREVIEW_READ_CONTRACT,
+        revision_id: revisionId,
+        locale,
+      });
+      return normalizePromoPreviewResponse(result, 'local');
+    }
+
+    async function loadPublished(locale: string) {
+      publishedPreview = null;
+      if (publishedFrame) publishedFrame.hidden = true;
+      if (publishedEmpty) publishedEmpty.hidden = false;
+      const current = context?.publication.current;
+      if (!current) {
+        updateMetadata();
+        return;
+      }
+      if (!current.locales.published.includes(locale)) {
+        if (publishedEmpty) {
+          publishedEmpty.querySelector('strong')!.textContent = 'El locale no existe en la revisión publicada';
+          publishedEmpty.querySelector('p')!.textContent = 'No se aplica fallback por campo ni se mezcla otro idioma.';
+        }
+        updateMetadata();
+        return;
+      }
+      publishedPreview = await readRevision(current.revisionId, locale);
+      if (publishedEmpty) publishedEmpty.hidden = true;
+      renderPreview(publishedFrame, publishedPreview);
+      updateMetadata();
+    }
+
+    async function refreshVisiblePreviews() {
+      if (!context || !localeSelect?.value) return;
+      const locale = localeSelect.value;
+      setBusy(true);
+      clearError();
+      try {
+        if (draftPreview) {
+          draftPreview = await readRevision(draftPreview.candidate.revisionId, locale);
+          if (draftEmpty) draftEmpty.hidden = true;
+          renderPreview(draftFrame, draftPreview);
+        }
+        await loadPublished(locale);
+        setStatus(`Vista privada cargada en ${locale.toUpperCase()}.`);
+      } catch (error) {
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function loadContext() {
+      setBusy(true);
+      clearError();
+      setStatus('Validando borrador, slot y tenant…');
+      try {
+        context = normalizePromoPreviewContext(await requestJson('GET'));
+        draftPreview = null;
+        publishedPreview = null;
+        if (draftFrame) draftFrame.hidden = true;
+        if (draftEmpty) draftEmpty.hidden = false;
+        updateLocaleOptions();
+        updateMetadata();
+        setMode(context.publication.current ? 'published' : 'draft');
+        await loadPublished(localeSelect?.value || context.draft.locales.default);
+        setStatus('Contexto privado listo. Preparar una candidata no publicará el borrador.');
+      } catch (error) {
+        context = null;
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function prepareDraft() {
+      if (!context || !localeSelect?.value || busy || !canPrepare) return;
+      setBusy(true);
+      clearError();
+      setStatus(`Validando y congelando el borrador v${context.draft.version}…`);
+      try {
+        const result = await requestJson('POST', {
+          contract: PROMO_PREVIEW_PREPARE_CONTRACT,
+          expected_draft_version: context.draft.version,
+          locale: localeSelect.value,
+        });
+        draftPreview = normalizePromoPreviewResponse(result, 'local');
+        if (draftPreview.candidate.sourceDraftVersion !== context.draft.version) throw new Error('promo_draft_conflict');
+        if (draftEmpty) draftEmpty.hidden = true;
+        renderPreview(draftFrame, draftPreview);
+        await loadPublished(localeSelect.value);
+        updateMetadata();
+        setMode(context.publication.current ? 'compare' : 'draft');
+        setStatus(`Candidata #${draftPreview.candidate.sequence} lista. El slot publicado no cambió.`);
+      } catch (error) {
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-preview-mode]').forEach((button) => {
+      button.addEventListener('click', () => setMode((button.dataset.previewMode || 'draft') as ViewMode));
+    });
+    root.querySelectorAll<HTMLInputElement>('input[name="promo-preview-device"]').forEach((input) => {
+      input.addEventListener('change', () => setDevice(input.value === 'mobile' ? 'mobile' : 'desktop'));
+    });
+    localeSelect?.addEventListener('change', () => { void refreshVisiblePreviews(); });
+    prepareButton?.addEventListener('click', () => { void prepareDraft(); });
+    refreshButton?.addEventListener('click', () => { void loadContext(); });
+    const observer = new ResizeObserver(() => scaleFrames());
+    root.querySelectorAll<HTMLElement>('[data-preview-frame-shell], [data-preview-frame]').forEach((item) => observer.observe(item));
+    void loadContext();
+  });
+</script>

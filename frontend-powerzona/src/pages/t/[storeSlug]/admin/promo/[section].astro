@@ -15,6 +15,12 @@ if (!adminContext || !accessContext) return Astro.redirect('/login');
 if (!section || section === 'overview' || !canOpenPromoAdminSection(accessContext, section)) {
   return Astro.redirect(getPromoAdminSectionPath(storeSlug, 'overview'));
 }
+if (section === 'publication') {
+  Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+  Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
+}
 ---
 
 <PromoAdminShell

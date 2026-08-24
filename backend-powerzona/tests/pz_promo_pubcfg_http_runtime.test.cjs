@@ -767,6 +767,26 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       token: primaryAuth.data.token, json: candidateARequest,
     });
     assertStatus(candidateA, 201, `principal crea candidata publicable tenant A\n${runtime.output()}`);
+    const previewContextA = await request('/api/pz/promo/private/v1/publication/preview/context', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.preview.context.read.v1' },
+    });
+    assertStatus(previewContextA, 200, 'contexto privado fija draft y revisión publicada del tenant A');
+    assert.equal(previewContextA.data.contract, 'promo.preview.context.v1');
+    assert.equal(previewContextA.data.draft.version, 3);
+    assert.deepEqual(previewContextA.data.draft.locales, { default: 'es', published: ['en', 'es'] });
+    assert.equal(previewContextA.data.publication.generation, 3);
+    assert.equal(previewContextA.data.publication.current.revision_id, fixtureA.revision.id);
+    assert.equal(JSON.stringify(previewContextA.data).includes(fixtureA.site.id), false, 'no expone site interno');
+    assertStatus(await request('/api/pz/promo/private/v1/publication/preview/context', {
+      token: masterToken,
+      headers: { 'X-PZ-Promo-Store': storeB.id },
+      json: { contract: 'promo.preview.context.read.v1' },
+    }), 200, 'Master requiere y conserva contexto explícito del tenant B');
+    assertStatus(await request('/api/pz/promo/private/v1/publication/preview/context', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.preview.context.read.v1', store_id: storeB.id },
+    }), 400, 'contexto rechaza tenant inyectado en body');
     const previewA = await request('/api/pz/promo/private/v1/publication/preview', {
       token: primaryAuth.data.token,
       json: {

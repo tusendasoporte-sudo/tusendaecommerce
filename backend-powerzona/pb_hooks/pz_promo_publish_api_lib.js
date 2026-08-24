@@ -405,6 +405,79 @@ function handlePreview(e) {
   } catch (error) { return sendError(e, error); }
 }
 
+function previewContextResponse(app, decision) {
+  const siteId = recordId(decision.site);
+  const draft = pubcfgApi.findDraft(app, siteId);
+  const document = pubcfgApi.validatedStoredDraft(draft);
+  const version = recordInteger(draft, "version");
+  const digest = recordString(draft, "document_sha256");
+  if (!version || !data.SHA256_PATTERN.test(digest)) {
+    throw codedError("promo_draft_unavailable", 503);
+  }
+
+  const slot = slotForSite(app, siteId);
+  const state = slot && recordString(slot, "state");
+  const generation = slot && recordInteger(slot, "generation");
+  const revisionId = slot && relationId(slot, "published_revision");
+  if (!slot || !["unpublished", "active", "paused"].includes(state)
+    || generation === null || generation < 0
+    || (state === "unpublished" && revisionId)
+    || (state !== "unpublished" && !contract.RECORD_ID_PATTERN.test(revisionId))) {
+    throw codedError("promo_preview_unavailable", 503);
+  }
+
+  let current = null;
+  if (revisionId) {
+    try {
+      const validated = validateRevisionTarget(app, decision, revisionId, "preview");
+      current = contract.previewRevisionProjection(validated.revision, validated.document);
+    } catch (_) {
+      current = null;
+    }
+  }
+
+  const finalDraft = pubcfgApi.findDraft(app, siteId);
+  const finalSlot = slotForSite(app, siteId);
+  if (!finalDraft || !finalSlot
+    || recordInteger(finalDraft, "version") !== version
+    || recordString(finalDraft, "document_sha256") !== digest
+    || recordString(finalSlot, "state") !== state
+    || recordInteger(finalSlot, "generation") !== generation
+    || relationId(finalSlot, "published_revision") !== revisionId) {
+    throw codedError("promo_preview_unavailable", 503);
+  }
+
+  return Object.freeze({
+    ok: true,
+    contract: contract.PREVIEW_CONTEXT_RESPONSE_CONTRACT,
+    draft: Object.freeze({
+      version,
+      digest,
+      locales: Object.freeze({
+        default: document.locales.default,
+        published: Object.freeze(document.locales.published.slice()),
+      }),
+    }),
+    publication: Object.freeze({ state, generation, current }),
+  });
+}
+
+function handlePreviewContext(e) {
+  let request;
+  try {
+    request = requestContext(e);
+    if (!contract.parsePreviewContext(request.body)) throw codedError("invalid_payload", 400);
+  } catch (error) { return sendError(e, error); }
+  try {
+    let response;
+    e.app.runInTransaction((app) => {
+      const decision = decisionFor(app, e.auth, request.supportStoreId, "preview");
+      response = previewContextResponse(app, decision);
+    });
+    return e.json(200, response);
+  } catch (error) { return sendError(e, error); }
+}
+
 function slotForSite(app, siteId) {
   return findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
 }
@@ -855,6 +928,7 @@ module.exports = {
   handleCandidateCreate,
   handlePause: (e) => handleTransition(e, "pause"),
   handlePreview,
+  handlePreviewContext,
   handlePublish: (e) => handleTransition(e, "publish"),
   handleResume: (e) => handleTransition(e, "resume"),
   handleRollback: (e) => handleTransition(e, "rollback"),
@@ -862,6 +936,7 @@ module.exports = {
   handleUnpublish: (e) => handleTransition(e, "unpublish"),
   requireAuthenticatedUser,
   requestFingerprint,
+  previewContextResponse,
   recordTransitionFailure,
   replayAfterRace,
   sendError,
