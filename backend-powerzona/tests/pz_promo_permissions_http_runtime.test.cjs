@@ -16,6 +16,11 @@ const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
 const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 const LOOPBACK = '127.0.0.1';
 const TEMP_PREFIX = 'pz-promo-perm-runtime-';
+const PERMISSIONS_MIGRATION = '1787520400_promo_permissions.js';
+const POST_PERMISSION_MIGRATIONS = [
+  '1787520500_promo_publication_zero_generation.js',
+  '1787520600_promo_analytics_landing_qr.js',
+];
 
 function runtimeEnvironment() {
   const environment = { ...process.env };
@@ -159,9 +164,18 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       'up vacío contiene DATA',
     );
     const emptyPermissionDown = runPocketBase(
-      ['migrate', 'down', '2'], emptyRollbackDirectory, environment, 'y\n',
+      ['migrate', 'down', String(POST_PERMISSION_MIGRATIONS.length + 1)],
+      emptyRollbackDirectory,
+      environment,
+      'y\n',
     );
     assertCommand(emptyPermissionDown, 'down PERM vacío');
+    for (const migration of [...POST_PERMISSION_MIGRATIONS, PERMISSIONS_MIGRATION]) {
+      assert.match(
+        emptyPermissionDown.stdout,
+        new RegExp(`Reverted ${migration.replace('.', '\\.')}`),
+      );
+    }
     assert.equal(
       sqliteValue(
         emptyRollbackDirectory,
@@ -582,8 +596,16 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
 
     await stopPocketBase(runtime);
     runtime = null;
-    const publicationCompatibilityDown = runPocketBase(['migrate', 'down', '1'], dataDirectory, environment, 'y\n');
-    assertCommand(publicationCompatibilityDown, 'down soporte generation cero antes de probar bloqueo PERM');
+    for (const migration of POST_PERMISSION_MIGRATIONS.slice().reverse()) {
+      const compatibilityDown = runPocketBase(
+        ['migrate', 'down', '1'], dataDirectory, environment, 'y\n',
+      );
+      assertCommand(compatibilityDown, `down ${migration} antes de probar bloqueo PERM`);
+      assert.match(
+        compatibilityDown.stdout,
+        new RegExp(`Reverted ${migration.replace('.', '\\.')}`),
+      );
+    }
     const blockedDown = runPocketBase(['migrate', 'down', '1'], dataDirectory, environment, 'y\n');
     assert.match(`${blockedDown.stdout}\n${blockedDown.stderr}`, /unsafe_rollback_promo_permissions/);
     const persistedFields = JSON.parse(sqliteValue(

@@ -215,12 +215,16 @@ test('PocketBase 0.39.8 persiste WebP público tras reinicio y restauración con
     assert.equal(uploaded.status, 201, uploaded.raw);
     assert.equal(uploaded.data.media.sha256, sha256);
     assert.equal(uploaded.data.media.bytes, WEBP.length);
+    const createdAt = new Date(uploaded.data.media.created).getTime();
+    const deleteAfter = new Date(uploaded.data.media.delete_after).getTime();
+    assert.equal(Number.isFinite(createdAt), true);
+    assert.equal(Number.isFinite(deleteAfter), true);
     assert.equal(
-      new Date(uploaded.data.media.delete_after).getTime() - Date.now() <= 24 * 60 * 60 * 1000,
+      deleteAfter - createdAt <= 24 * 60 * 60 * 1000,
       true,
     );
     assert.equal(
-      new Date(uploaded.data.media.delete_after).getTime() - Date.now() > (23 * 60 * 60 * 1000),
+      deleteAfter - createdAt > (23 * 60 * 60 * 1000),
       true,
     );
     assert.match(uploaded.data.media.file, /^[a-f0-9]{32}_[A-Za-z0-9]+\.webp$/);
