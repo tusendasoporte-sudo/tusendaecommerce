@@ -10,7 +10,7 @@ import {
 export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
 export const PROMO_PUBLIC_LOCALIZED_CONTRACT = 'promo.public.localized.v1';
-export const PROMO_PUBLIC_INTERNAL_PATH = '/__pz/promo-shell';
+export const PROMO_PUBLIC_INTERNAL_PATH = '/promo-shell-internal';
 export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
 export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
 export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';

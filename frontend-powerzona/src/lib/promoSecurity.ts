@@ -120,7 +120,7 @@ function configuredPlatformHosts() {
 }
 
 function platformPromoPath(pathname: string) {
-  return pathname === '/__pz/promo-shell'
+  return pathname === '/promo-shell-internal'
     || pathname === '/promo-analytics-admin-internal'
     || pathname === '/promo'
     || pathname.startsWith('/promo/')

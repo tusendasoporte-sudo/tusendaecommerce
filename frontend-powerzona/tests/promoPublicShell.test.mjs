@@ -7,6 +7,7 @@ import {
   customPromoPublicPath,
   isPromoPlatformRequest,
   normalizePromoPublicShellResponse,
+  PROMO_PUBLIC_INTERNAL_PATH,
   PromoPublicShellError,
   promoHostEndpoint,
   promoPlatformEndpoint,
@@ -559,6 +560,7 @@ test('salto SSR a PocketBase conserva el Host original con transporte Node', asy
 test('shell SSR es independiente de Layout y solo hidrata analítica Promo allowlisted', () => {
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const shell = read('../src/components/promo-public/PromoPublicShell.astro');
+  const internal = read('../src/pages/promo-shell-internal.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const hero = read('../src/components/promo-public/PromoHero.astro');
   const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
@@ -578,6 +580,8 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
   const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${footer}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${contactStyles}\n${footerStyles}\n${sectionStyles}\n${platform}\n${localized}`;
   assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
+  assert.equal(PROMO_PUBLIC_INTERNAL_PATH, '/promo-shell-internal');
+  assert.match(internal, /Astro\.locals\.promoPublicProfile/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);
   assert.match(theme, /aria-label=\{system\.messages\['a11y\.main_navigation'\]\}/);

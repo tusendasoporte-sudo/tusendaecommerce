@@ -1,0 +1,10 @@
+---
+import PromoPublicShell from '../components/promo-public/PromoPublicShell.astro';
+import { promoPublicUnavailable } from '../lib/promoPublicShell';
+
+const profile = Astro.locals.promoPublicProfile;
+const seo = Astro.locals.promoPublicSeo;
+if (!profile || !seo) return promoPublicUnavailable(404);
+---
+
+<PromoPublicShell profile={profile} seo={seo} />
