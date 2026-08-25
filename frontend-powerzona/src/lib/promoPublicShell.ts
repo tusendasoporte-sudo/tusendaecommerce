@@ -9,6 +9,7 @@ import {
 
 export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
+export const PROMO_PUBLIC_LOCALIZED_CONTRACT = 'promo.public.localized.v1';
 export const PROMO_PUBLIC_INTERNAL_PATH = '/__pz/promo-shell';
 export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
 export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
@@ -818,10 +819,11 @@ function normalizeStoreRating(value: unknown, adapterEnabled: boolean, sectionAv
 
 function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoPublicProfile {
   const profile = exactRecord(value, [
-    'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
+    'ok', 'contract', 'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
     'media', 'contact', 'contact_action', 'footer', 'content', 'adapters', 'store_rating',
     'landing_qr_link',
   ]);
+  if (profile.ok !== true || profile.contract !== PROMO_PUBLIC_LOCALIZED_CONTRACT) fail();
   const site = exactRecord(profile.site, ['public_slug']);
   const system = exactRecord(profile.system, ['catalog_version', 'messages']);
   if (system.catalog_version !== 'promo.system.v1') fail();

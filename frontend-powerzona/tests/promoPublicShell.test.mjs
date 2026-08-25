@@ -56,6 +56,8 @@ function shellEnvelope(source = 'platform') {
       },
     },
     profile: {
+      ok: true,
+      contract: 'promo.public.localized.v1',
       site: { public_slug: 'demo-promo' },
       system: { catalog_version: 'promo.system.v1', messages },
       locale: {
@@ -340,6 +342,9 @@ test('cliente SHELL acepta únicamente la proyección localized allowlisted', ()
   const leaked = structuredClone(shellEnvelope());
   leaked.profile.store_id = 'storeaaaaaaaaaa';
   assert.throws(() => normalizePromoPublicShellResponse(leaked), PromoPublicShellError);
+  const wrongLocalizedContract = structuredClone(shellEnvelope());
+  wrongLocalizedContract.profile.contract = 'promo.public.localized.v2';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongLocalizedContract), PromoPublicShellError);
   const invalidMedia = structuredClone(shellEnvelope());
   invalidMedia.profile.media = [{
     key: 'hero-media', purpose: 'hero', kind: 'image', width: '1920', height: 1080,
