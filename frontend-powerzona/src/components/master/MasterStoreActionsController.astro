@@ -16,15 +16,18 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
   </MasterActionMenu>
 
   <MasterActionMenu id="master-store-actions" label="Acciones de tienda">
-    <a class="master-action-menu__item" data-menu-products data-list-only role="menuitem"><MasterIcon name="products" size={19} /> Ver productos</a>
-    <button class="master-action-menu__item" type="button" data-menu-create-user data-list-only role="menuitem"><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
+    <a class="master-action-menu__item" data-menu-view-store data-promo-only data-list-only role="menuitem" target="_blank" rel="noreferrer"><MasterIcon name="external" size={19} /> Ver tienda</a>
+    <a class="master-action-menu__item" data-menu-analytics data-promo-only data-list-only role="menuitem"><MasterIcon name="analytics" size={19} /> Analíticas</a>
+    <a class="master-action-menu__item" data-menu-products data-commerce-only data-list-only role="menuitem"><MasterIcon name="products" size={19} /> Ver productos</a>
     <button class="master-action-menu__item" type="button" data-menu-edit data-list-only role="menuitem"><MasterIcon name="edit" size={19} /> Editar</button>
-    <button class="master-action-menu__item" type="button" data-menu-configure-security data-overview-only role="menuitem"><MasterIcon name="settings" size={19} /> Configurar Seguridad</button>
-    <button class="master-action-menu__item" type="button" data-menu-featured role="menuitem"><MasterIcon name="check" size={19} /><span data-featured-label>Destacar</span></button>
+    <button class="master-action-menu__item" type="button" data-menu-create-user data-list-only role="menuitem"><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
+    <button class="master-action-menu__item" type="button" data-menu-configure-security data-commerce-only data-overview-only role="menuitem"><MasterIcon name="settings" size={19} /> Configurar Seguridad</button>
+    <button class="master-action-menu__item" type="button" data-menu-featured data-commerce-only role="menuitem"><MasterIcon name="check" size={19} /><span data-featured-label>Destacar</span></button>
+    <div class="master-action-menu__separator" data-promo-only aria-hidden="true"></div>
     <button class="master-action-menu__item" type="button" data-menu-status role="menuitem"><MasterIcon name="archive" size={19} /><span data-status-label>Suspender</span></button>
-    <div class="master-action-menu__separator" aria-hidden="true"></div>
-    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete role="menuitem"><MasterIcon name="trash" size={19} /> Eliminar tienda</button>
-    <span class="master-action-menu__item" data-menu-protected role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={19} /> Tienda protegida</span>
+    <div class="master-action-menu__separator" data-commerce-only aria-hidden="true"></div>
+    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete data-commerce-only role="menuitem"><MasterIcon name="trash" size={19} /> Eliminar tienda</button>
+    <span class="master-action-menu__item" data-menu-protected data-commerce-only role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={19} /> Tienda protegida</span>
   </MasterActionMenu>
 
   <MasterDialog id="master-store-dialog" title="Crear tienda" description="Datos principales para publicar y administrar la tienda." tone="primary">
@@ -81,6 +84,15 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     </div>
   </MasterDialog>
 
+  <MasterDialog id="master-store-status-dialog" title="Suspender tienda" description="Confirma el cambio de disponibilidad de esta tienda." tone="warning">
+    <p class="master-card-subtitle" data-store-status-copy></p>
+    <p class="master-form-alert" data-store-status-alert role="alert" hidden></p>
+    <div slot="footer">
+      <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
+      <button class="master-btn master-btn--danger-solid" type="button" data-store-status-confirm>Suspender tienda</button>
+    </div>
+  </MasterDialog>
+
   <MasterStoreDeleteDialog />
 </div>
 
@@ -109,11 +121,13 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     const securityMenu = controller.querySelector<HTMLElement>('#master-security-actions');
     const storeDialog = controller.querySelector<HTMLDialogElement>('#master-store-dialog');
     const securityDialog = controller.querySelector<HTMLDialogElement>('#master-security-dialog');
+    const statusDialog = controller.querySelector<HTMLDialogElement>('#master-store-status-dialog');
     const storeForm = controller.querySelector<HTMLFormElement>('[data-store-form]');
     const securityForm = controller.querySelector<HTMLFormElement>('[data-security-form]');
     let activeMenu: HTMLElement | null = null;
     let activeTrigger: HTMLButtonElement | null = null;
     let activeContext: HTMLElement | null = null;
+    let pendingStatusContext: HTMLElement | null = null;
     let slugEdited = false;
 
     function contextFor(element: Element | null) {
@@ -200,6 +214,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
 
     function syncStoreMenu(context: HTMLElement) {
       const id = storeId(context);
+      const storeType = context.dataset.storeType === 'promo' ? 'promo' : 'commerce';
       const featured = context.dataset.storeFeatured === 'true';
       const active = context.dataset.storeStatus === 'active';
       const protectedStore = context.dataset.storeProtected === 'true';
@@ -208,16 +223,38 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       const statusButton = storeMenu?.querySelector<HTMLButtonElement>('[data-menu-status]');
       const deleteButton = storeMenu?.querySelector<HTMLButtonElement>('[data-menu-delete]');
       const protectedLabel = storeMenu?.querySelector<HTMLElement>('[data-menu-protected]');
+      const viewStore = storeMenu?.querySelector<HTMLAnchorElement>('[data-menu-view-store]');
+      const analytics = storeMenu?.querySelector<HTMLAnchorElement>('[data-menu-analytics]');
       const isOverview = context.dataset.storeOverview === 'true';
-      storeMenu?.querySelectorAll<HTMLElement>('[data-list-only]').forEach((item) => { item.hidden = isOverview; });
-      storeMenu?.querySelectorAll<HTMLElement>('[data-overview-only]').forEach((item) => { item.hidden = !isOverview; });
+      storeMenu?.querySelectorAll<HTMLElement>('[data-promo-only], [data-commerce-only], [data-list-only], [data-overview-only]').forEach((item) => {
+        item.hidden = (item.hasAttribute('data-promo-only') && storeType !== 'promo')
+          || (item.hasAttribute('data-commerce-only') && storeType !== 'commerce')
+          || (item.hasAttribute('data-list-only') && isOverview)
+          || (item.hasAttribute('data-overview-only') && !isOverview);
+      });
       if (products) products.href = `/master/products/${encodeURIComponent(id)}`;
+      if (viewStore && storeType === 'promo') {
+        const publicSlug = String(context.dataset.promoPublicSlug || '').trim();
+        const publicationActive = context.dataset.promoPublicState === 'active';
+        if (publicSlug && publicationActive) {
+          viewStore.href = `/promo/${encodeURIComponent(publicSlug)}`;
+          viewStore.removeAttribute('aria-disabled');
+          viewStore.removeAttribute('title');
+        } else {
+          viewStore.removeAttribute('href');
+          viewStore.setAttribute('aria-disabled', 'true');
+          viewStore.title = 'La tienda Promo todavía no está publicada.';
+        }
+      }
+      if (analytics && storeType === 'promo') {
+        analytics.href = `/t/${encodeURIComponent(String(context.dataset.storeSlug || ''))}/admin/promo/analytics`;
+      }
       const featuredLabel = featuredButton?.querySelector<HTMLElement>('[data-featured-label]');
       const statusLabel = statusButton?.querySelector<HTMLElement>('[data-status-label]');
       if (featuredLabel) featuredLabel.textContent = featured ? 'Quitar destacada' : 'Destacar';
       if (statusLabel) statusLabel.textContent = active ? 'Suspender' : 'Activar';
-      if (deleteButton) deleteButton.hidden = protectedStore;
-      if (protectedLabel) protectedLabel.hidden = !protectedStore;
+      if (deleteButton) deleteButton.hidden = storeType !== 'commerce' || protectedStore;
+      if (protectedLabel) protectedLabel.hidden = storeType !== 'commerce' || !protectedStore;
     }
 
     function syncSecurityMenu(context: HTMLElement) {
@@ -236,6 +273,22 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         syncStoreMenu(context);
         openMenu(storeMenu, trigger, context);
       });
+    });
+
+    storeMenu?.addEventListener('keydown', (event) => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const items = Array.from(storeMenu.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+        .filter((item) => !item.hidden
+          && item.getAttribute('aria-disabled') !== 'true'
+          && !('disabled' in item && (item as HTMLButtonElement).disabled));
+      if (!items.length) return;
+      event.preventDefault();
+      const current = items.indexOf(document.activeElement as HTMLElement);
+      const next = event.key === 'Home' ? 0
+        : event.key === 'End' ? items.length - 1
+          : event.key === 'ArrowUp' ? (current <= 0 ? items.length - 1 : current - 1)
+            : (current + 1) % items.length;
+      items[next]?.focus();
     });
 
     document.querySelectorAll<HTMLButtonElement>('[data-action-security]').forEach((trigger) => {
@@ -361,12 +414,27 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       if (context) void openSecurityDialog(context);
     });
     storeMenu?.querySelector('[data-menu-products]')?.addEventListener('click', () => closeMenu());
+    storeMenu?.querySelector('[data-menu-view-store]')?.addEventListener('click', (event) => {
+      const link = event.currentTarget as HTMLAnchorElement;
+      if (link.getAttribute('aria-disabled') === 'true') event.preventDefault();
+      else closeMenu();
+    });
+    storeMenu?.querySelector('[data-menu-analytics]')?.addEventListener('click', () => closeMenu());
     storeMenu?.querySelector('[data-menu-create-user]')?.addEventListener('click', () => {
       const context = activeContext;
       const id = storeId(context);
       if (id) window.location.assign(`/master/stores/${encodeURIComponent(id)}/users?create=1`);
     });
-    storeMenu?.querySelector('[data-menu-edit]')?.addEventListener('click', () => void openStoreDialog(activeContext));
+    storeMenu?.querySelector('[data-menu-edit]')?.addEventListener('click', () => {
+      const context = activeContext;
+      const id = storeId(context);
+      if (context?.dataset.storeType === 'promo' && id) {
+        closeMenu();
+        window.location.assign(`/master/stores/${encodeURIComponent(id)}`);
+        return;
+      }
+      void openStoreDialog(context);
+    });
     storeMenu?.querySelector('[data-menu-configure-security]')?.addEventListener('click', () => {
       const context = activeContext;
       if (context) void openSecurityDialog(context);
@@ -386,21 +454,47 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         button.disabled = false;
       }
     });
-    storeMenu?.querySelector<HTMLButtonElement>('[data-menu-status]')?.addEventListener('click', async (event) => {
+    storeMenu?.querySelector<HTMLButtonElement>('[data-menu-status]')?.addEventListener('click', () => {
       const context = activeContext;
-      const button = event.currentTarget as HTMLButtonElement;
       const id = storeId(context);
-      if (!context || !id) return;
-      const next = context.dataset.storeStatus === 'active' ? 'suspended' : 'active';
+      const trigger = activeTrigger;
+      if (!context || !id || !statusDialog) return;
+      pendingStatusContext = context;
+      const suspending = context.dataset.storeStatus === 'active';
+      const title = statusDialog.querySelector('h2');
+      const copy = statusDialog.querySelector<HTMLElement>('[data-store-status-copy]');
+      const confirm = statusDialog.querySelector<HTMLButtonElement>('[data-store-status-confirm]');
+      const alert = statusDialog.querySelector<HTMLElement>('[data-store-status-alert]');
+      if (title) title.textContent = suspending ? 'Suspender tienda' : 'Activar tienda';
+      if (copy) copy.textContent = suspending
+        ? `Se bloqueará el acceso público y administrativo de ${context.dataset.storeName || 'esta tienda'} sin borrar sus datos.`
+        : `Se restablecerá el acceso de ${context.dataset.storeName || 'esta tienda'}.`;
+      if (confirm) {
+        confirm.textContent = suspending ? 'Suspender tienda' : 'Activar tienda';
+        confirm.classList.toggle('master-btn--danger-solid', suspending);
+        confirm.classList.toggle('master-btn--primary', !suspending);
+      }
+      setAlert(alert);
       closeMenu();
+      window.PZMasterDialog?.open(statusDialog.id, trigger);
+    });
+    controller.querySelector<HTMLButtonElement>('[data-store-status-confirm]')?.addEventListener('click', async (event) => {
+      const context = pendingStatusContext;
+      const id = storeId(context);
+      if (!context || !id || !statusDialog) return;
+      const button = event.currentTarget as HTMLButtonElement;
+      const alert = statusDialog.querySelector<HTMLElement>('[data-store-status-alert]');
+      const next = context.dataset.storeStatus === 'active' ? 'suspended' : 'active';
       button.disabled = true;
       try {
         await setStoreStatusFromMaster(id, next);
         window.location.reload();
-      } catch (_) {
+      } catch (error: any) {
+        setAlert(alert, error?.message || 'No se pudo cambiar el estado de la tienda.');
         button.disabled = false;
       }
     });
+    statusDialog?.addEventListener('close', () => { pendingStatusContext = null; });
     storeMenu?.querySelector<HTMLButtonElement>('[data-menu-delete]')?.addEventListener('click', () => {
       const context = activeContext;
       const trigger = activeTrigger;

@@ -7,7 +7,7 @@ import type { MasterDeviceAudit, MasterUserDevice } from '../../lib/masterUserDe
 import type { MasterPrimaryAdminStatus } from '../../lib/masterPrimaryAdmin';
 
 interface Props {
-  store: { id: string; name: string; slug: string; status: string; planPresentation: { contextTitle: string; contextDetail: string } };
+  store: { id: string; name: string; slug: string; status: string; storeType?: 'commerce' | 'promo'; planPresentation: { contextTitle: string; contextDetail: string } };
   detail: { user: MasterStoreUser; plan: MasterStoreUserPlan; protection: { last_active_admin: boolean } };
   devices: { devices: MasterUserDevice[]; authorized_for_user: number; user_limit: number; pagination: { total_items: number } };
   userAudit: { audit: MasterStoreUserAudit[]; pagination: { page: number; total_pages: number } };
@@ -62,7 +62,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
 
   {isPrimaryAdmin ? <div class="master-user-warning" role="status"><strong>Este usuario es el Administrador principal.</strong><br />Para suspenderlo, degradarlo o eliminarlo debes completar primero el reemplazo explícito y auditado.</div> : detail.protection.last_active_admin && <div class="master-user-warning" role="status"><strong>Este usuario es el único Administrador activo de la tienda.</strong><br />Debe existir al menos un Administrador activo en todo momento. Suspenderlo o degradarlo a Personal está deshabilitado.</div>}
 
-  <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} fixedTargetId={user.id} compact />
+  {store.storeType !== 'promo' && <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} fixedTargetId={user.id} compact />}
 
   <div class="master-user-detail-grid">
     <div class="master-user-detail-stack">

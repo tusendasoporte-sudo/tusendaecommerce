@@ -98,11 +98,14 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
             data-store-id={store.id}
             data-store-name={store.name}
             data-store-slug={store.slug}
+            data-store-type={store.storeType}
             data-store-status={store.status === 'active' ? 'active' : 'suspended'}
             data-store-featured={store.featured ? 'true' : 'false'}
             data-store-protected={store.protected ? 'true' : 'false'}
             data-store-updated={store.updated}
             data-store-security-exists={store.securityExists ? 'true' : 'false'}
+            data-promo-public-slug={store.promo?.site.public_slug || ''}
+            data-promo-public-state={store.promo?.publication.state || ''}
           >
             <div class="master-store-row__identity">
               <a href={`/master/stores/${encodeURIComponent(store.id)}`}>{store.name || 'Tienda sin nombre'}</a>
@@ -136,9 +139,21 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
             </div>
             <div class="master-store-row__actions">
               {store.storeType === 'promo' ? (
-                <a class="master-btn master-btn--primary" href={`/master/stores/${encodeURIComponent(store.id)}`}>
-                  <MasterIcon name="settings" size={18} /> Abrir control Promo
-                </a>
+                <>
+                  <a class="master-btn master-btn--primary" href={`/t/${encodeURIComponent(store.slug)}/admin`}>
+                    <MasterIcon name="settings" size={18} /> Abrir control Promo
+                  </a>
+                  <button
+                    class="master-icon-btn"
+                    type="button"
+                    data-action-more
+                    aria-label={`Acciones de ${store.name}`}
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                  >
+                    <MasterIcon name="more" size={21} />
+                  </button>
+                </>
               ) : store.storeType === 'commerce' ? (
                 <>
                   <a class="master-btn master-btn--secondary" href={`/t/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer">

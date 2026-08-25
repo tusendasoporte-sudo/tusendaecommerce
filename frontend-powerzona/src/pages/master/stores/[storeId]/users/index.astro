@@ -23,7 +23,8 @@ const masterUser = requireMasterAdmin(authPb.authStore.record as any);
 if (!authPb.authStore.isValid || !masterUser) return Astro.redirect('/master-login');
 const storeId = String(Astro.params.storeId || '').trim();
 if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
-if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
+const storeKind = await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId);
+if (storeKind !== 'commerce' && storeKind !== 'promo') {
   return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
 }
 
@@ -77,6 +78,7 @@ const currentStore = {
   slug: String(storeRecord.slug || ''),
   status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
   planPresentation: resolveStorePlanPresentation(storeRecord),
+  storeType: storeKind,
 };
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || 'Master Admin');
 ---

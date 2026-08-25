@@ -162,14 +162,14 @@ function initials(value: string, fallback: string) {
         >
           <MasterIcon name="home" size={20} /><span>Resumen de tienda</span>
         </a>
+        <a
+          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/users`) }]}
+          href={`/master/stores/${encodeURIComponent(currentStore.id)}/users`}
+        >
+          <MasterIcon name="users" size={20} /><span>Usuarios</span>
+        </a>
         {currentStore.storeType !== 'promo' && (
           <>
-            <a
-              class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/users`) }]}
-              href={`/master/stores/${encodeURIComponent(currentStore.id)}/users`}
-            >
-              <MasterIcon name="users" size={20} /><span>Usuarios</span>
-            </a>
             <a
               class:list={['master-sidebar__link', { 'is-active': isActive(`/master/analytics/${currentStore.id}`) }]}
               href={`/master/analytics/${encodeURIComponent(currentStore.id)}`}
