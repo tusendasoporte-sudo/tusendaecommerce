@@ -32,6 +32,11 @@ const promoReviews = typeof __hooks === "undefined"
 const promoLandingQr = typeof __hooks === "undefined"
   ? require("./pz_promo_landing_qr_lib.js")
   : require(`${__hooks}/pz_promo_landing_qr_lib.js`);
+const promoPerformance = typeof __hooks === "undefined"
+  ? require("./pz_promo_performance_lib.js")
+  : require(`${__hooks}/pz_promo_performance_lib.js`);
+
+const CACHE_IDENTITY_PROPERTY = "__promoPerformanceCacheIdentity";
 
 function codedError(code, status) {
   const error = new Error(code);
@@ -173,10 +178,12 @@ function resolvePlatformShell(app, publicSlug, signals) {
   );
   const exactLocale = signals && Object.prototype.hasOwnProperty.call(signals, "explicitLocale")
     && signals.explicitLocale === localized.locale.effective;
-  return shell.shellResponse(localized, {
+  const result = shell.shellResponse(localized, {
     ...context,
     action: context.action === "redirect" || !exactLocale ? "redirect" : "serve",
   });
+  attachCacheIdentity(result, context, promoPerformance.PLATFORM_CANONICAL_HOST);
+  return result;
 }
 
 function resolveHostShell(app, headers, signals) {
@@ -204,11 +211,44 @@ function resolveHostShell(app, headers, signals) {
   catch (_) { throw codedError("promo_public_unavailable", 404); }
   const exactLocale = signals && Object.prototype.hasOwnProperty.call(signals, "explicitLocale")
     && signals.explicitLocale === localized.locale.effective;
-  return shell.shellResponse(localized, {
+  const result = shell.shellResponse(localized, {
     source: "custom",
     action: context.binding_role === "alias" || !exactLocale ? "redirect" : "serve",
     canonicalHostname: context.canonical_hostname,
   });
+  attachCacheIdentity(result, context, context.canonical_hostname);
+  return result;
+}
+
+function attachCacheIdentity(result, context, canonicalHost) {
+  if (!result || !result.route || result.route.action !== "serve" || !result.profile || !context) return result;
+  try {
+    const identity = promoPerformance.generationCacheIdentity({
+      canonicalHost,
+      tenantId: recordId(context.site),
+      revisionId: recordId(context.revision),
+      generation: Number(context.generation),
+      locale: result.profile.locale && result.profile.locale.effective,
+      themeId: result.profile.theme && result.profile.theme.theme_id,
+      themeVersion: result.profile.theme && result.profile.theme.version,
+      publicPath: result.profile.locale && result.profile.locale.canonical_path,
+      representation: promoPerformance.HTML_REPRESENTATION,
+    });
+    Object.defineProperty(result, CACHE_IDENTITY_PROPERTY, {
+      configurable: false,
+      enumerable: false,
+      value: identity,
+      writable: false,
+    });
+  } catch (_) {
+    // Fail closed for caching: the public response remains no-store and uncached.
+  }
+  return result;
+}
+
+function cacheIdentity(result) {
+  const identity = result && result[CACHE_IDENTITY_PROPERTY];
+  return promoPerformance.isCacheIdentity(identity) ? identity : null;
 }
 
 function resolveCommerceBridge(app, storeSlug) {
@@ -236,13 +276,17 @@ function resolveCommerceBridge(app, storeSlug) {
   return shell.routeRedirect(shell.platformPath(publicSlug));
 }
 
-function setHeaders(e, localized, neutral, hostScoped) {
+function setHeaders(e, localized, neutral, hostScoped, identity) {
   i18nApi.setPublicHeaders(e, localized || null, neutral === true);
   try {
     const headers = e.response.header();
     headers.set("Cache-Control", "private, no-store, max-age=0");
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
     if (hostScoped) headers.set("Vary", neutral ? "Host, Accept-Language, Cookie" : "Host");
+    if (promoPerformance.isCacheIdentity(identity)) {
+      headers.set(promoPerformance.CACHE_CONTRACT_HEADER, identity.contract);
+      headers.set(promoPerformance.CACHE_KEY_HEADER, identity.key);
+    }
   } catch (_) {}
 }
 
@@ -257,7 +301,7 @@ function handlePlatform(e, explicit) {
     const slug = i18nApi.safeHeader(e.request.pathValue("publicSlug"), 80);
     const explicitLocale = explicit ? i18nApi.safeHeader(e.request.pathValue("locale"), 80) : undefined;
     const result = resolvePlatformShell(e.app, slug, localeSignals(info, explicitLocale));
-    setHeaders(e, result.profile, !explicit, false);
+    setHeaders(e, result.profile, !explicit, false, cacheIdentity(result));
     if (explicit && result.profile) i18nApi.setLocalePreference(e, result.profile.locale.effective);
     return e.json(200, result);
   } catch (_) {
@@ -280,7 +324,7 @@ function handleHost(e, explicit) {
       authoritativeRequestHeaders(e, info),
       localeSignals(info, explicitLocale),
     );
-    setHeaders(e, result.profile, !explicit, true);
+    setHeaders(e, result.profile, !explicit, true, cacheIdentity(result));
     if (explicit && result.profile) i18nApi.setLocalePreference(e, result.profile.locale.effective);
     return e.json(200, result);
   } catch (error) {
@@ -305,6 +349,8 @@ function handleCommerceBridge(e) {
 }
 
 module.exports = {
+  attachCacheIdentity,
+  cacheIdentity,
   exactRequestInfo,
   findExactStrict,
   handleCommerceBridge,

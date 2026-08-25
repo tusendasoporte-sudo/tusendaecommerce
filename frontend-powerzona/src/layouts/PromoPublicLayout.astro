@@ -112,14 +112,16 @@ const {
         }).catch(() => {});
       }
 
-      if (!privacySignal && canGenerateEventId && canonicalUrl) {
-        sendPromoEvent('page_view');
-        document.addEventListener('click', (event) => {
-          const target = event.target instanceof Element ? event.target : null;
-          if (target?.closest('[data-contact-action="primary"]')) sendPromoEvent('contact_activate');
-          if (target?.closest('[data-promo-landing-qr-link]')) sendPromoEvent('landing_qr_open');
-        }, { capture: true });
+      document.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
+        if (target?.closest('[data-contact-action="primary"]')) sendPromoEvent('contact_activate');
+        if (target?.closest('[data-promo-landing-qr-link]')) sendPromoEvent('landing_qr_open');
+      }, { capture: true });
 
+      function startPassiveAnalytics() {
+        if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
+        sendPromoEvent('page_view');
         if ('IntersectionObserver' in window) {
           const observed = new Set<string>();
           const observer = new IntersectionObserver((entries) => {
@@ -135,6 +137,13 @@ const {
           }, { threshold: [0.5] });
           document.querySelectorAll('[id^="promo-section-"]').forEach((section) => observer.observe(section));
         }
+      }
+
+      if ('requestIdleCallback' in window) {
+        (window as Window & { requestIdleCallback: (callback: () => void, options: { timeout: number }) => number })
+          .requestIdleCallback(startPassiveAnalytics, { timeout: 1500 });
+      } else {
+        window.setTimeout(startPassiveAnalytics, 0);
       }
     </script>
   </body>

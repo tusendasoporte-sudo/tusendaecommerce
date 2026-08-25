@@ -4,6 +4,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 const isProductionBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
 
+function promoAssetInlineLimit(filePath) {
+  const asset = String(filePath || '').replaceAll('\\', '/');
+  if (/PromoPublicShell\.[A-Za-z0-9_-]+\.css$/.test(asset)) return true;
+  if (/PromoPublicLayout\.astro_astro_type_script_.*\.js$/.test(asset)) return false;
+  return undefined;
+}
+
 export default defineConfig({
   output: 'server',
   devToolbar: {
@@ -29,6 +36,7 @@ export default defineConfig({
     cacheDir: '.astro/vite-cache',
     plugins: [tailwindcss()],
     build: {
+      assetsInlineLimit: promoAssetInlineLimit,
       sourcemap: false,
       minify: 'esbuild',
     },

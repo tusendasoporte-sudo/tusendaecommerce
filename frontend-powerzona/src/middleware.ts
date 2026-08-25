@@ -30,11 +30,14 @@ import {
 import {
   applyPromoPublicHeaders,
   customPromoPublicPath,
+  platformPromoPublicPath,
   PROMO_PUBLIC_INTERNAL_PATH,
   PromoPublicShellError,
   promoPublicUnavailable,
   readCustomHostPromoShell,
+  readPlatformPromoShell,
 } from './lib/promoPublicShell';
+import { servePromoPublicRepresentation } from './lib/promoPerformance';
 import {
   customPromoSeoResource,
   promoSeoResourceResponse,
@@ -237,6 +240,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (!promoSecurityDecision.platform) {
     if (pathname === PROMO_CUSTOM_ANALYTICS_PATH) return applyPromoSecurityHeaders(await next());
+    if (context.request.method !== 'GET' && context.request.method !== 'HEAD') return promoPublicUnavailable(404);
     const seoResource = customPromoSeoResource(pathname);
     if (seoResource) {
       if (context.url.search) return promoPublicUnavailable(404);
@@ -265,7 +269,40 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(421);
     context.locals.promoPublicProfile = resolved.profile;
     context.locals.promoPublicSeo = resolved.seo;
-    const response = await context.rewrite(PROMO_PUBLIC_INTERNAL_PATH);
+    const response = await servePromoPublicRepresentation(
+      context.request,
+      resolved,
+      () => context.rewrite(PROMO_PUBLIC_INTERNAL_PATH),
+    );
+    return applyPromoPublicHeaders(response, resolved);
+  }
+
+  const platformPromoPath = platformPromoPublicPath(pathname);
+  if (platformPromoPath) {
+    if (context.request.method !== 'GET' && context.request.method !== 'HEAD') return promoPublicUnavailable(404);
+    if (context.url.search) return promoPublicUnavailable(404);
+    let resolved;
+    try {
+      resolved = await readPlatformPromoShell(
+        context.request,
+        platformPromoPath.publicSlug,
+        platformPromoPath.locale,
+      );
+    } catch (error) {
+      const status = error instanceof PromoPublicShellError ? error.status : 503;
+      return promoPublicUnavailable(status);
+    }
+    if (resolved.route.action === 'redirect' && resolved.route.location) {
+      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
+    }
+    if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(404);
+    context.locals.promoPublicProfile = resolved.profile;
+    context.locals.promoPublicSeo = resolved.seo;
+    const response = await servePromoPublicRepresentation(
+      context.request,
+      resolved,
+      () => context.rewrite(PROMO_PUBLIC_INTERNAL_PATH),
+    );
     return applyPromoPublicHeaders(response, resolved);
   }
 

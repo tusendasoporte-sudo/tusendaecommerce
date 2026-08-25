@@ -522,6 +522,8 @@ test('salto SSR a PocketBase conserva el Host original con transporte Node', asy
       'Content-Type': 'application/json',
       'Content-Language': 'es',
       'Cache-Control': 'private, no-store, max-age=0',
+      'X-PZ-Promo-Cache-Contract': 'promo.public.cache.v1',
+      'X-PZ-Promo-Cache-Key': 'a'.repeat(64),
     });
     response.end(JSON.stringify(shellEnvelope('custom')));
   });
@@ -539,6 +541,7 @@ test('salto SSR a PocketBase conserva el Host original con transporte Node', asy
     }));
     assert.equal(result.profile.content.identity.name, 'Negocio demo');
     assert.equal(result.response.contentLanguage, 'es');
+    assert.equal(result.response.cacheKey, 'a'.repeat(64));
     assert.equal(observedHost, 'primary.example.test');
     assert.equal(observedPath, '/api/pz/promo/public/v1/shell/host');
   } finally {

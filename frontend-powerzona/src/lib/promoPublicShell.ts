@@ -15,6 +15,7 @@ export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
 export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';
 export const PROMO_PUBLIC_SEO_CONTRACT = 'promo.public.seo.v1';
 export const PROMO_PLATFORM_ORIGIN = 'https://tusenda84.com';
+export const PROMO_PUBLIC_CACHE_CONTRACT = 'promo.public.cache.v1';
 
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
@@ -269,7 +270,7 @@ export type PromoPublicShellResult = Readonly<{
   route: Readonly<{ source: 'platform' | 'custom'; action: 'serve' | 'redirect'; location?: string }>;
   profile?: PromoPublicProfile;
   seo?: PromoPublicSeo;
-  response: Readonly<{ contentLanguage: string; setCookie: string; vary: string }>;
+  response: Readonly<{ cacheKey: string; contentLanguage: string; setCookie: string; vary: string }>;
 }>;
 
 export class PromoPublicShellError extends Error {
@@ -1222,9 +1223,15 @@ async function requestContract(input: {
     fail(code, response.status);
   }
   const normalized = input.contract === 'route' ? normalizeRouteEnvelope(body) : normalizeEnvelope(body);
+  const cacheContract = response.headers.get('x-pz-promo-cache-contract') || '';
+  const rawCacheKey = response.headers.get('x-pz-promo-cache-key') || '';
+  const cacheKey = cacheContract === PROMO_PUBLIC_CACHE_CONTRACT && /^[a-f0-9]{64}$/.test(rawCacheKey)
+    ? rawCacheKey
+    : '';
   return {
     ...normalized,
     response: {
+      cacheKey,
       contentLanguage: response.headers.get('content-language') || '',
       setCookie: response.headers.get('set-cookie') || '',
       vary: response.headers.get('vary') || '',
@@ -1277,17 +1284,39 @@ export function isPromoPlatformRequest(request: Request) {
   return isPromoPlatformHostRequest(request);
 }
 
+export function platformPromoPublicPath(pathname: string) {
+  const match = String(pathname || '').match(
+    /^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*))?\/?$/,
+  );
+  return match
+    ? { publicSlug: match[1], locale: match[2] || undefined }
+    : null;
+}
+
 export function applyPromoPublicHeaders(response: Response, result?: PromoPublicShellResult) {
   applyPromoSecurityHeaders(response);
-  response.headers.set('Cache-Control', 'private, no-store, max-age=0');
   const indexable = result?.route.action === 'serve' && Boolean(result.profile && result.seo);
+  const safelyRevalidatable = indexable && response.status === 200
+    && /^[a-f0-9]{64}$/.test(result?.response.cacheKey || '');
+  response.headers.set(
+    'Cache-Control',
+    safelyRevalidatable
+      ? 'private, no-cache, max-age=0, must-revalidate'
+      : 'private, no-store, max-age=0',
+  );
   response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex, nofollow, noarchive');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   if (indexable && result?.seo) response.headers.set('Link', `<${result.seo.sitemap_url}>; rel="sitemap"`);
   if (result?.response.contentLanguage) response.headers.set('Content-Language', result.response.contentLanguage);
   if (result?.response.setCookie) response.headers.append('Set-Cookie', result.response.setCookie);
-  if (result?.response.vary) response.headers.set('Vary', result.response.vary);
+  if (result?.response.vary) {
+    const vary = [response.headers.get('Vary') || '', result.response.vary]
+      .flatMap((value) => value.split(','))
+      .map((value) => value.trim())
+      .filter((value, index, values) => value && values.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index);
+    if (vary.length) response.headers.set('Vary', vary.join(', '));
+  }
   return response;
 }
 

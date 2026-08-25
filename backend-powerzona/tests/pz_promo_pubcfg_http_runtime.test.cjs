@@ -559,6 +559,9 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     const localizedPlatformShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
     assertStatus(localizedPlatformShell, 200, 'SHELL localized sirve identidad SEO estable');
+    const initialPlatformCacheKey = localizedPlatformShell.headers.get('x-pz-promo-cache-key') || '';
+    assert.equal(localizedPlatformShell.headers.get('x-pz-promo-cache-contract'), 'promo.public.cache.v1');
+    assert.match(initialPlatformCacheKey, /^[a-f0-9]{64}$/, 'SHELL expone solo identidad opaca completa');
     assert.equal(localizedPlatformShell.data.profile.locale.effective, 'es');
     assert.equal(localizedPlatformShell.data.profile.content.identity.name, 'Publicado A');
     assert.equal(localizedPlatformShell.data.profile.locale.canonical_path, '/promo/promo-pubcfg-a/es');
@@ -574,6 +577,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       '/promo/promo-pubcfg-a/en', '/promo/promo-pubcfg-a/es',
     ]);
     assert.equal(platformShell.headers.get('cache-control').includes('no-store'), true);
+    assert.equal(platformShell.headers.get('x-pz-promo-cache-key'), null, 'redirect nunca expone clave cacheable');
     assert.equal(localizedPlatformShell.data.seo.canonical_url, 'https://tusenda84.com/promo/promo-pubcfg-a/es');
     assert.equal(localizedPlatformShell.data.seo.open_graph.type, 'website');
     const platformSitemap = await request('/api/pz/promo/public/v1/seo/sites/promo-pubcfg-a/sitemap');
@@ -592,6 +596,13 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       'https://wa.me/5351234567?text=Hello%2C%20I%20would%20like%20an%20estimate.',
     );
     assert.equal(JSON.stringify(explicitShell.data).includes('Identidad pública Promo'), false, 'SHELL no mezcla locale español');
+    assert.match(explicitShell.headers.get('x-pz-promo-cache-key') || '', /^[a-f0-9]{64}$/);
+    assert.notEqual(explicitShell.headers.get('x-pz-promo-cache-key'), initialPlatformCacheKey,
+      'locale forma una variante aislada');
+    const tenantBShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-b/locales/es');
+    assertStatus(tenantBShell, 200, 'SHELL tenant B crea identidad independiente');
+    assert.notEqual(tenantBShell.headers.get('x-pz-promo-cache-key'), initialPlatformCacheKey,
+      'la clave opaca no cruza tenants');
     const commerceBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
     assertStatus(commerceBridge, 200, 'guard Commerce reconoce solo Promo activa publicada');
     assert.deepEqual(commerceBridge.data.route, {
@@ -980,6 +991,11 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     assertStatus(publishA1, 200, `publicación posterior usa CAS y evento atómico\n${runtime.output()}`);
     assert.equal(publishA1.data.generation_after, 4);
+    const generation4Shell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
+    assertStatus(generation4Shell, 200, 'SHELL refleja publicación generación 4');
+    const generation4CacheKey = generation4Shell.headers.get('x-pz-promo-cache-key') || '';
+    assert.match(generation4CacheKey, /^[a-f0-9]{64}$/);
+    assert.notEqual(generation4CacheKey, initialPlatformCacheKey, 'publish invalida por generación/revisión');
     assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
       'Edición secundaria', 'público lee revisión exacta recién señalada');
     assertStatus(await request('/api/pz/promo/private/v1/publication/publish', {
@@ -1016,6 +1032,10 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     assertStatus(publishA2, 200, 'segunda publicación incrementa exactamente una generación');
     assert.equal(publishA2.data.generation_after, 5);
+    const generation5Shell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
+    const generation5CacheKey = generation5Shell.headers.get('x-pz-promo-cache-key') || '';
+    assert.match(generation5CacheKey, /^[a-f0-9]{64}$/);
+    assert.notEqual(generation5CacheKey, generation4CacheKey, 'segunda publicación no reutiliza bytes previos');
     assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
       'Publicación posterior A');
 
@@ -1032,6 +1052,11 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     });
     assertStatus(rollbackA, 200, 'rollback Master selecciona revisión histórica explícita');
     assert.equal(rollbackA.data.generation_after, 6);
+    const rollbackShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
+    const rollbackCacheKey = rollbackShell.headers.get('x-pz-promo-cache-key') || '';
+    assert.match(rollbackCacheKey, /^[a-f0-9]{64}$/);
+    assert.notEqual(rollbackCacheKey, generation4CacheKey,
+      'rollback a una revisión anterior permanece aislado por nueva generación');
     assert.equal((await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a')).data.content_by_locale.es.identity.name,
       'Edición secundaria');
     assertStatus(await request('/api/pz/promo/private/v1/publication/rollback', {
@@ -1082,11 +1107,15 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.deepEqual(platformRedirect.data.route, {
       source: 'custom', action: 'redirect', location: 'https://promo-a.example.test/es',
     });
+    assert.equal(platformRedirect.headers.get('x-pz-promo-cache-key'), null);
     const customShell = await request('/api/pz/promo/public/v1/shell/host/locales/en', {
       headers: { Host: 'promo-a.example.test', 'Accept-Language': 'en' },
     });
     assertStatus(customShell, 200, `SHELL Host primary sirve revisión custom exacta\n${runtime.output()}`);
     assert.deepEqual(customShell.data.route, { source: 'custom', action: 'serve' });
+    const customCacheKey = customShell.headers.get('x-pz-promo-cache-key') || '';
+    assert.match(customCacheKey, /^[a-f0-9]{64}$/);
+    assert.notEqual(customCacheKey, rollbackCacheKey, 'Host, ruta y generación custom quedan aislados');
     assert.equal(customShell.data.profile.locale.effective, 'en');
     assert.equal(customShell.data.profile.content.identity.name, 'Solo borrador A EN');
     assert.equal(customShell.data.profile.contact_action.action.label, 'Request an estimate');
@@ -1148,6 +1177,9 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assertStatus(pauseA, 200, 'pausa Master conserva revisión pero cierra serving');
     assert.equal(pauseA.data.state, 'paused');
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-pubcfg-a'), 404);
+    const pausedShell = await request('/api/pz/promo/public/v1/shell/sites/promo-pubcfg-a/locales/es');
+    assertStatus(pausedShell, 404, 'SHELL suspendida no es cacheable');
+    assert.equal(pausedShell.headers.get('x-pz-promo-cache-key'), null);
     const resumeA = await request('/api/pz/promo/private/v1/publication/resume', {
       token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
       json: {
