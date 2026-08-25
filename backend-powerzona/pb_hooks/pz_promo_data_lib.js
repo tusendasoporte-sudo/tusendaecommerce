@@ -611,6 +611,9 @@ function assertAnalytics(app, record) {
   const action = recordString(record, "action_type");
   if ((type === "section_view") !== !!section) fail("invalid_promo_analytics_section", "section_key");
   if ((type === "contact_activate") !== !!action) fail("invalid_promo_analytics_action", "action_type");
+  if (!["page_view", "section_view", "contact_activate", "landing_qr_open"].includes(type)) {
+    fail("invalid_promo_analytics_type", "event_type");
+  }
   if (canonicalLocale(recordString(record, "locale")) !== recordString(record, "locale")) {
     fail("invalid_promo_locale", "locale");
   }
@@ -618,6 +621,14 @@ function assertAnalytics(app, record) {
 }
 
 function assertAnalyticsDaily(record) {
+  const type = recordString(record, "event_type");
+  const dimension = recordString(record, "dimension_key");
+  if (!["page_view", "section_view", "contact_activate", "landing_qr_open"].includes(type)) {
+    fail("invalid_promo_analytics_type", "event_type");
+  }
+  if ((type === "section_view" || type === "contact_activate") !== !!dimension) {
+    fail("invalid_promo_analytics_dimension", "dimension_key");
+  }
   if (canonicalLocale(recordString(record, "locale")) !== recordString(record, "locale")) {
     fail("invalid_promo_locale", "locale");
   }

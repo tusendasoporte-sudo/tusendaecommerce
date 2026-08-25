@@ -363,6 +363,7 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
 
     const fixtureA = await createPromoFixture(storeA, 'promo-pubcfg-a', 'Publicado A');
     const fixtureB = await createPromoFixture(storeB, 'promo-pubcfg-b', 'Publicado B');
+    await update('promo_site_entitlements', fixtureA.entitlement.id, { analytics_enabled: true });
 
     const firstDocument = publishedDocument('Primera publicación C');
     const firstSite = await create('promo_sites', {
@@ -607,6 +608,35 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
       'SHELL Host unknown falla cerrado',
     );
 
+    const analyticsEvent = (eventType, eventId, extra = {}) => ({
+      contract: 'promo.analytics.collect.v1', event_type: eventType, event_id: eventId, locale: 'es', ...extra,
+    });
+    const analyticsEntitlement = await request(`/api/collections/promo_site_entitlements/records/${fixtureA.entitlement.id}`, {
+      token: superToken,
+    });
+    assertStatus(analyticsEntitlement, 200, 'superuser verifica entitlement analytics temporal');
+    assert.equal(analyticsEntitlement.data.analytics_enabled, true);
+    for (const [type, id, extra] of [
+      ['page_view', '8f9760e2-1847-4b9c-83e8-2f09724e9e50', {}],
+      ['section_view', '54c26ee8-c284-427b-9c3b-ac565e3175b2', { section_key: 'hero-main' }],
+      ['contact_activate', '1ff9d885-e047-483e-8a5d-d0d74baef749', {}],
+    ]) {
+      assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-pubcfg-a/events', {
+        json: analyticsEvent(type, id, extra),
+      }), 202, `analytics plataforma acepta ${type}`);
+    }
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-pubcfg-a/events', {
+      json: analyticsEvent('page_view', '8f9760e2-1847-4b9c-83e8-2f09724e9e50'),
+    }), 202, 'retry con el mismo event_id es idempotente');
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-pubcfg-a/events', {
+      json: analyticsEvent('landing_qr_open', '656a2ebc-f880-40a8-bdc9-22b4e145eab8'),
+    }), 202, 'Landing QR deshabilitada falla cerrado sin oráculo');
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-pubcfg-a/events', {
+      json: { ...analyticsEvent('page_view', '0f144a6b-7957-4d62-8df8-f237906731e9'), url: 'https://attacker.test/?pii=1' },
+    }), 400, 'analytics rechaza URL/PII fuera del contrato');
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-pubcfg-b/events', {
+      json: analyticsEvent('page_view', '544c5dd2-b379-4948-bf6c-5a5f6ae8ab4f'),
+    }), 202, 'tenant sin entitlement recibe aceptación no-oracular sin persistencia');
     for (const query of [
       '?store_id=attacker', '?site_id=attacker', '?revision_id=attacker', '?filter=id%21%3D%22%22',
       '?sort=-created', '?fields=*', '?expand=site.store',
@@ -650,6 +680,33 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     for (const [result, label] of [[primaryAuth, 'principal'], [secondaryAuth, 'secundario'], [staffAuth, 'staff'], [commerceAuth, 'Commerce'], [suspendedAuth, 'suspendible']]) {
       assertStatus(result, 200, `auth ${label}`);
     }
+    const analyticsSummary = await request('/api/pz/promo/private/v1/analytics/summary', {
+      token: primaryAuth.data.token,
+      json: { contract: 'promo.analytics.summary.read.v1', range_days: 7 },
+    });
+    assertStatus(analyticsSummary, 200, 'principal consulta agregados analytics tenant A');
+    assert.deepEqual(analyticsSummary.data.totals, {
+      page_views: 1, section_views: 1, contact_activations: 1, landing_qr_opens: 0,
+    }, runtime.output());
+    assert.equal(analyticsSummary.data.privacy.unique_visitors_measured, false);
+    assertStatus(await request('/api/pz/promo/private/v1/analytics/summary', {
+      token: secondaryAuth.data.token,
+      json: { contract: 'promo.analytics.summary.read.v1', range_days: 7 },
+    }), 403, 'secundario sin promo.analytics.view no consulta agregados');
+    assertStatus(await request('/api/pz/promo/private/v1/analytics/summary', {
+      token: masterToken,
+      json: { contract: 'promo.analytics.summary.read.v1', range_days: 7 },
+    }), 403, 'Master analytics exige contexto explícito');
+    const rawAnalytics = await request('/api/collections/promo_analytics_events/records?sort=occurred_at', {
+      token: superToken,
+    });
+    assertStatus(rawAnalytics, 200, 'superuser verifica persistencia analytics temporal');
+    assert.equal(rawAnalytics.data.items.length, 3);
+    assert.equal(rawAnalytics.data.items.every((item) => item.site === fixtureA.site.id), true);
+    assert.equal(JSON.stringify(rawAnalytics.data.items).includes('attacker.test'), false);
+    assertStatus(await request('/api/collections/promo_analytics_events/records', {
+      token: primaryAuth.data.token,
+    }), [403, 404], 'REST directo analytics permanece privado');
 
     const normalizedService = fs.readFileSync(path.join(
       BACKEND_DIR, '..', 'frontend-powerzona', 'public', 'brand', 'tusenda84-bazzar-logo.webp',
@@ -1035,6 +1092,27 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
     assert.equal(customShell.data.profile.contact_action.action.label, 'Request an estimate');
     assert.equal(customShell.data.profile.locale.canonical_path, '/en');
     assert.deepEqual(customShell.data.profile.selector.options.map((option) => option.href), ['/en', '/es']);
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/host/events', {
+      headers: { Host: 'promo-a.example.test' },
+      json: {
+        contract: 'promo.analytics.collect.v1', event_type: 'page_view',
+        event_id: '26a258de-c9dd-4f76-806c-2e19588bec97', locale: 'en',
+      },
+    }), 202, 'analytics custom same-host acepta evento tenant resuelto');
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/host/events', {
+      headers: { Host: 'unknown.example.test' },
+      json: {
+        contract: 'promo.analytics.collect.v1', event_type: 'page_view',
+        event_id: 'd7822874-f02d-4775-bb69-f5754ef7ab93', locale: 'en',
+      },
+    }), 202, 'Host desconocido no crea oráculo analytics');
+    const customAnalyticsSummary = await request('/api/pz/promo/private/v1/analytics/summary', {
+      token: masterToken, headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: { contract: 'promo.analytics.summary.read.v1', range_days: 7 },
+    });
+    assertStatus(customAnalyticsSummary, 200, 'Master lee analytics custom solo con tenant explícito');
+    assert.equal(customAnalyticsSummary.data.totals.page_views, 2);
+    assert.equal(customAnalyticsSummary.data.totals.section_views, 1);
     const customBridge = await request('/api/pz/promo/public/v1/shell/stores/promo-pubcfg-a-store');
     assert.equal(customShell.data.seo.canonical_url, 'https://promo-a.example.test/en');
     const platformSitemapRedirect = await request('/api/pz/promo/public/v1/seo/sites/promo-pubcfg-a/sitemap');
@@ -1329,6 +1407,10 @@ test('gate runtime PUBCFG: proyección publicada allowlisted, actores, CAS, aisl
 
     await stopPocketBase(runtime);
     runtime = null;
+    const analyticsMigrationDown = runPocketBase(
+      ['migrate', 'down', '1'], dataDirectory, environment, 'y\n',
+    );
+    assertCommand(analyticsMigrationDown, 'down analytics sin landing_qr_open persiste reversibilidad');
     const generationMigrationDown = runPocketBase(
       ['migrate', 'down', '1'], dataDirectory, environment, 'y\n',
     );

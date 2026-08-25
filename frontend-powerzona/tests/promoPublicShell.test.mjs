@@ -548,7 +548,7 @@ test('salto SSR a PocketBase conserva el Host original con transporte Node', asy
   }
 });
 
-test('shell SSR es independiente de Layout y no incluye scripts ni acciones comerciales', () => {
+test('shell SSR es independiente de Layout y solo hidrata analítica Promo allowlisted', () => {
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const shell = read('../src/components/promo-public/PromoPublicShell.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
@@ -588,7 +588,10 @@ test('shell SSR es independiente de Layout y no incluye scripts ni acciones come
   assert.match(heroStyles, /scroll-snap-type: inline mandatory/);
   assert.match(theme, /specializedSectionTypes/);
   assert.match(theme, /<PromoSections/);
-  assert.doesNotMatch(combined, /<script|layouts\/Layout\.astro|PublicStoreHome|innerHTML|set:html/);
+  assert.equal((combined.match(/<script/g) || []).length, 1, 'solo existe el collector focal de ANALYTICS');
+  assert.match(layout, /promo\.analytics\.collect\.v1/);
+  assert.match(layout, /credentials: 'omit'/);
+  assert.doesNotMatch(combined, /layouts\/Layout\.astro|PublicStoreHome|innerHTML|set:html/);
   assert.doesNotMatch(combined, /cart|checkout|products|categories|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
   assert.match(localized, /Astro\.url\.search/);
@@ -709,7 +712,7 @@ test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidrat
     'CSS combinado ALADDIN/HERO/SECTIONS excede el budget Theme de 50 KiB');
 });
 
-test('shell público conserva no-store, indexa solo identidad SEO válida y no adelanta ANALYTICS', () => {
+test('cliente SHELL conserva no-store y no mezcla transporte ANALYTICS en su contrato SSR', () => {
   const client = read('../src/lib/promoPublicShell.ts');
   assert.match(client, /private, no-store, max-age=0/);
   assert.match(client, /noindex,nofollow,noarchive/);

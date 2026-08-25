@@ -41,6 +41,7 @@ import {
   promoSeoResourceResponse,
   readCustomHostPromoSeo,
 } from './lib/promoPublicSeo';
+import { PROMO_CUSTOM_ANALYTICS_PATH } from './lib/promoPublicAnalytics';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -224,6 +225,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (context.locals.promoPublicProfile) return await next();
 
   if (!isPromoPlatformRequest(context.request)) {
+    if (pathname === PROMO_CUSTOM_ANALYTICS_PATH) return await next();
     const seoResource = customPromoSeoResource(pathname);
     if (seoResource) {
       if (context.url.search) return promoPublicUnavailable(404);
@@ -397,6 +399,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
       const routeStoreSlug = String(professionalAdminMatch?.[1] || '').trim().toLowerCase();
       if (routeStoreSlug !== currentStoreSlug) {
         return renderAdminBlock('Este usuario no pertenece a esta tienda.');
+      }
+      if (promoSection === 'analytics') {
+        return context.rewrite('/promo-analytics-admin-internal');
       }
     } else if (promoResolution.kind === 'commerce') {
       if (nativeAdminApp && !adminContext.isMasterSupport && requestedSection !== 'mobile-app'

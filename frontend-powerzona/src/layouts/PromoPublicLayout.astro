@@ -79,5 +79,63 @@ const {
     data-promo-token-motion={themeTokens.motion}
   >
     <slot />
+    <script>
+      const canonicalLink = document.querySelector('link[rel="canonical"]');
+      const canonicalUrl = canonicalLink instanceof HTMLLinkElement ? new URL(canonicalLink.href) : null;
+      const platformMatch = canonicalUrl?.hostname === 'tusenda84.com'
+        ? canonicalUrl.pathname.match(/^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)\/[A-Za-z0-9-]{2,80}$/)
+        : null;
+      const analyticsEndpoint = platformMatch
+        ? `/api/promo/analytics/sites/${platformMatch[1]}`
+        : '/api/promo/analytics/host';
+      const analyticsLocale = document.documentElement.lang;
+      const privacySignal = navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true;
+      const canGenerateEventId = typeof crypto?.randomUUID === 'function';
+
+      function sendPromoEvent(eventType, sectionKey) {
+        if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
+        const body = {
+          contract: 'promo.analytics.collect.v1',
+          event_id: crypto.randomUUID(),
+          event_type: eventType,
+          locale: analyticsLocale,
+          ...(sectionKey ? { section_key: sectionKey } : {}),
+        };
+        void fetch(analyticsEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+          credentials: 'omit',
+          cache: 'no-store',
+          keepalive: true,
+          referrerPolicy: 'no-referrer',
+        }).catch(() => {});
+      }
+
+      if (!privacySignal && canGenerateEventId && canonicalUrl) {
+        sendPromoEvent('page_view');
+        document.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest('[data-contact-action="primary"]')) sendPromoEvent('contact_activate');
+          if (target?.closest('[data-promo-landing-qr-link]')) sendPromoEvent('landing_qr_open');
+        }, { capture: true });
+
+        if ('IntersectionObserver' in window) {
+          const observed = new Set<string>();
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (!entry.isIntersecting || entry.intersectionRatio < 0.5) return;
+              const id = entry.target.id || '';
+              const key = id.startsWith('promo-section-') ? id.slice('promo-section-'.length) : '';
+              if (!/^[a-z][a-z0-9_-]{0,63}$/.test(key) || observed.has(key)) return;
+              observed.add(key);
+              observer.unobserve(entry.target);
+              sendPromoEvent('section_view', key);
+            });
+          }, { threshold: [0.5] });
+          document.querySelectorAll('[id^="promo-section-"]').forEach((section) => observer.observe(section));
+        }
+      }
+    </script>
   </body>
 </html>

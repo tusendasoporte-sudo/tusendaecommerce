@@ -1,0 +1,7 @@
+import type { APIRoute } from 'astro';
+import { forwardPromoPublicAnalytics } from '../../../../lib/promoPublicAnalytics';
+
+export const POST: APIRoute = async ({ request }) => forwardPromoPublicAnalytics({
+  request,
+  customHost: true,
+});

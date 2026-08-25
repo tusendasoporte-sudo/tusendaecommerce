@@ -1,0 +1,14 @@
+---
+import PromoAnalyticsAdminPage from '../layouts/PromoAnalyticsAdminPage.astro';
+
+const adminContext = Astro.locals.adminContext;
+const accessContext = Astro.locals.promoAccessContext;
+if (!adminContext || !accessContext) return Astro.redirect('/login');
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
+---
+
+<PromoAnalyticsAdminPage adminContext={adminContext} accessContext={accessContext} />
