@@ -46,7 +46,11 @@ function localized(name, navigation = 'Inicio', heading = 'Portada', footer = 'T
     navigation: { 'hero-main': navigation, 'footer-main': 'Pie' },
     sections: {
       'hero-main': { heading, summary: 'Presentación' },
-      'footer-main': { text: footer },
+      'footer-main': {
+        heading: 'Información del negocio',
+        summary: 'Cierre editorial del sitio Promo.',
+        text: footer,
+      },
     },
     contact: {},
     media_alt: {},
@@ -107,6 +111,15 @@ test('workspace vacío crea solo español base y añadir idioma no copia fallbac
     () => addPromoLocale(withEnglish, 'fr', 3),
     (error) => error instanceof PromoLocalesError && error.code === 'unsupported_promo_locale',
   );
+});
+
+test('workspace de idiomas acepta todos los campos del pie creados por el CMS', () => {
+  const workspace = createPromoLocalesWorkspace(completeDocument());
+  assert.deepEqual(workspace.document.content_by_locale.es.sections['footer-main'], {
+    heading: 'Información del negocio',
+    summary: 'Cierre editorial del sitio Promo.',
+    text: 'Todos los derechos reservados.',
+  });
 });
 
 test('traducciones modifican solo locales y preservan tema, composición, contacto, media y adapters', () => {

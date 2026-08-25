@@ -39,7 +39,7 @@ const SECTION_TEXT_KEYS = Object.freeze({
   owner: ['heading', 'name', 'bio'],
   store_rating: ['heading'],
   contact: ['heading', 'summary'],
-  footer: ['text'],
+  footer: ['heading', 'summary', 'text'],
 } as const);
 const SECTION_REQUIRED_TEXT = Object.freeze({
   hero: ['heading'],

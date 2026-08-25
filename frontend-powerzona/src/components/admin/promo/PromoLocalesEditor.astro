@@ -369,7 +369,7 @@ const canSave = canManageContent && canManageTranslations;
         const keys: Record<string, readonly string[]> = {
           hero: ['heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
           gallery: ['heading', 'summary'], owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
-          contact: ['heading', 'summary'], footer: ['text'],
+          contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
         };
         (keys[section.type] || []).forEach((name) => {
           const max = name === 'heading' ? 160 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
