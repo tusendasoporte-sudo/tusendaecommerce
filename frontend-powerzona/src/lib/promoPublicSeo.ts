@@ -2,6 +2,7 @@ import {
   PromoPublicShellError,
   requestPromoPublicJson,
 } from './promoPublicShell.ts';
+import { applyPromoSecurityHeaders, promoRequestAuthority } from './promoSecurity.ts';
 
 export const PROMO_PUBLIC_SEO_RESOURCE_CONTRACT = 'promo.public.seo.resource.v1';
 export type PromoSeoResource = 'robots' | 'sitemap';
@@ -126,12 +127,8 @@ export function normalizePromoSeoResource(
 }
 
 function hostFromRequest(request: Request) {
-  const host = request.headers.get('host') || '';
-  if (!host || host.length > 280 || /[\u0000-\u001f\u007f]/.test(host)) fail(421);
-  let hostname = '';
-  try { hostname = new URL(`https://${host}`).hostname; } catch (_) { fail(421); }
-  if (!hostname) fail(421);
-  return { host, hostname };
+  const authority = promoRequestAuthority(request);
+  return { host: authority.authority, hostname: authority.hostname };
 }
 
 export async function readPlatformPromoSeo(
@@ -185,7 +182,7 @@ export function renderPromoRobots(identity: SeoIdentity) {
 
 export function promoSeoResourceResponse(result: PromoSeoResourceResult) {
   if (result.route.action === 'redirect' && result.route.location) {
-    return new Response(null, {
+    return applyPromoSecurityHeaders(new Response(null, {
       status: 308,
       headers: {
         Location: result.route.location,
@@ -195,11 +192,11 @@ export function promoSeoResourceResponse(result: PromoSeoResourceResult) {
         'Referrer-Policy': 'no-referrer',
         ...(result.route.source === 'custom' ? { Vary: 'Host' } : {}),
       },
-    });
+    }));
   }
   if (!result.identity) fail();
   const sitemap = result.resource === 'sitemap';
-  return new Response(sitemap ? renderPromoSitemap(result.identity) : renderPromoRobots(result.identity), {
+  return applyPromoSecurityHeaders(new Response(sitemap ? renderPromoSitemap(result.identity) : renderPromoRobots(result.identity), {
     status: 200,
     headers: {
       'Content-Type': sitemap ? 'application/xml; charset=utf-8' : 'text/plain; charset=utf-8',
@@ -209,7 +206,7 @@ export function promoSeoResourceResponse(result: PromoSeoResourceResult) {
       'Referrer-Policy': 'no-referrer',
       ...(result.route.source === 'custom' ? { Vary: 'Host' } : {}),
     },
-  });
+  }));
 }
 
 export function customPromoSeoResource(pathname: string): PromoSeoResource | null {

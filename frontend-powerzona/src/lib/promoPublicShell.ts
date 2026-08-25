@@ -1,6 +1,11 @@
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 import { request as nodeHttpRequest } from 'node:http';
 import { request as nodeHttpsRequest } from 'node:https';
+import {
+  applyPromoSecurityHeaders,
+  isPromoPlatformHostRequest,
+  promoRequestAuthority,
+} from './promoSecurity.ts';
 
 export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
@@ -1245,8 +1250,7 @@ export async function readPlatformPromoShell(request: Request, publicSlug: strin
 }
 
 export async function readCustomHostPromoShell(request: Request, locale?: string) {
-  const host = request.headers.get('host') || '';
-  if (!host || host.length > 280 || /[\u0000-\u001f\u007f]/.test(host)) fail('promo_host_unavailable', 421);
+  const host = promoRequestAuthority(request).authority;
   return requestContract({ endpoint: promoHostEndpoint(locale), request, host });
 }
 
@@ -1270,19 +1274,11 @@ export function customPromoPublicPath(pathname: string) {
 }
 
 export function isPromoPlatformRequest(request: Request) {
-  let hostname = '';
-  try { hostname = new URL(request.url).hostname.toLowerCase(); } catch (_) { return false; }
-  const configured = String(typeof process !== 'undefined' ? process.env?.PZ_PROMO_PLATFORM_HOSTS || '' : '')
-    .split(',').map((host) => host.trim().toLowerCase()).filter(Boolean);
-  const exact = new Set([
-    'tusenda84.com', 'www.tusenda84.com', 'api.tusenda84.com', 'localhost', '127.0.0.1', '::1',
-    'mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io',
-    ...configured,
-  ]);
-  return exact.has(hostname);
+  return isPromoPlatformHostRequest(request);
 }
 
 export function applyPromoPublicHeaders(response: Response, result?: PromoPublicShellResult) {
+  applyPromoSecurityHeaders(response);
   response.headers.set('Cache-Control', 'private, no-store, max-age=0');
   const indexable = result?.route.action === 'serve' && Boolean(result.profile && result.seo);
   response.headers.set('X-Robots-Tag', indexable ? 'index, follow' : 'noindex, nofollow, noarchive');

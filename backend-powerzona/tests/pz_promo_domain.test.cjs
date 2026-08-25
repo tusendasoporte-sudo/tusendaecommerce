@@ -110,15 +110,44 @@ test('DOM-CORE solo acepta X-Forwarded-Host desde un peer declarado confiable y 
   const trusted = domain.selectAuthoritativeHost({
     Host: 'origin.internal.example',
     'X-Forwarded-Host': 'Alias.Example.Test.:443',
-  }, { trustedProxy: true });
+  }, {
+    trustedProxy: true,
+    proxyContract: domain.TRUSTED_PROXY_CONTRACT,
+    remotePeer: '10.20.30.40',
+    trustedProxyPeers: ['10.20.30.40'],
+  });
   assert.equal(trusted.hostname_ascii, 'alias.example.test');
   assert.equal(trusted.source, 'x-forwarded-host');
+  for (const options of [
+    { trustedProxy: true },
+    {
+      trustedProxy: true,
+      proxyContract: domain.TRUSTED_PROXY_CONTRACT,
+      remotePeer: '10.20.30.41',
+      trustedProxyPeers: ['10.20.30.40'],
+    },
+    {
+      trustedProxy: true,
+      proxyContract: domain.TRUSTED_PROXY_CONTRACT,
+      remotePeer: '10.20.30.40',
+      trustedProxyPeers: ['10.20.30.0/24'],
+    },
+  ]) assert.throws(
+    () => domain.selectAuthoritativeHost({ Host: 'origin.internal.example' }, options),
+    (error) => error.status === 421,
+  );
+  const trustedOptions = {
+    trustedProxy: true,
+    proxyContract: domain.TRUSTED_PROXY_CONTRACT,
+    remotePeer: '10.20.30.40',
+    trustedProxyPeers: ['10.20.30.40'],
+  };
   for (const headers of [
     { Host: 'primary.example.test', 'X-Forwarded-Host': 'a.example.test,b.example.test' },
     { Host: 'primary.example.test', 'X-Forwarded-Host': '' },
     { Host: ['a.example.test', 'b.example.test'] },
   ]) assert.throws(
-    () => domain.selectAuthoritativeHost(headers, { trustedProxy: true }),
+    () => domain.selectAuthoritativeHost(headers, trustedOptions),
     (error) => error.code === 'invalid_promo_host_header' && error.status === 421,
   );
 });

@@ -30,7 +30,6 @@ import {
 import {
   applyPromoPublicHeaders,
   customPromoPublicPath,
-  isPromoPlatformRequest,
   PROMO_PUBLIC_INTERNAL_PATH,
   PromoPublicShellError,
   promoPublicUnavailable,
@@ -42,6 +41,11 @@ import {
   readCustomHostPromoSeo,
 } from './lib/promoPublicSeo';
 import { PROMO_CUSTOM_ANALYTICS_PATH } from './lib/promoPublicAnalytics';
+import {
+  applyPromoSecurityHeaders,
+  promoSecurityUnavailable,
+  validatePromoFrontendRequest,
+} from './lib/promoSecurity';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -224,8 +228,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (context.locals.promoPublicProfile) return await next();
 
-  if (!isPromoPlatformRequest(context.request)) {
-    if (pathname === PROMO_CUSTOM_ANALYTICS_PATH) return await next();
+  let promoSecurityDecision;
+  try {
+    promoSecurityDecision = validatePromoFrontendRequest(context.request);
+  } catch (error) {
+    return promoSecurityUnavailable(error, pathname);
+  }
+
+  if (!promoSecurityDecision.platform) {
+    if (pathname === PROMO_CUSTOM_ANALYTICS_PATH) return applyPromoSecurityHeaders(await next());
     const seoResource = customPromoSeoResource(pathname);
     if (seoResource) {
       if (context.url.search) return promoPublicUnavailable(404);

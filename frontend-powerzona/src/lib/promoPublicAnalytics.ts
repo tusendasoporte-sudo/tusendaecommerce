@@ -2,6 +2,7 @@ import { request as nodeHttpRequest } from 'node:http';
 import { request as nodeHttpsRequest } from 'node:https';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 import type { PromoPublicProfile, PromoPublicSeo } from './promoPublicShell.ts';
+import { applyPromoSecurityHeaders, promoRequestAuthority } from './promoSecurity.ts';
 
 export const PROMO_ANALYTICS_COLLECT_CONTRACT = 'promo.analytics.collect.v1';
 export const PROMO_ANALYTICS_ACCEPTED_CONTRACT = 'promo.analytics.accepted.v1';
@@ -73,15 +74,10 @@ function normalizedBackendOrigin() {
 }
 
 function authoritativeHost(request: Request) {
-  const host = request.headers.get('host') || '';
-  if (!host || host.length > 280 || /[\u0000-\u001f\u007f]/.test(host)) fail('promo_host_unavailable', 421);
-  try {
-    if (!new URL(`https://${host}`).hostname) fail('promo_host_unavailable', 421);
-  } catch (_) { fail('promo_host_unavailable', 421); }
-  return host;
+  return promoRequestAuthority(request).authority;
 }
 
-function nodePost(url: string, host: string, body: string) {
+function nodePost(url: string, host: string, origin: string, body: string) {
   return new Promise<number>((resolve, reject) => {
     const target = new URL(url);
     const send = target.protocol === 'https:' ? nodeHttpsRequest : nodeHttpRequest;
@@ -89,7 +85,7 @@ function nodePost(url: string, host: string, body: string) {
       method: 'POST',
       headers: {
         Accept: 'application/json', 'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body), Host: host,
+        'Content-Length': Buffer.byteLength(body), Host: host, Origin: origin,
       },
     }, (incoming) => {
       incoming.resume();
@@ -102,7 +98,7 @@ function nodePost(url: string, host: string, body: string) {
 }
 
 function safeResponse(status = 202, hostScoped = false) {
-  return new Response(JSON.stringify(status === 400
+  const response = new Response(JSON.stringify(status === 400
     ? { ok: false, error: 'invalid_payload' }
     : { ok: true, contract: PROMO_ANALYTICS_ACCEPTED_CONTRACT }), {
     status,
@@ -113,6 +109,7 @@ function safeResponse(status = 202, hostScoped = false) {
       ...(hostScoped ? { Vary: 'Host' } : {}),
     },
   });
+  return applyPromoSecurityHeaders(response);
 }
 
 export async function forwardPromoPublicAnalytics(input: {
@@ -139,11 +136,12 @@ export async function forwardPromoPublicAnalytics(input: {
   const body = JSON.stringify(normalized);
   try {
     const url = `${normalizedBackendOrigin()}${endpoint}`;
+    const requestOrigin = input.request.headers.get('origin') || '';
     const status = input.customHost && !input.fetcher
-      ? await nodePost(url, authoritativeHost(input.request), body)
+      ? await nodePost(url, authoritativeHost(input.request), requestOrigin, body)
       : (await (input.fetcher || fetch)(url, {
         method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Origin: requestOrigin },
         body,
         cache: 'no-store',
         redirect: 'manual',

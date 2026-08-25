@@ -19,6 +19,7 @@ const DOMAIN_VERIFY_CONTRACT = "promo.domain.verify.v1";
 const DOMAIN_STATUS_UPDATE_CONTRACT = "promo.domain.status.update.v1";
 const DOMAIN_BINDING_CONTRACT = "promo.domain.binding.v1";
 const DOMAIN_ROUTE_CONTRACT = "promo.domain.route.v1";
+const TRUSTED_PROXY_CONTRACT = "promo.trusted-proxy.v1";
 const DOMAIN_ROLES = Object.freeze(["primary", "alias"]);
 const DOMAIN_STATUSES = Object.freeze(["pending", "verified", "active", "paused", "revoked", "released"]);
 const DOMAIN_VERIFICATION_METHODS = Object.freeze(["manual", "dns", "http"]);
@@ -333,8 +334,40 @@ function singleHeader(headers, name, required) {
   return value;
 }
 
+function normalizeProxyPeer(value) {
+  const raw = safeText(value, 128).toLowerCase();
+  if (!raw || raw !== raw.trim() || /[\s\/,*]/.test(raw)) {
+    fail("invalid_promo_proxy_contract", 421);
+  }
+  if (ipv4Literal(raw)) return raw;
+  const ipv6 = raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
+  if (!ipv6.includes(":") || !/^[0-9a-f:]+$/.test(ipv6)
+    || (ipv6.match(/::/g) || []).length > 1 || ipv6.includes(":::")) {
+    fail("invalid_promo_proxy_contract", 421);
+  }
+  const sides = ipv6.split("::");
+  const groups = sides.reduce((total, side) => total + (side ? side.split(":").length : 0), 0);
+  const validGroups = sides.every((side) => !side || side.split(":").every((group) => /^[0-9a-f]{1,4}$/.test(group)));
+  if (!validGroups || (sides.length === 1 ? groups !== 8 : groups >= 8)) {
+    fail("invalid_promo_proxy_contract", 421);
+  }
+  return ipv6;
+}
+
+function trustedProxyEnabled(options) {
+  if (!options || options.trustedProxy !== true) return false;
+  if (options.proxyContract !== TRUSTED_PROXY_CONTRACT
+    || !Array.isArray(options.trustedProxyPeers) || !options.trustedProxyPeers.length) {
+    fail("invalid_promo_proxy_contract", 421);
+  }
+  const remotePeer = normalizeProxyPeer(options.remotePeer);
+  const trustedPeers = options.trustedProxyPeers.map(normalizeProxyPeer);
+  if (!trustedPeers.includes(remotePeer)) fail("untrusted_promo_proxy_peer", 421);
+  return true;
+}
+
 function selectAuthoritativeHost(headers, options) {
-  const trustedProxy = options && options.trustedProxy === true;
+  const trustedProxy = trustedProxyEnabled(options);
   let source = "host";
   let authority;
   if (trustedProxy) {
@@ -583,6 +616,7 @@ module.exports = {
   DOMAIN_LIST_READ_CONTRACT,
   DOMAIN_ROLES,
   DOMAIN_ROUTE_CONTRACT,
+  TRUSTED_PROXY_CONTRACT,
   DOMAIN_STATUSES,
   DOMAIN_STATUS_UPDATE_CONTRACT,
   DOMAIN_VERIFICATION_METHODS,
@@ -603,4 +637,5 @@ module.exports = {
   resolveHostBindingContext,
   resolveHostContext,
   selectAuthoritativeHost,
+  trustedProxyEnabled,
 };
