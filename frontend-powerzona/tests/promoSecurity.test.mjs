@@ -102,4 +102,13 @@ test('CSP y errores no reflejan Host, Origin, tenant ni payload', async () => {
   const body = await unavailable.text();
   assert.doesNotMatch(body, /tenant-b-secret|primary\.example|Origin/i);
   assert.deepEqual(JSON.parse(body), { ok: false, error: 'promo_host_unavailable' });
+
+  const pageUnavailable = promoSecurityUnavailable(new PromoSecurityError('tenant-b-secret', 421), '/promo/demo/es');
+  assert.equal(pageUnavailable.status, 421);
+  const pageBody = await pageUnavailable.text();
+  assert.match(pageBody, /name="viewport" content="width=device-width,initial-scale=1"/);
+  assert.match(pageBody, /<h1>Sitio no disponible<\/h1>/);
+  assert.match(pageBody, /No pudimos mostrar este sitio en este momento\./);
+  assert.match(pageBody, /place-items:center/);
+  assert.doesNotMatch(pageBody, /tenant-b-secret|primary\.example|Origin/i);
 });

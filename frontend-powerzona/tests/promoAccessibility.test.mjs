@@ -138,3 +138,17 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(layout, /landing_qr_open/);
   assert.match(layout, /credentials: 'omit'/);
 });
+
+test('A11Y conserva alternativa y marco estable cuando una imagen pública falla', () => {
+  assert.match(layout, /markUnavailablePromoImage/);
+  assert.match(layout, /image\.addEventListener\('error'/);
+  assert.match(layout, /image\.removeAttribute\('srcset'\)/);
+  assert.match(layout, /image\.removeAttribute\('src'\)/);
+  assert.match(layout, /promoMediaFallback/);
+  assert.match(layout, /fallback\.setAttribute\('aria-label', alternative\)/);
+  assert.match(themeStyles, /\[data-promo-media-frame-state="error"\]/);
+  assert.match(themeStyles, /background-image:/);
+  assert.match(themeStyles, /visibility: hidden/);
+  assert.match(hero, /alt=\{media\.accessibility\.alt\}/);
+  assert.match(sectionMedia, /alt=\{media\.accessibility\.alt\}/);
+});

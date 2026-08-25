@@ -211,7 +211,7 @@ export function promoSecurityUnavailable(error: unknown, pathname: string) {
         status: rejected.status,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store, max-age=0' },
       })
-    : new Response('<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive"><title>Sitio no disponible</title></head><body><main><h1>Sitio no disponible</h1></main></body></html>', {
+    : new Response('<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Sitio no disponible</title><style>html{font-family:system-ui,sans-serif;color:#172033;background:#f5f7fb}body{min-height:100vh;display:grid;place-items:center;margin:0;padding:24px}main{max-width:36rem}h1{font-size:clamp(1.75rem,5vw,2.5rem)}p{line-height:1.6;color:#667085}</style></head><body><main><h1>Sitio no disponible</h1><p>No pudimos mostrar este sitio en este momento.</p></main></body></html>', {
         status: rejected.status,
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store, max-age=0' },
       });

@@ -570,6 +570,21 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   .promo-shell-section__ornament { width: 18rem; }
 }
 
+.promo-public-shell [data-promo-media-frame-state="error"] {
+  background-color: var(--promo-surface-soft, #1d1a15);
+  background-image:
+    linear-gradient(135deg, transparent 42%, rgb(200 164 90 / 24%) 42% 44%, transparent 44%),
+    linear-gradient(45deg, transparent 42%, rgb(200 164 90 / 18%) 42% 44%, transparent 44%),
+    radial-gradient(circle at center, rgb(200 164 90 / 18%) 0 12%, transparent 12% 100%);
+  background-position: center;
+  background-size: 100% 100%, 100% 100%, min(38%, 11rem) min(38%, 11rem);
+  background-repeat: no-repeat;
+}
+
+.promo-public-shell [data-promo-media-frame-state="error"] > img[data-promo-media-state="error"] {
+  visibility: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .promo-shell-navigation a::after,
   .promo-shell-items li { transition: none; }
