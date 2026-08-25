@@ -43,6 +43,9 @@ const srcset = (media: PromoPublicMedia) => media.kind === 'image'
 const mediaLabel = (media: PromoPublicMedia, index: number) => (
   media.accessibility.alt || `${navigationLabel} ${index + 1}`
 );
+const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
+  `${mediaLabel(media, index)} - ${index + 1}/${heroMedia.length}`
+);
 ---
 
 <section
@@ -120,7 +123,7 @@ const mediaLabel = (media: PromoPublicMedia, index: number) => (
                 <li>
                   <a
                     href={`#${sectionId}-media-${index + 1}`}
-                    aria-label={mediaLabel(media, index)}
+                    aria-label={mediaControlLabel(media, index)}
                   >
                     {String(index + 1).padStart(2, '0')}
                   </a>

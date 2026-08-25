@@ -110,14 +110,15 @@
 .promo-hero__figure video:focus-visible {
   outline: 3px solid var(--promo-focus);
   outline-offset: -5px;
+  box-shadow: inset 0 0 0 8px var(--promo-surface);
 }
 
 .promo-hero__controls {
   position: absolute;
   z-index: 5;
   display: flex;
-  inset-block-end: 1.1rem;
-  inset-inline-end: 1.15rem;
+  inset-block-start: 1.1rem;
+  inset-inline-start: 1.15rem;
 }
 
 .promo-hero__controls ol {
@@ -203,8 +204,8 @@
   }
 
   .promo-hero__controls {
-    inset-block-end: .7rem;
-    inset-inline-end: .7rem;
+    inset-block-start: .7rem;
+    inset-inline-start: .7rem;
   }
 
   .promo-hero__controls a {

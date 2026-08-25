@@ -4,6 +4,7 @@ body[data-promo-theme-renderer="promo.black-gold"] {
   --promo-surface-soft: #1d1a15;
   --promo-text: #f6f1e7;
   --promo-muted: #c9c0b0;
+  --promo-text-soft: #c9c0b0;
   --promo-accent: #c8a45a;
   --promo-accent-bright: #ead49b;
   --promo-border: #c8a45a;
@@ -470,6 +471,27 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 .promo-shell-main:focus-visible {
   outline: 3px solid var(--promo-focus);
   outline-offset: 4px;
+}
+
+@media (prefers-contrast: more) {
+  body[data-promo-theme-renderer="promo.black-gold"] {
+    --promo-muted: #eee7da;
+    --promo-text-soft: #eee7da;
+    --promo-accent: #ead49b;
+    --promo-border: #ead49b;
+  }
+}
+
+@media (forced-colors: active) {
+  .promo-black-gold a:focus-visible,
+  .promo-shell-main:focus-visible,
+  .promo-hero__slides:focus-visible,
+  .promo-hero__figure video:focus-visible,
+  .promo-sections video:focus-visible,
+  .promo-reviews__viewport:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
 }
 
 @media (max-width: 1000px) {

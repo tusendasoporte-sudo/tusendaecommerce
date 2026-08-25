@@ -106,3 +106,7 @@
     transition-duration: 0.01ms;
   }
 }
+
+body[data-promo-token-motion="reduced"] .promo-landing-qr-link {
+  transition: none;
+}

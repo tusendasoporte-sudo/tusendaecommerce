@@ -62,10 +62,15 @@
 
 .promo-contact-action--unavailable {
   grid-template-columns: minmax(0, 1fr);
+  border-style: dashed;
+  background: var(--promo-surface-soft);
+  color: var(--promo-muted);
+  box-shadow: none;
   cursor: default;
 }
 
 .promo-contact-action--unavailable:hover {
+  color: var(--promo-muted);
   filter: none;
   transform: none;
 }
@@ -74,7 +79,6 @@
   font-size: .68rem;
   font-weight: 700;
   letter-spacing: .04em;
-  opacity: .72;
   overflow-wrap: anywhere;
 }
 

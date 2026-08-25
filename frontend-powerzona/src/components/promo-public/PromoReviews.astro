@@ -54,7 +54,11 @@ const countCopy = rating.summary.count === 1
       </div>
 
       {rating.enabled && rating.summary.count > 0 && (
-        <div class="promo-reviews__summary" aria-label={`${message('reviews.average', { average: rating.summary.average })}, ${countCopy}`}>
+        <div
+          class="promo-reviews__summary"
+          role="group"
+          aria-label={`${message('reviews.average', { average: rating.summary.average })}, ${countCopy}`}
+        >
           <strong>{rating.summary.average.toFixed(1)}</strong>
           <span class="promo-reviews__summary-stars" aria-hidden="true">★★★★★</span>
           <span>{countCopy}</span>
@@ -81,7 +85,7 @@ const countCopy = rating.summary.count === 1
               <li>
                 <article class="promo-reviews__card">
                   <span class="promo-reviews__quote" aria-hidden="true">“</span>
-                  <div class="promo-reviews__stars" aria-label={ratingLabel}>
+                  <div class="promo-reviews__stars" role="img" aria-label={ratingLabel}>
                     <span aria-hidden="true">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
                   </div>
                   {review.comment && <blockquote><p>{review.comment}</p></blockquote>}
