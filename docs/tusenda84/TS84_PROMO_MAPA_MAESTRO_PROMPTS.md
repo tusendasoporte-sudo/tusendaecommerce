@@ -9,8 +9,8 @@
 | Documento | Mapa maestro de prompts, dependencias, gates y criterios transversales |
 | Prompt de planificación | `TS84-PROMO-MAP-0001` |
 | Rama prevista | `dev` |
-| Fecha | 2026-08-22 |
-| Estado | PROPUESTO PARA REVISIÓN Y APROBACIÓN DE KRAKEN |
+| Fecha | 2026-08-25 |
+| Estado | ACTUALIZADO — FLUJO PLATFORM-FIRST CONFIRMADO; STAGING Y PRODUCCIÓN AÚN NO AUTORIZADOS |
 | Implementación funcional en esta tarea | NO |
 
 Este documento organiza el trabajo necesario para incorporar Tiendas Promo al sistema multi-tienda existente. No autoriza por sí solo migraciones, cambios funcionales, Cloudflare, Coolify, staging, producción, push ni despliegues.
@@ -59,16 +59,20 @@ El botón debe:
 
 Landing QR permanece en el roadmap y debe reutilizar/adaptar la base existente. Solo se elimina el bloque visual redundante del mockup de Aladdin's Carpet.
 
-### 2.4 Dominios
+### 2.4 Origen de plataforma y dominios personalizados opcionales
 
 Decisión confirmada por Kraken:
 
-- los dominios estarán dentro de la cuenta Cloudflare controlada por el Master;
-- el Master gestionará alta, verificación, activación, suspensión y retiro;
-- el dominio personalizado servirá la experiencia pública;
-- el panel Admin Promo y el panel Master permanecerán bajo el dominio central de Tu Senda 84;
+- toda Tienda Promo puede operar sin dominio propio mediante la ruta pública estable de Tu Senda 84: `https://tusenda84.com/promo/{publicSlug}/{locale}`;
+- staging se validará primero con el dominio provisional HTTPS suministrado por Coolify y la misma ruta `/promo/{publicSlug}/{locale}`;
+- el dominio provisional de Coolify es un host de plataforma de staging, no un binding custom de la tienda;
+- la publicación inicial de producción conserva `canonical_mode=platform` y `primary_binding` vacío;
+- un dominio personalizado es una capacidad opcional que puede activarse más adelante sin bloquear staging, release u operación de una Promo en plataforma;
+- si se solicita un dominio personalizado, estará dentro de la cuenta Cloudflare controlada por el Master y el Master gestionará alta, verificación, activación, suspensión y retiro;
+- al activar un dominio personalizado, el enlace estable de plataforma redirigirá al canonical custom validado; retirar el dominio deberá permitir volver de forma controlada al canonical de plataforma;
+- el panel Admin Promo y el panel Master permanecerán bajo el dominio central de Tu Senda 84 en ambos modos;
 - ninguna credencial o token Cloudflare llegará al navegador ni se guardará en datos públicos;
-- la activación de un dominio real requerirá una autorización independiente.
+- cualquier conexión real con Cloudflare, cambio DNS o activación de dominio personalizado requerirá una autorización independiente.
 
 ### 2.5 Temas desde el inicio
 
@@ -97,13 +101,13 @@ Modificar un archivo compartido solo podrá considerarse si el cambio es estrict
 
 ## 3. Objetivo del programa
 
-Incorporar un tipo de presencia pública para negocios orientados a promoción y contacto, con dominio personalizado y control central Master, sin convertir la página en un e-commerce tradicional.
+Incorporar un tipo de presencia pública para negocios orientados a promoción y contacto, con enlace estable de plataforma, dominio personalizado opcional y control central Master, sin convertir la página en un e-commerce tradicional.
 
 El sistema final debe permitir:
 
 - crear una Tienda Promo dentro del entorno multi-tienda;
 - mantener aislamiento estricto por tienda;
-- publicar mediante slug de preview y dominio personalizado;
+- publicar mediante una ruta de plataforma por `publicSlug` y, opcionalmente, mediante dominio personalizado;
 - elegir temas aprobados y personalizarlos dentro de límites seguros;
 - administrar contenido, servicios, galería, propietario, reseñas, contacto y footer;
 - servir contenido localizado por idioma;
@@ -166,7 +170,7 @@ El Master debe controlar como mínimo:
 - Administrador principal y límites de usuarios;
 - plan, capacidades y cuotas;
 - registro y asociación de dominios;
-- integración Cloudflare y estado HTTPS;
+- estado HTTPS del origen de plataforma y, cuando la capacidad opcional se active, integración Cloudflare;
 - catálogo global de temas, versiones y disponibilidad;
 - branding global reservado;
 - publicación, despublicación y rollback;
@@ -205,7 +209,7 @@ El Admin Promo podrá, dentro de capacidades y permisos aprobados:
 
 1. **Store-first:** toda entidad Promo mutable debe pertenecer a una tienda.
 2. **Fail closed:** dominio, locale, tema, acción o configuración desconocida no puede resolver datos de otra tienda.
-3. **Master-owned domains:** Cloudflare y dominios permanecen bajo autoridad Master.
+3. **Platform-first y Master-owned custom domains:** la ruta de plataforma es la disponibilidad base; Cloudflare y dominios personalizados opcionales permanecen bajo autoridad Master.
 4. **Central admin:** autenticación administrativa en Tu Senda 84, no en dominios públicos.
 5. **Draft/publish:** los cambios incompletos no deben afectar el sitio publicado.
 6. **Versioned themes:** una actualización visual debe poder probarse, publicarse y revertirse.
@@ -345,17 +349,21 @@ Los permisos de dominio, catálogo global de temas, suspensión, plan y rollback
 |---:|---|---|---|---|
 | 37 | `TS84-PROMO-QA-AUTO-0001` | Suites frontend/backend, migraciones, aislamiento, dominio, i18n y regresión e-commerce | SEC-0001, PERF-0001, A11Y-0001 | Cero fallos focales y regresiones críticas |
 | 38 | `TS84-PROMO-QA-VIS-0001` | QA visual desktop/móvil de Aladdin's Carpet y estados de contenido | QA-AUTO-0001 | Aprobación visual de Kraken |
-| 39 | `TS84-PROMO-STG-DOM-0001` | Configurar un dominio/subdominio de staging en Cloudflare y Coolify | QA-AUTO-0001, autorización externa | DNS/HTTPS/Host/caché/rollback verificados |
-| 40 | `TS84-PROMO-STG-0001` | Smoke integral con Admin, Master, preview, publicación, idiomas y contacto | STG-DOM-0001, QA-VIS-0001 | Aprobación manual de Kraken |
-| 41 | `TS84-PROMO-PROD-DOM-0001` | Asociar y verificar el dominio real de Aladdin's Carpet | STG-0001, autorización separada | Dominio verificado, aún no publicado |
-| 42 | `TS84-PROMO-REL-0001` | Publicación controlada y redirección canónica | PROD-DOM-0001, aprobación final | Producción aprobada con rollback |
-| 43 | `TS84-PROMO-OPS-0001` | Monitoreo, alertas, backup, renovación y runbook de dominio | REL-0001 | Operación y recuperación documentadas |
+| 39 | `TS84-PROMO-STG-COOLIFY-0001` | Preparar staging sobre el dominio provisional HTTPS de Coolify como host de plataforma, sin Cloudflare ni DNS custom | QA-AUTO-0001, autorización externa de Coolify y despliegue | Deploy, HTTPS, Host/Origin, proxy, migraciones, `noindex` y rollback verificados |
+| 40 | `TS84-PROMO-STG-0001` | Smoke integral con Admin, Master, preview, publicación en modo plataforma, idiomas y contacto | STG-COOLIFY-0001, QA-VIS-0001 | Aprobación manual de Kraken |
+| 41 (opcional) | `TS84-PROMO-PROD-DOM-0001` | Asociar y verificar un dominio propio de Aladdin's Carpet solo si se contrata o solicita | STG-0001, decisión custom y autorización separada | Dominio verificado, aún no convertido en canonical |
+| 42 | `TS84-PROMO-REL-0001` | Publicación controlada en la ruta de plataforma o, si fue aprobado, cambio atómico al canonical custom | STG-0001, aprobación final; PROD-DOM-0001 solo en modalidad custom | Producción aprobada con rollback a la ruta de plataforma |
+| 43 | `TS84-PROMO-OPS-0001` | Monitoreo, alertas, backup y runbook de plataforma; dominio/renovación solo cuando exista custom | REL-0001 | Operación y recuperación documentadas |
 
 ## 11. Camino crítico
 
 La secuencia mínima que no debe romperse es:
 
-`MAP → AUD → COMPAT → ARC → DATA-DES → DATA → PERM/PUBCFG → I18N/THEME/MEDIA/DOM-CORE/PUBLISH → ADMIN/MASTER → SHELL → ALADDIN/SECCIONES/CONTACTO → RESPONSIVE → SEGURIDAD/PERFORMANCE/QA → STAGING → DOMINIO REAL → RELEASE`
+`MAP → AUD → COMPAT → ARC → DATA-DES → DATA → PERM/PUBCFG → I18N/THEME/MEDIA/DOM-CORE/PUBLISH → ADMIN/MASTER → SHELL → ALADDIN/SECCIONES/CONTACTO → RESPONSIVE → SEGURIDAD/PERFORMANCE/QA → STAGING COOLIFY → RELEASE DE PLATAFORMA → OPS`
+
+Rama opcional, únicamente si el propietario solicita dominio propio:
+
+`STAGING APROBADO → DOMINIO REAL → CAMBIO CANONICAL CUSTOM → OPS`
 
 Reglas del camino crítico:
 
@@ -364,11 +372,14 @@ Reglas del camino crítico:
 - no construir el shell Promo sobre el Layout e-commerce existente;
 - no implementar Aladdin's Carpet antes del motor de temas y el contrato público;
 - no cerrar responsive antes de aprobar `MOB-VIS-0001`;
-- no conectar Cloudflare real antes de aprobar la simulación server-only;
-- no asociar el dominio real antes de pasar staging;
+- no conectar Cloudflare real antes de aprobar la simulación server-only y recibir una decisión custom explícita;
+- no tratar el dominio provisional de Coolify como binding custom ni cambiar `canonical_mode=platform` durante staging;
+- no asociar un dominio real antes de pasar staging ni convertirlo en dependencia del release de plataforma;
 - no desplegar producción sin autorización separada.
 
-## 12. Requisitos específicos de Cloudflare y dominio
+## 12. Requisitos específicos del dominio personalizado opcional
+
+Esta sección solo aplica cuando Kraken seleccione expresamente la modalidad custom. No bloquea staging sobre Coolify, producción en `tusenda84.com/promo/{publicSlug}/{locale}` ni la operación ordinaria en modo `platform`.
 
 `TS84-PROMO-AUD-0001` y `TS84-PROMO-DOM-CF-0001` deben revisar y resolver:
 
@@ -485,6 +496,8 @@ Los presupuestos numéricos finales deben fijarse en `TS84-PROMO-ARC-0001` y val
 
 ### 17.2 Dominios
 
+- El dominio provisional de Coolify se reconoce solo como host de plataforma de staging.
+- Staging sirve la Promo por `/promo/{publicSlug}/{locale}` y conserva `canonical_mode=platform`.
 - Host registrado resuelve únicamente su tienda.
 - Host desconocido falla cerrado.
 - Host duplicado no puede asociarse.
@@ -562,7 +575,7 @@ Rollback mínimo:
 
 - volver a la revisión pública anterior;
 - volver a la versión de tema anterior;
-- retirar el dominio sin perder el slug de preview/admin;
+- retirar el dominio personalizado sin perder la ruta pública estable de plataforma ni el slug de preview/admin;
 - conservar contenido y traducciones;
 - invalidar caché correspondiente;
 - auditar el motivo y el actor.
@@ -579,9 +592,9 @@ Requieren aprobación expresa de Kraken:
 6. mockup móvil;
 7. cada tema visual adicional;
 8. creación o modificación de secretos Cloudflare;
-9. cambios reales de DNS/Cloudflare/Coolify;
+9. acceso o cambios reales en Coolify y cualquier cambio de DNS/Cloudflare;
 10. despliegue a staging;
-11. asociación del dominio real;
+11. asociación opcional de un dominio real;
 12. despliegue y publicación en producción;
 13. push, merge o release si no fue autorizado por el prompt vigente.
 
@@ -621,23 +634,24 @@ La respuesta final de cada prompt debe incluir:
 
 ## 22. Próximo prompt recomendado
 
-Después de que Kraken apruebe este mapa, el siguiente trabajo debe ser:
+Con QA automatizado cerrado y QA visual técnicamente ejecutado, el siguiente trabajo de infraestructura es:
 
-`TS84-PROMO-AUD-0001 — Auditoría técnica y matriz definitiva de reutilización de Tiendas Promo`.
+`TS84-PROMO-STG-COOLIFY-0001 — Preparación de staging con el dominio provisional HTTPS de Coolify`.
 
-Esa auditoría debe ser de solo lectura y documentación. Debe confirmar o corregir este inventario, enumerar archivos/colecciones/rutas reales, identificar dependencias e-commerce, revisar la topología Cloudflare/Coolify vigente y entregar decisiones abiertas para `TS84-PROMO-ARC-0001`.
+Su ejecución exige autorización separada para acceder a Coolify, realizar el push que corresponda, desplegar y aplicar migraciones en staging. No autoriza Cloudflare, DNS, dominio custom, producción o release. El contrato ejecutable queda en `docs/tusenda84/prompts/TS84-PROMO-STG-COOLIFY-0001.md`.
 
-No debe implementar página pública, componentes, migraciones, temas, i18n, dominios, DNS ni despliegues.
+`TS84-PROMO-STG-0001` solo quedará habilitado cuando STG-COOLIFY cierre correctamente y Kraken apruebe expresamente el gate visual de QA-VIS.
 
 ## 23. Estado consolidado
 
 | ID | Estado | Observación |
 |---|---|---|
-| `TS84-PROMO-VIS-0001` | APROBADO / registrado | Modelo inicial Aladdin's Carpet y corrección CTA |
-| `TS84-PROMO-MAP-0001` | PROPUESTO | Esperando aprobación de Kraken |
-| `TS84-PROMO-AUD-0001` | PENDIENTE | Próximo prompt recomendado |
-| `TS84-PROMO-COMPAT-0001` | PENDIENTE | Obligatorio antes de cerrar arquitectura o implementar |
-| `TS84-PROMO-MOB-VIS-0001` | PENDIENTE | Obligatorio antes del cierre responsive |
-| Implementación funcional Promo | NO INICIADA | Bloqueada hasta auditoría, arquitectura y autorización |
-| Cloudflare real | NO MODIFICADO | Dominio confirmado bajo cuenta Master; integración pendiente |
-| Staging/producción | NO MODIFICADOS | Requieren autorización separada |
+| `TS84-PROMO-VIS-0001` / `MOB-VIS-0001` | APROBADOS / registrados | Modelo Aladdin's Carpet desktop/móvil y corrección CTA |
+| Prompts `MAP-0001` a `QA-AUTO-0001` | COMPLETADOS | Implementación local y QA automatizado cerrados según sus reportes |
+| `TS84-PROMO-QA-VIS-0001` | COMPLETADO TÉCNICAMENTE | Cero defectos visuales críticos abiertos; aprobación expresa de Kraken pendiente |
+| `TS84-PROMO-STG-COOLIFY-0001` | PENDIENTE / PROMPT LISTO | Requiere autorización separada de acceso, push, despliegue y migraciones de staging |
+| `TS84-PROMO-STG-0001` | BLOQUEADO POR GATES | Depende de STG-COOLIFY y aprobación humana de QA-VIS |
+| `TS84-PROMO-PROD-DOM-0001` | OPCIONAL / NO INICIADO | Solo si se selecciona un dominio propio más adelante |
+| `TS84-PROMO-REL-0001` | PENDIENTE | La ruta de plataforma no depende de PROD-DOM; producción requiere aprobación separada |
+| Cloudflare real / DNS custom | NO MODIFICADOS | Fuera del camino obligatorio; autorización independiente si se activa custom |
+| Staging/producción | NO MODIFICADOS | Requieren autorizaciones separadas |
