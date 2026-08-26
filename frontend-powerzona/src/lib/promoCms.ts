@@ -701,6 +701,26 @@ function footerSocialProfiles(value: unknown) {
   });
 }
 
+export function isPromoCmsWorkGalleryReady(value: unknown) {
+  if (!isRecord(value) || !Array.isArray(value.sections)) return false;
+  const section = value.sections.find((candidate: JsonRecord) => (
+    candidate?.key === PROMO_CMS_WORK_GALLERY_KEY && candidate?.type === 'gallery'
+  ));
+  if (!isRecord(section) || !isRecord(section.config) || !Array.isArray(section.media_use_keys)) return false;
+  const coverKey = String(section.config.cover_media_use_key || '');
+  const mediaKeys = new Set(section.media_use_keys.filter((mediaKey: unknown) => typeof mediaKey === 'string'));
+  const items = Array.isArray(section.config.items) ? section.config.items : [];
+  const visibleItems = items.filter((item: unknown) => isRecord(item) && item.visible === true);
+  return coverKey.length > 0
+    && mediaKeys.has(coverKey)
+    && visibleItems.length > 0
+    && visibleItems.every((item: JsonRecord) => (
+      Array.isArray(item.media_use_keys)
+      && item.media_use_keys.length > 0
+      && item.media_use_keys.every((mediaKey: unknown) => typeof mediaKey === 'string' && mediaKeys.has(mediaKey))
+    ));
+}
+
 export function buildPromoCmsContentDocument(
   value: unknown,
   patch: PromoCmsContentPatch,
@@ -976,6 +996,7 @@ export function promoCmsErrorMessage(code: unknown) {
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     invalid_promo_document: 'Revisa los campos: hay datos incompletos o con un formato no permitido.',
+    promo_work_gallery_incomplete: 'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto o video.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',
     unsupported_promo_action: 'Ese tipo de contacto todavía no está habilitado.',
     invalid_origin: 'La solicitud no proviene del panel administrativo.',

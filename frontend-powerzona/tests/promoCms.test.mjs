@@ -6,10 +6,12 @@ import {
   buildPromoCmsContactDocument,
   buildPromoCmsContentDocument,
   createPromoCmsWorkspace,
+  isPromoCmsWorkGalleryReady,
   normalizePromoCmsDocument,
   normalizePromoCmsDraftResponse,
   parsePromoCmsUpdate,
   PromoCmsError,
+  promoCmsErrorMessage,
   promoCmsSameOriginMutation,
   promoCmsStoreSlug,
 } from '../src/lib/promoCms.ts';
@@ -181,6 +183,33 @@ test('Organización fija Portada al inicio y Pie del sitio al final en UI y cont
     () => buildPromoCmsContentDocument(workspace.document, invalidPatch, 4),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
+});
+
+test('Trabajos realizados explica sus medios obligatorios antes de intentar publicar', () => {
+  const workspace = createPromoCmsWorkspace(completeDocument(), 'content');
+  const workSection = workspace.document.sections.find((section) => section.key === 'videos-main');
+  assert.equal(isPromoCmsWorkGalleryReady(workspace.document), false);
+
+  workSection.visible = true;
+  workSection.config = {
+    item_keys: ['work-ready'],
+    cover_media_use_key: 'work_cover',
+    items: [{ key: 'work-ready', media_use_keys: ['work_photo'], featured: false, visible: true }],
+  };
+  workSection.media_use_keys = ['work_cover', 'work_photo'];
+  assert.equal(isPromoCmsWorkGalleryReady(workspace.document), true);
+
+  workSection.config.items[0].media_use_keys = [];
+  assert.equal(isPromoCmsWorkGalleryReady(workspace.document), false);
+  assert.equal(
+    promoCmsErrorMessage('promo_work_gallery_incomplete'),
+    'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto o video.',
+  );
+
+  const editor = read('../src/components/admin/promo/PromoCmsEditor.astro');
+  assert.match(editor, /data-cms-error-action/);
+  assert.match(editor, /isPromoCmsWorkGalleryReady\(documentValue\)/);
+  assert.match(editor, /showError\('promo_work_gallery_incomplete'\)/);
 });
 
 test('normalización acepta documentos vivos anteriores al campo aditivo del logo', () => {

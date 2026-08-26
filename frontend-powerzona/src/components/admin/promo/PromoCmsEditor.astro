@@ -65,6 +65,7 @@ const isContent = scope === 'content';
   <div class="pz-promo-cms__error" role="alert" tabindex="-1" data-cms-error hidden>
     <strong>No se pudo continuar</strong>
     <p data-cms-error-message></p>
+    <a href={`/t/${storeSlug}/admin/promo/gallery`} data-cms-error-action hidden>Ir a Galería y productos</a>
     <button type="button" data-cms-reload>Recargar página</button>
   </div>
 
@@ -220,6 +221,7 @@ const isContent = scope === 'content';
     buildPromoCmsContactDocument,
     buildPromoCmsContentDocument,
     createPromoCmsWorkspace,
+    isPromoCmsWorkGalleryReady,
     normalizePromoCmsDraftResponse,
     PROMO_CMS_API_PATH,
     PROMO_CMS_CONTACT_TYPES,
@@ -265,6 +267,8 @@ const isContent = scope === 'content';
     const status = root.querySelector<HTMLElement>('[data-cms-status]');
     const errorBox = root.querySelector<HTMLElement>('[data-cms-error]');
     const errorMessage = root.querySelector<HTMLElement>('[data-cms-error-message]');
+    const errorAction = root.querySelector<HTMLAnchorElement>('[data-cms-error-action]');
+    const reloadButton = root.querySelector<HTMLButtonElement>('[data-cms-reload]');
     const saveButton = root.querySelector<HTMLButtonElement>('[data-cms-save]');
     const saveLabel = root.querySelector<HTMLElement>('[data-cms-save-label]');
     const unsaved = root.querySelector<HTMLElement>('[data-cms-unsaved]');
@@ -337,7 +341,10 @@ const isContent = scope === 'content';
     }
 
     function showError(code: unknown) {
+      const workGalleryIncomplete = String(code || '') === 'promo_work_gallery_incomplete';
       if (errorMessage) errorMessage.textContent = promoCmsErrorMessage(code);
+      if (errorAction) errorAction.hidden = !workGalleryIncomplete;
+      if (reloadButton) reloadButton.hidden = workGalleryIncomplete;
       if (errorBox) {
         errorBox.hidden = false;
         errorBox.focus();
@@ -347,6 +354,8 @@ const isContent = scope === 'content';
     function clearError() {
       if (errorBox) errorBox.hidden = true;
       if (errorMessage) errorMessage.textContent = '';
+      if (errorAction) errorAction.hidden = true;
+      if (reloadButton) reloadButton.hidden = false;
     }
 
     function updateMeta() {
@@ -1135,14 +1144,22 @@ const isContent = scope === 'content';
       clearError();
       if (!documentValue || !canSave || busy) return;
       if (!form.reportValidity()) return;
+      const contentPatch = scope === 'content' ? collectContentPatch() : null;
+      const workSectionPatch = contentPatch?.sections.find((section: CmsDocument) => (
+        section.key === PROMO_CMS_WORK_GALLERY_KEY
+      ));
+      if (workSectionPatch?.visible === true && !isPromoCmsWorkGalleryReady(documentValue)) {
+        showError('promo_work_gallery_incomplete');
+        return;
+      }
       if (status) {
         status.hidden = true;
         status.classList.remove('is-success');
       }
       setBusy(true, 'Guardando…');
       try {
-        const nextDocument = scope === 'content'
-          ? buildPromoCmsContentDocument(documentValue, collectContentPatch(), maxServices)
+        const nextDocument = contentPatch
+          ? buildPromoCmsContentDocument(documentValue, contentPatch, maxServices)
           : buildPromoCmsContactDocument(documentValue, collectContactPatch());
         const response = await fetch(endpoint, {
           method: 'PUT',

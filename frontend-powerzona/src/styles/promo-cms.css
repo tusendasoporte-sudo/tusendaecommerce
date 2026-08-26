@@ -8,6 +8,10 @@
   gap: 20px;
 }
 
+.pz-promo-cms [hidden] {
+  display: none !important;
+}
+
 .pz-promo-cms__intro {
   display: flex;
   align-items: flex-start;
@@ -199,7 +203,8 @@
   grid-column: 1;
 }
 
-.pz-promo-cms__error button {
+.pz-promo-cms__error button,
+.pz-promo-cms__error-action {
   grid-column: 2;
   grid-row: 1 / span 2;
   min-height: 42px;
@@ -210,6 +215,12 @@
   color: #7e2222;
   padding: 0 14px;
   font-weight: 800;
+}
+
+.pz-promo-cms__error-action {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 .pz-promo-cms__form {
@@ -767,7 +778,8 @@
     grid-template-columns: 1fr;
   }
 
-  .pz-promo-cms__error button {
+  .pz-promo-cms__error button,
+  .pz-promo-cms__error-action {
     grid-column: 1;
     grid-row: auto;
   }
