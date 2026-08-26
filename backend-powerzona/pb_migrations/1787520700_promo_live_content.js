@@ -64,9 +64,17 @@ function exactForSite(app, collection, siteId) {
 }
 
 function validateCandidate(app, site, entitlement, input, publicDocument) {
-  const document = pubcfg.validatePromoDocument(pubcfg.upgradePromoDocument(input), {
-    publicRevision: publicDocument,
-  });
+  let document;
+  try {
+    document = pubcfg.validatePromoDocument(pubcfg.upgradePromoDocument(input), {
+      publicRevision: publicDocument,
+    });
+  } catch (error) {
+    if (error && error.code === "incomplete_promo_locale" && error.reason) {
+      throw new Error(`incompatible_promo_live_${error.reason}`);
+    }
+    throw error;
+  }
   pubcfgApi.assertDraftTheme(app, document, { selectionChanged: false });
   const assets = pubcfgApi.loadDocumentAssets(app, recordId(site), document, {
     publicRevision: publicDocument,

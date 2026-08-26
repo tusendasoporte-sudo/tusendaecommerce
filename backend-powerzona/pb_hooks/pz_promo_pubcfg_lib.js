@@ -95,16 +95,17 @@ const LIVE_LOCALIZED_SECTION_KEYS = Object.freeze({
 });
 
 class PromoPubcfgError extends Error {
-  constructor(code, status) {
+  constructor(code, status, reason) {
     super(code || "invalid_promo_document");
     this.name = "PromoPubcfgError";
     this.code = code || "invalid_promo_document";
     this.status = Number.isInteger(status) ? status : 400;
+    if (reason) Object.defineProperty(this, "reason", { value: String(reason), enumerable: false });
   }
 }
 
-function fail(code, status) {
-  throw new PromoPubcfgError(code, status);
+function fail(code, status, reason) {
+  throw new PromoPubcfgError(code, status, reason);
 }
 
 function normalizeJson(value) {
@@ -297,7 +298,7 @@ function validateSectionConfig(section, knownActions, knownMedia, liveDocument, 
     }
     if (publicRevision && section.visible && (!config.cover_media_use_key
       || config.items.some((item) => item.visible && !item.media_use_keys.length))) {
-      fail("incomplete_promo_locale", 400);
+      fail("incomplete_promo_locale", 400, "gallery_media");
     }
     configuredMedia.forEach((key) => knownMedia.add(key));
   }
@@ -353,7 +354,7 @@ function validateSections(document, publicRevision, liveDocument) {
         const gallery = galleryKey ? sectionByKey.get(galleryKey) : null;
         if (galleryKey && (!gallery || gallery.type !== "gallery")) fail("invalid_promo_document", 400);
         if (publicRevision && section.visible && (!gallery || !gallery.visible)) {
-          fail("incomplete_promo_locale", 400);
+          fail("incomplete_promo_locale", 400, "service_gallery");
         }
       });
     });
@@ -470,12 +471,14 @@ function validateLocalizedItems(items, type, publicRevision, configuredKeys, liv
     if (Object.prototype.hasOwnProperty.call(normalized, "summary")) assertSafeText(normalized.summary, 600, { empty: true });
     if (Object.prototype.hasOwnProperty.call(normalized, "caption")) assertSafeText(normalized.caption, 500, { empty: true });
     if (publicRevision && (type !== "gallery" || liveDocument) && !normalized.name) {
-      fail("incomplete_promo_locale", 400);
+      fail("incomplete_promo_locale", 400, "localized_item_name");
     }
   }
   if (new Set(keys).size !== keys.length) fail("invalid_promo_document", 400);
   if (publicRevision && (keys.length !== configuredKeys.length
-    || keys.some((key, index) => key !== configuredKeys[index]))) fail("incomplete_promo_locale", 400);
+    || keys.some((key, index) => key !== configuredKeys[index]))) {
+    fail("incomplete_promo_locale", 400, "localized_item_keys");
+  }
 }
 
 function validateLocalizedSection(value, section, publicRevision, liveDocument) {
@@ -490,7 +493,7 @@ function validateLocalizedSection(value, section, publicRevision, liveDocument) 
     validateLocalizedItems(localized.items, section.type, publicRevision, section.config.item_keys || [], liveDocument);
   } else if (publicRevision && ["services", "featured_work", "gallery"].includes(section.type)
     && section.config.item_keys.length) {
-    fail("incomplete_promo_locale", 400);
+    fail("incomplete_promo_locale", 400, "localized_section_items");
   }
 }
 
@@ -501,7 +504,7 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
   localeKeys.forEach(assertCanonicalLocale);
   if (publicRevision && (localeKeys.length !== document.locales.published.length
     || localeKeys.some((locale, index) => locale !== document.locales.published[index]))) {
-    fail("incomplete_promo_locale", 400);
+    fail("incomplete_promo_locale", 400, "locale_set");
   }
   const sectionMap = new Map(document.sections.map((section) => [section.key, section]));
   const mediaKeys = Object.keys(document.media_refs);
@@ -518,7 +521,7 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     }
     if (Object.prototype.hasOwnProperty.call(identity, "owner_name")) assertSafeText(identity.owner_name, 140, { empty: true });
     if (Object.prototype.hasOwnProperty.call(identity, "owner_bio")) assertSafeText(identity.owner_bio, 4000, { empty: true });
-    if (publicRevision && !identity.name) fail("incomplete_promo_locale", 400);
+    if (publicRevision && !identity.name) fail("incomplete_promo_locale", 400, "identity_name");
 
     const navigation = plainObject(localized.navigation);
     for (const key of Object.keys(navigation)) {
@@ -533,7 +536,9 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     }
     if (publicRevision) {
       document.sections.filter((section) => section.visible).forEach((section) => {
-        if (!navigation[section.key] || !localizedSections[section.key]) fail("incomplete_promo_locale", 400);
+        if (!navigation[section.key] || !localizedSections[section.key]) {
+          fail("incomplete_promo_locale", 400, "visible_section");
+        }
       });
     }
 
@@ -547,7 +552,9 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     }
     if (publicRevision && document.contact.enabled) {
       [document.contact.primary_action_key, ...document.contact.secondary_action_keys].forEach((key) => {
-        if (!contact[key] || !contact[key].label || !contact[key].aria_label) fail("incomplete_promo_locale", 400);
+        if (!contact[key] || !contact[key].label || !contact[key].aria_label) {
+          fail("incomplete_promo_locale", 400, "contact_copy");
+        }
       });
     }
 
@@ -561,7 +568,9 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     }
     if (publicRevision) {
       mediaKeys.forEach((key) => {
-        if (!mediaAlt[key] || (!mediaAlt[key].decorative && !mediaAlt[key].alt)) fail("incomplete_promo_locale", 400);
+        if (!mediaAlt[key] || (!mediaAlt[key].decorative && !mediaAlt[key].alt)) {
+          fail("incomplete_promo_locale", 400, "media_alt");
+        }
       });
     }
 
@@ -570,7 +579,9 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     if (Object.prototype.hasOwnProperty.call(seo, "description")) assertSafeText(seo.description, 170, { empty: !publicRevision });
     if (Object.prototype.hasOwnProperty.call(seo, "social_title")) assertSafeText(seo.social_title, 70, { empty: true });
     if (Object.prototype.hasOwnProperty.call(seo, "social_description")) assertSafeText(seo.social_description, 170, { empty: true });
-    if (publicRevision && (!seo.title || !seo.description)) fail("incomplete_promo_locale", 400);
+    if (publicRevision && (!seo.title || !seo.description)) {
+      fail("incomplete_promo_locale", 400, "seo");
+    }
   }
 }
 
