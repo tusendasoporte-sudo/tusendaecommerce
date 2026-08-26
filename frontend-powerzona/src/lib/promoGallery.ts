@@ -290,9 +290,9 @@ function validateMediaPatch(
   const useKey = checkedKey(item.useKey, USE_KEY_PATTERN);
   const assetId = String(item.assetId || '');
   const asset = availableAssets.get(assetId);
+  const allowedKinds = purpose === 'gallery' ? ['image', 'video'] : ['image'];
   if (allUseKeys.has(useKey) || !asset || asset.status !== 'ready' || asset.purpose !== purpose
-    || !['image', 'video'].includes(asset.kind)
-    || (purpose === 'owner' && asset.kind !== 'image')) fail('invalid_promo_media_reference');
+    || !allowedKinds.includes(asset.kind)) fail('invalid_promo_media_reference');
   allUseKeys.add(useKey);
   return {
     useKey,

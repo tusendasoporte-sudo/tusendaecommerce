@@ -64,23 +64,17 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         <span aria-hidden="true">⌄</span>
       </summary>
       <div class="pz-promo-products__body">
-        <p>Una imagen crea una portada fija; varias imágenes o videos crean un carrusel accesible.</p>
+        <p>Una imagen crea una portada fija; varias imágenes crean un carrusel accesible.</p>
         <div class="pz-promo-gallery__items" data-products-hero-media></div>
         <div class="pz-promo-products__upload-row">
           <label>Agregar imágenes<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple data-products-hero-images disabled={!canManageMedia} /></label>
-          {canManageVideo && (
-            <div class="pz-promo-products__video-upload">
-              <label>Video MP4/WebM<input type="file" accept="video/mp4,video/webm" data-products-hero-video /></label>
-              <label>Poster del video<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-products-hero-poster /></label>
-              <button type="button" class="pz-promo-gallery__secondary" data-products-add-hero-video>Añadir video</button>
-            </div>
-          )}
         </div>
       </div>
     </details>
 
     <div data-products-owner></div>
     <div data-products-work></div>
+    <div data-products-featured></div>
     <div class="pz-promo-gallery__section-list" data-products-services></div>
 
     <footer class="pz-promo-gallery__savebar">
@@ -127,6 +121,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     const servicesElement = root.querySelector<HTMLElement>('[data-products-services]');
     const ownerElement = root.querySelector<HTMLElement>('[data-products-owner]');
     const workElement = root.querySelector<HTMLElement>('[data-products-work]');
+    const featuredElement = root.querySelector<HTMLElement>('[data-products-featured]');
     const heroElement = root.querySelector<HTMLElement>('[data-products-hero-media]');
     const statusElement = root.querySelector<HTMLElement>('[data-products-status]');
     const alertElement = root.querySelector<HTMLElement>('[data-products-alert]');
@@ -365,7 +360,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       finally { busy = false; render(); }
     }
 
-    async function addVideo(video: File | undefined, poster: File | undefined, target: MediaModel[], purpose: 'hero' | 'gallery', maximum = 150) {
+    async function addVideo(video: File | undefined, poster: File | undefined, target: MediaModel[], purpose: 'gallery', maximum = 150) {
       if (!video || !poster || !canManageVideo || busy || target.length >= maximum) return;
       if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
       clearError(); busy = true; render(); setStatus('Procesando poster y video…');
@@ -405,12 +400,9 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       const heading = element('strong', '', product.name || `Producto ${index + 1}`);
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible; visible.disabled = !canSave;
-      const featured = document.createElement('input'); featured.type = 'checkbox'; featured.checked = product.featured; featured.disabled = !canSave;
       const visibleLabel = element('label', 'pz-promo-gallery__check'); visibleLabel.append(visible, element('span', '', 'Visible'));
-      const featuredLabel = element('label', 'pz-promo-gallery__check'); featuredLabel.append(featured, element('span', '', 'Destacado'));
-      visible.addEventListener('change', () => { product.visible = visible.checked; markDirty(); });
-      featured.addEventListener('change', () => { product.featured = featured.checked; markDirty(); });
-      flags.append(visibleLabel, featuredLabel); header.append(heading, flags); card.append(header);
+      visible.addEventListener('change', () => { product.visible = visible.checked; if (!product.visible) product.featured = false; markDirty(); render(); });
+      flags.append(visibleLabel); header.append(heading, flags); card.append(header);
       const fields = element('div', 'pz-promo-gallery__section-fields');
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = product.visible; name.disabled = !canSave;
       const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = product.summary; summary.disabled = !canSave;
@@ -424,7 +416,18 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       fields.append(field('Nombre del producto o trabajo', name), field('Descripción', summary), field('Nota opcional', caption, true));
       card.append(fields);
       const mediaList = element('div', 'pz-promo-gallery__items');
-      product.media.forEach((media, mediaIndex) => mediaList.append(renderMedia(media, product.media, mediaIndex, product.name || 'producto')));
+      product.media.forEach((media, mediaIndex) => {
+        const mediaCard = renderMedia(media, product.media, mediaIndex, product.name || 'producto');
+        mediaCard.querySelector<HTMLButtonElement>('.is-danger')?.addEventListener('click', () => {
+          if (!product.media.length) {
+            product.visible = false;
+            product.featured = false;
+          }
+          markDirty();
+          render();
+        }, { once: true });
+        mediaList.append(mediaCard);
+      });
       if (!product.media.length) mediaList.append(element('p', 'pz-promo-gallery__empty', 'Añade al menos una foto para mostrar este producto.'));
       card.append(mediaList, uploadControls(product.media, 'gallery', PROMO_PRODUCT_MAX_MEDIA));
       const actions = element('div', 'pz-promo-gallery__work-actions');
@@ -474,15 +477,10 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input');
       visible.type = 'checkbox'; visible.checked = workItem.visible; visible.disabled = !canSave || workItem.media.length === 0;
-      const featured = document.createElement('input');
-      featured.type = 'checkbox'; featured.checked = workItem.featured; featured.disabled = !canSave;
       const visibleLabel = element('label', 'pz-promo-gallery__check');
       visibleLabel.append(visible, element('span', '', 'Visible'));
-      const featuredLabel = element('label', 'pz-promo-gallery__check');
-      featuredLabel.append(featured, element('span', '', 'Destacado'));
-      visible.addEventListener('change', () => { workItem.visible = visible.checked; markDirty(); });
-      featured.addEventListener('change', () => { workItem.featured = featured.checked; markDirty(); });
-      flags.append(visibleLabel, featuredLabel); header.append(heading, flags); card.append(header);
+      visible.addEventListener('change', () => { workItem.visible = visible.checked; if (!workItem.visible) workItem.featured = false; markDirty(); render(); });
+      flags.append(visibleLabel); header.append(heading, flags); card.append(header);
 
       const fields = element('div', 'pz-promo-gallery__section-fields');
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = workItem.name; name.disabled = !canSave;
@@ -502,7 +500,10 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       workItem.media.forEach((media, mediaIndex) => {
         const mediaCard = renderMedia(media, workItem.media, mediaIndex, workItem.name || 'trabajo');
         mediaCard.querySelector<HTMLButtonElement>('.is-danger')?.addEventListener('click', () => {
-          if (!workItem.media.length) workItem.visible = false;
+          if (!workItem.media.length) {
+            workItem.visible = false;
+            workItem.featured = false;
+          }
           markDirty();
           render();
         }, { once: true });
@@ -511,7 +512,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       if (!workItem.media.length) mediaList.append(element('p', 'pz-promo-gallery__empty', 'Añade fotos del resultado o un video del trabajo.'));
       card.append(mediaList, uploadControls(workItem.media, 'gallery', PROMO_PRODUCT_MAX_MEDIA));
       const actions = element('div', 'pz-promo-gallery__work-actions');
-      actions.append(element('span', 'pz-promo-products__quote-note', 'Puede incluir hasta 3 fotos o videos y marcarse como destacado.'));
+      actions.append(element('span', 'pz-promo-products__quote-note', 'Puede incluir hasta 3 fotos o videos. Los destacados se administran en la sección independiente.'));
       const remove = element('button', 'is-danger', 'Eliminar trabajo'); remove.type = 'button'; remove.disabled = !canSave;
       remove.addEventListener('click', () => { workGallery.items.splice(index, 1); markDirty(); render(); });
       actions.append(remove); card.append(actions);
@@ -541,6 +542,54 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       body.append(items); details.append(body);
       return details;
     }
+
+    function renderFeaturedSection() {
+      const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      const candidates = [
+        ...workGallery.items.map((item, index) => ({ item, source: 'Trabajos realizados', fallback: `Trabajo ${index + 1}` })),
+        ...services.flatMap((service) => service.items.map((item, index) => ({
+          item,
+          source: service.serviceName,
+          fallback: `Producto ${index + 1}`,
+        }))),
+      ];
+      const selectedCount = candidates.filter(({ item }) => item.featured).length;
+      const summary = element('summary');
+      const title = element('span');
+      title.append(
+        element('span', 'pz-promo-gallery__eyebrow', 'Selección pública'),
+        element('strong', '', `Trabajos destacados (${selectedCount})`),
+      );
+      summary.append(title, element('span', '', '⌄')); details.append(summary);
+      const body = element('div', 'pz-promo-products__body');
+      body.append(element('p', '', 'Selecciona aquí los productos o trabajos existentes que aparecerán en la sección Trabajos destacados.'));
+      const list = element('div', 'pz-promo-products__featured-list');
+      candidates.forEach(({ item, source, fallback }) => {
+        const option = element('label', 'pz-promo-products__featured-option');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.featured;
+        checkbox.disabled = !canSave || busy || (!item.featured && item.media.length === 0);
+        checkbox.addEventListener('change', () => {
+          item.featured = checkbox.checked;
+          if (item.featured) item.visible = true;
+          markDirty();
+          render();
+        });
+        const copy = element('span');
+        copy.append(
+          element('strong', '', item.name || fallback),
+          element('small', '', item.media.length
+            ? `${source} · ${item.media.length} ${item.media.length === 1 ? 'medio' : 'medios'}`
+            : `${source} · agrega una foto o video antes de destacarlo`),
+        );
+        option.append(checkbox, copy); list.append(option);
+      });
+      if (!candidates.length) list.append(element('p', 'pz-promo-gallery__empty', 'Primero crea un producto o un trabajo realizado.'));
+      body.append(list); details.append(body);
+      return details;
+    }
+
     function renderService(service: ServiceModel, index: number) {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
       if (index === 0) details.open = true;
@@ -607,10 +656,11 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       if (heroElement) {
         heroElement.replaceChildren();
         heroMedia.forEach((media, index) => heroElement.append(renderMedia(media, heroMedia, index, 'portada')));
-        if (!heroMedia.length) heroElement.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay medios en la portada.'));
+        if (!heroMedia.length) heroElement.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay imágenes en la portada.'));
       }
       if (ownerElement) ownerElement.replaceChildren(renderOwnerSection());
       if (workElement) workElement.replaceChildren(renderWorkSection());
+      if (featuredElement) featuredElement.replaceChildren(renderFeaturedSection());
       if (servicesElement) {
         servicesElement.replaceChildren();
         services.forEach((service, index) => servicesElement.append(renderService(service, index)));
@@ -661,11 +711,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     root.querySelector<HTMLInputElement>('[data-products-hero-images]')?.addEventListener('change', (event) => {
       const input = event.currentTarget as HTMLInputElement;
       addImages(input.files, heroMedia, 'hero');
-    });
-    root.querySelector<HTMLButtonElement>('[data-products-add-hero-video]')?.addEventListener('click', () => {
-      const video = root.querySelector<HTMLInputElement>('[data-products-hero-video]')?.files?.[0];
-      const poster = root.querySelector<HTMLInputElement>('[data-products-hero-poster]')?.files?.[0];
-      addVideo(video, poster, heroMedia, 'hero');
     });
 
     form?.addEventListener('submit', async (event) => {

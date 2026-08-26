@@ -60,6 +60,10 @@ const assets = [
     assetId: 'assetv000000001', kind: 'video', purpose: 'gallery', status: 'ready', mime: 'video/mp4',
     bytes: 1000000, width: 1280, height: 720, durationMs: 5000, posterAssetId: 'poster000000001',
   },
+  {
+    assetId: 'assethv00000001', kind: 'video', purpose: 'hero', status: 'ready', mime: 'video/mp4',
+    bytes: 1000000, width: 1280, height: 720, durationMs: 5000, posterAssetId: 'poster000000001',
+  },
 ];
 
 function completeDocument() {
@@ -399,6 +403,14 @@ test('cuota, portada y metadata accesible fallan cerradas', () => {
     () => buildPromoGalleryDocument(original, update, 24, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_media_reference',
   );
+  const heroVideo = patch(original);
+  heroVideo.heroMedia = [{
+    useKey: 'hero-video-1', assetId: 'assethv00000001', alt: 'Video de portada', decorative: false,
+  }];
+  assert.throws(
+    () => buildPromoGalleryDocument(original, heroVideo, 24, assets),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_media_reference',
+  );
   const missingCover = patch(original);
   missingCover.galleries[0].coverUseKey = '';
   assert.throws(
@@ -463,10 +475,14 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /Galería y productos/);
   assert.match(productsEditor, /data-products-owner/);
   assert.match(productsEditor, /data-products-work/);
+  assert.match(productsEditor, /data-products-featured/);
   assert.match(productsEditor, /PROMO_CMS_WORK_GALLERY_KEY/);
   assert.match(productsEditor, /Math\.min\(3/);
   assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
-  assert.match(productsEditor, /data-products-add-hero-video/);
+  assert.match(productsEditor, /function renderFeaturedSection/);
+  assert.match(productsEditor, /Trabajos destacados/);
+  assert.doesNotMatch(productsEditor, /data-products-add-hero-video|data-products-hero-video|data-products-hero-poster/);
+  assert.doesNotMatch(productsEditor, /element\('span', '', 'Destacado'\)/);
   assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);
   assert.doesNotMatch(`${shell}\n${cmsEditor}\n${mediaApi}`, /orders|checkout|cart|Cloudflare|Coolify/);
 });

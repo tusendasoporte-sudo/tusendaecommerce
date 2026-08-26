@@ -91,6 +91,41 @@
   font-size: .78rem;
   font-weight: 700;
 }
+.pz-promo-products__featured-list {
+  display: grid;
+  gap: .75rem;
+}
+
+.pz-promo-products__featured-option {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: .85rem;
+  border: 1px solid #d8cfbf;
+  border-radius: .8rem;
+  background: #f8f6f1;
+  cursor: pointer;
+}
+
+.pz-promo-products__featured-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, #7d3fc1 40%, transparent);
+  outline-offset: 2px;
+}
+
+.pz-promo-products__featured-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: .68;
+}
+
+.pz-promo-products__featured-option > span {
+  display: grid;
+  gap: .2rem;
+}
+
+.pz-promo-products__featured-option small {
+  color: #667085;
+}
+
 
 @media (max-width: 760px) {
   .pz-promo-products__video-upload { grid-template-columns: 1fr; }
