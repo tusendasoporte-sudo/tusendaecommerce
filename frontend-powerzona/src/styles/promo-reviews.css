@@ -313,14 +313,14 @@ body[data-promo-token-motion="reduced"] .promo-reviews__viewport {
 
 .promo-reviews__form fieldset { border: 0; padding: 0; margin: 0; }
 .promo-reviews__form legend { margin-block-end: .45rem; font-weight: 750; }
-.promo-reviews__rating-input { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: .2rem; }
+.promo-reviews__rating-input { display: flex; justify-content: flex-start; gap: .2rem; }
 .promo-reviews__rating-input label { position: relative; cursor: pointer; }
 .promo-reviews__rating-input input { position: absolute; opacity: 0; }
 .promo-reviews__rating-input span[aria-hidden="true"] { display: grid; width: 44px; height: 44px; place-items: center; color: var(--promo-text-soft); font-size: 1.8rem; }
 .promo-reviews__rating-input label:has(input:checked) span[aria-hidden="true"],
-.promo-reviews__rating-input label:has(input:checked) ~ label span[aria-hidden="true"],
+.promo-reviews__rating-input label:has(~ label input:checked) span[aria-hidden="true"],
 .promo-reviews__rating-input label:hover span[aria-hidden="true"],
-.promo-reviews__rating-input label:hover ~ label span[aria-hidden="true"] { color: var(--promo-accent-bright); }
+.promo-reviews__rating-input label:has(~ label:hover) span[aria-hidden="true"] { color: var(--promo-accent-bright); }
 .promo-reviews__rating-input input:focus-visible + span { outline: 3px solid var(--promo-focus); outline-offset: 2px; border-radius: 5px; }
 .promo-reviews__honeypot { position: absolute; inset-inline-start: -10000px; }
 .promo-reviews__consent { grid-template-columns: auto minmax(0, 1fr) !important; align-items: start; }

@@ -97,6 +97,9 @@ test('sección pública conserva SSR y añade formulario moderado, carrusel y vi
   assert.match(component, /data-review-open-all/);
   assert.match(component, /photo_consent/);
   assert.doesNotMatch(component, /name="comment"[^>]*minlength/);
+  assert.match(component, /\[1, 2, 3, 4, 5\]\.map\(\(value\) =>/);
+  assert.doesNotMatch(styles, /flex-direction:\s*row-reverse/);
+  assert.match(styles, /label:has\(~ label input:checked\)/);
   assert.match(component, /function resetRequestContext\(\)/);
   assert.match(styles, /\.promo-reviews \[hidden\][\s\S]*?display: none !important/);
   assert.match(component, /prefers-reduced-motion/);
