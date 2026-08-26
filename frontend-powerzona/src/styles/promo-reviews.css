@@ -5,6 +5,10 @@
     var(--promo-surface);
 }
 
+.promo-reviews [hidden] {
+  display: none !important;
+}
+
 .promo-reviews__inner {
   gap: clamp(2.25rem, 5vw, 4rem);
 }

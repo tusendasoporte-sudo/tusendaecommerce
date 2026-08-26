@@ -116,3 +116,14 @@ test('moderación usa el writer AUDIT Promo con snapshot sin nombre ni comentari
   assert.deepEqual(values.new_values_json, { status: 'approved', featured: true, approved: true });
   assert.doesNotMatch(JSON.stringify(values), /Ana|Trabajo impecable|customer|comment/);
 });
+
+test('migración habilita el módulo reviews en AUDIT y bloquea rollback con eventos existentes', () => {
+  const migration = fs.readFileSync(
+    path.join(__dirname, '../pb_migrations/1787699000_promo_audit_reviews_module.js'),
+    'utf8',
+  );
+  assert.match(migration, /MODULE_FIELD_ID = "select1787523107"/);
+  assert.match(migration, /moduleField\.values\.push\(REVIEWS_MODULE\)/);
+  assert.match(migration, /module = \{\:module\}/);
+  assert.match(migration, /unsafe_rollback_promo_reviews_audit/);
+});

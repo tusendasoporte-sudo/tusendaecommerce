@@ -32,6 +32,10 @@ test('envío público es exacto, moderado, con honeypot, tiempo mínimo y texto 
   });
   assert.equal(parsed.rating, 5);
   assert.equal(parsed.requestToken, '');
+  assert.equal(contracts.parsePublicSubmission({
+    contract: 'promo.review.submit.v1', name: 'Ana', rating: 5, comment: 'good',
+    honeypot: '', rendered_at: Date.now() - 3000, request_token: '', photo_consent: false,
+  }).comment, 'good');
   assert.throws(() => contracts.parsePublicSubmission({
     contract: 'promo.review.submit.v1', name: 'Ana', rating: 5, comment: 'Visita https://spam.example',
     honeypot: '', rendered_at: Date.now() - 3000, request_token: '', photo_consent: false,

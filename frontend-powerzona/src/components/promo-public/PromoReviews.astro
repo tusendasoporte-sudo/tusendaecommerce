@@ -177,7 +177,7 @@ const countCopy = rating.summary.count === 1
             ))}
           </div>
         </fieldset>
-        <label><span>{copy.comment}</span><textarea name="comment" minlength="10" maxlength="1000" rows="6" required></textarea></label>
+        <label><span>{copy.comment}</span><textarea name="comment" maxlength="1000" rows="6" required></textarea></label>
         <label class="promo-reviews__honeypot" aria-hidden="true"><span>Website</span><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
         <label class="promo-reviews__consent" data-review-photo-consent hidden><input type="checkbox" name="photo_consent" /><span>{copy.consent}</span></label>
         <button type="submit" data-review-submit>{copy.submit}</button>
@@ -365,14 +365,34 @@ const countCopy = rating.summary.count === 1
       if (next) next.disabled = allCurrentPage >= allTotalPages;
     }
 
-    function openReviewForm() {
+    function resetRequestContext() {
+      requestToken = '';
+      if (requestStatus) {
+        requestStatus.hidden = true;
+        requestStatus.textContent = '';
+      }
+      if (requestPhotos) {
+        requestPhotos.hidden = true;
+        requestPhotos.replaceChildren();
+      }
+      if (consent) {
+        consent.hidden = true;
+        const checkbox = consent.querySelector<HTMLInputElement>('input[name="photo_consent"]');
+        if (checkbox) checkbox.checked = false;
+      }
+      objectUrls.splice(0).forEach((url) => URL.revokeObjectURL(url));
+    }
+
+    function openReviewForm(clearRequest = true) {
+      if (clearRequest) resetRequestContext();
       renderedAt = Date.now();
       if (formDialog && !formDialog.open) formDialog.showModal();
     }
 
     async function loadRequest(token: string) {
+      resetRequestContext();
       requestToken = token;
-      openReviewForm();
+      openReviewForm(false);
       if (requestStatus) { requestStatus.hidden = false; requestStatus.textContent = copy.requestLoading; }
       const context = normalizePromoPublicRequestContext(await responseJson(await fetch(promoPublicReviewsPath(slug, 'request'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
@@ -402,7 +422,7 @@ const countCopy = rating.summary.count === 1
     root.querySelector('[data-review-carousel]')?.addEventListener('mouseleave', restartTimer);
     root.querySelector('[data-review-carousel]')?.addEventListener('focusin', () => { window.clearInterval(timer); });
     root.querySelector('[data-review-carousel]')?.addEventListener('focusout', restartTimer);
-    root.querySelectorAll('[data-review-open-form]').forEach((button) => button.addEventListener('click', openReviewForm));
+    root.querySelectorAll('[data-review-open-form]').forEach((button) => button.addEventListener('click', () => openReviewForm()));
     root.querySelector('[data-review-all-leave]')?.addEventListener('click', () => { allDialog?.close(); openReviewForm(); });
     openAll?.addEventListener('click', () => { allDialog?.showModal(); void loadAllPage(1).catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error')); });
     root.querySelector('[data-review-all-previous]')?.addEventListener('click', () => { if (allCurrentPage > 1) void loadAllPage(allCurrentPage - 1); });
@@ -426,7 +446,7 @@ const countCopy = rating.summary.count === 1
             photo_consent: requestToken ? data.get('photo_consent') === 'on' : false,
           }),
         })));
-        form.reset(); requestToken = ''; formDialog?.close(); show(copy.success, 'success');
+        form.reset(); resetRequestContext(); formDialog?.close(); show(copy.success, 'success');
         if (result.status === 'pending') await loadInitial();
       } catch (error) {
         const candidate = error as { code?: string; message?: string };

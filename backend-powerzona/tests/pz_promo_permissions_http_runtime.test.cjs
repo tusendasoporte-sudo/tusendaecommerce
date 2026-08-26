@@ -26,6 +26,7 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787683200_promo_media_quota_150.js',
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
+  '1787699000_promo_audit_reviews_module.js',
 ];
 
 function runtimeEnvironment() {

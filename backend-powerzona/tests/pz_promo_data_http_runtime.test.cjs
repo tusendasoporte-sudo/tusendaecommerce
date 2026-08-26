@@ -35,6 +35,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787683200_promo_media_quota_150.js',
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
+  '1787699000_promo_audit_reviews_module.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -280,6 +281,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), TEMP_PREFIX));
   const dataDirectory = path.join(temporaryRoot, 'main-data');
   const emptyRollbackDirectory = path.join(temporaryRoot, 'empty-rollback-data');
+  const reviewRuntimeDirectory = path.join(temporaryRoot, 'review-runtime-data');
   const environment = runtimeEnvironment();
   const superEmail = 'promo-data-runtime-super@example.test';
   const superPassword = `QA-Promo-${randomBytes(24).toString('base64url')}!Aa1`;
@@ -410,6 +412,9 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     assert.equal(mediaFileField.protected, true);
     assert.equal(mediaFileField.maxSize, 25 * 1024 * 1024);
     assert.deepEqual(mediaFileField.mimeTypes, ['image/webp', 'video/mp4', 'video/webm']);
+    const auditMetadata = promoMetadata.find((collection) => collection.name === 'promo_audit_events');
+    const auditModuleField = auditMetadata.fields.find((field) => field.name === 'module');
+    assert.ok(auditModuleField.values.includes('reviews'));
     const entitlementMetadata = promoMetadata.find(
       (collection) => collection.name === 'promo_site_entitlements',
     );
@@ -1013,10 +1018,121 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       'rollback bloqueado conserva los datos',
     );
 
+    const reviewUp = runPocketBase(['migrate', 'up'], reviewRuntimeDirectory, environment);
+    assertCommand(reviewUp, 'migrate up efímero para moderación de reseñas');
+    const reviewSuperEmail = 'promo-review-runtime-super@example.test';
+    const reviewSuperPassword = `QA-Promo-Review-${randomBytes(24).toString('base64url')}!Aa1`;
+    const reviewUserPassword = `QA-Promo-Review-User-${randomBytes(24).toString('base64url')}!Aa1`;
+    assertCommand(runPocketBase(
+      ['superuser', 'create', reviewSuperEmail, reviewSuperPassword],
+      reviewRuntimeDirectory,
+      environment,
+    ), 'bootstrap superuser efímero para moderación');
+    const reviewPort = await freeLoopbackPort();
+    const reviewBaseUrl = `http://${LOOPBACK}:${reviewPort}`;
+    runtime = startPocketBase(reviewRuntimeDirectory, reviewPort, environment);
+    await waitForPocketBase(runtime, reviewBaseUrl);
+    const reviewRequest = (route, options) => apiRequest(reviewBaseUrl, route, options);
+    const reviewSuperAuth = await reviewRequest('/api/collections/_superusers/auth-with-password', {
+      json: { identity: reviewSuperEmail, password: reviewSuperPassword },
+    });
+    assertStatus(reviewSuperAuth, 200, 'autenticar superuser efímero para moderación');
+    const reviewSuperToken = reviewSuperAuth.data.token;
+    const reviewCreate = async (collection, values) => {
+      const result = await reviewRequest(`/api/collections/${collection}/records`, {
+        token: reviewSuperToken,
+        json: values,
+      });
+      assertStatus(result, [200, 201], `crear ${collection} para moderación`);
+      return result.data;
+    };
+    const reviewMaster = await reviewCreate('users', {
+      email: 'promo-review-runtime-master@example.test',
+      password: reviewUserPassword,
+      passwordConfirm: reviewUserPassword,
+      display_name: 'Promo Review Runtime Master',
+      role: 'master_admin',
+      status: 'active',
+      phone: '',
+      emailVisibility: true,
+    });
+    const reviewStore = await reviewCreate('stores', {
+      name: 'Promo Review Runtime',
+      slug: 'promo-review-runtime',
+      status: 'active',
+      plan: 'premium',
+      plan_duration_months: 0,
+      plan_is_permanent: true,
+    });
+    const reviewSite = await reviewCreate('promo_sites', {
+      store: reviewStore.id,
+      public_slug: 'promo-review-runtime',
+      status: 'active',
+      contract_version: 1,
+      created_by: reviewMaster.id,
+      updated_by: reviewMaster.id,
+    });
+    await reviewCreate('promo_site_entitlements', {
+      site: reviewSite.id,
+      source: 'contract',
+      promo_site_enabled: true,
+      publish_enabled: true,
+      custom_domain_enabled: false,
+      theme_customization_enabled: true,
+      multilanguage_enabled: true,
+      video_enabled: true,
+      analytics_enabled: true,
+      landing_qr_bridge_enabled: true,
+      max_services: 20,
+      max_gallery_assets: 150,
+      max_locales: 2,
+      max_videos: 3,
+      max_storage_bytes: 262144000,
+      updated_by: reviewMaster.id,
+    });
+    const pendingReview = await reviewCreate('reviews', {
+      store: reviewStore.id,
+      type: 'store',
+      rating: 5,
+      customer_name: 'Ana',
+      comment: 'good',
+      status: 'pending',
+      source: 'public_store',
+      verified_purchase: false,
+      featured: false,
+      approved_at: '',
+    });
+    const reviewMasterAuth = await reviewRequest('/api/collections/users/auth-with-password', {
+      json: { identity: reviewMaster.email, password: reviewUserPassword },
+    });
+    assertStatus(reviewMasterAuth, 200, 'autenticar Master efímero para moderación');
+    const moderatedReview = await reviewRequest('/api/pz/promo/private/v1/reviews/moderate', {
+      token: reviewMasterAuth.data.token,
+      headers: { 'X-PZ-Promo-Store': reviewStore.id },
+      json: {
+        contract: 'promo.reviews.moderate.v1',
+        review_id: pendingReview.id,
+        action: 'approve',
+        expected_updated: pendingReview.updated,
+      },
+    });
+    assertStatus(moderatedReview, 200, 'Master aprueba reseña Promo con auditoría reviews');
+    assert.equal(moderatedReview.data.review.status, 'approved');
+    const reviewAuditRows = await reviewRequest(
+      '/api/collections/promo_audit_events/records?perPage=5&filter=module%3D%22reviews%22',
+      { token: reviewSuperToken },
+    );
+    assertStatus(reviewAuditRows, 200, 'superuser verifica auditoría de aprobación Promo');
+    assert.equal(reviewAuditRows.data.totalItems, 1);
+    assert.equal(reviewAuditRows.data.items[0].action, 'promo.reviews.moderate');
+    await stopPocketBase(runtime);
+    runtime = null;
+
     t.diagnostic(`PocketBase ${version.stdout.trim().replace(/^pocketbase(?:\.exe)?\s+version\s+/i, '')}`);
     t.diagnostic(`migrate up idempotente: ${migrationsAfterFirstUp} entradas sin duplicados`);
     t.diagnostic(`colecciones Promo privadas: ${promoMetadata.length}; indices: ${runtimeIndexes.length}`);
     t.diagnostic('aislamiento A/B, 150/151 imágenes, 3/4 videos y API directa negativa verificados');
+    t.diagnostic('moderación de reseña y auditoría reviews verificadas en PocketBase efímero');
     t.diagnostic('rollback vacio aplicado; rollback con datos abortado sin perdida');
   } finally {
     await stopPocketBase(runtime);
