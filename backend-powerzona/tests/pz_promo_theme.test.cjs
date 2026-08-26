@@ -57,7 +57,11 @@ function publicDocument(tokens = {}) {
     section_order: ['hero-main'],
     sections: [{
       key: 'hero-main', type: 'hero', variant: 'default', visible: true,
-      config: { media_use_key: '', action_key: '' }, media_use_keys: [],
+      config: {
+        media_use_key: '', action_key: '', layout: 'immersive',
+        button_targets: ['primary-contact'],
+      },
+      media_use_keys: [],
     }],
     media_refs: {},
     contact: {
@@ -68,7 +72,11 @@ function publicDocument(tokens = {}) {
       es: {
         identity: { name: "Aladdin's Carpet", slogan: '' },
         navigation: { 'hero-main': 'Inicio' },
-        sections: { 'hero-main': { heading: 'Alfombras con historia' } },
+        sections: {
+          'hero-main': {
+            heading: 'Alfombras con historia', intro: '', highlights: [], button_labels: [''],
+          },
+        },
         contact: {}, media_alt: {},
         seo: { title: "Aladdin's Carpet", description: 'Restauración profesional de alfombras' },
       },

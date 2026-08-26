@@ -106,7 +106,7 @@ const canSave = canManageContent && canManageTranslations;
 </section>
 
 <script>
-  import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
+  import { normalizePromoCmsDraftResponse, PROMO_CMS_WORK_GALLERY_KEY } from '../../../lib/promoCms';
   import {
     addPromoLocale,
     buildPromoLocalesDocument,
@@ -131,9 +131,11 @@ const canSave = canManageContent && canManageTranslations;
     store_rating: 'Reseñas de tienda',
     contact: 'Contacto',
     footer: 'Pie del sitio',
+    gallery: 'Trabajos realizados',
   };
   const fieldLabels: Record<string, string> = {
     heading: 'Título',
+    intro: 'Introducción de portada',
     summary: 'Resumen',
     name: 'Nombre',
     bio: 'Biografía',
@@ -348,7 +350,9 @@ const canSave = canManageContent && canManageTranslations;
       const panel = element('details', 'pz-promo-locales__panel');
       panel.append(heading('Navegación y secciones', 'Solo las secciones visibles bloquean la completitud, pero puedes traducir también las ocultas.'));
       const stack = element('div', 'pz-promo-locales__section-stack');
-      documentValue!.sections.filter((section: LocaleDocument) => section.type !== 'gallery').forEach((section: LocaleDocument) => {
+      documentValue!.sections.filter((section: LocaleDocument) => (
+        section.type !== 'gallery' || section.key === PROMO_CMS_WORK_GALLERY_KEY
+      )).forEach((section: LocaleDocument) => {
         const sectionContent = localized.sections?.[section.key] || {};
         const card = element('article', 'pz-promo-locales__section-card');
         const cardHeader = element('header');
@@ -365,12 +369,13 @@ const canSave = canManageContent && canManageTranslations;
         navigation.control.dataset.localeNavigation = section.key;
         fields.append(navigation.label);
         const keys: Record<string, readonly string[]> = {
-          hero: ['heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
+          hero: ['intro', 'heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
+          gallery: ['heading', 'summary'],
           owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
           contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
         };
         (keys[section.type] || []).forEach((name) => {
-          const max = name === 'heading' ? 160 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
+          const max = name === 'heading' ? 160 : name === 'intro' ? 120 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
           const entry = field(fieldLabels[name] || name, sectionContent[name] || '', {
             max,
             required: section.visible === true && ['heading', 'name', 'bio', 'text'].includes(name),
@@ -382,6 +387,33 @@ const canSave = canManageContent && canManageTranslations;
           fields.append(entry.label);
         });
         card.append(cardHeader, fields);
+        if (section.type === 'hero') {
+          const baseHero = documentValue!.content_by_locale[documentValue!.locales.default]?.sections?.[section.key] || {};
+          const highlightValues = Array.isArray(sectionContent.highlights) ? sectionContent.highlights : [];
+          const highlightSlots = activeLocale === documentValue!.locales.default ? highlightValues : (baseHero.highlights || []);
+          const highlightGroup = element('div', 'pz-promo-locales__product-group');
+          highlightGroup.append(element('h5', '', 'Especialidades de portada'));
+          highlightSlots.slice(0, 4).forEach((_: string, index: number) => {
+            const entry = field(`Especialidad ${index + 1}`, highlightValues[index] || '', {
+              max: 80, fallback: activeLocale === documentValue!.locales.default ? '' : String(baseHero.highlights?.[index] || ''),
+            });
+            entry.control.dataset.localeHeroHighlight = section.key;
+            entry.control.dataset.localeHeroIndex = String(index);
+            highlightGroup.append(entry.label);
+          });
+          const buttonValues = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
+          const buttonGroup = element('div', 'pz-promo-locales__product-group');
+          buttonGroup.append(element('h5', '', 'Botones de portada'));
+          (section.config.button_targets || []).slice(0, 2).forEach((_: string, index: number) => {
+            const entry = field(`Botón ${index + 1}`, buttonValues[index] || '', {
+              max: 80, fallback: activeLocale === documentValue!.locales.default ? '' : String(baseHero.button_labels?.[index] || ''),
+            });
+            entry.control.dataset.localeHeroButton = section.key;
+            entry.control.dataset.localeHeroIndex = String(index);
+            buttonGroup.append(entry.label);
+          });
+          card.append(highlightGroup, buttonGroup);
+        }
         if (section.type === 'services') {
           card.append(itemFields(section, sectionContent));
           const galleryKeys = Array.isArray(section.config?.gallery_keys) ? section.config.gallery_keys : [];
@@ -398,6 +430,9 @@ const canSave = canManageContent && canManageTranslations;
             productGroup.append(itemFields(productSection, localized.sections?.[productSection.key] || {}));
             card.append(productGroup);
           });
+        }
+        if (section.type === 'gallery' && section.key === PROMO_CMS_WORK_GALLERY_KEY) {
+          card.append(itemFields(section, sectionContent));
         }
         stack.append(card);
       });
@@ -512,6 +547,12 @@ const canSave = canManageContent && canManageTranslations;
       documentValue!.sections.forEach((section: LocaleDocument) => { content.sections[section.key] = {}; });
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-section]').forEach((control) => {
         content.sections[control.dataset.localeSection || ''][control.dataset.localeSectionField || ''] = control.value;
+      });
+      documentValue!.sections.filter((section: LocaleDocument) => section.type === 'hero').forEach((section: LocaleDocument) => {
+        content.sections[section.key].highlights = Array.from(root.querySelectorAll<HTMLInputElement>(`[data-locale-hero-highlight="${section.key}"]`))
+          .map((control) => control.value);
+        content.sections[section.key].button_labels = Array.from(root.querySelectorAll<HTMLInputElement>(`[data-locale-hero-button="${section.key}"]`))
+          .map((control) => control.value);
       });
       documentValue!.sections.filter((section: LocaleDocument) => ['services', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
         const items: LocaleDocument[] = [];

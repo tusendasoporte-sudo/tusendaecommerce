@@ -1,6 +1,5 @@
 import {
-  ensurePromoVideoGallerySection,
-  PROMO_CMS_VIDEO_GALLERY_KEY,
+  ensurePromoWorkGallerySection,
   normalizePromoCmsDocument,
   normalizePromoCmsDraftResponse,
   promoCmsStoreSlug,
@@ -71,6 +70,7 @@ export type PromoGalleryMediaPatch = Readonly<{
 
 export type PromoGalleryPatch = Readonly<{
   heroMedia: readonly PromoGalleryMediaPatch[];
+  ownerMedia?: PromoGalleryMediaPatch | null;
   galleries: readonly Readonly<{
     key: string;
     visible: boolean;
@@ -167,11 +167,11 @@ function uniqueSectionKey(document: JsonRecord, preferred: string) {
   return fail('invalid_promo_document');
 }
 
-function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'featured_work' | 'gallery') {
+function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'featured_work' | 'gallery' | 'owner') {
   const existing = document.sections.find((section: JsonRecord) => section.type === type);
   if (existing) return existing;
   const sectionKey = uniqueSectionKey(document, ({
-    hero: 'hero-main', featured_work: 'featured-work-main', gallery: 'gallery-main',
+    hero: 'hero-main', featured_work: 'featured-work-main', gallery: 'gallery-main', owner: 'owner-main',
   })[type]);
   const section = {
     key: sectionKey,
@@ -179,10 +179,12 @@ function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'fea
     variant: 'default',
     visible: type !== 'gallery',
     config: type === 'hero'
-      ? { media_use_key: '', action_key: '' }
+      ? { media_use_key: '', action_key: '', layout: 'immersive', button_targets: ['primary-contact'] }
       : (type === 'featured_work'
         ? { item_keys: [] }
-        : { item_keys: [], cover_media_use_key: '', items: [] }),
+        : (type === 'owner'
+          ? { media_use_key: '' }
+          : { item_keys: [], cover_media_use_key: '', items: [] })),
     media_use_keys: [],
   };
   const footerIndex = document.sections.findIndex((item: JsonRecord) => item.type === 'footer');
@@ -193,10 +195,10 @@ function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'fea
     const localized = content as JsonRecord;
     localized.navigation[sectionKey] = type === 'hero'
       ? (candidate === locale ? 'Inicio' : 'Home')
-      : (type === 'featured_work' ? 'Trabajos destacados' : 'Galería');
+      : (type === 'featured_work' ? 'Trabajos destacados' : (type === 'owner' ? 'Propietario' : 'Galería'));
     localized.sections[sectionKey] = type === 'gallery'
       ? { heading: '', summary: '', items: [] }
-      : { heading: '', summary: '' };
+      : (type === 'owner' ? { heading: '', name: '', bio: '' } : { heading: '', summary: '' });
   }
   return section;
 }
@@ -272,13 +274,14 @@ export function createPromoGalleryWorkspace(value: unknown) {
   const locale = ensureLocale(document);
   ensureSection(document, locale, 'hero');
   ensureSection(document, locale, 'featured_work');
-  ensurePromoVideoGallerySection(document, locale);
+  ensureSection(document, locale, 'owner');
+  ensurePromoWorkGallerySection(document, locale);
   return Object.freeze({ document, locale });
 }
 
 function validateMediaPatch(
   raw: unknown,
-  purpose: 'hero' | 'gallery',
+  purpose: 'hero' | 'gallery' | 'owner',
   availableAssets: Map<string, PromoGalleryAsset>,
   allUseKeys: Set<string>,
 ) {
@@ -288,7 +291,8 @@ function validateMediaPatch(
   const assetId = String(item.assetId || '');
   const asset = availableAssets.get(assetId);
   if (allUseKeys.has(useKey) || !asset || asset.status !== 'ready' || asset.purpose !== purpose
-    || !['image', 'video'].includes(asset.kind)) fail('invalid_promo_media_reference');
+    || !['image', 'video'].includes(asset.kind)
+    || (purpose === 'owner' && asset.kind !== 'image')) fail('invalid_promo_media_reference');
   allUseKeys.add(useKey);
   return {
     useKey,
@@ -310,7 +314,10 @@ function setMediaReference(document: JsonRecord, locale: string, item: ReturnTyp
 }
 
 function galleryPatches(patch: PromoGalleryPatch) {
-  if (!isRecord(patch) || !Array.isArray(patch.heroMedia) || !Array.isArray(patch.galleries)) fail();
+  if (!isRecord(patch)
+    || !Array.isArray(patch.heroMedia)
+    || (patch.ownerMedia !== undefined && !isRecord(patch.ownerMedia) && patch.ownerMedia !== null)
+    || !Array.isArray(patch.galleries)) fail();
   const keys = new Set<string>();
   return patch.galleries.map((raw) => {
     const gallery = exactKeys(raw, Object.prototype.hasOwnProperty.call(raw, 'coverMedia')
@@ -351,8 +358,12 @@ export function buildPromoGalleryDocument(
   const galleries = galleryPatches(patch);
   const availableAssets = new Map((catalogAssets || []).map((asset) => [asset.assetId, asset]));
   const previousManagedUseKeys = new Set<string>();
-  document.sections.filter((section: JsonRecord) => ['hero', 'gallery'].includes(section.type))
-    .forEach((section: JsonRecord) => section.media_use_keys.forEach((useKey: string) => previousManagedUseKeys.add(useKey)));
+  document.sections.filter((section: JsonRecord) => ['hero', 'gallery'].includes(section.type)
+    || (section.type === 'owner' && patch.ownerMedia !== undefined))
+    .forEach((section: JsonRecord) => {
+      section.media_use_keys.forEach((useKey: string) => previousManagedUseKeys.add(useKey));
+      if (section.config?.media_use_key) previousManagedUseKeys.add(section.config.media_use_key);
+    });
   const allUseKeys = new Set(Object.keys(document.media_refs).filter((useKey) => !previousManagedUseKeys.has(useKey)));
 
   const hero = document.sections.find((section: JsonRecord) => section.type === 'hero');
@@ -362,14 +373,22 @@ export function buildPromoGalleryDocument(
   hero.config.media_use_key = hero.media_use_keys[0] || '';
   heroMedia.forEach((item) => setMediaReference(document, locale, item, 'hero'));
 
+  const owner = document.sections.find((section: JsonRecord) => section.type === 'owner');
+  if (!owner) fail();
+  if (patch.ownerMedia !== undefined) {
+    const ownerMedia = patch.ownerMedia
+      ? validateMediaPatch(patch.ownerMedia, 'owner', availableAssets, allUseKeys)
+      : null;
+    owner.media_use_keys = ownerMedia ? [ownerMedia.useKey] : [];
+    owner.config.media_use_key = ownerMedia?.useKey || '';
+    if (ownerMedia) setMediaReference(document, locale, ownerMedia, 'owner');
+  }
+
   let galleryMediaCount = 0;
   const nextGalleries = galleries.map((raw) => {
     const sectionKey = checkedKey(raw.key);
     const existing = document.sections.find((section: JsonRecord) => section.key === sectionKey);
     if (existing && existing.type !== 'gallery') fail('invalid_promo_document');
-    if (sectionKey === PROMO_CMS_VIDEO_GALLERY_KEY && raw.items.length > PROMO_GALLERY_HARD_MAX_VIDEOS) {
-      fail('promo_capability_denied', 403);
-    }
     const itemKeys = new Set<string>();
     const galleryUseKeys: string[] = [];
     const itemDefinitions: JsonRecord[] = [];
@@ -382,10 +401,6 @@ export function buildPromoGalleryDocument(
         || item.media.length > PROMO_PRODUCT_MAX_MEDIA) fail();
       itemKeys.add(itemKey);
       const media = item.media.map((entry: unknown) => validateMediaPatch(entry, 'gallery', availableAssets, allUseKeys));
-      if (sectionKey === PROMO_CMS_VIDEO_GALLERY_KEY
-        && (media.length > 1 || media.some((entry) => availableAssets.get(entry.assetId)?.kind !== 'video'))) {
-        fail('invalid_promo_document');
-      }
       media.forEach((entry) => {
         galleryUseKeys.push(entry.useKey);
         setMediaReference(document, locale, entry, 'gallery');

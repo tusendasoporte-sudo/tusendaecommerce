@@ -53,6 +53,10 @@ const assets = [
     bytes: 50000, width: 1200, height: 900, durationMs: 0, posterAssetId: '',
   },
   {
+    assetId: 'asseto000000001', kind: 'image', purpose: 'owner', status: 'ready', mime: 'image/webp',
+    bytes: 45000, width: 800, height: 1000, durationMs: 0, posterAssetId: '',
+  },
+  {
     assetId: 'assetv000000001', kind: 'video', purpose: 'gallery', status: 'ready', mime: 'video/mp4',
     bytes: 1000000, width: 1280, height: 720, durationMs: 5000, posterAssetId: 'poster000000001',
   },
@@ -176,16 +180,41 @@ function patch(document = completeDocument()) {
   };
 }
 
-test('workspace vacío crea portada, destacados derivados y una galería base', () => {
+test('workspace vacío crea portada, propietario, destacados derivados y trabajos realizados', () => {
   const workspace = createPromoGalleryWorkspace(emptyDocument());
   assert.equal(workspace.locale, 'es');
   assert.deepEqual(workspace.document.locales, { default: 'es', published: ['es'] });
-  assert.deepEqual(workspace.document.sections.map((section) => section.type), ['hero', 'featured_work', 'gallery']);
+  assert.deepEqual(workspace.document.sections.map((section) => section.type), ['hero', 'featured_work', 'owner', 'gallery']);
   assert.deepEqual(workspace.document.sections.find((section) => section.type === 'featured_work').config.item_keys, []);
   assert.equal(workspace.document.sections.find((section) => section.type === 'gallery').visible, false);
 });
 
-test('la sección Videos admite hasta tres tarjetas y rechaza medios que no sean video', () => {
+test('foto del propietario se guarda como imagen owner sin mezclarse con productos', () => {
+  const workspace = createPromoGalleryWorkspace(emptyDocument());
+  const updated = buildPromoGalleryDocument(workspace.document, {
+    heroMedia: [],
+    ownerMedia: {
+      useKey: 'owner-portrait',
+      assetId: 'asseto000000001',
+      alt: 'Retrato de la propietaria',
+      decorative: false,
+    },
+    galleries: [],
+  }, 12, assets);
+  const owner = updated.sections.find((section) => section.type === 'owner');
+  assert.equal(owner.config.media_use_key, 'owner-portrait');
+  assert.deepEqual(owner.media_use_keys, ['owner-portrait']);
+  assert.deepEqual(updated.media_refs['owner-portrait'], {
+    asset_id: 'asseto000000001',
+    purpose: 'owner',
+  });
+  assert.deepEqual(updated.content_by_locale.es.media_alt['owner-portrait'], {
+    alt: 'Retrato de la propietaria',
+    decorative: false,
+  });
+});
+
+test('Trabajos realizados admite fotos y videos con un máximo de tres medios por trabajo', () => {
   const workspace = createPromoGalleryWorkspace(emptyDocument());
   const videoItems = Array.from({ length: PROMO_GALLERY_HARD_MAX_VIDEOS }, (_, index) => ({
     key: `video-${index + 1}`,
@@ -218,27 +247,21 @@ test('la sección Videos admite hasta tres tarjetas y rechaza medios que no sean
   assert.equal(videos.config.items.length, 3);
   assert.equal(videos.config.items.every((item) => item.media_use_keys.length === 1), true);
 
-  const tooMany = structuredClone(videoPatch);
-  tooMany.galleries[0].items.push({
-    ...structuredClone(videoItems[0]),
-    key: 'video-4',
-    media: [{ ...structuredClone(videoItems[0].media[0]), useKey: 'video-media-4' }],
-  });
-  assert.throws(
-    () => buildPromoGalleryDocument(workspace.document, tooMany, 12, assets),
-    (error) => error instanceof PromoCmsError && error.code === 'promo_capability_denied',
-  );
-
   const imageInstead = structuredClone(videoPatch);
   imageInstead.galleries[0].items = [{
     ...imageInstead.galleries[0].items[0],
     media: [{ useKey: 'video-image-1', assetId: 'assetg000000001', alt: 'Imagen', decorative: false }],
   }];
   imageInstead.galleries[0].coverUseKey = 'video-image-1';
-  assert.throws(
-    () => buildPromoGalleryDocument(workspace.document, imageInstead, 12, assets),
-    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
-  );
+  const withImage = buildPromoGalleryDocument(workspace.document, imageInstead, 12, assets);
+  assert.deepEqual(withImage.sections.find((section) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY)
+    .config.items[0].media_use_keys, ['video-image-1']);
+
+  const tooManyMedia = structuredClone(imageInstead);
+  tooManyMedia.galleries[0].items[0].media = Array.from({ length: 4 }, (_, index) => ({
+    useKey: `work-image-${index + 1}`, assetId: 'assetg000000001', alt: `Imagen ${index + 1}`, decorative: false,
+  }));
+  assert.throws(() => buildPromoGalleryDocument(workspace.document, tooManyMedia, 12, assets), PromoCmsError);
 });
 test('editor guarda carrusel y productos internos sin exponer enlaces de galería', () => {
   const original = completeDocument();
@@ -256,20 +279,22 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
     }],
   }];
   update.galleries[0].coverUseKey = 'gallery-item-media-2';
+  const workspaceBefore = createPromoGalleryWorkspace(original).document;
   const protectedBefore = structuredClone({
-    theme: original.theme,
-    contact: original.contact,
-    adapters: original.adapters,
-    services: original.sections[1],
-    contactSection: original.sections[4],
-    footer: original.sections[5],
+    theme: workspaceBefore.theme,
+    contact: workspaceBefore.contact,
+    adapters: workspaceBefore.adapters,
+    services: workspaceBefore.sections.find((section) => section.type === 'services'),
+    contactSection: workspaceBefore.sections.find((section) => section.type === 'contact'),
+    footer: workspaceBefore.sections.find((section) => section.type === 'footer'),
     enCopy: {
-      identity: original.content_by_locale.en.identity,
-      navigation: original.content_by_locale.en.navigation,
-      sections: Object.fromEntries(Object.entries(original.content_by_locale.en.sections)
-        .filter(([key]) => key !== 'gallery-rugs')),
-      contact: original.content_by_locale.en.contact,
-      seo: original.content_by_locale.en.seo,
+      identity: workspaceBefore.content_by_locale.en.identity,
+      navigation: Object.fromEntries(Object.entries(workspaceBefore.content_by_locale.en.navigation)
+        .filter(([key]) => key !== PROMO_CMS_VIDEO_GALLERY_KEY)),
+      sections: Object.fromEntries(Object.entries(workspaceBefore.content_by_locale.en.sections)
+        .filter(([key]) => !['gallery-rugs', PROMO_CMS_VIDEO_GALLERY_KEY].includes(key))),
+      contact: workspaceBefore.content_by_locale.en.contact,
+      seo: workspaceBefore.content_by_locale.en.seo,
     },
   });
   protectedBefore.footer.config.navigation_section_keys = protectedBefore.footer.config.navigation_section_keys
@@ -301,12 +326,13 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
     adapters: updated.adapters,
     services: updated.sections[1],
     contactSection: updated.sections[4],
-    footer: updated.sections[5],
+    footer: updated.sections.find((section) => section.type === 'footer'),
     enCopy: {
       identity: updated.content_by_locale.en.identity,
-      navigation: updated.content_by_locale.en.navigation,
+      navigation: Object.fromEntries(Object.entries(updated.content_by_locale.en.navigation)
+        .filter(([key]) => key !== PROMO_CMS_VIDEO_GALLERY_KEY)),
       sections: Object.fromEntries(Object.entries(updated.content_by_locale.en.sections)
-        .filter(([key]) => key !== 'gallery-rugs')),
+        .filter(([key]) => !['gallery-rugs', PROMO_CMS_VIDEO_GALLERY_KEY].includes(key))),
       contact: updated.content_by_locale.en.contact,
       seo: updated.content_by_locale.en.seo,
     },
@@ -435,8 +461,9 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(mediaApi, /X-PZ-Promo-Store/);
   assert.match(mediaApi, /promo\/private\/v1\/media/);
   assert.match(productsEditor, /Galería y productos/);
-  assert.match(productsEditor, /data-products-videos/);
-  assert.match(productsEditor, /PROMO_CMS_VIDEO_GALLERY_KEY/);
+  assert.match(productsEditor, /data-products-owner/);
+  assert.match(productsEditor, /data-products-work/);
+  assert.match(productsEditor, /PROMO_CMS_WORK_GALLERY_KEY/);
   assert.match(productsEditor, /Math\.min\(3/);
   assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
   assert.match(productsEditor, /data-products-add-hero-video/);

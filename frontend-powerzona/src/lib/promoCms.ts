@@ -4,6 +4,24 @@ export const PROMO_CMS_DOCUMENT_CONTRACT = 'promo.site.v2';
 export const PROMO_CMS_LEGACY_DOCUMENT_CONTRACT = 'promo.site.v1';
 export const PROMO_CMS_DRAFT_CONTRACT = 'promo.live.v1';
 export const PROMO_CMS_VIDEO_GALLERY_KEY = 'videos-main';
+export const PROMO_CMS_WORK_GALLERY_KEY = PROMO_CMS_VIDEO_GALLERY_KEY;
+
+export const PROMO_CMS_HERO_LAYOUTS = Object.freeze([
+  'immersive',
+  'split',
+  'centered',
+  'editorial',
+] as const);
+
+export const PROMO_CMS_HERO_BUTTON_TARGETS = Object.freeze([
+  'primary-contact',
+  'contact-section',
+  'services-section',
+  'work-section',
+] as const);
+
+export const PROMO_CMS_HERO_MAX_HIGHLIGHTS = 4;
+export const PROMO_CMS_HERO_MAX_BUTTONS = 2;
 
 export const PROMO_CMS_MANAGED_SECTION_TYPES = Object.freeze([
   'hero',
@@ -40,6 +58,9 @@ export const PROMO_CMS_TEXT_LIMITS = Object.freeze({
   contactLabel: 80,
   contactAria: 160,
   contactMessage: 1000,
+  heroIntro: 120,
+  heroHighlight: 80,
+  heroButton: 80,
 });
 
 const DOCUMENT_KEYS = Object.freeze([
@@ -79,6 +100,10 @@ export type PromoCmsContentPatch = Readonly<{
     navigationLabel: string;
     heading?: string;
     summary?: string;
+    intro?: string;
+    heroLayout?: string;
+    highlights?: readonly string[];
+    buttons?: readonly Readonly<{ target: string; label: string }>[];
     name?: string;
     bio?: string;
     text?: string;
@@ -190,7 +215,15 @@ function emptyLocalizedContent(): JsonRecord {
 
 function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number]) {
   const definitions: Record<string, JsonRecord> = {
-    hero: { key: 'hero-main', config: { media_use_key: '', action_key: '' } },
+    hero: {
+      key: 'hero-main',
+      config: {
+        media_use_key: '',
+        action_key: '',
+        layout: 'immersive',
+        button_targets: ['primary-contact'],
+      },
+    },
     services: { key: 'services-main', config: { item_keys: [], gallery_keys: [] } },
     owner: { key: 'owner-main', config: { media_use_key: '' } },
     contact: { key: 'contact-main', config: { action_keys: [] } },
@@ -201,7 +234,7 @@ function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number
 
 function localizedSectionDefinition(type: string) {
   const definitions: Record<string, JsonRecord> = {
-    hero: { heading: '', summary: '' },
+    hero: { heading: '', intro: '', summary: '', highlights: [], button_labels: [''] },
     services: { heading: '', summary: '', items: [] },
     owner: { heading: '', name: '', bio: '' },
     contact: { heading: '', summary: '' },
@@ -239,6 +272,48 @@ function uniqueMigratedKey(used: Set<string>, preferred: string, maximum = 64) {
   return fail('invalid_promo_document');
 }
 
+function upgradeHeroPresentation(document: JsonRecord) {
+  const heroSections = Array.isArray(document.sections)
+    ? document.sections.filter((section: JsonRecord) => section?.type === 'hero')
+    : [];
+  heroSections.forEach((section: JsonRecord) => {
+    const config = isRecord(section.config) ? section.config : {};
+    const layout = PROMO_CMS_HERO_LAYOUTS.includes(config.layout as any)
+      ? config.layout
+      : 'immersive';
+    const targets = Array.isArray(config.button_targets)
+      ? config.button_targets.filter((target: unknown) => PROMO_CMS_HERO_BUTTON_TARGETS.includes(target as any))
+      : ['primary-contact'];
+    section.config = {
+      media_use_key: String(config.media_use_key || ''),
+      action_key: String(config.action_key || ''),
+      layout,
+      button_targets: Array.from(new Set(targets)).slice(0, PROMO_CMS_HERO_MAX_BUTTONS),
+    };
+  });
+  Object.values(document.content_by_locale || {}).forEach((rawLocalized) => {
+    const localized = rawLocalized as JsonRecord;
+    if (!isRecord(localized.sections)) return;
+    heroSections.forEach((section: JsonRecord) => {
+      const content = isRecord(localized.sections[section.key]) ? localized.sections[section.key] : {};
+      const highlights = Array.isArray(content.highlights)
+        ? content.highlights.map(String).slice(0, PROMO_CMS_HERO_MAX_HIGHLIGHTS)
+        : [];
+      const buttonLabels = Array.isArray(content.button_labels)
+        ? content.button_labels.map(String).slice(0, PROMO_CMS_HERO_MAX_BUTTONS)
+        : section.config.button_targets.map(() => '');
+      while (buttonLabels.length < section.config.button_targets.length) buttonLabels.push('');
+      localized.sections[section.key] = {
+        ...content,
+        intro: String(content.intro || ''),
+        highlights,
+        button_labels: buttonLabels.slice(0, section.config.button_targets.length),
+      };
+    });
+  });
+  return document;
+}
+
 function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
   const next = clone(value);
   if (next.contract === PROMO_CMS_DOCUMENT_CONTRACT) {
@@ -246,7 +321,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'logo_media_use_key')) next.contact.logo_media_use_key = '';
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'qr_media_use_key')) next.contact.qr_media_use_key = '';
     }
-    return next;
+    return upgradeHeroPresentation(next);
   }
   if (next.contract !== PROMO_CMS_LEGACY_DOCUMENT_CONTRACT) fail('invalid_payload');
   if (!Array.isArray(next.sections) || !Array.isArray(next.section_order)
@@ -376,7 +451,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
   localizedEntries.forEach((localized: any) => {
     localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || '') };
   });
-  return next;
+  return upgradeHeroPresentation(next);
 }
 
 export function normalizePromoCmsDocument(value: unknown) {
@@ -523,10 +598,18 @@ function ensureSection(document: JsonRecord, locale: string, type: (typeof PROMO
   return section;
 }
 
-export function ensurePromoVideoGallerySection(document: JsonRecord, locale: string) {
+export function ensurePromoWorkGallerySection(document: JsonRecord, locale: string) {
   const existing = document.sections.find((section: JsonRecord) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY);
   if (existing) {
     if (existing.type !== 'gallery') fail('invalid_promo_document');
+    Object.values(document.content_by_locale).forEach((rawContent) => {
+      const content = rawContent as JsonRecord;
+      if (content.navigation?.[PROMO_CMS_VIDEO_GALLERY_KEY] === 'Videos') {
+        content.navigation[PROMO_CMS_VIDEO_GALLERY_KEY] = 'Trabajos realizados';
+      }
+      const localized = content.sections?.[PROMO_CMS_VIDEO_GALLERY_KEY];
+      if (localized?.heading === 'Videos') localized.heading = 'Trabajos realizados';
+    });
     return existing;
   }
   const section = {
@@ -542,18 +625,20 @@ export function ensurePromoVideoGallerySection(document: JsonRecord, locale: str
   document.section_order = document.sections.map((item: JsonRecord) => item.key);
   Object.values(document.content_by_locale).forEach((rawContent) => {
     const content = rawContent as JsonRecord;
-    content.navigation[PROMO_CMS_VIDEO_GALLERY_KEY] = 'Videos';
-    content.sections[PROMO_CMS_VIDEO_GALLERY_KEY] = { heading: 'Videos', summary: '', items: [] };
+    content.navigation[PROMO_CMS_VIDEO_GALLERY_KEY] = 'Trabajos realizados';
+    content.sections[PROMO_CMS_VIDEO_GALLERY_KEY] = { heading: 'Trabajos realizados', summary: '', items: [] };
   });
   return section;
 }
+
+export const ensurePromoVideoGallerySection = ensurePromoWorkGallerySection;
 
 export function createPromoCmsWorkspace(value: unknown, scope: PromoCmsScope) {
   const document = normalizePromoCmsDocument(value);
   const locale = ensureLocale(document);
   if (scope === 'content') {
     (['hero', 'services', 'owner', 'footer'] as const).forEach((type) => ensureSection(document, locale, type));
-    ensurePromoVideoGallerySection(document, locale);
+    ensurePromoWorkGallerySection(document, locale);
   } else if (scope === 'contact') {
     ensureSection(document, locale, 'contact');
   } else {
@@ -627,10 +712,64 @@ export function buildPromoCmsContentDocument(
     );
     const current = isRecord(localized.sections[sectionKey]) ? localized.sections[sectionKey] : {};
     if (section.type === 'hero') {
+      const heroLayout = String(sectionPatch.heroLayout || section.config.layout || 'immersive');
+      const highlights = Array.isArray(sectionPatch.highlights)
+        ? sectionPatch.highlights
+        : (Array.isArray(current.highlights) ? current.highlights : []);
+      const configuredTargets = Array.isArray(section.config.button_targets)
+        ? section.config.button_targets : ['primary-contact'];
+      const existingLabels = Array.isArray(current.button_labels) ? current.button_labels : [];
+      const requestedButtons = Array.isArray(sectionPatch.buttons)
+        ? sectionPatch.buttons
+        : configuredTargets.map((target: string, index: number) => ({ target, label: existingLabels[index] || '' }));
+      if (!PROMO_CMS_HERO_LAYOUTS.includes(heroLayout as any)) fail('invalid_promo_document');
+      if (highlights.length > PROMO_CMS_HERO_MAX_HIGHLIGHTS
+        || requestedButtons.length > PROMO_CMS_HERO_MAX_BUTTONS) {
+        fail('invalid_promo_document');
+      }
+      const buttonTargets = new Set<string>();
+      const buttons = requestedButtons.map((button) => {
+        const target = String(button?.target || '');
+        if (!PROMO_CMS_HERO_BUTTON_TARGETS.includes(target as any) || buttonTargets.has(target)) {
+          fail('invalid_promo_document');
+        }
+        buttonTargets.add(target);
+        return {
+          target,
+          label: safeText(button.label || '', PROMO_CMS_TEXT_LIMITS.heroButton),
+        };
+      });
+      const nextButtonTargets = buttons.map((button) => button.target);
+      section.config = {
+        media_use_key: String(section.config.media_use_key || ''),
+        action_key: String(section.config.action_key || ''),
+        layout: heroLayout,
+        button_targets: nextButtonTargets,
+      };
+      Object.entries(document.content_by_locale).forEach(([contentLocale, rawOtherLocalized]) => {
+        if (contentLocale === locale || !isRecord(rawOtherLocalized)) return;
+        const otherLocalized = rawOtherLocalized as JsonRecord;
+        if (!isRecord(otherLocalized.sections)) return;
+        const otherContent = isRecord(otherLocalized.sections[sectionKey])
+          ? otherLocalized.sections[sectionKey] : {};
+        const previousLabels = Array.isArray(otherContent.button_labels) ? otherContent.button_labels : [];
+        const labelsByTarget = new Map(configuredTargets.map((target: string, index: number) => (
+          [target, String(previousLabels[index] || '')]
+        )));
+        otherLocalized.sections[sectionKey] = {
+          ...otherContent,
+          button_labels: nextButtonTargets.map((target) => labelsByTarget.get(target) || ''),
+        };
+      });
       localized.sections[sectionKey] = {
         ...current,
         heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
+        intro: safeText(sectionPatch.intro || '', PROMO_CMS_TEXT_LIMITS.heroIntro),
         summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
+        highlights: highlights.map((highlight) => (
+          safeText(highlight, PROMO_CMS_TEXT_LIMITS.heroHighlight)
+        )),
+        button_labels: buttons.map((button) => button.label),
       };
     } else if (section.type === 'services') {
       const items = Array.isArray(sectionPatch.items) ? sectionPatch.items : [];

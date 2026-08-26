@@ -431,6 +431,45 @@ body[data-promo-theme-renderer="promo.portfolio"] .promo-sections__featured-card
   }
 }
 
+/* La composición de portada elegida por la tienda prevalece sobre la variante visual. */
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split.promo-hero--with-media .promo-hero__inner {
+  min-height: auto;
+  grid-template-columns: minmax(0, .84fr) minmax(22rem, 1.16fr) !important;
+  gap: clamp(2rem, 6vw, 6rem) !important;
+  padding: var(--promo-section-padding, clamp(1.25rem, 4vw, 4rem));
+}
+
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split .promo-hero__copy,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split .promo-hero__media-region,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-editorial .promo-hero__copy,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-editorial .promo-hero__media-region {
+  grid-area: auto;
+}
+
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split .promo-hero__copy {
+  align-self: center;
+  padding: 0;
+  text-shadow: none;
+}
+
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split .promo-hero__slides {
+  min-height: 0;
+  aspect-ratio: 16 / 11;
+}
+
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-immersive .promo-hero__copy,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-centered .promo-hero__copy {
+  align-self: center;
+  padding: clamp(1.4rem, 4vw, 3.5rem);
+}
+
+@media (max-width: 720px) {
+  body[data-promo-theme-renderer="promo.portfolio"] .promo-hero--layout-split.promo-hero--with-media .promo-hero__inner {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 2.5rem !important;
+  }
+}
+
 body[data-promo-token-motion="reduced"] .promo-theme * {
   scroll-behavior: auto !important;
   animation-duration: .001ms !important;

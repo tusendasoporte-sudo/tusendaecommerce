@@ -39,7 +39,7 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'state.available', 'state.loading', 'state.unavailable',
 ]);
 const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
-  hero: Object.freeze(['media_use_key', 'action_key']),
+  hero: Object.freeze(['media_use_key', 'action_key', 'layout', 'button_targets']),
   services: Object.freeze(['item_keys']),
   featured_work: Object.freeze(['item_keys']),
   gallery: Object.freeze(['item_keys']),
@@ -49,7 +49,7 @@ const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
   footer: Object.freeze(['navigation_section_keys', 'social_profiles']),
 });
 const LOCALIZED_SECTION_KEYS: Record<string, readonly string[]> = Object.freeze({
-  hero: Object.freeze(['heading', 'summary']),
+  hero: Object.freeze(['heading', 'intro', 'summary', 'highlights', 'button_labels']),
   services: Object.freeze(['heading', 'summary', 'items']),
   featured_work: Object.freeze(['heading', 'summary', 'items']),
   gallery: Object.freeze(['heading', 'summary', 'items']),
@@ -365,13 +365,22 @@ function normalizeSection(value: unknown) {
   if (!SECTION_TYPES.has(type) || section.variant !== 'default') fail('invalid_payload');
   const config = type === 'footer'
     ? subsetRecord(section.config, SECTION_CONFIG_KEYS.footer)
-    : exactRecord(section.config, SECTION_CONFIG_KEYS[type] || []);
+    : (type === 'hero'
+      ? subsetRecord(section.config, SECTION_CONFIG_KEYS.hero)
+      : exactRecord(section.config, SECTION_CONFIG_KEYS[type] || []));
   const normalizedConfig: JsonRecord = {};
   if (['services', 'featured_work', 'gallery'].includes(type)) {
     normalizedConfig.item_keys = stringArray(config.item_keys, KEY_PATTERN, 50);
   } else if (type === 'hero') {
     normalizedConfig.media_use_key = config.media_use_key === '' ? '' : safePattern(config.media_use_key, USE_KEY_PATTERN);
     normalizedConfig.action_key = config.action_key === '' ? '' : safePattern(config.action_key, KEY_PATTERN);
+    normalizedConfig.layout = config.layout === undefined ? 'immersive' : safePattern(config.layout, KEY_PATTERN);
+    normalizedConfig.button_targets = config.button_targets === undefined
+      ? ['primary-contact'] : stringArray(config.button_targets, KEY_PATTERN, 2);
+    if (!['immersive', 'split', 'centered', 'editorial'].includes(normalizedConfig.layout)
+      || normalizedConfig.button_targets.some((target: string) => ![
+        'primary-contact', 'contact-section', 'services-section', 'work-section',
+      ].includes(target))) fail('invalid_payload');
   } else if (type === 'owner') {
     normalizedConfig.media_use_key = config.media_use_key === '' ? '' : safePattern(config.media_use_key, USE_KEY_PATTERN);
   } else if (type === 'contact') {
@@ -430,8 +439,8 @@ function normalizeContent(value: unknown, sections: JsonRecord[], media: JsonRec
   const sectionMap = new Map(sections.map((section) => [section.key, section]));
   const mediaKeys = new Set(media.map((item) => item.key));
   const actionKeys = new Set(contact.actions.map((action: JsonRecord) => action.key));
-  const identity = normalizeTextRecord(content.identity, ['name', 'summary', 'owner_name', 'owner_bio'], {
-    name: 140, summary: 600, owner_name: 140, owner_bio: 4000,
+  const identity = normalizeTextRecord(content.identity, ['name', 'slogan', 'summary', 'owner_name', 'owner_bio'], {
+    name: 140, slogan: 120, summary: 600, owner_name: 140, owner_bio: 4000,
   });
   const navigation = normalizeTextRecord(content.navigation, [...sectionMap.keys()], {});
   const localizedSections = subsetRecord(content.sections, [...sectionMap.keys()]);
@@ -441,10 +450,21 @@ function normalizeContent(value: unknown, sections: JsonRecord[], media: JsonRec
     if (!section) fail('invalid_payload');
     const localized = subsetRecord(localizedSections[sectionKey], LOCALIZED_SECTION_KEYS[section.type] || []);
     const normalized: JsonRecord = {};
-    for (const field of ['heading', 'summary', 'name', 'bio', 'text']) {
+    for (const field of ['heading', 'intro', 'summary', 'name', 'bio', 'text']) {
       if (Object.prototype.hasOwnProperty.call(localized, field)) {
-        normalized[field] = safeText(localized[field], ({ heading: 160, summary: 600, name: 140, bio: 4000, text: 4000 } as JsonRecord)[field]);
+        normalized[field] = safeText(localized[field], ({ heading: 160, intro: 120, summary: 600, name: 140, bio: 4000, text: 4000 } as JsonRecord)[field]);
       }
+    }
+    if (section.type === 'hero') {
+      const highlights = localized.highlights === undefined ? [] : localized.highlights;
+      const labels = localized.button_labels === undefined
+        ? section.config.button_targets.map(() => '') : localized.button_labels;
+      if (!Array.isArray(highlights) || highlights.length > 4
+        || !Array.isArray(labels)
+        || labels.length !== section.config.button_targets.length
+        || labels.length > 2) fail('invalid_payload');
+      normalized.highlights = highlights.map((value: unknown) => safeText(value, 80, false));
+      normalized.button_labels = labels.map((value: unknown) => safeText(value, 80));
     }
     if (Object.prototype.hasOwnProperty.call(localized, 'items')) {
       if (!Array.isArray(localized.items) || localized.items.length > 50) fail('invalid_payload');

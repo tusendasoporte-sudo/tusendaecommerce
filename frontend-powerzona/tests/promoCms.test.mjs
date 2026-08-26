@@ -95,13 +95,23 @@ function completeDocument() {
 function contentPatch(document) {
   const es = document.content_by_locale.es;
   return {
-    identity: { name: 'Negocio editado', summary: 'Resumen seguro y actualizado' },
+    identity: { name: 'Negocio editado', slogan: 'Tu visión, nuestro trabajo', summary: 'Resumen seguro y actualizado' },
     sectionOrder: document.section_order,
     sections: document.sections.map((section) => ({
       key: section.key,
       visible: section.type === 'owner' ? false : section.visible,
       navigationLabel: es.navigation[section.key],
-      ...(section.type === 'hero' ? { heading: 'Nueva portada', summary: 'Mensaje principal' } : {}),
+      ...(section.type === 'hero' ? {
+        heading: 'Nueva portada',
+        intro: 'Experiencia premium',
+        summary: 'Mensaje principal',
+        heroLayout: 'editorial',
+        highlights: ['Alfombras', 'Pisos', 'Escaleras', 'Acabados'],
+        buttons: [
+          { target: 'primary-contact', label: 'Solicitar estimado' },
+          { target: 'work-section', label: 'Ver trabajos' },
+        ],
+      } : {}),
       ...(section.type === 'services' ? {
         heading: 'Servicios especializados',
         summary: 'Soluciones informativas sin precio',
@@ -158,9 +168,24 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
     gallery: original.sections[2],
     galleryContent: original.content_by_locale.es.sections['gallery-main'],
   });
+  protectedBefore.en.sections['hero-main'].button_labels = ['', ''];
   const updated = buildPromoCmsContentDocument(original, contentPatch(original), 4);
   assert.deepEqual(backendContract.validatePromoDocument(updated, { publicRevision: false }), updated);
   assert.equal(updated.content_by_locale.es.identity.name, 'Negocio editado');
+  assert.equal(updated.content_by_locale.es.identity.slogan, 'Tu visión, nuestro trabajo');
+  assert.deepEqual(updated.sections.find((section) => section.type === 'hero').config, {
+    media_use_key: '',
+    action_key: 'call-main',
+    layout: 'editorial',
+    button_targets: ['primary-contact', 'work-section'],
+  });
+  assert.deepEqual(updated.content_by_locale.es.sections['hero-main'], {
+    heading: 'Nueva portada',
+    intro: 'Experiencia premium',
+    summary: 'Mensaje principal',
+    highlights: ['Alfombras', 'Pisos', 'Escaleras', 'Acabados'],
+    button_labels: ['Solicitar estimado', 'Ver trabajos'],
+  });
   assert.equal(updated.sections.find((section) => section.type === 'owner').visible, false);
   assert.deepEqual(updated.sections.find((section) => section.type === 'services').config.item_keys, ['service-one', 'service-two']);
   assert.deepEqual(updated.sections.find((section) => section.type === 'footer').config, {
@@ -180,6 +205,23 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
     gallery: updated.sections[2],
     galleryContent: updated.content_by_locale.es.sections['gallery-main'],
   }, protectedBefore);
+});
+
+test('portada limita cuatro especialidades, dos botones y diseños aprobados', () => {
+  const original = completeDocument();
+  const tooManyHighlights = contentPatch(original);
+  tooManyHighlights.sections.find((section) => section.key === 'hero-main').highlights.push('Quinta');
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, tooManyHighlights, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+
+  const invalidLayout = contentPatch(original);
+  invalidLayout.sections.find((section) => section.key === 'hero-main').heroLayout = 'custom-css';
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, invalidLayout, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
 });
 
 test('servicios respetan cuota efectiva y el documento no acepta contenido activo', () => {

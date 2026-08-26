@@ -56,6 +56,10 @@ const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
   youtube: { label: 'YouTube', handle: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/, href: (handle) => `https://www.youtube.com/@${handle}` },
 });
 const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr', 'logo']);
+const HERO_LAYOUTS = new Set(['immersive', 'split', 'centered', 'editorial']);
+const HERO_BUTTON_TARGETS = new Set([
+  'primary-contact', 'contact-section', 'services-section', 'work-section',
+]);
 const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
 const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
   minWidth: number;
@@ -651,9 +655,13 @@ function normalizeSection(value: unknown): PromoPublicSection {
   const optionalKey = (raw: unknown) => raw === '' ? '' : safePattern(raw, KEY_PATTERN);
   const config: JsonRecord = {};
   if (type === 'hero') {
-    const source = exactRecord(section.config, ['media_use_key', 'action_key']);
+    const source = subsetRecord(section.config, ['media_use_key', 'action_key', 'layout', 'button_targets']);
     config.media_use_key = optionalKey(source.media_use_key);
     config.action_key = optionalKey(source.action_key);
+    config.layout = source.layout === undefined ? 'immersive' : safePattern(source.layout, KEY_PATTERN);
+    config.button_targets = source.button_targets === undefined ? ['primary-contact'] : list(source.button_targets, 2);
+    if (!HERO_LAYOUTS.has(config.layout)
+      || config.button_targets.some((target: string) => !HERO_BUTTON_TARGETS.has(target))) fail();
   } else if (type === 'services') {
     const source = exactRecord(section.config, ['item_keys', 'gallery_keys']);
     config.item_keys = list(source.item_keys);
@@ -806,7 +814,7 @@ function normalizeContent(value: unknown, sections: readonly PromoPublicSection[
   const normalizedSections: JsonRecord = {};
   for (const section of sections) {
     const fieldsByType: Readonly<Record<string, readonly string[]>> = {
-      hero: ['heading', 'summary'], services: ['heading', 'summary', 'items'],
+      hero: ['heading', 'intro', 'summary', 'highlights', 'button_labels'], services: ['heading', 'summary', 'items'],
       featured_work: ['heading', 'summary'], gallery: ['heading', 'summary', 'items'],
       owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
       contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
@@ -814,10 +822,21 @@ function normalizeContent(value: unknown, sections: readonly PromoPublicSection[
     const fields = fieldsByType[section.type] || [];
     const localized = subsetRecord(localizedSections[section.key], fields);
     const result = optionalTextMap(
-      Object.fromEntries(Object.entries(localized).filter(([key]) => key !== 'items')),
-      fields.filter((field) => field !== 'items'),
-      { heading: 160, summary: 600, name: 140, bio: 4000, text: 4000 },
+      Object.fromEntries(Object.entries(localized).filter(([key]) => !['items', 'highlights', 'button_labels'].includes(key))),
+      fields.filter((field) => !['items', 'highlights', 'button_labels'].includes(field)),
+      { heading: 160, intro: 120, summary: 600, name: 140, bio: 4000, text: 4000 },
     );
+    if (section.type === 'hero') {
+      const heroHighlights = localized.highlights === undefined ? [] : localized.highlights;
+      const heroButtonLabels = localized.button_labels === undefined
+        ? section.config.button_targets.map(() => '') : localized.button_labels;
+      if (!Array.isArray(heroHighlights) || heroHighlights.length > 4
+        || !Array.isArray(heroButtonLabels)
+        || heroButtonLabels.length !== section.config.button_targets.length
+        || heroButtonLabels.length > 2) fail();
+      result.highlights = heroHighlights.map((value: unknown) => safeText(value, 80, true));
+      result.button_labels = heroButtonLabels.map((value: unknown) => safeText(value, 80));
+    }
     if (Object.hasOwn(localized, 'items')) {
       if (!Array.isArray(localized.items) || localized.items.length > 50) fail();
       result.items = localized.items.map((raw: unknown) => {

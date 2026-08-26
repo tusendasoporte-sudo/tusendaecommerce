@@ -225,7 +225,11 @@ const isContent = scope === 'content';
     PROMO_CMS_CONTACT_TYPES,
     PROMO_CMS_FOOTER_MAX_LINKS,
     PROMO_CMS_FOOTER_SOCIAL_NETWORKS,
-    PROMO_CMS_VIDEO_GALLERY_KEY,
+    PROMO_CMS_HERO_BUTTON_TARGETS,
+    PROMO_CMS_HERO_LAYOUTS,
+    PROMO_CMS_HERO_MAX_BUTTONS,
+    PROMO_CMS_HERO_MAX_HIGHLIGHTS,
+    PROMO_CMS_WORK_GALLERY_KEY,
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
 
@@ -422,8 +426,8 @@ const isContent = scope === 'content';
     }
 
     function createSectionCard(section: CmsDocument, localized: CmsDocument) {
-      const isVideoSection = section.key === PROMO_CMS_VIDEO_GALLERY_KEY;
-      const labelText = isVideoSection ? 'Videos' : (sectionLabels[section.type] || 'Sección');
+      const isWorkSection = section.key === PROMO_CMS_WORK_GALLERY_KEY;
+      const labelText = isWorkSection ? 'Trabajos realizados' : (sectionLabels[section.type] || 'Sección');
       const sectionContent = localized.sections?.[section.key] || {};
       const card = element('details', 'pz-promo-cms__section-card pz-promo-cms__accordion') as HTMLDetailsElement;
       card.dataset.cmsSectionKey = section.key;
@@ -453,9 +457,73 @@ const isContent = scope === 'content';
 
       if (section.type === 'hero') {
         fields.append(
+          inputField('Introducción de portada', sectionContent.intro || '', { max: 120, data: 'intro' }).label,
           inputField('Título de portada', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
-          inputField('Resumen de portada', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+          inputField('Resumen corto', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
         );
+        const layouts = element('fieldset', 'pz-promo-cms__hero-layouts');
+        layouts.append(element('legend', '', 'Diseño de portada'));
+        const layoutLabels: Record<string, string> = {
+          immersive: 'Inmersiva', split: 'Dividida', centered: 'Centrada', editorial: 'Editorial',
+        };
+        PROMO_CMS_HERO_LAYOUTS.forEach((layout) => {
+          const option = element('label', 'pz-promo-cms__hero-layout');
+          const input = element('input'); input.type = 'radio'; input.name = `hero-layout-${section.key}`;
+          input.value = layout; input.dataset.cmsHeroLayout = '';
+          input.checked = (section.config.layout || 'immersive') === layout;
+          option.append(input, element('strong', '', layoutLabels[layout] || layout)); layouts.append(option);
+        });
+        const dynamicList = (className: string, dataName: string) => {
+          const list = element('div', className); list.dataset[dataName] = ''; return list;
+        };
+        const highlights = dynamicList('pz-promo-cms__hero-list', 'cmsHeroHighlights');
+        const addHighlight = (value = '') => {
+          if (highlights.children.length >= PROMO_CMS_HERO_MAX_HIGHLIGHTS) return;
+          const row = element('div', 'pz-promo-cms__hero-row');
+          const input = element('input'); input.type = 'text'; input.maxLength = 80; input.value = value;
+          input.placeholder = 'Ej. Alfombras'; input.dataset.cmsHeroHighlight = '';
+          const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button';
+          remove.addEventListener('click', () => { row.remove(); setDirty(); });
+          row.append(input, remove); highlights.append(row);
+        };
+        (Array.isArray(sectionContent.highlights) ? sectionContent.highlights : []).forEach(addHighlight);
+        const addHighlightButton = element('button', 'pz-promo-cms__secondary-button', 'Añadir especialidad');
+        addHighlightButton.type = 'button'; addHighlightButton.addEventListener('click', () => { addHighlight(); setDirty(); });
+        const highlightGroup = element('div', 'pz-promo-cms__hero-group');
+        highlightGroup.append(element('strong', '', `Especialidades (máximo ${PROMO_CMS_HERO_MAX_HIGHLIGHTS})`), highlights, addHighlightButton);
+
+        const buttonLabels: Record<string, string> = {
+          'primary-contact': 'Contacto principal', 'contact-section': 'Sección Contacto',
+          'services-section': 'Sección Servicios', 'work-section': 'Trabajos realizados',
+        };
+        const buttons = dynamicList('pz-promo-cms__hero-list', 'cmsHeroButtons');
+        const localizedButtonLabels = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
+        const addHeroButton = (target = 'primary-contact', label = '') => {
+          if (buttons.children.length >= PROMO_CMS_HERO_MAX_BUTTONS) return;
+          const row = element('div', 'pz-promo-cms__hero-row is-button');
+          const select = element('select'); select.dataset.cmsHeroButtonTarget = '';
+          PROMO_CMS_HERO_BUTTON_TARGETS.forEach((value) => {
+            const option = element('option', '', buttonLabels[value] || value); option.value = value;
+            option.selected = value === target; select.append(option);
+          });
+          const input = element('input'); input.type = 'text'; input.maxLength = 80; input.value = label;
+          input.placeholder = 'Texto del botón'; input.dataset.cmsHeroButtonLabel = '';
+          const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button';
+          remove.addEventListener('click', () => { row.remove(); setDirty(); });
+          row.append(select, input, remove); buttons.append(row);
+        };
+        (section.config.button_targets || ['primary-contact']).forEach((target: string, index: number) => (
+          addHeroButton(target, localizedButtonLabels[index] || '')
+        ));
+        const addButton = element('button', 'pz-promo-cms__secondary-button', 'Añadir botón');
+        addButton.type = 'button'; addButton.addEventListener('click', () => {
+          const used = new Set(Array.from(buttons.querySelectorAll<HTMLSelectElement>('[data-cms-hero-button-target]')).map((select) => select.value));
+          addHeroButton(PROMO_CMS_HERO_BUTTON_TARGETS.find((target) => !used.has(target)) || 'primary-contact'); setDirty();
+        });
+        const buttonGroup = element('div', 'pz-promo-cms__hero-group');
+        buttonGroup.append(element('strong', '', `Botones (máximo ${PROMO_CMS_HERO_MAX_BUTTONS})`), buttons, addButton);
+        fields.append(layouts, highlightGroup, buttonGroup,
+          element('p', 'pz-promo-cms__scope-note', 'Las imágenes del carrusel se administran en «Galería y productos» y siempre aparecen detrás del texto en los diseños superpuestos.'));
       } else if (section.type === 'services') {
         fields.append(
           inputField('Título de servicios', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
@@ -493,11 +561,11 @@ const isContent = scope === 'content';
         serviceHeader.append(serviceTitle, add);
         card.append(header, visible, fields, serviceHeader, list);
         return card;
-      } else if (section.type === 'gallery' && isVideoSection) {
+      } else if (section.type === 'gallery' && isWorkSection) {
         fields.append(
-          inputField('Título de videos', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
-          inputField('Resumen de videos', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
-          element('p', 'pz-promo-cms__scope-note', 'Los archivos y sus descripciones se administran en «Galería y productos». Límite total: 3 videos.'),
+          inputField('Título de trabajos realizados', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
+          inputField('Resumen de trabajos realizados', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+          element('p', 'pz-promo-cms__scope-note', 'Las fotos y videos del proceso o resultado se administran en «Galería y productos». La tienda admite hasta 3 videos guardados.'),
         );
       } else if (section.type === 'owner') {
         fields.append(
@@ -570,7 +638,7 @@ const isContent = scope === 'content';
       const list = root.querySelector<HTMLElement>('[data-cms-sections]');
       if (!list) return;
       const organizationSections = documentValue.sections.filter((section: CmsDocument) => (
-        section.type !== 'gallery' || section.key === PROMO_CMS_VIDEO_GALLERY_KEY
+        section.type !== 'gallery' || section.key === PROMO_CMS_WORK_GALLERY_KEY
       ));
       list.replaceChildren(...organizationSections.map((section: CmsDocument) => createSectionCard(section, localized)));
       updateServiceQuota();
@@ -863,7 +931,19 @@ const isContent = scope === 'content';
           visible: card.querySelector<HTMLInputElement>('[data-cms-field="visible"]')?.checked === true,
           navigationLabel: field('navigation'),
         };
-        if (type === 'hero' || type === 'gallery') Object.assign(result, { heading: field('heading'), summary: field('summary') });
+        if (type === 'hero') Object.assign(result, {
+          heading: field('heading'),
+          intro: field('intro'),
+          summary: field('summary'),
+          heroLayout: card.querySelector<HTMLInputElement>('[data-cms-hero-layout]:checked')?.value || 'immersive',
+          highlights: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-hero-highlight]'))
+            .map((input) => input.value.trim()).filter(Boolean),
+          buttons: Array.from(card.querySelectorAll<HTMLElement>('[data-cms-hero-button-target]')).map((select) => ({
+            target: (select as HTMLSelectElement).value,
+            label: select.parentElement?.querySelector<HTMLInputElement>('[data-cms-hero-button-label]')?.value || '',
+          })),
+        });
+        if (type === 'gallery') Object.assign(result, { heading: field('heading'), summary: field('summary') });
         if (type === 'owner') Object.assign(result, { heading: field('heading'), name: field('name'), bio: field('bio') });
         if (type === 'footer') Object.assign(result, {
           heading: field('heading'),
@@ -894,7 +974,7 @@ const isContent = scope === 'content';
       const renderedOrder = renderedSections.map((section) => section.key);
       let renderedIndex = 0;
       const sectionOrder = (documentValue?.sections || []).map((section: CmsDocument) => {
-        if (section.type === 'gallery' && section.key !== PROMO_CMS_VIDEO_GALLERY_KEY) return section.key;
+        if (section.type === 'gallery' && section.key !== PROMO_CMS_WORK_GALLERY_KEY) return section.key;
         return renderedOrder[renderedIndex++] || section.key;
       });
       const localized = documentValue?.content_by_locale?.[locale] || {};

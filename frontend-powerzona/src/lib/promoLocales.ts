@@ -23,6 +23,9 @@ export const PROMO_LOCALES_TEXT_LIMITS = Object.freeze({
   contactLabel: 80,
   contactAria: 160,
   contactMessage: 1000,
+  heroIntro: 120,
+  heroHighlight: 80,
+  heroButton: 80,
   alt: 300,
   seoTitle: 70,
   seoDescription: 170,
@@ -33,7 +36,7 @@ const IDENTITY_KEYS = Object.freeze(['name', 'slogan', 'summary', 'owner_name', 
 const CONTACT_TEXT_KEYS = Object.freeze(['label', 'aria_label', 'message']);
 const SEO_KEYS = Object.freeze(['title', 'description', 'social_title', 'social_description']);
 const SECTION_TEXT_KEYS = Object.freeze({
-  hero: ['heading', 'summary'],
+  hero: ['heading', 'intro', 'summary', 'highlights', 'button_labels'],
   services: ['heading', 'summary', 'items'],
   featured_work: ['heading', 'summary'],
   gallery: ['heading', 'summary', 'items'],
@@ -216,15 +219,34 @@ function normalizeLocalizedContent(document: JsonRecord, value: unknown) {
     const normalized: JsonRecord = {};
     Object.keys(localized).forEach((field) => {
       if (field === 'items') normalized.items = normalizeLocalizedItems(section, localized.items);
-      else {
+      else if (field === 'highlights') {
+        if (!Array.isArray(localized.highlights) || localized.highlights.length > 4) fail('invalid_promo_document');
+        normalized.highlights = localized.highlights.map((value: unknown) => (
+          safeText(value, PROMO_LOCALES_TEXT_LIMITS.heroHighlight)
+        ));
+      } else if (field === 'button_labels') {
+        const targets = Array.isArray(section.config?.button_targets) ? section.config.button_targets : [];
+        if (!Array.isArray(localized.button_labels) || localized.button_labels.length !== targets.length
+          || localized.button_labels.length > 2) fail('invalid_promo_document');
+        normalized.button_labels = localized.button_labels.map((value: unknown) => (
+          safeText(value, PROMO_LOCALES_TEXT_LIMITS.heroButton)
+        ));
+      } else {
         const max = field === 'heading' || field === 'name'
           ? (field === 'heading' ? PROMO_LOCALES_TEXT_LIMITS.heading : PROMO_LOCALES_TEXT_LIMITS.businessName)
+          : field === 'intro'
+            ? PROMO_LOCALES_TEXT_LIMITS.heroIntro
           : field === 'summary'
             ? PROMO_LOCALES_TEXT_LIMITS.shortSummary
             : PROMO_LOCALES_TEXT_LIMITS.body;
         normalized[field] = safeText(localized[field], max);
       }
     });
+    if (section.type === 'hero') {
+      normalized.intro ??= '';
+      normalized.highlights ??= [];
+      normalized.button_labels ??= (section.config?.button_targets || []).map(() => '');
+    }
     result.sections[sectionKey] = normalized;
   });
 

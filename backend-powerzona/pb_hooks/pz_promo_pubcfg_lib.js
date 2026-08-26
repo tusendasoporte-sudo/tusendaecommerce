@@ -43,6 +43,12 @@ const CONTACT_TYPES = Object.freeze([
   "whatsapp", "phone", "email", "internal_form", "approved_live_chat",
 ]);
 const PUBLIC_THEME_STATUSES = promoTheme.PUBLIC_RELEASE_STATUSES;
+const HERO_LAYOUTS = Object.freeze(["immersive", "split", "centered", "editorial"]);
+const HERO_BUTTON_TARGETS = Object.freeze([
+  "primary-contact", "contact-section", "services-section", "work-section",
+]);
+const HERO_MAX_HIGHLIGHTS = 4;
+const HERO_MAX_BUTTONS = 2;
 
 const SECTION_CONFIG_KEYS = Object.freeze({
   hero: ["media_use_key", "action_key"],
@@ -55,7 +61,7 @@ const SECTION_CONFIG_KEYS = Object.freeze({
   footer: ["navigation_section_keys", "social_profiles"],
 });
 const LIVE_SECTION_CONFIG_KEYS = Object.freeze({
-  hero: ["media_use_key", "action_key"],
+  hero: ["media_use_key", "action_key", "layout", "button_targets"],
   services: ["item_keys", "gallery_keys"],
   featured_work: ["item_keys"],
   gallery: ["item_keys", "cover_media_use_key", "items"],
@@ -84,7 +90,7 @@ const LOCALIZED_SECTION_KEYS = Object.freeze({
   footer: ["heading", "summary", "text"],
 });
 const LIVE_LOCALIZED_SECTION_KEYS = Object.freeze({
-  hero: ["heading", "summary"],
+  hero: ["heading", "intro", "summary", "highlights", "button_labels"],
   services: ["heading", "summary", "items"],
   featured_work: ["heading", "summary"],
   gallery: ["heading", "summary", "items"],
@@ -309,6 +315,14 @@ function validateSectionConfig(section, knownActions, knownMedia, liveDocument, 
   if (section.type === "hero") {
     assertKey(config.media_use_key, USE_KEY_PATTERN, true);
     assertKey(config.action_key, KEY_PATTERN, true);
+    if (liveDocument) {
+      if (!HERO_LAYOUTS.includes(config.layout)) fail("invalid_promo_document", 400);
+      if (!Array.isArray(config.button_targets) || config.button_targets.length > HERO_MAX_BUTTONS
+        || new Set(config.button_targets).size !== config.button_targets.length
+        || config.button_targets.some((target) => !HERO_BUTTON_TARGETS.includes(target))) {
+        fail("invalid_promo_document", 400);
+      }
+    }
     if (config.media_use_key) knownMedia.add(config.media_use_key);
     if (config.action_key) knownActions.add(config.action_key);
   }
@@ -492,6 +506,21 @@ function validateLocalizedSection(value, section, publicRevision, liveDocument) 
       assertSafeText(localized[key], textLimits[key], { empty: !publicRevision || key !== "heading" });
     }
   });
+  if (liveDocument && section.type === "hero") {
+    if (Object.prototype.hasOwnProperty.call(localized, "intro")) {
+      assertSafeText(localized.intro, 120, { empty: true });
+    }
+    if (!Array.isArray(localized.highlights) || localized.highlights.length > HERO_MAX_HIGHLIGHTS) {
+      fail("invalid_promo_document", 400);
+    }
+    localized.highlights.forEach((highlight) => assertSafeText(highlight, 80, { empty: !publicRevision }));
+    if (!Array.isArray(localized.button_labels)
+      || localized.button_labels.length !== section.config.button_targets.length
+      || localized.button_labels.length > HERO_MAX_BUTTONS) {
+      fail("invalid_promo_document", 400);
+    }
+    localized.button_labels.forEach((label) => assertSafeText(label, 80, { empty: true }));
+  }
   if (Object.prototype.hasOwnProperty.call(localized, "items")) {
     validateLocalizedItems(localized.items, section.type, publicRevision, section.config.item_keys || [], liveDocument);
   } else if (publicRevision && ["services", "featured_work", "gallery"].includes(section.type)
@@ -615,6 +644,49 @@ function uniqueDocumentKey(used, preferred, maximum) {
   fail("invalid_promo_document", 400);
 }
 
+function upgradeHeroPresentation(document) {
+  const heroes = Array.isArray(document.sections)
+    ? document.sections.filter((section) => section && section.type === "hero")
+    : [];
+  heroes.forEach((section) => {
+    const config = section.config && typeof section.config === "object" && !Array.isArray(section.config)
+      ? section.config : {};
+    const rawTargets = Array.isArray(config.button_targets)
+      ? config.button_targets.filter((target) => HERO_BUTTON_TARGETS.includes(target))
+      : ["primary-contact"];
+    section.config = {
+      media_use_key: String(config.media_use_key || ""),
+      action_key: String(config.action_key || ""),
+      layout: HERO_LAYOUTS.includes(config.layout) ? config.layout : "immersive",
+      button_targets: Array.from(new Set(rawTargets)).slice(0, HERO_MAX_BUTTONS),
+    };
+  });
+  Object.values(document.content_by_locale || {}).forEach((localized) => {
+    if (!localized || typeof localized !== "object" || Array.isArray(localized)
+      || !localized.sections || typeof localized.sections !== "object" || Array.isArray(localized.sections)) return;
+    heroes.forEach((section) => {
+      const current = localized.sections[section.key]
+        && typeof localized.sections[section.key] === "object"
+        && !Array.isArray(localized.sections[section.key])
+        ? localized.sections[section.key] : {};
+      const highlights = Array.isArray(current.highlights)
+        ? current.highlights.map(String).slice(0, HERO_MAX_HIGHLIGHTS)
+        : [];
+      const labels = Array.isArray(current.button_labels)
+        ? current.button_labels.map(String).slice(0, HERO_MAX_BUTTONS)
+        : [];
+      while (labels.length < section.config.button_targets.length) labels.push("");
+      localized.sections[section.key] = {
+        ...current,
+        intro: String(current.intro || ""),
+        highlights,
+        button_labels: labels.slice(0, section.config.button_targets.length),
+      };
+    });
+  });
+  return document;
+}
+
 function upgradePromoDocument(input) {
   const document = normalizeJson(input);
   if (document.contract === LIVE_DOCUMENT_CONTRACT) {
@@ -627,7 +699,7 @@ function upgradePromoDocument(input) {
         current.contact.qr_media_use_key = "";
       }
     }
-    return current;
+    return upgradeHeroPresentation(current);
   }
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
@@ -689,7 +761,6 @@ function upgradePromoDocument(input) {
       localized.sections[section.key] = content;
     });
   });
-
   const targetGallery = gallerySections[0] || null;
   legacyFeatured.forEach((section) => {
     const itemKeys = Array.isArray(section.config.item_keys) ? section.config.item_keys.slice() : [];
@@ -753,7 +824,7 @@ function upgradePromoDocument(input) {
   Object.values(next.content_by_locale).forEach((localized) => {
     localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || "") };
   });
-  return next;
+  return upgradeHeroPresentation(next);
 }
 
 function validatePromoDocument(input, options) {
