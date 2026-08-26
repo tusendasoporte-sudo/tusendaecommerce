@@ -73,7 +73,7 @@ test('resumen privado exige rango continuo, agregados y cero visitantes únicos'
   }));
 });
 
-test('instrumentación honra privacidad y no toca Landing QR Commerce existente', () => {
+test('instrumentación cuenta una visita diaria local sin identificar el navegador', () => {
   const layout = readFileSync(new URL('../src/layouts/PromoPublicLayout.astro', import.meta.url), 'utf8');
   const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../src/layouts/PromoAnalyticsAdminPage.astro', import.meta.url), 'utf8');
@@ -82,8 +82,15 @@ test('instrumentación honra privacidad y no toca Landing QR Commerce existente'
   assert.match(layout, /credentials: 'omit'/);
   assert.match(layout, /referrerPolicy: 'no-referrer'/);
   assert.match(layout, /sendPromoEvent\('landing_qr_open'\)/);
-  assert.doesNotMatch(layout, /localStorage|sessionStorage|document\.cookie|utm_/i);
+  assert.match(layout, /dailyVisitStoragePrefix = 'pz_promo_daily_visit_v1:'/);
+  assert.match(layout, /new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/);
+  assert.match(layout, /window\.localStorage\.getItem\(storageKey\) === utcDay/);
+  assert.match(layout, /window\.localStorage\.setItem\(storageKey, utcDay\)/);
+  assert.match(layout, /if \(claimDailyPromoVisit\(\)\) sendPromoEvent\('page_view'\)/);
+  assert.doesNotMatch(layout, /sessionStorage|document\.cookie|visitor[_-]?id|fingerprint|utm_/i);
   assert.match(middleware, /pathname === PROMO_CUSTOM_ANALYTICS_PATH/);
+  assert.match(admin, /Visitantes diarios/);
+  assert.match(admin, /Cada navegador cuenta una vez por tienda y día/);
   assert.match(admin, /Aperturas Landing QR/);
   const commerceClick = readFileSync(new URL('../src/pages/api/landing-qr/click.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(commerceClick, /promo\.analytics|landing_qr_open/);

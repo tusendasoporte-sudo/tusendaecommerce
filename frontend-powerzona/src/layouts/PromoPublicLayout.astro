@@ -85,12 +85,28 @@ const {
       const platformMatch = canonicalUrl?.hostname === 'tusenda84.com'
         ? canonicalUrl.pathname.match(/^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)\/[A-Za-z0-9-]{2,80}$/)
         : null;
+      const promoPathMatch = canonicalUrl?.pathname.match(/^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)\/[A-Za-z0-9-]{2,80}$/);
       const analyticsEndpoint = platformMatch
         ? `/api/promo/analytics/sites/${platformMatch[1]}`
         : '/api/promo/analytics/host';
+      const dailyVisitSiteKey = promoPathMatch?.[1] || canonicalUrl?.hostname || '';
       const analyticsLocale = document.documentElement.lang;
       const privacySignal = navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true;
       const canGenerateEventId = typeof crypto?.randomUUID === 'function';
+      const dailyVisitStoragePrefix = 'pz_promo_daily_visit_v1:';
+
+      function claimDailyPromoVisit() {
+        if (!dailyVisitSiteKey) return false;
+        const utcDay = new Date().toISOString().slice(0, 10);
+        const storageKey = `${dailyVisitStoragePrefix}${dailyVisitSiteKey}`;
+        try {
+          if (window.localStorage.getItem(storageKey) === utcDay) return false;
+          window.localStorage.setItem(storageKey, utcDay);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
 
       function sendPromoEvent(eventType, sectionKey) {
         if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
@@ -148,7 +164,7 @@ const {
 
       function startPassiveAnalytics() {
         if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
-        sendPromoEvent('page_view');
+        if (claimDailyPromoVisit()) sendPromoEvent('page_view');
         if ('IntersectionObserver' in window) {
           const observed = new Set<string>();
           const observer = new IntersectionObserver((entries) => {

@@ -28,7 +28,7 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
         <div>
           <span>Conteos agregados</span>
           <h1 id="promo-analytics-title">Rendimiento del sitio Promo</h1>
-          <p>Visitas e interacciones first-party, sin cookies analíticas ni identificación de personas.</p>
+          <p>Visitantes diarios e interacciones first-party, sin cookies analíticas ni identificación de personas.</p>
         </div>
         <div class="pz-promo-analytics__ranges" role="group" aria-label="Período de analíticas">
           {[7, 30, 90].map((days) => (
@@ -39,7 +39,7 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
       <div class="pz-promo-analytics__status" role="status" aria-live="polite" data-promo-analytics-status>Cargando analíticas…</div>
       <div class="pz-promo-analytics__body" data-promo-analytics-body hidden>
         <div class="pz-promo-analytics__cards">
-          <article><span>Visitas</span><strong data-promo-metric="page_views">0</strong></article>
+          <article><span>Visitantes diarios</span><strong data-promo-metric="page_views">0</strong></article>
           <article><span>Secciones vistas</span><strong data-promo-metric="section_views">0</strong></article>
           <article><span>Contactos activados</span><strong data-promo-metric="contact_activations">0</strong></article>
           <article><span>Aperturas Landing QR</span><strong data-promo-metric="landing_qr_opens">0</strong></article>
@@ -49,7 +49,7 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
           <section aria-labelledby="promo-analytics-contact"><h2 id="promo-analytics-contact">Canales de contacto</h2><ol data-promo-analytics-list="contact_actions"></ol></section>
           <section aria-labelledby="promo-analytics-locales"><h2 id="promo-analytics-locales">Idiomas</h2><ol data-promo-analytics-list="locales"></ol></section>
         </div>
-        <p class="pz-promo-analytics__privacy">No se calculan visitantes únicos. Los eventos crudos se conservan 7 días; este panel consume solo agregados diarios.</p>
+        <p class="pz-promo-analytics__privacy">Cada navegador cuenta una vez por tienda y día. No se envían identificadores de navegador; los eventos crudos se conservan 7 días y este panel consume solo agregados diarios.</p>
       </div>
     </section>
   </main>

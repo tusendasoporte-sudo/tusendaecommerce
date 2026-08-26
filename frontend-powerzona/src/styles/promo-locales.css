@@ -400,7 +400,38 @@
 }
 
 .pz-promo-locales__panel-heading {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 44px;
+}
+
+.pz-promo-locales__panel-heading::-webkit-details-marker {
+  display: none;
+}
+
+.pz-promo-locales__panel[open] .pz-promo-locales__panel-heading {
   margin-bottom: 1rem;
+}
+
+.pz-promo-locales__panel-chevron {
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 50%;
+  color: #475569;
+  display: inline-flex;
+  flex: 0 0 2rem;
+  font-size: 1.1rem;
+  height: 2rem;
+  justify-content: center;
+  transition: transform 160ms ease;
+}
+
+.pz-promo-locales__panel[open] .pz-promo-locales__panel-chevron {
+  transform: rotate(180deg);
 }
 
 .pz-promo-locales__panel-heading h4 {

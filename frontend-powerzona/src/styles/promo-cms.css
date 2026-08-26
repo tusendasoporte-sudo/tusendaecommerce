@@ -179,6 +179,46 @@
   background: #fbfcfe;
 }
 
+.pz-promo-cms__accordion-summary {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.pz-promo-cms__accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pz-promo-cms__accordion:not([open]) > .pz-promo-cms__accordion-summary {
+  border-bottom-color: transparent;
+}
+
+.pz-promo-cms__accordion-chevron {
+  min-width: 38px;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dcdfe7;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--promo-admin-accent-strong);
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform .18s ease;
+}
+
+.pz-promo-cms__accordion[open] > .pz-promo-cms__accordion-summary .pz-promo-cms__accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.pz-promo-cms__panel-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 22px 0;
+}
+
 .pz-promo-cms__panel-heading.with-action {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
@@ -215,9 +255,25 @@
 
 .pz-promo-cms__qr-grid {
   display: grid;
-  grid-template-columns: 192px minmax(240px, 1fr) auto;
-  gap: 1rem;
-  align-items: end;
+  grid-template-columns: 192px minmax(240px, 1fr);
+  gap: 20px;
+  align-items: start;
+  padding: 20px 22px;
+}
+
+.pz-promo-cms__qr-upload {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.pz-promo-cms__qr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .pz-promo-cms__qr-preview {
@@ -281,6 +337,7 @@
 .pz-promo-cms textarea:focus-visible,
 .pz-promo-cms select:focus-visible,
 .pz-promo-cms button:focus-visible,
+.pz-promo-cms__accordion-summary:focus-visible,
 .pz-promo-cms [tabindex="-1"]:focus-visible {
   outline: 3px solid var(--promo-admin-focus);
   outline-offset: 2px;
@@ -591,6 +648,10 @@
     grid-column: 1 / -1;
   }
 
+  .pz-promo-cms__accordion-summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
   .pz-promo-cms__fields.two-columns {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -640,6 +701,8 @@
 @media (max-width: 420px) {
   .pz-promo-cms__intro,
   .pz-promo-cms__panel-heading,
+  .pz-promo-cms__panel-toolbar,
+  .pz-promo-cms__qr-grid,
   .pz-promo-cms__fields,
   .pz-promo-cms__section-list,
   .pz-promo-cms__action-list {

@@ -223,6 +223,9 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(editor, /beforeunload/);
   assert.match(editor, /expected_version: version/);
   assert.match(editor, /PROMO_LOCALES_API_PATH/);
+  assert.equal((editor.match(/element\('details', 'pz-promo-locales__panel'\)/g) || []).length, 5);
+  assert.match(editor, /element\('summary', 'pz-promo-locales__panel-heading'\)/);
+  assert.doesNotMatch(editor, /element\('section', 'pz-promo-locales__panel'\)/);
   assert.doesNotMatch(editor, /\/api\/pz\/promo\/(?:preview|publish)|candidate\/create|Cloudflare|Coolify/);
   assert.match(api, /refreshAuthFromCookie/);
   assert.match(api, /requireCurrentStoreForAdmin/);
@@ -232,5 +235,7 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /@media \(max-width: 420px\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /pz-promo-locales__panel\[open\][\s\S]*?pz-promo-locales__panel-chevron/);
+  assert.match(styles, /pz-promo-locales__panel-heading:focus-visible|summary:focus-visible/);
   assert.doesNotMatch(editor, /products|categories|orders|cart|checkout|inventory|stock|price|currency/);
 });

@@ -111,14 +111,15 @@ const isContent = scope === 'content';
       </>
     ) : (
       <>
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-section-title">
-          <div class="pz-promo-cms__panel-heading">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="presentation">
+          <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
               <h3 id="cms-contact-section-title">Presentación de contacto</h3>
               <p>Controla la visibilidad, textos y QR que aparecen en la página pública.</p>
             </div>
-          </div>
+            <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <div class="pz-promo-cms__fields two-columns">
             <label class="pz-promo-cms__switch is-wide">
               <input type="checkbox" data-cms-contact-section-visible />
@@ -137,35 +138,43 @@ const isContent = scope === 'content';
               <textarea rows="3" maxlength="600" data-cms-contact-summary></textarea>
             </label>
           </div>
-        </section>
+        </details>
 
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-qr-title">
-          <div class="pz-promo-cms__panel-heading with-action">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="qr">
+          <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">02</span>
             <div>
               <h3 id="cms-contact-qr-title">Código QR propio</h3>
               <p>Sube una imagen de QR; se convertirá a WebP 512×512 con fondo blanco y sin recorte.</p>
             </div>
-            <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-qr disabled={!canSave}>Quitar QR</button>
-          </div>
+            <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <div class="pz-promo-cms__qr-grid">
             <div class="pz-promo-cms__qr-preview" data-cms-qr-preview><span>Sin QR</span></div>
-            <label class="pz-promo-cms__field">
-              <span>Imagen del QR</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
-              <small>La carga queda asociada al guardar los cambios.</small>
-            </label>
-            <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-qr disabled={!canManageMedia}>Procesar QR</button>
+            <div class="pz-promo-cms__qr-upload">
+              <label class="pz-promo-cms__field">
+                <span>Imagen del QR</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
+                <small>La carga queda asociada al guardar los cambios.</small>
+              </label>
+              <div class="pz-promo-cms__qr-actions">
+                <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-qr disabled={!canManageMedia}>Procesar QR</button>
+                <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-qr disabled={!canSave}>Quitar QR</button>
+              </div>
+            </div>
           </div>
-        </section>
+        </details>
 
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-actions-title">
-          <div class="pz-promo-cms__panel-heading with-action">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="methods">
+          <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">03</span>
             <div>
               <h3 id="cms-contact-actions-title">Métodos permitidos</h3>
               <p>WhatsApp y teléfono exigen E.164; correo exige una dirección válida. No se aceptan URLs.</p>
             </div>
+            <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="pz-promo-cms__panel-toolbar">
             <button class="pz-promo-cms__secondary-button" type="button" data-cms-add-contact>Añadir método</button>
           </div>
           <label class="pz-promo-cms__switch pz-promo-cms__contact-master">
@@ -173,7 +182,7 @@ const isContent = scope === 'content';
             <span><strong>Habilitar contacto en la página</strong><small>Al habilitarlo debes elegir un método principal disponible.</small></span>
           </label>
           <div class="pz-promo-cms__action-list" data-cms-contact-actions></div>
-        </section>
+        </details>
       </>
     )}
 
@@ -883,6 +892,11 @@ const isContent = scope === 'content';
 
     form?.addEventListener('input', () => setDirty());
     form?.addEventListener('change', () => setDirty());
+    form?.addEventListener('invalid', (event) => {
+      const control = event.target instanceof HTMLElement ? event.target : null;
+      const accordion = control?.closest<HTMLDetailsElement>('.pz-promo-cms__accordion');
+      if (accordion) accordion.open = true;
+    }, true);
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
       clearError();

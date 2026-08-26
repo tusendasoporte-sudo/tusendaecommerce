@@ -300,9 +300,16 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /reportValidity\(\)/);
+  assert.equal((editor.match(/data-cms-contact-panel=/g) || []).length, 3);
+  assert.match(editor, /<summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">/);
+  assert.match(editor, /pz-promo-cms__qr-upload[\s\S]*?data-cms-upload-qr[\s\S]*?data-cms-remove-qr/);
+  assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);
   assert.match(editor, /Bajar/);
   assert.match(styles, /@media \(max-width: 760px\)/);
+  assert.match(styles, /\.pz-promo-cms__accordion:not\(\[open\]\)/);
+  assert.match(styles, /\.pz-promo-cms__qr-grid[\s\S]*?grid-template-columns: 192px minmax\(240px, 1fr\)/);
+  assert.match(styles, /\.pz-promo-cms__qr-actions[\s\S]*?justify-content: flex-start/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(shell, /section === 'content' \|\| section === 'contact'/);
   assert.match(shell, /<PromoCmsEditor/);
