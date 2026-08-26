@@ -353,7 +353,7 @@ function validateSections(document, publicRevision, liveDocument) {
       section.config.gallery_keys.forEach((galleryKey) => {
         const gallery = galleryKey ? sectionByKey.get(galleryKey) : null;
         if (galleryKey && (!gallery || gallery.type !== "gallery")) fail("invalid_promo_document", 400);
-        if (publicRevision && section.visible && (!gallery || !gallery.visible)) {
+        if (publicRevision && section.visible && galleryKey && (!gallery || !gallery.visible)) {
           fail("incomplete_promo_locale", 400, "service_gallery");
         }
       });

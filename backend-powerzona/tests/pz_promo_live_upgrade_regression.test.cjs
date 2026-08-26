@@ -65,3 +65,26 @@ test('upgrade v1 conserva pero oculta un destacado legado sin imagen', () => {
   assert.equal(pending.visible, false);
   assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
 });
+
+test('upgrade v1 mantiene publicable un servicio sin galería vinculada', () => {
+  const legacy = legacyFeaturedDocument();
+  legacy.sections = [{
+    key: 'services-main', type: 'services', variant: 'default', visible: true,
+    config: { item_keys: ['restoration'] }, media_use_keys: [],
+  }];
+  legacy.section_order = ['services-main'];
+  legacy.media_refs = {};
+  legacy.content_by_locale.es.navigation = { 'services-main': 'Servicios' };
+  legacy.content_by_locale.es.sections = {
+    'services-main': {
+      heading: 'Servicios', summary: '',
+      items: [{ key: 'restoration', name: 'Restauración', summary: '', caption: '' }],
+    },
+  };
+  legacy.content_by_locale.es.media_alt = {};
+  assert.deepEqual(contract.validatePromoDocument(legacy, { publicRevision: true }), legacy);
+
+  const live = contract.upgradePromoDocument(legacy);
+  assert.deepEqual(live.sections[0].config.gallery_keys, ['']);
+  assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
+});
