@@ -704,6 +704,14 @@ function upgradePromoDocument(input) {
     });
   });
 
+  // A legacy featured-work section can be the source of the first live gallery.
+  // In that case the gallery was created before its media were copied, so its
+  // cover must be derived afterwards to keep an already-public site publishable.
+  if (targetGallery && !targetGallery.config.cover_media_use_key
+    && targetGallery.media_use_keys.length) {
+    targetGallery.config.cover_media_use_key = targetGallery.media_use_keys[0];
+  }
+
   next.sections.filter((section) => section.type === "services").forEach((section) => {
     section.config = {
       item_keys: section.config.item_keys.slice(),
