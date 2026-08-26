@@ -176,6 +176,13 @@ test('shell es separado, responsive y no monta navegación Commerce', () => {
   assert.match(shell, /event\.key === 'Escape'/);
   assert.match(shell, /event\.key !== 'Tab'/);
   assert.match(shell, /<Layout isMaster=\{true\}>/);
+  assert.match(shell, /Contactar a Tu Senda 84/);
+  assert.match(shell, /¿Necesitas ayuda con tu página\?/);
+  assert.match(shell, /Escribir por WhatsApp/);
+  assert.match(shell, /https:\/\/wa\.me\/\$\{supportWhatsapp\}/);
+  assert.doesNotMatch(shell, /PUBLIC_MASTER_SUPPORT_EMAIL|Contactar soporte Master/);
+  assert.match(styles, /pz-promo-admin__support-card/);
+  assert.match(styles, /pz-promo-admin__support-whatsapp[\s\S]*?background:\s*#168c49/);
   assert.match(styles, /@media \(max-width: 900px\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(baseRoute, /showPromoDashboard[\s\S]*?<PromoAdminShell/);

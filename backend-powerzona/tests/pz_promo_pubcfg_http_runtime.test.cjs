@@ -726,6 +726,9 @@ test('gate runtime LIVE: guardado inmediato, lifecycle, temas, QR, aislamiento y
       json: analyticsEvent,
     }), 202, 'analytics usa generación viva sin identidad de visitante');
     assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-live-a/events', {
+      json: { ...analyticsEvent, event_id: 'cf40b530-194f-4a83-974a-77496912e871' },
+    }), 202, 'analytics acumula una segunda visita en el mismo bucket sin dimensión');
+    assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-live-a/events', {
       json: { ...analyticsEvent, url: 'https://attacker.test/?pii=1' },
     }), 400, 'analytics rechaza URL/PII');
     assertStatus(await request('/api/pz/promo/public/v1/analytics/sites/promo-live-b/events', {
@@ -735,11 +738,21 @@ test('gate runtime LIVE: guardado inmediato, lifecycle, temas, QR, aislamiento y
       token: superToken,
     });
     assertStatus(rawAnalytics, 200, 'superuser verifica analytics efímera');
-    assert.equal(rawAnalytics.data.items.length, 1);
+    assert.equal(rawAnalytics.data.items.length, 2);
     assert.equal(rawAnalytics.data.items[0].site, fixtureA.site.id);
     assert.equal(rawAnalytics.data.items[0].content_generation, 5);
     assert.equal(rawAnalytics.data.items[0].revision, '');
     assert.equal(JSON.stringify(rawAnalytics.data.items).includes('attacker.test'), false);
+    const dailyAnalytics = await request('/api/collections/promo_analytics_daily/records', {
+      token: superToken,
+    });
+    assertStatus(dailyAnalytics, 200, 'superuser verifica agregado diario de analytics');
+    const pageViewBuckets = dailyAnalytics.data.items.filter((item) => (
+      item.site === fixtureA.site.id && item.event_type === 'page_view' && item.locale === 'es'
+    ));
+    assert.equal(pageViewBuckets.length, 1, 'visitas sin dimensión comparten un solo bucket diario');
+    assert.equal(pageViewBuckets[0].dimension_key, '');
+    assert.equal(pageViewBuckets[0].event_count, 2, 'cada apertura válida incrementa Visitas');
 
     const auditList = await request('/api/pz/promo/private/v1/audit/list', {
       token: primaryAuth.data.token,

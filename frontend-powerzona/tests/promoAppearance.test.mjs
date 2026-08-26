@@ -209,6 +209,7 @@ test('shell y proxy conservan auth central, tenant exacto, CAS y límites del pr
   const styles = read('../src/styles/promo-appearance.css');
 
   assert.match(shell, /<PromoAppearanceEditor/);
+  assert.match(shell, /storeName=\{storeName\}/);
   assert.match(shell, /promo\.content\.manage/);
   assert.match(shell, /promo\.theme\.select/);
   assert.match(shell, /promo\.appearance\.manage/);
@@ -220,6 +221,16 @@ test('shell y proxy conservan auth central, tenant exacto, CAS y límites del pr
   assert.match(api, /X-PZ-Promo-Store/);
   assert.match(editor, /expected_version: draft\.version/);
   assert.match(editor, /Guardar actualiza la página pública automáticamente/);
+  assert.match(editor, /<details[^>]+data-appearance-advanced/);
+  assert.match(editor, /Personalización avanzada/);
+  assert.match(editor, /aria-expanded="false"/);
+  assert.match(editor, /setAttribute\('aria-expanded'/);
+  assert.match(editor, /data-appearance-status-success/);
+  assert.match(editor, /window\.setTimeout[\s\S]*?4000/);
+  assert.match(editor, /pz-promo-appearance__sample-brand">\{storeName\}/);
+  assert.doesNotMatch(editor, /TU SENDA <b>84<\/b>/);
+  assert.doesNotMatch(editor, /Versión de página:|tokens seguros/);
+  assert.doesNotMatch(editor, /previewLabel\.textContent\s*=\s*`\$\{model\.themeLabel\} ·/);
   assert.match(editor, /Vista de referencia del tema y sus ajustes visuales antes de guardar/);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
@@ -227,6 +238,8 @@ test('shell y proxy conservan auth central, tenant exacto, CAS y límites del pr
   assert.match(styles, /@media \(max-width: 700px\)/);
   assert.match(styles, /@media \(max-width: 420px\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /pz-promo-appearance__success-icon/);
+  assert.match(styles, /pz-promo-appearance__advanced\[open\]/);
   assert.doesNotMatch(`${shell}\n${editor}\n${api}`, /products|categories|orders|checkout|cart|Cloudflare|Coolify/);
   assert.doesNotMatch(`${editor}\n${api}`, /publication\/|candidate|preview\/v1|store_id|site_id|\bfilter\b|\bsort\b|\bfields\b|\bexpand\b|\brealtime\b/);
 });

@@ -181,12 +181,15 @@ function saveEvent(app, resolved, parsed, now) {
   data.assertPromoRecord(app, "promo_analytics_events", event, "create");
   app.save(event);
 
+  const hasDimension = Boolean(projected.dimensionKey);
   const filter = "site = {:site} && day = {:day} && event_type = {:type} && locale = {:locale}"
-    + " && theme_key = {:theme} && dimension_key = {:dimension}";
+    + " && theme_key = {:theme}"
+    + (hasDimension ? " && dimension_key = {:dimension}" : " && dimension_key = ''");
   const params = {
     site: siteId, day, type: parsed.eventType, locale: parsed.locale,
-    theme: projected.themeKey, dimension: projected.dimensionKey,
+    theme: projected.themeKey,
   };
+  if (hasDimension) params.dimension = projected.dimensionKey;
   const existing = findExact(app, "promo_analytics_daily", filter, params);
   const daily = existing || new Record(app.findCollectionByNameOrId("promo_analytics_daily"), {});
   setRecord(daily, {

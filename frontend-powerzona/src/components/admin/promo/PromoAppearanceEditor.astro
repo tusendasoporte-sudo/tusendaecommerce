@@ -3,6 +3,7 @@ import '../../../styles/promo-appearance.css';
 
 interface Props {
   storeSlug: string;
+  storeName: string;
   canManageContent: boolean;
   canSelectTheme: boolean;
   canManageAppearance: boolean;
@@ -10,6 +11,7 @@ interface Props {
 
 const {
   storeSlug,
+  storeName,
   canManageContent,
   canSelectTheme,
   canManageAppearance,
@@ -33,7 +35,6 @@ const {
     </div>
     <div class="pz-promo-appearance__draft-meta" aria-label="Estado visual de la página">
       <span data-appearance-current>Tema actual: —</span>
-      <span data-appearance-version>Versión de página: —</span>
     </div>
   </header>
 
@@ -49,8 +50,9 @@ const {
   )}
 
   <div class="pz-promo-appearance__notice" role="status" aria-live="polite" data-appearance-status>
-    <span class="pz-promo-appearance__spinner" aria-hidden="true"></span>
-    <span>Cargando catálogo aprobado y página…</span>
+    <span class="pz-promo-appearance__spinner" data-appearance-status-spinner aria-hidden="true"></span>
+    <span class="pz-promo-appearance__success-icon" data-appearance-status-success aria-hidden="true" hidden>✓</span>
+    <span data-appearance-status-message>Cargando catálogo aprobado y página…</span>
   </div>
 
   <div class="pz-promo-appearance__error" role="alert" tabindex="-1" data-appearance-error hidden>
@@ -76,22 +78,33 @@ const {
           </fieldset>
         </section>
 
-        <section class="pz-promo-appearance__panel" aria-labelledby="appearance-tokens-title">
-          <div class="pz-promo-appearance__panel-heading with-action">
+        <details class="pz-promo-appearance__panel pz-promo-appearance__advanced" data-appearance-advanced>
+          <summary
+            class="pz-promo-appearance__advanced-summary"
+            aria-controls="appearance-advanced-content"
+            aria-expanded="false"
+            data-appearance-advanced-summary
+          >
             <span class="pz-promo-appearance__step" aria-hidden="true">02</span>
             <div>
-              <h3 id="appearance-tokens-title">Valores visuales permitidos</h3>
-              <p>Solo se guardan overrides distintos al default. No se aceptan colores, CSS, fuentes remotas ni código libre.</p>
+              <h3>Personalización avanzada</h3>
+              <p>Opcional: ajusta únicamente los valores visuales permitidos por el tema.</p>
             </div>
+            <span class="pz-promo-appearance__advanced-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="pz-promo-appearance__advanced-content" id="appearance-advanced-content">
             <button class="pz-promo-appearance__secondary" type="button" data-appearance-reset>
               Restaurar defaults
             </button>
+            <p class="pz-promo-appearance__advanced-description">
+              Solo se guardan ajustes distintos al valor predeterminado. No se aceptan colores, CSS, fuentes remotas ni código libre.
+            </p>
+            <div class="pz-promo-appearance__token-grid" data-appearance-tokens></div>
+            <p class="pz-promo-appearance__token-note" data-appearance-token-note>
+              Selecciona un tema aprobado para habilitar sus ajustes.
+            </p>
           </div>
-          <div class="pz-promo-appearance__token-grid" data-appearance-tokens></div>
-          <p class="pz-promo-appearance__token-note" data-appearance-token-note>
-            Selecciona un tema aprobado para habilitar sus tokens.
-          </p>
-        </section>
+        </details>
       </div>
 
       <aside class="pz-promo-appearance__preview-panel" aria-labelledby="appearance-preview-title">
@@ -109,7 +122,7 @@ const {
         <div class="pz-promo-appearance__preview-frame" data-appearance-preview-frame>
           <article class="pz-promo-appearance__preview" data-appearance-preview role="img" aria-label="Muestra visual de apariencia">
             <header class="pz-promo-appearance__sample-nav">
-              <span class="pz-promo-appearance__sample-brand">TU SENDA <b>84</b></span>
+              <span class="pz-promo-appearance__sample-brand">{storeName}</span>
               <span aria-hidden="true">Inicio&nbsp;&nbsp; Servicios&nbsp;&nbsp; Contacto</span>
             </header>
             <div class="pz-promo-appearance__sample-hero">
@@ -194,7 +207,11 @@ const {
     const previewLabel = root.querySelector<HTMLElement>('[data-appearance-preview-label]');
     const quality = root.querySelector<HTMLElement>('[data-appearance-quality]');
     const currentLabel = root.querySelector<HTMLElement>('[data-appearance-current]');
-    const versionLabel = root.querySelector<HTMLElement>('[data-appearance-version]');
+    const statusSpinner = root.querySelector<HTMLElement>('[data-appearance-status-spinner]');
+    const statusSuccess = root.querySelector<HTMLElement>('[data-appearance-status-success]');
+    const statusMessage = root.querySelector<HTMLElement>('[data-appearance-status-message]');
+    const advanced = root.querySelector<HTMLDetailsElement>('[data-appearance-advanced]');
+    const advancedSummary = root.querySelector<HTMLElement>('[data-appearance-advanced-summary]');
     const unsaved = root.querySelector<HTMLElement>('[data-appearance-unsaved]');
     const authority = root.querySelector<HTMLElement>('[data-appearance-authority]');
     const saveButton = root.querySelector<HTMLButtonElement>('[data-appearance-save]');
@@ -207,13 +224,24 @@ const {
     let tokenValues: Record<string, string> = {};
     let dirty = false;
     let busy = false;
+    let statusHideTimer: number | undefined;
 
-    function setStatus(message: string, success = false) {
+    function setStatus(message: string, state: 'busy' | 'success' | 'idle' = 'busy', autoHide = false) {
       if (!status) return;
+      if (statusHideTimer !== undefined) {
+        window.clearTimeout(statusHideTimer);
+        statusHideTimer = undefined;
+      }
       status.hidden = !message;
-      status.classList.toggle('is-success', success);
-      const text = status.querySelector<HTMLElement>('span:last-child');
-      if (text) text.textContent = message;
+      status.classList.toggle('is-success', state === 'success');
+      if (statusSpinner) statusSpinner.hidden = state !== 'busy';
+      if (statusSuccess) statusSuccess.hidden = state !== 'success';
+      if (statusMessage) statusMessage.textContent = message;
+      if (message && autoHide) {
+        statusHideTimer = window.setTimeout(() => {
+          if (statusMessage?.textContent === message) setStatus('', 'idle');
+        }, 4000);
+      }
     }
 
     function clearError() {
@@ -290,7 +318,7 @@ const {
           '--appearance-motion-duration': model.style.motionDuration,
         };
         Object.entries(propertyMap).forEach(([key, value]) => preview.style.setProperty(key, value));
-        if (previewLabel) previewLabel.textContent = `${model.themeLabel} · ${model.version}`;
+        if (previewLabel) previewLabel.textContent = model.themeLabel;
         if (previewUnavailable) previewUnavailable.hidden = model.rendererAvailable;
         preview.dataset.motion = tokenValues.motion || 'subtle';
       } catch (error) {
@@ -443,8 +471,6 @@ const {
         copy.className = 'pz-promo-appearance__theme-copy';
         const name = document.createElement('strong');
         name.textContent = promoAppearanceThemeLabel(theme.themeId);
-        const detail = document.createElement('small');
-        detail.textContent = `Versión ${theme.version} · ${Object.keys(theme.tokens).length} tokens seguros`;
         const badges = document.createElement('span');
         badges.className = 'pz-promo-appearance__badges';
         const approved = document.createElement('b');
@@ -461,7 +487,7 @@ const {
           fallback.textContent = 'Fallback seguro';
           badges.append(fallback);
         }
-        copy.append(name, detail, badges);
+        copy.append(name, badges);
         label.append(input, swatch, copy);
         input.addEventListener('change', () => {
           if (input.checked) chooseTheme(theme);
@@ -488,7 +514,7 @@ const {
         const unavailable = Boolean(draft.document.theme.theme_id && !selectedTheme);
         legacy.hidden = !unavailable;
         legacy.textContent = unavailable
-          ? `La apariencia actual ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} ${draft.document.theme.version} se conserva, pero no está disponible para una nueva selección. Elige una apariencia aprobada para cambiarla.`
+          ? `La apariencia actual ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} se conserva, pero no está disponible para una nueva selección. Elige una apariencia aprobada para cambiarla.`
           : '';
       }
 
@@ -511,10 +537,9 @@ const {
       else if (tokensContainer) tokensContainer.replaceChildren();
       if (currentLabel) {
         currentLabel.textContent = draft.document.theme.theme_id
-          ? `Tema actual: ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} · ${draft.document.theme.version}`
+          ? `Tema actual: ${promoAppearanceThemeLabel(draft.document.theme.theme_id)}`
           : 'Tema actual: sin selección; se muestra el fallback seguro';
       }
-      if (versionLabel) versionLabel.textContent = `Versión de página: ${draft.version}`;
       form.hidden = false;
       dirty = false;
       updateChangeState();
@@ -546,6 +571,11 @@ const {
     }
 
     root.querySelector('[data-appearance-reload]')?.addEventListener('click', loadEditor);
+    const syncAdvancedState = () => {
+      if (advancedSummary) advancedSummary.setAttribute('aria-expanded', advanced?.open ? 'true' : 'false');
+    };
+    advanced?.addEventListener('toggle', syncAdvancedState);
+    syncAdvancedState();
     resetButton?.addEventListener('click', () => {
       const theme = selectedManifest();
       if (!theme || !canEditTokens) return;
@@ -584,8 +614,9 @@ const {
         initializeWorkspace();
         setStatus(result.changed === true
           ? 'Apariencia aplicada a la página pública.'
-          : 'La página ya tenía esa apariencia.', true);
+          : 'La página ya tenía esa apariencia.', 'success', true);
       } catch (error) {
+        setStatus('', 'idle');
         showError(error);
       } finally {
         setBusy(false);
