@@ -137,6 +137,15 @@ test('workspace vacío asigna solo el locale base y las secciones del alcance CM
   assert.deepEqual(contact.document.contact, normalizePromoCmsDocument(emptyDraft()).contact);
 });
 
+test('normalización acepta documentos vivos anteriores al campo aditivo del logo', () => {
+  const previousLive = backendContract.upgradePromoDocument(completeDocument());
+  delete previousLive.contact.logo_media_use_key;
+  const normalized = normalizePromoCmsDocument(previousLive);
+  assert.equal(normalized.contract, 'promo.site.v2');
+  assert.equal(normalized.contact.logo_media_use_key, '');
+  assert.equal(normalized.contact.qr_media_use_key, '');
+});
+
 test('edición de contenido preserva tema, media, galería, contacto, adapters y locales ajenos', () => {
   const original = normalizePromoCmsDocument(completeDocument());
   const protectedBefore = structuredClone({

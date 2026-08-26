@@ -324,27 +324,22 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
   assert.throws(() => normalizePromoGalleryCatalog({ ...catalog, tenant: 'otro' }), PromoCmsError);
 });
 
-test('shell y proxy usan auth central, tenant exacto, CAS y guardado vivo sin Commerce', () => {
+test('shell retira Galería separada y conserva el proxy de medios central sin Commerce', () => {
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
-  const editor = readFileSync(new URL('../src/components/admin/promo/PromoGalleryEditor.astro', import.meta.url), 'utf8');
+  const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
+  const moduleRoute = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promo/[section].astro', import.meta.url), 'utf8');
   const mediaApi = readFileSync(new URL('../src/pages/api/admin/promo-media.ts', import.meta.url), 'utf8');
-  assert.match(shell, /PromoGalleryEditor/);
+  assert.doesNotMatch(shell, /PromoGalleryEditor|section === 'gallery'/);
   assert.match(shell, /promo\.media\.manage/);
   assert.match(shell, /promo\.content\.manage/);
-  assert.match(shell, /promo\.media\.video\.manage/);
-  assert.match(editor, /expected_version: draft\.version/);
-  assert.match(editor, /Guardar y actualizar página/);
-  assert.match(editor, /Carrusel principal/);
-  assert.match(editor, /Crear otra galería/);
-  assert.match(editor, /'Destacado'/);
-  assert.match(editor, /altInput\.required = !media\.decorative/);
-  assert.match(editor, /preload = 'none'/);
-  assert.match(editor, /reportValidity\(\)/);
+  assert.match(cmsEditor, /mediaEndpoint/);
+  assert.match(cmsEditor, /expected_version: version/);
+  assert.match(moduleRoute, /requestedModule === 'gallery'[\s\S]*?getPromoAdminSectionPath\(storeSlug, 'content'\)/);
   assert.match(mediaApi, /refreshAuthFromCookie/);
   assert.match(mediaApi, /exactMediaQuery/);
   assert.match(mediaApi, /sec-fetch-site/);
   assert.match(mediaApi, /Range: rangeHeader/);
   assert.match(mediaApi, /X-PZ-Promo-Store/);
   assert.match(mediaApi, /promo\/private\/v1\/media/);
-  assert.doesNotMatch(`${shell}\n${editor}\n${mediaApi}`, /products|categories|orders|checkout|cart|Cloudflare|Coolify/);
+  assert.doesNotMatch(`${shell}\n${cmsEditor}\n${mediaApi}`, /products|categories|orders|checkout|cart|Cloudflare|Coolify/);
 });

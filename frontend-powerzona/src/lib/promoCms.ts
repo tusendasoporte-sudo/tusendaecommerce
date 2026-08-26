@@ -240,7 +240,13 @@ function uniqueMigratedKey(used: Set<string>, preferred: string, maximum = 64) {
 
 function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
   const next = clone(value);
-  if (next.contract === PROMO_CMS_DOCUMENT_CONTRACT) return next;
+  if (next.contract === PROMO_CMS_DOCUMENT_CONTRACT) {
+    if (isRecord(next.contact)) {
+      if (!Object.prototype.hasOwnProperty.call(next.contact, 'logo_media_use_key')) next.contact.logo_media_use_key = '';
+      if (!Object.prototype.hasOwnProperty.call(next.contact, 'qr_media_use_key')) next.contact.qr_media_use_key = '';
+    }
+    return next;
+  }
   if (next.contract !== PROMO_CMS_LEGACY_DOCUMENT_CONTRACT) fail('invalid_payload');
   if (!Array.isArray(next.sections) || !Array.isArray(next.section_order)
     || !isRecord(next.contact) || !isRecord(next.content_by_locale)) fail('invalid_payload');

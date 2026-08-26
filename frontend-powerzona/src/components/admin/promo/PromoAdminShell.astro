@@ -9,7 +9,6 @@ import {
 } from '../../../lib/promoAdminI18n';
 import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
-import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
 import PromoLandingQrEditor from './PromoLandingQrEditor.astro';
 import PromoReviewsEditor from './PromoReviewsEditor.astro';
@@ -43,7 +42,7 @@ const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
 const visibleModules = visiblePromoAdminModules(accessContext);
 const activeModule = section === 'overview' ? null : getPromoAdminModule(section);
 const primaryModules = visibleModules.filter((module) => (
-  ['content', 'gallery', 'appearance', 'languages', 'contact'] as PromoAdminModule['section'][]
+  ['content', 'appearance', 'languages', 'contact'] as PromoAdminModule['section'][]
 ).includes(module.section));
 const audienceModules = visibleModules.filter((module) => !primaryModules.includes(module));
 const isMasterSupport = adminContext.isMasterSupport || accessContext.access.is_master;
@@ -77,12 +76,7 @@ const canSaveCms = section === 'content'
       && hasPromoAction(accessContext, 'promo.contact.manage')
     : false;
 const maxServices = Number(accessContext.capabilities.max_services || 0);
-const canManageGalleryMedia = hasPromoAction(accessContext, 'promo.media.manage');
-const canSaveGallery = canManageGalleryMedia && hasPromoAction(accessContext, 'promo.content.manage');
-const canManageGalleryVideo = hasPromoAction(accessContext, 'promo.media.video.manage');
-const maxGalleryAssets = Number(accessContext.capabilities.max_gallery_assets || 0);
-const maxVideos = Number(accessContext.capabilities.max_videos || 0);
-const maxStorageBytes = Number(accessContext.capabilities.max_storage_bytes || 0);
+const canManagePromoMedia = hasPromoAction(accessContext, 'promo.media.manage');
 const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
 const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appearance.manage');
@@ -296,17 +290,7 @@ function initials(value: string) {
             scope={cmsScope}
             maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
             canSave={canSaveCms}
-            canManageMedia={canManageGalleryMedia}
-          />
-        ) : activeModule && section === 'gallery' ? (
-          <PromoGalleryEditor
-            storeSlug={storeSlug}
-            maxGalleryAssets={Number.isSafeInteger(maxGalleryAssets) && maxGalleryAssets >= 0 ? maxGalleryAssets : 0}
-            maxVideos={Number.isSafeInteger(maxVideos) && maxVideos >= 0 ? maxVideos : 0}
-            maxStorageBytes={Number.isSafeInteger(maxStorageBytes) && maxStorageBytes >= 0 ? maxStorageBytes : 0}
-            canSave={canSaveGallery}
-            canManageMedia={canManageGalleryMedia}
-            canManageVideo={canManageGalleryVideo}
+            canManageMedia={canManagePromoMedia}
           />
         ) : activeModule && section === 'appearance' ? (
           <PromoAppearanceEditor
@@ -330,7 +314,7 @@ function initials(value: string) {
             publicSlug={publicSlug}
             canModerate={canManagePromoReviews}
             canConfigure={canConfigurePromoReviews}
-            canManageMedia={canManageGalleryMedia}
+            canManageMedia={canManagePromoMedia}
           />
         ) : activeModule && section === 'landing-qr' ? (
           <PromoLandingQrEditor

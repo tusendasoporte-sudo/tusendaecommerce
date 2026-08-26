@@ -18,14 +18,6 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     delivery: 'Guarda contenido validado y actualiza la página pública automáticamente.',
   }),
   Object.freeze({
-    section: 'gallery',
-    label: 'Portada y galerías',
-    shortLabel: 'Galería',
-    description: 'Carrusel, galerías por categoría, trabajos y recursos audiovisuales.',
-    actions: Object.freeze(['promo.media.manage'] as PromoActionKey[]),
-    delivery: 'Gestiona múltiples galerías y trabajos con destacados derivados.',
-  }),
-  Object.freeze({
     section: 'appearance',
     label: 'Apariencia',
     shortLabel: 'Apariencia',
@@ -104,6 +96,7 @@ export function normalizePromoAdminSection(section: unknown): PromoAdminSection 
   const normalized = safeText(section).replace(/^\/+|\/+$/g, '').toLowerCase();
   if (!normalized || normalized === 'promo') return 'overview';
   if (!normalized.startsWith('promo/')) return null;
+  if (normalized === 'promo/gallery') return 'content';
   const module = getPromoAdminModule(normalized.slice('promo/'.length));
   return module?.section || null;
 }

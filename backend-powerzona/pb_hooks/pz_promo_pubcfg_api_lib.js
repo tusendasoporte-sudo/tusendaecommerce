@@ -550,7 +550,7 @@ function validatedStoredLive(live) {
   if (!live || recordInteger(live, "schema_version") !== 1 || (recordInteger(live, "version") || 0) < 1) {
     throw codedError("promo_live_unavailable", 503);
   }
-  const storedDocument = contract.validatePromoDocument(jsonRecordValue(live, "document_json"), { publicRevision: false });
+  const storedDocument = jsonRecordValue(live, "document_json");
   assertDigest(storedDocument, recordString(live, "document_sha256"));
   return contract.validatePromoDocument(contract.upgradePromoDocument(storedDocument), { publicRevision: false });
 }

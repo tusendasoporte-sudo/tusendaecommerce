@@ -617,7 +617,18 @@ function uniqueDocumentKey(used, preferred, maximum) {
 
 function upgradePromoDocument(input) {
   const document = normalizeJson(input);
-  if (document.contract === LIVE_DOCUMENT_CONTRACT) return document;
+  if (document.contract === LIVE_DOCUMENT_CONTRACT) {
+    const current = normalizeJson(document);
+    if (current.contact && typeof current.contact === "object" && !Array.isArray(current.contact)) {
+      if (!Object.prototype.hasOwnProperty.call(current.contact, "logo_media_use_key")) {
+        current.contact.logo_media_use_key = "";
+      }
+      if (!Object.prototype.hasOwnProperty.call(current.contact, "qr_media_use_key")) {
+        current.contact.qr_media_use_key = "";
+      }
+    }
+    return current;
+  }
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
   next.contract = LIVE_DOCUMENT_CONTRACT;

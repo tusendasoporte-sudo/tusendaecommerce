@@ -170,6 +170,29 @@ test('contrato vivo v2 migra v1 sin snapshots y añade slogan, QR y enlaces de g
   assert.equal(contract.LIVE_UPDATE_CONTRACT, 'promo.live.update.v1');
 });
 
+test('lector vivo actualiza campos aditivos después de verificar el hash almacenado', () => {
+  const previousLive = contract.upgradePromoDocument(emptyDraft());
+  delete previousLive.contact.logo_media_use_key;
+  const stored = record('draftaaaaaaaaaa', {
+    schema_version: 1,
+    version: 7,
+    document_json: previousLive,
+    document_sha256: contract.digestDocument(previousLive, sha256),
+  });
+  const previousSecurity = global.$security;
+  global.$security = { sha256 };
+  try {
+    const upgraded = api.validatedStoredLive(stored);
+    assert.equal(upgraded.contract, 'promo.site.v2');
+    assert.equal(upgraded.contact.logo_media_use_key, '');
+    assert.equal(upgraded.contact.qr_media_use_key, '');
+    assert.deepEqual(contract.validatePromoDocument(upgraded), upgraded);
+  } finally {
+    if (previousSecurity === undefined) delete global.$security;
+    else global.$security = previousSecurity;
+  }
+});
+
 test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y admite slogan y QR', () => {
   const live = contract.upgradePromoDocument(publishedDocument());
   live.section_order = ['hero-main', 'services-main', 'featured-main', 'gallery-rugs', 'contact-main'];
