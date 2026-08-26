@@ -1002,6 +1002,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const sectionsByKey = new Map(sections.map((section) => [section.key, section]));
   for (const section of sections.filter((item) => item.type === 'services')) {
     if (section.config.gallery_keys.some((galleryKey: string) => {
+      if (!galleryKey) return false;
       const gallery = sectionsByKey.get(galleryKey);
       return !gallery || gallery.type !== 'gallery';
     })) fail();

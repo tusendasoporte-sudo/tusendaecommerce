@@ -553,6 +553,16 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
   assert.equal(normalized.profile.media.find((media) => media.key === 'owner-portrait').purpose, 'owner');
   assert.equal(normalized.profile.media.find((media) => media.key === 'gallery-stair-media').delivery.autoplay, false);
 
+  const optionalGallery = shellEnvelopeWithSections();
+  optionalGallery.profile.sections[0].config.gallery_keys = ['', ''];
+  assert.deepEqual(
+    normalizePromoPublicShellResponse(optionalGallery).profile.sections[0].config.gallery_keys,
+    ['', ''],
+  );
+  const missingGallery = shellEnvelopeWithSections();
+  missingGallery.profile.sections[0].config.gallery_keys = ['missing-gallery', 'gallery-main'];
+  assert.throws(() => normalizePromoPublicShellResponse(missingGallery), PromoPublicShellError);
+
   const reordered = shellEnvelopeWithSections();
   reordered.profile.content.sections['services-main'].items.reverse();
   assert.throws(() => normalizePromoPublicShellResponse(reordered), PromoPublicShellError);
