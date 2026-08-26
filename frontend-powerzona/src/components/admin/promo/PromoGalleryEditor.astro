@@ -36,61 +36,74 @@ const {
 >
   <header class="pz-promo-gallery__intro">
     <div>
-      <span class="pz-promo-gallery__eyebrow">Borrador privado</span>
-      <h2 id="promo-gallery-title">Trabajos destacados y galería</h2>
-      <p>Asocia medios optimizados, define su orden y completa textos alternativos sin publicar cambios.</p>
+      <span class="pz-promo-gallery__eyebrow">Página pública en vivo</span>
+      <h2 id="promo-gallery-title">Portada, galerías y trabajos</h2>
+      <p>Crea galerías como categorías, agrega varios medios por trabajo y marca los que aparecerán como destacados.</p>
     </div>
-    <span class="pz-promo-gallery__draft-badge">Guardado con CAS</span>
+    <span class="pz-promo-gallery__draft-badge">Guardado directo · CAS</span>
   </header>
 
   {!canSave && (
     <aside class="pz-promo-gallery__permission" role="note">
-      <strong>Edición de composición en modo lectura.</strong>
-      <span>Guardar asociaciones requiere simultáneamente Contenido y Galería. La biblioteca conserva las acciones que autorice el backend.</span>
+      <strong>Composición en modo lectura.</strong>
+      <span>Tu sesión puede consultar el contenido, pero no actualizar la página pública.</span>
     </aside>
   )}
 
-  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de galería">
-    <article><strong data-gallery-count>—</strong><span>Elementos en galería</span><small data-gallery-limit>de {maxGalleryAssets}</small></article>
+  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de medios">
+    <article><strong data-gallery-count>—</strong><span>Medios usados en galerías</span><small data-gallery-limit>de {maxGalleryAssets}</small></article>
     <article><strong data-gallery-video-count>—</strong><span>Videos almacenados</span><small data-gallery-video-limit>de {maxVideos}</small></article>
     <article><strong data-gallery-storage>—</strong><span>Almacenamiento</span><small data-gallery-storage-limit>de la cuota asignada</small></article>
   </div>
 
   <div class="pz-promo-gallery__alert" data-gallery-alert role="alert" tabindex="-1" hidden></div>
-  <p class="pz-promo-gallery__status" data-gallery-status role="status" aria-live="polite">Cargando borrador y biblioteca…</p>
+  <p class="pz-promo-gallery__status" data-gallery-status role="status" aria-live="polite">Cargando página y biblioteca…</p>
 
   <div data-gallery-workspace hidden>
     <form class="pz-promo-gallery__form" data-gallery-form novalidate>
+      <section class="pz-promo-gallery__section" aria-labelledby="promo-hero-media-title">
+        <header>
+          <div><span class="pz-promo-gallery__eyebrow">Portada</span><h3 id="promo-hero-media-title">Carrusel principal</h3></div>
+          <button type="button" class="pz-promo-gallery__secondary" data-hero-add disabled={!canSave}>+ Añadir imagen o video</button>
+        </header>
+        <p>Un medio muestra una portada fija; dos o más activan el carrusel accesible.</p>
+        <div class="pz-promo-gallery__items" data-hero-media></div>
+      </section>
+
       <div class="pz-promo-gallery__section-list" data-gallery-sections></div>
+      <button type="button" class="pz-promo-gallery__add" data-gallery-add disabled={!canSave}>+ Crear otra galería</button>
+
       <footer class="pz-promo-gallery__savebar">
-        <span data-gallery-version>Versión de borrador: —</span>
-        <button type="submit" data-gallery-save disabled>Guardar borrador</button>
+        <span data-gallery-version>Versión de página: —</span>
+        <button type="submit" data-gallery-save disabled>Guardar y actualizar página</button>
       </footer>
     </form>
 
     <section class="pz-promo-gallery__library" aria-labelledby="promo-media-library-title">
       <header>
         <div>
-          <span class="pz-promo-gallery__eyebrow">Biblioteca tenant-scoped</span>
-          <h3 id="promo-media-library-title">Medios de la tienda</h3>
-          <p>Los archivos se normalizan y vuelven a validarse en el backend antes de quedar disponibles.</p>
+          <span class="pz-promo-gallery__eyebrow">Biblioteca privada de la tienda</span>
+          <h3 id="promo-media-library-title">Medios disponibles</h3>
+          <p>Las imágenes se optimizan a WebP y el backend vuelve a validar tipo, tamaño y tenant.</p>
         </div>
         <button type="button" class="pz-promo-gallery__secondary" data-gallery-refresh>Actualizar</button>
       </header>
 
       <form class="pz-promo-gallery__upload" data-gallery-upload-form>
         <div class="pz-promo-gallery__field">
-          <label for="promo-gallery-upload-kind">Tipo de carga</label>
+          <label for="promo-gallery-upload-kind">Destino</label>
           <select id="promo-gallery-upload-kind" data-gallery-upload-kind disabled={!canManageMedia}>
-            <option value="gallery_image">Imagen de galería</option>
+            <option value="gallery_image">Imagen para galería</option>
+            <option value="hero_image">Imagen para portada</option>
             <option value="video_poster">Poster para video</option>
-            {canManageVideo && <option value="gallery_video">Video de galería</option>}
+            {canManageVideo && <option value="gallery_video">Video para galería</option>}
+            {canManageVideo && <option value="hero_video">Video para portada</option>}
           </select>
         </div>
         <div class="pz-promo-gallery__field">
           <label for="promo-gallery-file">Archivo</label>
           <input id="promo-gallery-file" data-gallery-file type="file" accept="image/jpeg,image/png,image/webp,image/avif" required disabled={!canManageMedia} />
-          <small data-gallery-file-help>JPEG, PNG, WebP o AVIF; se guarda únicamente WebP normalizado.</small>
+          <small data-gallery-file-help>JPEG, PNG, WebP o AVIF; se almacena WebP normalizado.</small>
         </div>
         <div class="pz-promo-gallery__field" data-gallery-poster-field hidden>
           <label for="promo-gallery-poster">Poster del video</label>
@@ -98,56 +111,10 @@ const {
         </div>
         <button type="submit" data-gallery-upload disabled={!canManageMedia}>Procesar y subir</button>
       </form>
-      <p class="pz-promo-gallery__upload-note">El nombre original no se conserva. Video admite MP4/WebM optimizado, poster obligatorio, controles y carga diferida.</p>
+      <p class="pz-promo-gallery__upload-note">Los videos requieren poster, controles visibles, carga diferida y nunca usan reproducción automática.</p>
       <div class="pz-promo-gallery__asset-grid" data-gallery-assets></div>
     </section>
   </div>
-
-  <template data-gallery-section-template>
-    <article class="pz-promo-gallery__section" data-gallery-section>
-      <header>
-        <div><span data-section-kicker></span><h3 data-section-title></h3></div>
-        <label class="pz-promo-gallery__toggle"><input type="checkbox" data-section-visible /><span>Visible</span></label>
-      </header>
-      <div class="pz-promo-gallery__section-fields">
-        <div class="pz-promo-gallery__field"><label data-label-navigation>Navegación</label><input type="text" maxlength="80" required data-section-navigation /></div>
-        <div class="pz-promo-gallery__field"><label data-label-heading>Título</label><input type="text" maxlength="160" data-section-heading /></div>
-        <div class="pz-promo-gallery__field is-wide"><label data-label-summary>Resumen</label><textarea maxlength="600" rows="2" data-section-summary></textarea></div>
-      </div>
-      <div class="pz-promo-gallery__items" data-section-items></div>
-      <button type="button" class="pz-promo-gallery__add" data-section-add>+ Añadir medio</button>
-    </article>
-  </template>
-
-  <template data-gallery-item-template>
-    <article class="pz-promo-gallery__item" data-gallery-item>
-      <div class="pz-promo-gallery__item-preview" data-item-preview></div>
-      <div class="pz-promo-gallery__item-main">
-        <div class="pz-promo-gallery__item-heading">
-          <strong data-item-label>Medio</strong>
-          <span data-item-kind></span>
-        </div>
-        <div class="pz-promo-gallery__field">
-          <label data-label-asset>Archivo de la biblioteca</label>
-          <select required data-item-asset></select>
-        </div>
-        <div data-item-featured-fields>
-          <div class="pz-promo-gallery__field"><label data-label-name>Nombre del trabajo</label><input type="text" maxlength="160" data-item-name /></div>
-          <div class="pz-promo-gallery__field"><label data-label-item-summary>Resumen del trabajo</label><textarea maxlength="600" rows="2" data-item-summary></textarea></div>
-        </div>
-        <div class="pz-promo-gallery__field"><label data-label-caption>Leyenda</label><textarea maxlength="500" rows="2" data-item-caption></textarea></div>
-        <div class="pz-promo-gallery__a11y">
-          <div class="pz-promo-gallery__field"><label data-label-alt>Texto alternativo</label><input type="text" maxlength="300" required data-item-alt /><small>Describe lo importante de la imagen o del poster del video.</small></div>
-          <label class="pz-promo-gallery__check"><input type="checkbox" data-item-decorative /><span>Es decorativo; usar alt vacío</span></label>
-        </div>
-      </div>
-      <div class="pz-promo-gallery__item-actions" aria-label="Orden del medio">
-        <button type="button" data-item-up aria-label="Subir medio">↑</button>
-        <button type="button" data-item-down aria-label="Bajar medio">↓</button>
-        <button type="button" class="is-danger" data-item-remove>Quitar</button>
-      </div>
-    </article>
-  </template>
 </section>
 
 <script>
@@ -162,9 +129,17 @@ const {
     PROMO_GALLERY_MEDIA_API_PATH,
   } from '../../../lib/promoGallery.ts';
 
-  type GalleryAsset = ReturnType<typeof normalizePromoGalleryCatalog>['assets'][number];
-  type GalleryCatalog = ReturnType<typeof normalizePromoGalleryCatalog>;
-  type GalleryDraft = ReturnType<typeof normalizePromoGalleryDraft>;
+  type Catalog = ReturnType<typeof normalizePromoGalleryCatalog>;
+  type Draft = ReturnType<typeof normalizePromoGalleryDraft>;
+  type MediaModel = { useKey: string; assetId: string; alt: string; decorative: boolean };
+  type WorkModel = {
+    key: string; featured: boolean; visible: boolean; name: string; summary: string; caption: string; media: MediaModel[];
+  };
+  type GalleryModel = {
+    key: string; visible: boolean; navigationLabel: string; heading: string; summary: string;
+    coverUseKey: string; items: WorkModel[];
+  };
+  type EditorModel = { heroMedia: MediaModel[]; galleries: GalleryModel[] };
 
   const root = document.querySelector<HTMLElement>('[data-promo-gallery-editor]');
   if (root) {
@@ -175,6 +150,7 @@ const {
     const canManageVideo = root.dataset.canManageVideo === 'true';
     const workspaceElement = root.querySelector<HTMLElement>('[data-gallery-workspace]');
     const form = root.querySelector<HTMLFormElement>('[data-gallery-form]');
+    const heroElement = root.querySelector<HTMLElement>('[data-hero-media]');
     const sectionsElement = root.querySelector<HTMLElement>('[data-gallery-sections]');
     const assetsElement = root.querySelector<HTMLElement>('[data-gallery-assets]');
     const statusElement = root.querySelector<HTMLElement>('[data-gallery-status]');
@@ -186,15 +162,27 @@ const {
     const fileHelp = root.querySelector<HTMLElement>('[data-gallery-file-help]');
     const posterField = root.querySelector<HTMLElement>('[data-gallery-poster-field]');
     const posterSelect = root.querySelector<HTMLSelectElement>('[data-gallery-poster]');
-    const sectionTemplate = root.querySelector<HTMLTemplateElement>('[data-gallery-section-template]');
-    const itemTemplate = root.querySelector<HTMLTemplateElement>('[data-gallery-item-template]');
-    let draft: GalleryDraft | null = null;
-    let catalog: GalleryCatalog | null = null;
+    let draft: Draft | null = null;
+    let catalog: Catalog | null = null;
+    let model: EditorModel = { heroMedia: [], galleries: [] };
     let dirty = false;
     let busy = false;
 
-    const endpoint = (path: string, assetId = '') => `${path}?store=${encodeURIComponent(storeSlug)}${assetId ? `&asset=${encodeURIComponent(assetId)}` : ''}`;
+    const endpoint = (path: string) => `${path}?store=${encodeURIComponent(storeSlug)}`;
     const text = (value: unknown) => String(value === null || value === undefined ? '' : value);
+
+    function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value = '') {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (value) node.textContent = value;
+      return node;
+    }
+
+    function newKey(prefix: string, maximum = 64) {
+      const bytes = crypto.getRandomValues(new Uint8Array(6));
+      const suffix = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+      return `${prefix}-${suffix}`.slice(0, maximum);
+    }
 
     function setStatus(message: string) {
       if (statusElement) statusElement.textContent = message;
@@ -208,532 +196,376 @@ const {
     }
 
     function clearError() {
-      if (alertElement) {
-        alertElement.hidden = true;
-        alertElement.textContent = '';
-      }
-    }
-
-    async function responseJson(response: Response) {
-      const result = await response.json().catch(() => null);
-      if (!response.ok || result?.ok !== true) {
-        const error = new Error(String(result?.error || 'promo_gallery_unavailable')) as Error & { code?: string; status?: number };
-        error.code = String(result?.error || 'promo_gallery_unavailable');
-        error.status = response.status;
-        throw error;
-      }
-      return result;
-    }
-
-    function formatBytes(value: number) {
-      if (value < 1024) return `${value} B`;
-      if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`;
-      return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
-    }
-
-    function formatDuration(value: number) {
-      if (!value) return '';
-      const seconds = Math.round(value / 1000);
-      return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-    }
-
-    function setBusy(value: boolean, message = '') {
-      busy = value;
-      root.setAttribute('aria-busy', value ? 'true' : 'false');
-      form?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')
-        .forEach((control) => { control.disabled = value || !canSave; });
-      form?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => { button.disabled = value || !canSave; });
-      if (saveButton) saveButton.disabled = value || !canSave || !dirty;
-      if (uploadKind) uploadKind.disabled = value || !canManageMedia;
-      if (fileInput) fileInput.disabled = value || !canManageMedia;
-      if (posterSelect) posterSelect.disabled = value || !canManageVideo || uploadKind?.value !== 'gallery_video';
-      const uploadButton = root.querySelector<HTMLButtonElement>('[data-gallery-upload]');
-      if (uploadButton) uploadButton.disabled = value || !canManageMedia;
-      const refreshButton = root.querySelector<HTMLButtonElement>('[data-gallery-refresh]');
-      if (refreshButton) refreshButton.disabled = value || !canManageMedia;
-      root.querySelectorAll<HTMLInputElement>('[data-item-decorative]').forEach((decorative) => {
-        const item = decorative.closest<HTMLElement>('[data-gallery-item]');
-        const alt = item?.querySelector<HTMLInputElement>('[data-item-alt]');
-        const selected = item?.querySelector<HTMLSelectElement>('[data-item-asset]')?.value || '';
-        const videoLocked = !canManageVideo && assetById(selected)?.kind === 'video';
-        decorative.disabled = value || !canSave || videoLocked;
-        if (alt) alt.disabled = value || !canSave || decorative.checked || videoLocked;
-      });
-      root.querySelectorAll<HTMLElement>('[data-section-items]').forEach(refreshItemOrder);
-      if (!value && catalog) renderCatalog();
-      if (message) setStatus(message);
+      if (alertElement) alertElement.hidden = true;
     }
 
     function markDirty() {
       dirty = true;
       if (saveButton) saveButton.disabled = busy || !canSave;
-      updateCompositionMetric();
-      setStatus(canSave ? 'Hay cambios sin guardar.' : 'Modo lectura: la composición no puede guardarse con esta sesión.');
+      setStatus('Hay cambios sin guardar. Guardar actualizará la página pública.');
+    }
+
+    async function requestJson(url: string, init?: RequestInit) {
+      const response = await fetch(url, { ...init, headers: { Accept: 'application/json', ...(init?.headers || {}) } });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(text(result?.error || 'promo_media_unavailable')) as Error & { code?: string };
+        error.code = text(result?.error || 'promo_media_unavailable');
+        throw error;
+      }
+      return result;
+    }
+
+    function mediaFromDocument(documentValue: any, locale: string, useKey: string): MediaModel | null {
+      const ref = documentValue.media_refs?.[useKey];
+      if (!ref?.asset_id) return null;
+      const alt = documentValue.content_by_locale?.[locale]?.media_alt?.[useKey] || {};
+      return { useKey, assetId: text(ref.asset_id), alt: text(alt.alt), decorative: alt.decorative === true };
+    }
+
+    function modelFromDocument(documentValue: any, locale: string): EditorModel {
+      const localized = documentValue.content_by_locale?.[locale] || {};
+      const hero = documentValue.sections.find((section: any) => section.type === 'hero');
+      const heroMedia = (hero?.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, locale, useKey)).filter(Boolean);
+      const galleries = documentValue.sections.filter((section: any) => section.type === 'gallery').map((section: any) => {
+        const content = localized.sections?.[section.key] || {};
+        const itemText = new Map((content.items || []).map((item: any) => [item.key, item]));
+        return {
+          key: section.key,
+          visible: section.visible === true,
+          navigationLabel: text(localized.navigation?.[section.key] || 'Galería'),
+          heading: text(content.heading),
+          summary: text(content.summary),
+          coverUseKey: text(section.config?.cover_media_use_key),
+          items: (section.config?.items || []).map((item: any) => {
+            const localizedItem: any = itemText.get(item.key) || {};
+            return {
+              key: item.key,
+              featured: item.featured === true,
+              visible: item.visible === true,
+              name: text(localizedItem.name),
+              summary: text(localizedItem.summary),
+              caption: text(localizedItem.caption),
+              media: (item.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, locale, useKey)).filter(Boolean),
+            };
+          }),
+        };
+      });
+      return { heroMedia: heroMedia as MediaModel[], galleries };
     }
 
     function assetById(assetId: string) {
       return catalog?.assets.find((asset) => asset.assetId === assetId) || null;
     }
 
-    function selectableAssets(currentAssetId = '') {
-      return (catalog?.assets || []).filter((asset) => (
-        asset.status === 'ready' && asset.purpose === 'gallery'
-        && (asset.kind !== 'video' || canManageVideo || asset.assetId === currentAssetId)
-      ));
+    function readyAssets(purpose: string) {
+      return (catalog?.assets || []).filter((asset) => asset.status === 'ready' && asset.purpose === purpose);
     }
 
-    function renderPreview(container: HTMLElement, assetId: string) {
-      container.replaceChildren();
-      const asset = assetById(assetId);
-      if (!asset || asset.status !== 'ready') {
-        const empty = document.createElement('span');
-        empty.textContent = assetId ? 'Medio no disponible' : 'Selecciona un medio';
-        container.append(empty);
-        return;
-      }
-      const source = promoGalleryPreviewPath(storeSlug, asset.assetId);
-      if (asset.kind === 'video') {
-        const video = document.createElement('video');
-        video.controls = true;
-        video.preload = 'none';
-        video.playsInline = true;
-        video.src = source;
-        const poster = asset.posterAssetId ? promoGalleryPreviewPath(storeSlug, asset.posterAssetId) : '';
-        if (poster) video.poster = poster;
-        container.append(video);
-      } else {
-        const image = document.createElement('img');
-        image.src = source;
-        image.alt = '';
-        image.loading = 'lazy';
-        image.decoding = 'async';
-        container.append(image);
-      }
-    }
-
-    function fillAssetSelect(select: HTMLSelectElement, currentAssetId: string) {
-      select.replaceChildren();
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Selecciona un medio listo';
-      select.append(placeholder);
-      selectableAssets(currentAssetId).forEach((asset) => {
-        const option = document.createElement('option');
+    function fillAssetSelect(select: HTMLSelectElement, purpose: string, current: string) {
+      const empty = element('option', '', 'Selecciona un medio');
+      empty.value = '';
+      select.append(empty);
+      readyAssets(purpose).forEach((asset) => {
+        const option = element('option', '', `${asset.kind === 'video' ? 'Video' : 'Imagen'} · ${asset.width}×${asset.height}`);
         option.value = asset.assetId;
-        option.textContent = `${asset.kind === 'video' ? 'Video' : 'Imagen'} · ${asset.width}×${asset.height} · ${formatBytes(asset.bytes)}`;
+        option.selected = asset.assetId === current;
         select.append(option);
       });
-      if (currentAssetId && !Array.from(select.options).some((option) => option.value === currentAssetId)) {
-        const unavailable = document.createElement('option');
-        unavailable.value = currentAssetId;
-        unavailable.textContent = 'Medio asociado no disponible';
-        select.append(unavailable);
+      select.required = true;
+    }
+
+    function preview(assetId: string) {
+      const frame = element('div', 'pz-promo-gallery__item-preview');
+      const asset = assetById(assetId);
+      const src = promoGalleryPreviewPath(storeSlug, assetId);
+      if (!asset || !src) {
+        frame.append(element('span', '', 'Selecciona un medio'));
+      } else if (asset.kind === 'video') {
+        const video = document.createElement('video');
+        video.src = src;
+        video.controls = true;
+        video.preload = 'none';
+        video.muted = false;
+        frame.append(video);
+      } else {
+        const image = document.createElement('img');
+        image.src = src;
+        image.alt = '';
+        image.loading = 'lazy';
+        frame.append(image);
       }
-      select.value = currentAssetId;
+      return frame;
     }
 
-    function itemIdentity(sectionType: string) {
-      const prefix = sectionType === 'featured_work' ? 'featured-work' : 'gallery-item';
-      const usedItemKeys = new Set(Array.from(root.querySelectorAll<HTMLElement>('[data-gallery-item]')).map((item) => item.dataset.itemKey || ''));
-      const usedUseKeys = new Set(Object.keys(draft?.document?.media_refs || {}));
-      for (let suffix = 1; suffix <= 512; suffix += 1) {
-        const itemKey = `${prefix}-${suffix}`;
-        const useKey = `${prefix}-media-${suffix}`;
-        if (!usedItemKeys.has(itemKey) && !usedUseKeys.has(useKey)) return { itemKey, useKey };
-      }
-      throw new Error('invalid_promo_document');
+    function field(labelText: string, control: HTMLElement, wide = false) {
+      const wrapper = element('div', `pz-promo-gallery__field${wide ? ' is-wide' : ''}`);
+      const label = element('label', '', labelText);
+      label.append(control);
+      wrapper.append(label);
+      return wrapper;
     }
 
-    function refreshItemOrder(container: HTMLElement) {
-      const items = Array.from(container.querySelectorAll<HTMLElement>(':scope > [data-gallery-item]'));
-      items.forEach((item, index) => {
-        const label = item.querySelector<HTMLElement>('[data-item-label]');
-        if (label) label.textContent = `Medio ${index + 1}`;
-        const up = item.querySelector<HTMLButtonElement>('[data-item-up]');
-        const down = item.querySelector<HTMLButtonElement>('[data-item-down]');
-        if (up) up.disabled = busy || !canSave || index === 0;
-        if (down) down.disabled = busy || !canSave || index === items.length - 1;
+    function mediaRow(media: MediaModel, purpose: 'hero' | 'gallery', items: MediaModel[], index: number) {
+      const card = element('article', 'pz-promo-gallery__item');
+      card.append(preview(media.assetId));
+      const main = element('div', 'pz-promo-gallery__item-main');
+      const assetSelect = document.createElement('select');
+      fillAssetSelect(assetSelect, purpose, media.assetId);
+      assetSelect.disabled = !canSave;
+      assetSelect.addEventListener('change', () => { media.assetId = assetSelect.value; markDirty(); render(); });
+      const altInput = document.createElement('input');
+      altInput.type = 'text'; altInput.maxLength = 300; altInput.value = media.alt; altInput.required = !media.decorative; altInput.disabled = !canSave;
+      altInput.addEventListener('input', () => { media.alt = altInput.value; markDirty(); });
+      const decorative = document.createElement('input');
+      decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
+      decorative.addEventListener('change', () => {
+        media.decorative = decorative.checked;
+        if (media.decorative) media.alt = '';
+        markDirty(); render();
       });
+      const decorativeLabel = element('label', 'pz-promo-gallery__check');
+      decorativeLabel.append(decorative, element('span', '', 'Es decorativo; usar texto alternativo vacío'));
+      main.append(field('Medio de la biblioteca', assetSelect), field('Texto alternativo', altInput), decorativeLabel);
+      card.append(main);
+      const actions = element('div', 'pz-promo-gallery__item-actions');
+      const up = element('button', '', '↑'); up.type = 'button'; up.ariaLabel = 'Subir medio'; up.disabled = !canSave || index === 0;
+      const down = element('button', '', '↓'); down.type = 'button'; down.ariaLabel = 'Bajar medio'; down.disabled = !canSave || index === items.length - 1;
+      const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button'; remove.disabled = !canSave;
+      up.addEventListener('click', () => { [items[index - 1], items[index]] = [items[index], items[index - 1]]; markDirty(); render(); });
+      down.addEventListener('click', () => { [items[index + 1], items[index]] = [items[index], items[index + 1]]; markDirty(); render(); });
+      remove.addEventListener('click', () => { items.splice(index, 1); markDirty(); render(); });
+      actions.append(up, down, remove);
+      card.append(actions);
+      return card;
     }
 
-    function appendItem(sectionElement: HTMLElement, sectionType: string, value: any = null) {
-      if (!itemTemplate) return;
-      const identity = value ? { itemKey: value.key, useKey: value.useKey } : itemIdentity(sectionType);
-      const fragment = itemTemplate.content.cloneNode(true) as DocumentFragment;
-      const item = fragment.querySelector<HTMLElement>('[data-gallery-item]');
-      if (!item) return;
-      item.dataset.itemKey = identity.itemKey;
-      item.dataset.useKey = identity.useKey;
-      const suffix = `${sectionElement.dataset.sectionKey}-${identity.itemKey}`.replace(/[^a-z0-9_-]/gi, '-');
-      const assetSelect = item.querySelector<HTMLSelectElement>('[data-item-asset]');
-      const nameInput = item.querySelector<HTMLInputElement>('[data-item-name]');
-      const summaryInput = item.querySelector<HTMLTextAreaElement>('[data-item-summary]');
-      const captionInput = item.querySelector<HTMLTextAreaElement>('[data-item-caption]');
-      const altInput = item.querySelector<HTMLInputElement>('[data-item-alt]');
-      const decorative = item.querySelector<HTMLInputElement>('[data-item-decorative]');
-      const preview = item.querySelector<HTMLElement>('[data-item-preview]');
-      const kindLabel = item.querySelector<HTMLElement>('[data-item-kind]');
-      const featuredFields = item.querySelector<HTMLElement>('[data-item-featured-fields]');
-      const assetId = text(value?.assetId);
-      if (featuredFields) featuredFields.hidden = sectionType !== 'featured_work';
-      if (nameInput) nameInput.value = text(value?.name);
-      if (summaryInput) summaryInput.value = text(value?.summary);
-      if (captionInput) captionInput.value = text(value?.caption);
-      if (altInput) altInput.value = text(value?.alt);
-      if (decorative) decorative.checked = value?.decorative === true;
-      if (assetSelect) fillAssetSelect(assetSelect, assetId);
-      if (preview) renderPreview(preview, assetId);
-      const initialAsset = assetById(assetId);
-      if (kindLabel) kindLabel.textContent = initialAsset ? (initialAsset.kind === 'video' ? 'Video' : 'Imagen') : '';
-
-      const labels: [string, string][] = [
-        ['[data-label-asset]', `asset-${suffix}`], ['[data-label-name]', `name-${suffix}`],
-        ['[data-label-item-summary]', `summary-${suffix}`], ['[data-label-caption]', `caption-${suffix}`],
-        ['[data-label-alt]', `alt-${suffix}`],
-      ];
-      labels.forEach(([selector, id]) => {
-        const label = item.querySelector<HTMLLabelElement>(selector);
-        const control = label?.nextElementSibling as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
-        if (label && control) { label.htmlFor = id; control.id = id; }
-      });
-
-      const syncDecorative = () => {
-        if (!altInput || !decorative) return;
-        const videoLocked = !canManageVideo && assetById(assetSelect?.value || '')?.kind === 'video';
-        decorative.disabled = busy || !canSave || videoLocked;
-        altInput.disabled = busy || !canSave || decorative.checked || videoLocked;
-        altInput.required = !decorative.checked;
-        if (decorative.checked) altInput.value = '';
-      };
-      syncDecorative();
-      decorative?.addEventListener('change', () => { syncDecorative(); markDirty(); });
-      assetSelect?.addEventListener('change', () => {
-        if (preview) renderPreview(preview, assetSelect.value);
-        const kind = item.querySelector<HTMLElement>('[data-item-kind]');
-        const asset = assetById(assetSelect.value);
-        if (kind) kind.textContent = asset ? (asset.kind === 'video' ? 'Video' : 'Imagen') : '';
-        syncDecorative();
-        markDirty();
-      });
-      item.querySelector('[data-item-up]')?.addEventListener('click', () => {
-        const previous = item.previousElementSibling;
-        if (previous) item.parentElement?.insertBefore(item, previous);
-        refreshItemOrder(item.parentElement as HTMLElement);
-        markDirty();
-      });
-      item.querySelector('[data-item-down]')?.addEventListener('click', () => {
-        const next = item.nextElementSibling;
-        if (next) item.parentElement?.insertBefore(next, item);
-        refreshItemOrder(item.parentElement as HTMLElement);
-        markDirty();
-      });
-      item.querySelector('[data-item-remove]')?.addEventListener('click', () => {
-        const parent = item.parentElement as HTMLElement;
-        item.remove();
-        refreshItemOrder(parent);
-        markDirty();
-      });
-      item.querySelectorAll('input, textarea, select').forEach((control) => {
-        if (control !== assetSelect && control !== decorative) control.addEventListener('input', markDirty);
-      });
-      const itemsContainer = sectionElement.querySelector<HTMLElement>('[data-section-items]');
-      itemsContainer?.append(fragment);
-      if (itemsContainer) refreshItemOrder(itemsContainer);
+    function addMedia(target: MediaModel[], purpose: 'hero' | 'gallery') {
+      const first = readyAssets(purpose)[0];
+      if (!first) return showError({ code: 'invalid_promo_media_reference' });
+      target.push({ useKey: newKey(`${purpose}-media`, 120), assetId: first.assetId, alt: '', decorative: false });
+      markDirty(); render();
     }
 
-    function renderSections() {
-      if (!draft || !sectionsElement || !sectionTemplate) return;
-      const workspace = createPromoGalleryWorkspace(draft.document);
-      draft = { ...draft, document: workspace.document };
-      const localized = workspace.document.content_by_locale[workspace.locale];
+    function renderHero() {
+      if (!heroElement) return;
+      heroElement.replaceChildren();
+      model.heroMedia.forEach((media, index) => heroElement.append(mediaRow(media, 'hero', model.heroMedia, index)));
+      if (!model.heroMedia.length) heroElement.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay medios en la portada.'));
+    }
+
+    function renderWork(gallery: GalleryModel, work: WorkModel, index: number) {
+      const card = element('article', 'pz-promo-gallery__work');
+      const header = element('header');
+      header.append(element('strong', '', `Trabajo ${index + 1}`));
+      const flags = element('div', 'pz-promo-gallery__flags');
+      const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = work.visible; visible.disabled = !canSave;
+      const featured = document.createElement('input'); featured.type = 'checkbox'; featured.checked = work.featured; featured.disabled = !canSave;
+      const visibleLabel = element('label', 'pz-promo-gallery__check'); visibleLabel.append(visible, element('span', '', 'Visible'));
+      const featuredLabel = element('label', 'pz-promo-gallery__check'); featuredLabel.append(featured, element('span', '', 'Destacado'));
+      visible.addEventListener('change', () => { work.visible = visible.checked; markDirty(); });
+      featured.addEventListener('change', () => { work.featured = featured.checked; markDirty(); });
+      flags.append(visibleLabel, featuredLabel); header.append(flags); card.append(header);
+      const fields = element('div', 'pz-promo-gallery__section-fields');
+      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.required = work.visible; name.value = work.name; name.disabled = !canSave;
+      const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 2; summary.value = work.summary; summary.disabled = !canSave;
+      const caption = document.createElement('textarea'); caption.maxLength = 500; caption.rows = 2; caption.value = work.caption; caption.disabled = !canSave;
+      name.addEventListener('input', () => { work.name = name.value; markDirty(); });
+      summary.addEventListener('input', () => { work.summary = summary.value; markDirty(); });
+      caption.addEventListener('input', () => { work.caption = caption.value; markDirty(); });
+      fields.append(field('Nombre del trabajo', name), field('Descripción breve', summary), field('Leyenda', caption, true));
+      card.append(fields);
+      const mediaList = element('div', 'pz-promo-gallery__items');
+      work.media.forEach((media, mediaIndex) => mediaList.append(mediaRow(media, 'gallery', work.media, mediaIndex)));
+      if (!work.media.length) mediaList.append(element('p', 'pz-promo-gallery__empty', 'Añade una o varias fotos para este trabajo.'));
+      card.append(mediaList);
+      const actions = element('div', 'pz-promo-gallery__work-actions');
+      const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir foto o video'); add.type = 'button'; add.disabled = !canSave;
+      const remove = element('button', 'is-danger', 'Eliminar trabajo'); remove.type = 'button'; remove.disabled = !canSave;
+      add.addEventListener('click', () => addMedia(work.media, 'gallery'));
+      remove.addEventListener('click', () => { gallery.items.splice(index, 1); markDirty(); render(); });
+      actions.append(add, remove); card.append(actions);
+      return card;
+    }
+
+    function renderGalleries() {
+      if (!sectionsElement) return;
       sectionsElement.replaceChildren();
-      workspace.document.sections.filter((section: any) => ['featured_work', 'gallery'].includes(section.type)).forEach((section: any, sectionIndex: number) => {
-        if (section.config.item_keys.length !== section.media_use_keys.length) throw new Error('invalid_promo_document');
-        const fragment = sectionTemplate.content.cloneNode(true) as DocumentFragment;
-        const sectionElement = fragment.querySelector<HTMLElement>('[data-gallery-section]');
-        if (!sectionElement) return;
-        sectionElement.dataset.sectionKey = section.key;
-        sectionElement.dataset.sectionType = section.type;
-        const sectionText = localized.sections[section.key] || {};
-        const title = sectionElement.querySelector<HTMLElement>('[data-section-title]');
-        const kicker = sectionElement.querySelector<HTMLElement>('[data-section-kicker]');
-        const visible = sectionElement.querySelector<HTMLInputElement>('[data-section-visible]');
-        const navigation = sectionElement.querySelector<HTMLInputElement>('[data-section-navigation]');
-        const heading = sectionElement.querySelector<HTMLInputElement>('[data-section-heading]');
-        const summary = sectionElement.querySelector<HTMLTextAreaElement>('[data-section-summary]');
-        if (title) title.textContent = section.type === 'featured_work' ? 'Trabajos destacados' : 'Galería';
-        if (kicker) kicker.textContent = section.type === 'featured_work' ? 'Selección editorial' : 'Colección visual';
-        if (visible) visible.checked = section.visible === true;
-        if (navigation) navigation.value = text(localized.navigation[section.key]);
-        if (heading) heading.value = text(sectionText.heading);
-        if (summary) summary.value = text(sectionText.summary);
-        const fieldIds: [string, string][] = [
-          ['[data-label-navigation]', `gallery-nav-${sectionIndex}`],
-          ['[data-label-heading]', `gallery-heading-${sectionIndex}`],
-          ['[data-label-summary]', `gallery-summary-${sectionIndex}`],
-        ];
-        fieldIds.forEach(([selector, id]) => {
-          const label = sectionElement.querySelector<HTMLLabelElement>(selector);
-          const control = label?.nextElementSibling as HTMLInputElement | HTMLTextAreaElement | null;
-          if (label && control) { label.htmlFor = id; control.id = id; }
+      model.galleries.forEach((gallery, galleryIndex) => {
+        const section = element('article', 'pz-promo-gallery__section');
+        const header = element('header');
+        const title = element('div'); title.append(element('span', 'pz-promo-gallery__eyebrow', `Galería ${galleryIndex + 1}`), element('h3', '', gallery.heading || 'Nueva galería'));
+        const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = gallery.visible; visible.disabled = !canSave;
+        const visibleLabel = element('label', 'pz-promo-gallery__toggle'); visibleLabel.append(visible, element('span', '', 'Visible en la página'));
+        visible.addEventListener('change', () => { gallery.visible = visible.checked; markDirty(); });
+        header.append(title, visibleLabel); section.append(header);
+        const fields = element('div', 'pz-promo-gallery__section-fields');
+        const navigation = document.createElement('input'); navigation.type = 'text'; navigation.maxLength = 80; navigation.required = true; navigation.value = gallery.navigationLabel; navigation.disabled = !canSave;
+        const heading = document.createElement('input'); heading.type = 'text'; heading.maxLength = 160; heading.required = gallery.visible; heading.value = gallery.heading; heading.disabled = !canSave;
+        const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 2; summary.value = gallery.summary; summary.disabled = !canSave;
+        navigation.addEventListener('input', () => { gallery.navigationLabel = navigation.value; markDirty(); });
+        heading.addEventListener('input', () => { gallery.heading = heading.value; markDirty(); });
+        summary.addEventListener('input', () => { gallery.summary = summary.value; markDirty(); });
+        fields.append(field('Nombre en navegación', navigation), field('Título de la galería', heading), field('Descripción', summary, true));
+        section.append(fields);
+        const cover = document.createElement('select');
+        const empty = element('option', '', 'Selecciona la portada'); empty.value = ''; cover.append(empty);
+        gallery.items.flatMap((item) => item.media).forEach((media, mediaIndex) => {
+          const option = element('option', '', `${assetById(media.assetId)?.kind === 'video' ? 'Video' : 'Imagen'} ${mediaIndex + 1}`);
+          option.value = media.useKey; option.selected = media.useKey === gallery.coverUseKey; cover.append(option);
         });
-        sectionElement.querySelectorAll('input, textarea').forEach((control) => control.addEventListener('input', markDirty));
-        sectionElement.querySelector('[data-section-add]')?.addEventListener('click', () => {
-          appendItem(sectionElement, section.type);
-          markDirty();
+        cover.required = gallery.visible; cover.disabled = !canSave;
+        cover.addEventListener('change', () => { gallery.coverUseKey = cover.value; markDirty(); });
+        section.append(field('Imagen de portada de la galería', cover, true));
+        const works = element('div', 'pz-promo-gallery__works');
+        gallery.items.forEach((work, index) => works.append(renderWork(gallery, work, index)));
+        if (!gallery.items.length) works.append(element('p', 'pz-promo-gallery__empty', 'Esta galería aún no contiene trabajos.'));
+        section.append(works);
+        const actions = element('div', 'pz-promo-gallery__work-actions');
+        const addWork = element('button', 'pz-promo-gallery__secondary', '+ Añadir trabajo'); addWork.type = 'button'; addWork.disabled = !canSave;
+        const removeGallery = element('button', 'is-danger', 'Eliminar galería'); removeGallery.type = 'button'; removeGallery.disabled = !canSave;
+        addWork.addEventListener('click', () => {
+          gallery.items.push({ key: newKey('work'), featured: false, visible: true, name: '', summary: '', caption: '', media: [] });
+          markDirty(); render();
         });
-        sectionsElement.append(fragment);
-        const mounted = sectionsElement.lastElementChild as HTMLElement;
-        section.config.item_keys.forEach((itemKey: string, index: number) => {
-          const useKey = section.media_use_keys[index];
-          const itemText = Array.isArray(sectionText.items)
-            ? sectionText.items.find((item: any) => item.key === itemKey) || {}
-            : {};
-          const alt = localized.media_alt[useKey] || { alt: '', decorative: false };
-          appendItem(mounted, section.type, {
-            key: itemKey,
-            useKey,
-            assetId: workspace.document.media_refs[useKey]?.asset_id || '',
-            name: itemText.name || '',
-            summary: itemText.summary || '',
-            caption: itemText.caption || '',
-            alt: alt.alt || '',
-            decorative: alt.decorative === true,
-          });
-        });
+        removeGallery.addEventListener('click', () => { model.galleries.splice(galleryIndex, 1); markDirty(); render(); });
+        actions.append(addWork, removeGallery); section.append(actions);
+        sectionsElement.append(section);
       });
-      root.querySelector<HTMLElement>('[data-gallery-version]')!.textContent = `Versión de borrador: ${draft.version}`;
+      if (!model.galleries.length) sectionsElement.append(element('p', 'pz-promo-gallery__empty', 'Crea una galería para comenzar.'));
     }
 
-    function referencedAssetIds() {
-      const result = new Set(Object.values(draft?.document?.media_refs || {}).map((ref: any) => String(ref?.asset_id || '')));
-      root.querySelectorAll<HTMLSelectElement>('[data-item-asset]').forEach((select) => {
-        if (select.value) result.add(select.value);
-      });
-      return result;
-    }
-
-    function updateCompositionMetric() {
-      const galleryCount = Array.from(root.querySelectorAll<HTMLElement>('[data-gallery-section][data-section-type="gallery"]'))
-        .reduce((total, section) => total + section.querySelectorAll('[data-gallery-item]').length, 0);
+    function updateMetrics() {
+      const used = model.galleries.reduce((total, gallery) => total + gallery.items.reduce((sum, item) => sum + item.media.length, 0), 0);
       const count = root.querySelector<HTMLElement>('[data-gallery-count]');
-      if (count) count.textContent = String(galleryCount);
-      root.querySelectorAll<HTMLElement>('[data-gallery-section]').forEach((section) => {
-        const add = section.querySelector<HTMLButtonElement>('[data-section-add]');
-        if (add) add.disabled = busy || !canSave
-          || (section.dataset.sectionType === 'gallery' && galleryCount >= maxGallery);
-      });
+      const videos = root.querySelector<HTMLElement>('[data-gallery-video-count]');
+      const storage = root.querySelector<HTMLElement>('[data-gallery-storage]');
+      if (count) count.textContent = String(used);
+      if (videos) videos.textContent = String(catalog?.usage.videos || 0);
+      if (storage) storage.textContent = `${((catalog?.usage.bytes || 0) / 1048576).toFixed(1)} MB`;
     }
 
-    function renderCatalog() {
-      if (!catalog || !assetsElement) return;
-      const refs = referencedAssetIds();
+    function render() {
+      renderHero(); renderGalleries(); updateMetrics();
+      const version = root.querySelector<HTMLElement>('[data-gallery-version]');
+      if (version) version.textContent = `Versión de página: ${draft?.version || '—'}`;
+      if (saveButton) saveButton.disabled = busy || !canSave || !dirty;
+    }
+
+    function renderLibrary() {
+      if (!assetsElement) return;
       assetsElement.replaceChildren();
-      updateCompositionMetric();
-      root.querySelector<HTMLElement>('[data-gallery-video-count]')!.textContent = String(catalog.usage.videos);
-      root.querySelector<HTMLElement>('[data-gallery-storage]')!.textContent = formatBytes(catalog.usage.bytes);
-      root.querySelector<HTMLElement>('[data-gallery-storage-limit]')!.textContent = `de ${formatBytes(catalog.limits.maxStorageBytes)}`;
-      if (!catalog.assets.length) {
-        const empty = document.createElement('p');
-        empty.className = 'pz-promo-gallery__empty';
-        empty.textContent = 'La biblioteca todavía no contiene medios.';
-        assetsElement.append(empty);
+      const assets = catalog?.assets || [];
+      if (!assets.length) {
+        assetsElement.append(element('p', 'pz-promo-gallery__empty', 'La biblioteca está vacía.'));
+        return;
       }
-      catalog.assets.forEach((asset) => {
-        const card = document.createElement('article');
-        card.className = 'pz-promo-gallery__asset';
-        const preview = document.createElement('div');
-        preview.className = 'pz-promo-gallery__asset-preview';
-        renderPreview(preview, asset.assetId);
-        const copy = document.createElement('div');
-        const title = document.createElement('strong');
-        title.textContent = asset.purpose === 'video_poster' ? 'Poster de video' : (asset.kind === 'video' ? 'Video de galería' : 'Imagen de galería');
-        const metadata = document.createElement('span');
-        metadata.textContent = `${asset.width}×${asset.height} · ${formatBytes(asset.bytes)}${asset.durationMs ? ` · ${formatDuration(asset.durationMs)}` : ''}`;
-        const state = document.createElement('small');
-        state.textContent = asset.status === 'ready' ? (refs.has(asset.assetId) ? 'En uso por el borrador' : 'Listo') : `Estado: ${asset.status}`;
-        copy.append(title, metadata, state);
-        const retire = document.createElement('button');
-        retire.type = 'button';
-        retire.textContent = 'Retirar';
-        retire.className = 'pz-promo-gallery__retire';
-        retire.disabled = busy || !canManageMedia || asset.status !== 'ready' || refs.has(asset.assetId);
+      assets.forEach((asset) => {
+        const card = element('article', 'pz-promo-gallery__asset');
+        const frame = preview(asset.assetId); frame.className = 'pz-promo-gallery__asset-preview';
+        const copy = element('div');
+        copy.append(element('strong', '', `${asset.kind === 'video' ? 'Video' : 'Imagen'} · ${asset.purpose}`), element('span', '', `${asset.width}×${asset.height}`), element('small', '', `${(asset.bytes / 1024).toFixed(0)} KB · ${asset.status}`));
+        const retire = element('button', 'pz-promo-gallery__retire', 'Retirar'); retire.type = 'button'; retire.disabled = !canManageMedia || asset.status !== 'ready';
         retire.addEventListener('click', async () => {
-          if (!window.confirm('¿Retirar este medio de la biblioteca? Los archivos se conservan según la política de retención.')) return;
-          clearError();
-          setBusy(true, 'Retirando medio…');
+          clearError(); busy = true; retire.disabled = true;
           try {
-            await responseJson(await fetch(endpoint(PROMO_GALLERY_MEDIA_API_PATH), {
-              method: 'DELETE',
-              credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ asset_id: asset.assetId }),
-            }));
+            await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH), {
+              method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_id: asset.assetId }),
+            });
             await loadCatalog();
             setStatus('Medio retirado de la biblioteca.');
-          } catch (error) { showError(error); }
-          finally { setBusy(false); }
+          } catch (error) { showError(error); } finally { busy = false; render(); }
         });
-        card.append(preview, copy, retire);
-        assetsElement.append(card);
+        card.append(frame, copy, retire); assetsElement.append(card);
       });
-      fillPosterOptions();
     }
 
-    function fillPosterOptions() {
-      if (!posterSelect) return;
-      const current = posterSelect.value;
-      posterSelect.replaceChildren();
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Selecciona un poster listo';
-      posterSelect.append(placeholder);
-      (catalog?.assets || []).filter((asset) => asset.kind === 'image' && asset.purpose === 'video_poster' && asset.status === 'ready')
-        .forEach((asset) => {
-          const option = document.createElement('option');
-          option.value = asset.assetId;
-          option.textContent = `Poster ${asset.width}×${asset.height}`;
-          posterSelect.append(option);
+    function updateUploadControls() {
+      const kind = uploadKind?.value || 'gallery_image';
+      const video = kind.endsWith('_video');
+      if (fileInput) fileInput.accept = video ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/avif';
+      if (fileHelp) fileHelp.textContent = video ? 'MP4 o WebM optimizado; máximo 25 MB.' : 'JPEG, PNG, WebP o AVIF; se guarda WebP normalizado.';
+      if (posterField) posterField.hidden = !video;
+      if (posterSelect) {
+        posterSelect.replaceChildren();
+        const empty = element('option', '', 'Selecciona un poster'); empty.value = ''; posterSelect.append(empty);
+        readyAssets('video_poster').forEach((asset) => {
+          const option = element('option', '', `${asset.width}×${asset.height}`); option.value = asset.assetId; posterSelect.append(option);
         });
-      posterSelect.value = current;
-    }
-
-    function renderAll() {
-      renderSections();
-      renderCatalog();
-      dirty = false;
-      if (saveButton) saveButton.disabled = true;
-      if (workspaceElement) workspaceElement.hidden = false;
-      setStatus('Borrador y biblioteca listos.');
+        posterSelect.required = video;
+      }
     }
 
     async function loadCatalog() {
-      const result = await responseJson(await fetch(endpoint(PROMO_GALLERY_MEDIA_API_PATH), {
-        credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' },
-      }));
-      catalog = normalizePromoGalleryCatalog(result);
-      renderCatalog();
-      root.querySelectorAll<HTMLElement>('[data-gallery-item]').forEach((item) => {
-        const select = item.querySelector<HTMLSelectElement>('[data-item-asset]');
-        const preview = item.querySelector<HTMLElement>('[data-item-preview]');
-        if (!select) return;
-        const current = select.value;
-        fillAssetSelect(select, current);
-        if (preview) renderPreview(preview, current);
-      });
+      catalog = normalizePromoGalleryCatalog(await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH)));
+      renderLibrary(); updateUploadControls(); updateMetrics();
     }
 
-    async function initialLoad() {
-      clearError();
-      setBusy(true, 'Cargando borrador y biblioteca…');
+    async function loadAll() {
+      clearError(); busy = true; setStatus('Cargando página y biblioteca…');
       try {
-        const [draftResult, catalogResult] = await Promise.all([
-          responseJson(await fetch(endpoint(PROMO_GALLERY_DRAFT_API_PATH), { credentials: 'same-origin', cache: 'no-store' })),
-          responseJson(await fetch(endpoint(PROMO_GALLERY_MEDIA_API_PATH), { credentials: 'same-origin', cache: 'no-store' })),
+        const [draftResult] = await Promise.all([
+          requestJson(endpoint(PROMO_GALLERY_DRAFT_API_PATH)),
+          loadCatalog(),
         ]);
         draft = normalizePromoGalleryDraft(draftResult);
-        catalog = normalizePromoGalleryCatalog(catalogResult);
-        renderAll();
-      } catch (error) {
-        setStatus('No fue posible cargar el editor.');
-        showError(error);
-      } finally { setBusy(false); }
+        const workspace = createPromoGalleryWorkspace(draft.document);
+        draft = { version: draft.version, document: workspace.document };
+        model = modelFromDocument(workspace.document, workspace.locale);
+        dirty = false;
+        if (workspaceElement) workspaceElement.hidden = false;
+        setStatus('Página cargada. Guardar aplicará los cambios públicos inmediatamente.');
+      } catch (error) { showError(error); setStatus('No se pudo cargar el editor.'); }
+      finally { busy = false; render(); }
     }
 
-    function collectPatch() {
-      return {
-        sections: Array.from(root.querySelectorAll<HTMLElement>('[data-gallery-section]')).map((section) => ({
-          key: section.dataset.sectionKey || '',
-          type: section.dataset.sectionType as 'featured_work' | 'gallery',
-          visible: section.querySelector<HTMLInputElement>('[data-section-visible]')?.checked === true,
-          navigationLabel: section.querySelector<HTMLInputElement>('[data-section-navigation]')?.value || '',
-          heading: section.querySelector<HTMLInputElement>('[data-section-heading]')?.value || '',
-          summary: section.querySelector<HTMLTextAreaElement>('[data-section-summary]')?.value || '',
-          items: Array.from(section.querySelectorAll<HTMLElement>('[data-gallery-item]')).map((item) => ({
-            key: item.dataset.itemKey || '',
-            useKey: item.dataset.useKey || '',
-            assetId: item.querySelector<HTMLSelectElement>('[data-item-asset]')?.value || '',
-            name: item.querySelector<HTMLInputElement>('[data-item-name]')?.value || '',
-            summary: item.querySelector<HTMLTextAreaElement>('[data-item-summary]')?.value || '',
-            caption: item.querySelector<HTMLTextAreaElement>('[data-item-caption]')?.value || '',
-            alt: item.querySelector<HTMLInputElement>('[data-item-alt]')?.value || '',
-            decorative: item.querySelector<HTMLInputElement>('[data-item-decorative]')?.checked === true,
-          })),
-        })),
-      };
-    }
-
-    form?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      clearError();
-      if (!draft || !catalog || !canSave || !form.reportValidity()) return;
-      setBusy(true, 'Guardando borrador…');
-      try {
-        const document = buildPromoGalleryDocument(draft.document, collectPatch(), maxGallery, catalog.assets);
-        const result = await responseJson(await fetch(endpoint(PROMO_GALLERY_DRAFT_API_PATH), {
-          method: 'PUT',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ expected_version: draft.version, document }),
-        }));
-        draft = normalizePromoGalleryDraft({ ok: result.ok, contract: result.contract, draft: result.draft });
-        renderAll();
-        setStatus(result.changed === true ? 'Borrador guardado.' : 'El borrador ya estaba actualizado.');
-      } catch (error) { showError(error); }
-      finally { setBusy(false); }
+    root.querySelector('[data-hero-add]')?.addEventListener('click', () => addMedia(model.heroMedia, 'hero'));
+    root.querySelector('[data-gallery-add]')?.addEventListener('click', () => {
+      model.galleries.push({
+        key: newKey('gallery'), visible: false, navigationLabel: 'Galería', heading: '', summary: '', coverUseKey: '', items: [],
+      });
+      markDirty(); render();
     });
-
-    function updateUploadMode() {
-      if (!uploadKind || !fileInput || !posterField || !posterSelect || !fileHelp) return;
-      const video = uploadKind.value === 'gallery_video';
-      posterField.hidden = !video;
-      posterSelect.required = video;
-      posterSelect.disabled = busy || !canManageVideo || !video;
-      fileInput.accept = video ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/webp,image/avif';
-      fileHelp.textContent = video
-        ? 'MP4 o WebM optimizado; hasta 25 MiB, 1080p, 8 Mbps y 30 minutos.'
-        : 'JPEG, PNG, WebP o AVIF; se guarda únicamente WebP normalizado.';
-    }
-    uploadKind?.addEventListener('change', updateUploadMode);
-    updateUploadMode();
+    root.querySelector('[data-gallery-refresh]')?.addEventListener('click', () => loadAll());
+    uploadKind?.addEventListener('change', updateUploadControls);
 
     uploadForm?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      clearError();
-      if (!canManageMedia || !uploadForm.reportValidity() || !fileInput?.files?.[0] || !uploadKind) return;
-      const video = uploadKind.value === 'gallery_video';
-      if (video && !canManageVideo) { showError({ code: 'promo_permission_denied' }); return; }
+      if (!canManageMedia || busy || !uploadForm.reportValidity() || !fileInput?.files?.[0]) return;
+      clearError(); busy = true;
+      const kind = uploadKind?.value || 'gallery_image';
+      const purpose = kind.startsWith('hero_') ? 'hero' : (kind === 'video_poster' ? 'video_poster' : 'gallery');
       const payload = new FormData();
-      payload.append('file', fileInput.files[0]);
-      payload.append('purpose', uploadKind.value === 'video_poster' ? 'video_poster' : 'gallery');
-      payload.append('poster_asset_id', video ? (posterSelect?.value || '') : '');
-      setBusy(true, 'Procesando y subiendo medio…');
+      payload.append('file', fileInput.files[0]); payload.append('purpose', purpose);
+      payload.append('poster_asset_id', kind.endsWith('_video') ? text(posterSelect?.value) : '');
+      setStatus('Procesando y subiendo el medio…');
       try {
-        await responseJson(await fetch(endpoint(PROMO_GALLERY_MEDIA_API_PATH), {
-          method: 'POST', credentials: 'same-origin', body: payload,
-        }));
-        uploadForm.reset();
-        updateUploadMode();
-        await loadCatalog();
-        setStatus('Medio listo en la biblioteca. Asócialo a un bloque y guarda el borrador.');
-      } catch (error) { showError(error); }
-      finally { setBusy(false); }
+        await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH), { method: 'POST', body: payload });
+        uploadForm.reset(); await loadCatalog(); setStatus('Medio listo en la biblioteca.');
+      } catch (error) { showError(error); setStatus('No se pudo subir el medio.'); }
+      finally { busy = false; updateUploadControls(); render(); }
     });
 
-    root.querySelector('[data-gallery-refresh]')?.addEventListener('click', async () => {
-      clearError();
-      setBusy(true, 'Actualizando biblioteca…');
-      try { await loadCatalog(); setStatus('Biblioteca actualizada.'); }
-      catch (error) { showError(error); }
-      finally { setBusy(false); }
-    });
-
-    window.addEventListener('beforeunload', (event) => {
-      if (!dirty) return;
+    form?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      event.returnValue = '';
+      if (!draft || !catalog || !canSave || busy || !form.reportValidity()) return;
+      clearError(); busy = true; render(); setStatus('Validando y actualizando la página pública…');
+      try {
+        const documentValue = buildPromoGalleryDocument(draft.document, model, maxGallery, catalog.assets);
+        const result = await requestJson(endpoint(PROMO_GALLERY_DRAFT_API_PATH), {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: draft.version, document: documentValue }),
+        });
+        draft = normalizePromoGalleryDraft({ ok: result.ok, contract: result.contract, draft: result.draft });
+        const workspace = createPromoGalleryWorkspace(draft.document);
+        draft = { version: draft.version, document: workspace.document };
+        model = modelFromDocument(workspace.document, workspace.locale);
+        dirty = false;
+        setStatus(`Página pública actualizada · versión ${draft.version}.`);
+      } catch (error) { showError(error); setStatus('No se guardaron los cambios.'); }
+      finally { busy = false; render(); }
     });
 
-    initialLoad();
+    loadAll();
   }
 </script>

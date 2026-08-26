@@ -31,9 +31,9 @@ const { storeSlug, canModerate, canConfigure } = Astro.props;
 
   <section class="pz-promo-reviews-admin__config" aria-labelledby="promo-reviews-config-title">
     <div>
-      <span class="pz-promo-reviews-admin__section-label">Sitio publicado</span>
+      <span class="pz-promo-reviews-admin__section-label">Página pública en vivo</span>
       <h3 id="promo-reviews-config-title">Sección de reseñas</h3>
-      <p>La revisión publicada decide si el adaptador puede aparecer; los cambios se guardan primero en el borrador.</p>
+      <p>Al guardar, la sección y su título se actualizan automáticamente en la página pública.</p>
     </div>
     <label class="pz-promo-reviews-admin__switch">
       <input type="checkbox" data-reviews-enabled disabled={!canConfigure} />
@@ -43,7 +43,7 @@ const { storeSlug, canModerate, canConfigure } = Astro.props;
       <span>Título en el idioma principal</span>
       <input type="text" maxlength="160" data-reviews-heading disabled={!canConfigure} />
     </label>
-    <button type="button" data-reviews-save-config disabled={!canConfigure}>Guardar en borrador</button>
+    <button type="button" data-reviews-save-config disabled={!canConfigure}>Guardar y actualizar página</button>
     {!canConfigure && (
       <p class="pz-promo-reviews-admin__permission-note" role="note">
         Para cambiar la presentación se requieren `promo.content.manage` y `promo.reviews.manage`.
@@ -255,7 +255,7 @@ const { storeSlug, canModerate, canConfigure } = Astro.props;
         const draft = normalizePromoCmsDraftResponse(result);
         draftVersion = draft.version;
         draftDocument = draft.document;
-        show('Configuración guardada en el borrador. Publica una revisión nueva para hacerla visible.', 'success');
+        show('Configuración guardada y página pública actualizada.', 'success');
       } catch (error) {
         show(promoReviewsErrorMessage((error as { code?: string })?.code), 'error');
       } finally { if (saveConfig) saveConfig.disabled = !canConfigure; }

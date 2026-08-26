@@ -167,7 +167,7 @@ test('comparación informa facetas cambiadas sin usar URLs privadas como diferen
   assert.equal(comparison.changed.some((item) => item.key === 'contact'), false);
 });
 
-test('shell, proxies y renderer mantienen auth central, noindex, accesibilidad y aislamiento Commerce', () => {
+test('preview editorial legado queda aislado y el Admin vivo no lo expone', () => {
   const shell = read('../src/components/admin/promo/PromoAdminShell.astro');
   const editor = read('../src/components/admin/promo/PromoPreviewEditor.astro');
   const api = read('../src/pages/api/admin/promo-preview.ts');
@@ -176,9 +176,7 @@ test('shell, proxies y renderer mantienen auth central, noindex, accesibilidad y
   const styles = read('../src/styles/promo-preview.css');
   const canonicalPage = read('../src/pages/t/[storeSlug]/admin/promo/[section].astro');
 
-  assert.match(shell, /section === 'publication'/);
-  assert.match(shell, /<PromoPreviewEditor/);
-  assert.match(shell, /promo\.publication\.publish/);
+  assert.doesNotMatch(shell, /section === 'publication'|<PromoPreviewEditor|promo\.publication\.publish/);
   assert.match(api, /refreshAuthFromCookie/);
   assert.match(api, /requireCurrentStoreForAdmin/);
   assert.match(api, /promoCmsSameOriginMutation/);
@@ -190,8 +188,7 @@ test('shell, proxies y renderer mantienen auth central, noindex, accesibilidad y
   assert.match(mediaApi, /sec-fetch-site/);
   assert.match(mediaApi, /Range/);
   assert.match(backendHook, /publication\/preview\/context/);
-  assert.match(canonicalPage, /X-Robots-Tag/);
-  assert.match(canonicalPage, /private, no-store/);
+  assert.match(canonicalPage, /!section[\s\S]*?Astro\.redirect\(getPromoAdminSectionPath\(storeSlug, 'overview'\)\)/);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /1280 × 800/);

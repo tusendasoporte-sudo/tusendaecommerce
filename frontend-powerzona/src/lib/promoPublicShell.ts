@@ -14,6 +14,14 @@ export const PROMO_PUBLIC_INTERNAL_PATH = '/promo-shell-internal';
 export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
 export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
 export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';
+export const PROMO_PUBLIC_RENDERER_KEYS = Object.freeze([
+  'promo.black-gold',
+  'promo.minimal',
+  'promo.artisan',
+  'promo.vibrant',
+  'promo.professional',
+  'promo.portfolio',
+] as const);
 export const PROMO_PUBLIC_SEO_CONTRACT = 'promo.public.seo.v1';
 export const PROMO_PLATFORM_ORIGIN = 'https://tusenda84.com';
 export const PROMO_PUBLIC_CACHE_CONTRACT = 'promo.public.cache.v1';
@@ -47,7 +55,7 @@ const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
   linkedin: { label: 'LinkedIn', handle: /^(?:[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?)$/, href: (handle) => `https://www.linkedin.com/company/${handle}/` },
   youtube: { label: 'YouTube', handle: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/, href: (handle) => `https://www.youtube.com/@${handle}` },
 });
-const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster']);
+const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr']);
 const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
 const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
   minWidth: number;
@@ -64,6 +72,7 @@ const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
   footer: { minWidth: 480, minHeight: 120, maxWidth: 1600, maxHeight: 800, widths: [480, 960, 1280], sizes: '100vw' },
   social: { minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630, widths: [600, 1200], sizes: '100vw' },
   video_poster: { minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900, widths: [480, 960, 1440], sizes: '100vw' },
+  qr: { minWidth: 512, minHeight: 512, maxWidth: 512, maxHeight: 512, widths: [512], sizes: 'min(18rem, 80vw)' },
 });
 const SECTION_MEDIA_PURPOSES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   hero: ['hero'], services: ['service'], featured_work: ['gallery'], gallery: ['gallery'],
@@ -82,18 +91,41 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'reviews.empty', 'reviews.list', 'reviews.rating', 'reviews.unavailable',
   'state.available', 'state.loading', 'state.unavailable',
 ]);
-const THEME_TOKEN_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  surface: ['obsidian'],
-  text: ['ivory'],
-  accent: ['heritage_gold', 'champagne_gold'],
-  border: ['heritage_gold', 'champagne_gold'],
-  focus: ['ivory_ring'],
-  heading_font: ['editorial_serif'],
-  body_font: ['humanist_sans'],
-  radius: ['subtle', 'soft'],
-  shadow: ['ambient', 'lifted'],
-  density: ['comfortable', 'compact'],
-  motion: ['subtle', 'reduced'],
+const PUBLIC_THEME_MANIFESTS: Readonly<Record<string, Readonly<{
+  rendererKey: (typeof PROMO_PUBLIC_RENDERER_KEYS)[number];
+  tokens: Readonly<Record<string, readonly string[]>>;
+}>>> = Object.freeze({
+  'promo.black-gold@1.0.0': Object.freeze({ rendererKey: 'promo.black-gold', tokens: Object.freeze({
+    surface: ['obsidian'], text: ['ivory'], accent: ['heritage_gold', 'champagne_gold'],
+    border: ['heritage_gold', 'champagne_gold'], focus: ['ivory_ring'], heading_font: ['editorial_serif'],
+    body_font: ['humanist_sans'], radius: ['subtle', 'soft'], shadow: ['ambient', 'lifted'],
+    density: ['comfortable', 'compact'], motion: ['subtle', 'reduced'],
+  }) }),
+  'promo.minimal@1.0.0': Object.freeze({ rendererKey: 'promo.minimal', tokens: Object.freeze({
+    surface: ['porcelain'], text: ['ink'], accent: ['cobalt'], border: ['mist'], focus: ['cobalt_ring'],
+    heading_font: ['geometric_sans'], body_font: ['clean_sans'], radius: ['crisp'], shadow: ['none'],
+    density: ['airy'], motion: ['subtle', 'reduced'],
+  }) }),
+  'promo.artisan@1.0.0': Object.freeze({ rendererKey: 'promo.artisan', tokens: Object.freeze({
+    surface: ['parchment'], text: ['espresso'], accent: ['terracotta'], border: ['clay'], focus: ['espresso_ring'],
+    heading_font: ['crafted_serif'], body_font: ['warm_sans'], radius: ['organic'], shadow: ['paper'],
+    density: ['comfortable'], motion: ['subtle', 'reduced'],
+  }) }),
+  'promo.vibrant@1.0.0': Object.freeze({ rendererKey: 'promo.vibrant', tokens: Object.freeze({
+    surface: ['midnight'], text: ['white'], accent: ['coral'], border: ['electric_blue'], focus: ['lime_ring'],
+    heading_font: ['display_sans'], body_font: ['modern_sans'], radius: ['bold'], shadow: ['neon'],
+    density: ['energetic'], motion: ['expressive', 'reduced'],
+  }) }),
+  'promo.professional@1.0.0': Object.freeze({ rendererKey: 'promo.professional', tokens: Object.freeze({
+    surface: ['navy'], text: ['white'], accent: ['sky'], border: ['steel'], focus: ['white_ring'],
+    heading_font: ['corporate_sans'], body_font: ['clean_sans'], radius: ['structured'], shadow: ['precise'],
+    density: ['compact'], motion: ['subtle', 'reduced'],
+  }) }),
+  'promo.portfolio@1.0.0': Object.freeze({ rendererKey: 'promo.portfolio', tokens: Object.freeze({
+    surface: ['charcoal'], text: ['white'], accent: ['sand'], border: ['graphite'], focus: ['white_ring'],
+    heading_font: ['gallery_display'], body_font: ['modern_sans'], radius: ['minimal'], shadow: ['cinematic'],
+    density: ['image_first'], motion: ['cinematic', 'reduced'],
+  }) }),
 });
 
 type JsonRecord = Record<string, any>;
@@ -252,7 +284,7 @@ export type PromoPublicProfile = Readonly<{
   theme: Readonly<{
     theme_id: string;
     version: string;
-    renderer_key: typeof PROMO_BLACK_GOLD_RENDERER_KEY;
+    renderer_key: (typeof PROMO_PUBLIC_RENDERER_KEYS)[number];
     tokens: Readonly<Record<string, string>>;
   }>;
   section_order: readonly string[];
@@ -333,10 +365,8 @@ function canonicalLocale(value: unknown) {
 }
 
 function publicThemeRenderer(themeId: string, version: string) {
-  if (themeId === PROMO_BLACK_GOLD_THEME_ID && version === PROMO_BLACK_GOLD_THEME_VERSION) {
-    return PROMO_BLACK_GOLD_RENDERER_KEY;
-  }
-  return fail('promo_public_renderer_unavailable', 503);
+  return PUBLIC_THEME_MANIFESTS[`${themeId}@${version}`]?.rendererKey
+    || fail('promo_public_renderer_unavailable', 503);
 }
 
 function exactStringMap(value: unknown, keys: readonly string[], max = 4000) {
@@ -606,42 +636,83 @@ function normalizeSection(value: unknown): PromoPublicSection {
   const type = safePattern(section.type, KEY_PATTERN);
   if (!SECTION_TYPES.has(type) || section.variant !== 'default' || !isRecord(section.config)
     || !Array.isArray(section.media_use_keys) || section.media_use_keys.length > 30) fail();
-  const allowedConfig: Readonly<Record<string, readonly string[]>> = {
-    hero: ['media_use_key', 'action_key'], services: ['item_keys'], featured_work: ['item_keys'],
-    gallery: ['item_keys'], owner: ['media_use_key'], store_rating: [], contact: ['action_keys'],
-    footer: ['navigation_section_keys', 'social_profiles'],
+  const mediaUseKeys = section.media_use_keys.map((item: unknown) => safePattern(item, KEY_PATTERN));
+  if (new Set(mediaUseKeys).size !== mediaUseKeys.length) fail();
+  const list = (raw: unknown, maximum = 50, empty = false) => {
+    if (!Array.isArray(raw) || raw.length > maximum) fail();
+    const result = raw.map((item) => {
+      if (empty && item === '') return '';
+      return safePattern(item, KEY_PATTERN);
+    });
+    if (new Set(result).size !== result.length && !empty) fail();
+    return result;
   };
-  if (type === 'footer') subsetRecord(section.config, allowedConfig.footer);
-  else exactRecord(section.config, allowedConfig[type] || []);
+  const optionalKey = (raw: unknown) => raw === '' ? '' : safePattern(raw, KEY_PATTERN);
   const config: JsonRecord = {};
-  for (const [key, raw] of Object.entries(section.config)) {
-    if (type === 'footer' && key === 'social_profiles') {
-      if (!Array.isArray(raw) || raw.length > 4) fail();
-      config.social_profiles = raw.map((item: unknown) => {
-        const profile = exactRecord(item, ['network', 'handle']);
-        const network = safePattern(profile.network, TOKEN_PATTERN);
-        const handle = safeText(profile.handle, 100, true);
-        if (!FOOTER_SOCIALS[network]?.handle.test(handle)) fail();
-        return { network, handle };
-      });
-      if (new Set(config.social_profiles.map((item: JsonRecord) => item.network)).size !== config.social_profiles.length) fail();
-      continue;
-    }
-    if (Array.isArray(raw)) {
-      const maximum = type === 'footer' && key === 'navigation_section_keys' ? 8 : 50;
-      if (raw.length > maximum) fail();
-      config[key] = raw.map((item) => safePattern(item, KEY_PATTERN));
-      if (new Set(config[key]).size !== config[key].length) fail();
-    } else {
-      config[key] = raw === '' ? '' : safePattern(raw, KEY_PATTERN);
-    }
+  if (type === 'hero') {
+    const source = exactRecord(section.config, ['media_use_key', 'action_key']);
+    config.media_use_key = optionalKey(source.media_use_key);
+    config.action_key = optionalKey(source.action_key);
+  } else if (type === 'services') {
+    const source = exactRecord(section.config, ['item_keys', 'gallery_keys']);
+    config.item_keys = list(source.item_keys);
+    config.gallery_keys = list(source.gallery_keys, 50, true);
+    if (config.item_keys.length !== config.gallery_keys.length || mediaUseKeys.length) fail();
+  } else if (type === 'featured_work') {
+    const source = exactRecord(section.config, ['item_keys']);
+    config.item_keys = list(source.item_keys);
+    if (config.item_keys.length || mediaUseKeys.length) fail();
+  } else if (type === 'gallery') {
+    const source = exactRecord(section.config, ['item_keys', 'cover_media_use_key', 'items']);
+    config.item_keys = list(source.item_keys);
+    config.cover_media_use_key = optionalKey(source.cover_media_use_key);
+    if (!Array.isArray(source.items) || source.items.length > 50) fail();
+    config.items = source.items.map((raw: unknown) => {
+      const item = exactRecord(raw, ['key', 'media_use_keys', 'featured', 'visible']);
+      if (typeof item.featured !== 'boolean' || typeof item.visible !== 'boolean') fail();
+      const itemMedia = list(item.media_use_keys, 12);
+      return {
+        key: safePattern(item.key, KEY_PATTERN),
+        media_use_keys: itemMedia,
+        featured: item.featured,
+        visible: item.visible,
+      };
+    });
+    if (config.items.length !== config.item_keys.length
+      || config.items.some((item: JsonRecord, index: number) => item.key !== config.item_keys[index])) fail();
+    const configuredMedia: string[] = [];
+    const addMedia = (key: string) => { if (key && !configuredMedia.includes(key)) configuredMedia.push(key); };
+    addMedia(config.cover_media_use_key);
+    config.items.forEach((item: JsonRecord) => item.media_use_keys.forEach(addMedia));
+    if (configuredMedia.length !== mediaUseKeys.length
+      || configuredMedia.some((key, index) => key !== mediaUseKeys[index])) fail();
+  } else if (type === 'owner') {
+    const source = exactRecord(section.config, ['media_use_key']);
+    config.media_use_key = optionalKey(source.media_use_key);
+  } else if (type === 'contact') {
+    const source = exactRecord(section.config, ['action_keys']);
+    config.action_keys = list(source.action_keys, 32);
+  } else if (type === 'footer') {
+    const source = subsetRecord(section.config, ['navigation_section_keys', 'social_profiles']);
+    config.navigation_section_keys = list(source.navigation_section_keys || [], 8);
+    if (!Array.isArray(source.social_profiles) || source.social_profiles.length > 4) fail();
+    config.social_profiles = source.social_profiles.map((item: unknown) => {
+      const profile = exactRecord(item, ['network', 'handle']);
+      const network = safePattern(profile.network, TOKEN_PATTERN);
+      const handle = safeText(profile.handle, 100, true);
+      if (!FOOTER_SOCIALS[network]?.handle.test(handle)) fail();
+      return { network, handle };
+    });
+    if (new Set(config.social_profiles.map((item: JsonRecord) => item.network)).size !== config.social_profiles.length) fail();
+  } else {
+    exactRecord(section.config, []);
   }
   return {
     key: safePattern(section.key, KEY_PATTERN),
     type,
     variant: 'default',
     config,
-    media_use_keys: section.media_use_keys.map((item: unknown) => safePattern(item, KEY_PATTERN)),
+    media_use_keys: mediaUseKeys,
   };
 }
 
@@ -725,19 +796,21 @@ function normalizeFooter(
 function normalizeContent(value: unknown, sections: readonly PromoPublicSection[], mediaKeys: readonly string[], actionKeys: readonly string[]) {
   const content = exactRecord(value, ['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
   const sectionKeys = sections.map((section) => section.key);
-  const identity = optionalTextMap(content.identity, ['name', 'summary', 'owner_name', 'owner_bio'], {
-    name: 140, summary: 600, owner_name: 140, owner_bio: 4000,
+  const identity = optionalTextMap(content.identity, ['name', 'slogan', 'summary', 'owner_name', 'owner_bio'], {
+    name: 140, slogan: 120, summary: 600, owner_name: 140, owner_bio: 4000,
   });
   if (!identity.name) fail();
   const navigation = exactStringMap(content.navigation, sectionKeys, 80);
   const localizedSections = exactRecord(content.sections, sectionKeys);
   const normalizedSections: JsonRecord = {};
   for (const section of sections) {
-    const fields = section.type === 'footer'
-      ? ['heading', 'summary', 'text']
-      : section.type === 'owner'
-        ? ['heading', 'summary', 'name', 'bio']
-        : ['heading', 'summary', 'items'];
+    const fieldsByType: Readonly<Record<string, readonly string[]>> = {
+      hero: ['heading', 'summary'], services: ['heading', 'summary', 'items'],
+      featured_work: ['heading', 'summary'], gallery: ['heading', 'summary', 'items'],
+      owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
+      contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
+    };
+    const fields = fieldsByType[section.type] || [];
     const localized = subsetRecord(localizedSections[section.key], fields);
     const result = optionalTextMap(
       Object.fromEntries(Object.entries(localized).filter(([key]) => key !== 'items')),
@@ -859,13 +932,15 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const themeId = safePattern(theme.theme_id, THEME_PATTERN);
   const themeVersion = safePattern(theme.version, VERSION_PATTERN);
   const rendererKey = publicThemeRenderer(themeId, themeVersion);
-  const tokens = exactRecord(theme.tokens, Object.keys(THEME_TOKEN_VALUES));
+  const themeManifest = PUBLIC_THEME_MANIFESTS[`${themeId}@${themeVersion}`];
+  if (!themeManifest || themeManifest.rendererKey !== rendererKey) fail('promo_public_renderer_unavailable', 503);
+  const tokens = exactRecord(theme.tokens, Object.keys(themeManifest.tokens));
   const normalizedTokens = Object.fromEntries(Object.entries(tokens).map(([key, raw]) => {
     const token = safePattern(raw, TOKEN_PATTERN);
-    if (!THEME_TOKEN_VALUES[key]?.includes(token)) fail();
+    if (!themeManifest.tokens[key]?.includes(token)) fail();
     return [key, token];
   }));
-  if (normalizedTokens.accent !== normalizedTokens.border) fail();
+  if (themeId === PROMO_BLACK_GOLD_THEME_ID && normalizedTokens.accent !== normalizedTokens.border) fail();
   if (!Array.isArray(profile.sections) || profile.sections.length > 64) fail();
   const sections = profile.sections.map(normalizeSection);
   if (new Set(sections.map((section) => section.key)).size !== sections.length) fail();
@@ -880,7 +955,9 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const media = profile.media.map((raw: unknown) => normalizePublicMedia(raw, slug, priorityMediaKey));
   const mediaKeys = media.map((item) => item.key);
   if (new Set(mediaKeys).size !== mediaKeys.length) fail();
-  const contact = exactRecord(profile.contact, ['enabled', 'primary_action_key', 'secondary_action_keys', 'actions']);
+  const contact = exactRecord(profile.contact, [
+    'enabled', 'primary_action_key', 'secondary_action_keys', 'actions', 'qr_media_use_key',
+  ]);
   if (typeof contact.enabled !== 'boolean' || !Array.isArray(contact.actions) || contact.actions.length > 32
     || !Array.isArray(contact.secondary_action_keys)) fail();
   const actions = contact.actions.map((raw: unknown) => {
@@ -895,6 +972,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     primary_action_key: contact.primary_action_key === '' ? '' : safePattern(contact.primary_action_key, KEY_PATTERN),
     secondary_action_keys: contact.secondary_action_keys.map((item: unknown) => safePattern(item, KEY_PATTERN)),
     actions,
+    qr_media_use_key: contact.qr_media_use_key === '' ? '' : safePattern(contact.qr_media_use_key, KEY_PATTERN),
   };
   if (new Set(normalizedContact.secondary_action_keys).size !== normalizedContact.secondary_action_keys.length
     || (normalizedContact.enabled && (!actionKeys.includes(normalizedContact.primary_action_key)
@@ -917,6 +995,17 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
       return !item || !allowedPurposes.includes(item.purpose);
     })) fail();
   }
+  if (normalizedContact.qr_media_use_key) {
+    const qrMedia = media.find((item) => item.key === normalizedContact.qr_media_use_key);
+    if (!qrMedia || qrMedia.kind !== 'image' || qrMedia.purpose !== 'qr') fail();
+  }
+  const sectionsByKey = new Map(sections.map((section) => [section.key, section]));
+  for (const section of sections.filter((item) => item.type === 'services')) {
+    if (section.config.gallery_keys.some((galleryKey: string) => {
+      const gallery = sectionsByKey.get(galleryKey);
+      return !gallery || gallery.type !== 'gallery';
+    })) fail();
+  }
   const normalizedContent = normalizeContent(profile.content, sections, mediaKeys, actionKeys);
   const contactAction = normalizeContactAction(profile.contact_action);
   if (contactAction.available) {
@@ -927,7 +1016,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
       || !sourceAction || sourceAction.type !== action.type || !sourceCopy
       || sourceCopy.label !== action.label || sourceCopy.aria_label !== action.aria_label) fail();
   }
-  for (const section of sections.filter((item) => ['services', 'featured_work', 'gallery'].includes(item.type))) {
+  for (const section of sections.filter((item) => ['services', 'gallery'].includes(item.type))) {
     const configuredKeys = section.config.item_keys;
     const localizedItems = normalizedContent.sections[section.key]?.items;
     if (!Array.isArray(configuredKeys) || !Array.isArray(localizedItems)

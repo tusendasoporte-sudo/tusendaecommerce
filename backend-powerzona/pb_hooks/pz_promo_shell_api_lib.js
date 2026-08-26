@@ -226,7 +226,6 @@ function attachCacheIdentity(result, context, canonicalHost) {
     const identity = promoPerformance.generationCacheIdentity({
       canonicalHost,
       tenantId: recordId(context.site),
-      revisionId: recordId(context.revision),
       generation: Number(context.generation),
       locale: result.profile.locale && result.profile.locale.effective,
       themeId: result.profile.theme && result.profile.theme.theme_id,

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { buildPromoLandingQrDocument } from '../src/lib/promoLandingQr.ts';
+import { normalizePromoCmsDocument } from '../src/lib/promoCms.ts';
 
 function read(relativePath) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
@@ -39,7 +40,7 @@ test('el editor cambia únicamente el flag del puente en el borrador normalizado
   const enabled = buildPromoLandingQrDocument(original, true);
   assert.equal(enabled.adapters.landing_qr_link.enabled, true);
   assert.equal(enabled.adapters.store_rating.enabled, true);
-  const expected = structuredClone(original);
+  const expected = normalizePromoCmsDocument(original);
   expected.adapters.landing_qr_link.enabled = true;
   assert.deepEqual(enabled, expected);
   assert.equal(original.adapters.landing_qr_link.enabled, false);

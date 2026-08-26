@@ -1,7 +1,7 @@
 ---
 import PromoBlackGoldTheme from './PromoBlackGoldTheme.astro';
 import {
-  PROMO_BLACK_GOLD_RENDERER_KEY,
+  PROMO_PUBLIC_RENDERER_KEYS,
   type PromoPublicProfile,
   type PromoPublicSeo,
 } from '../../lib/promoPublicShell';
@@ -13,7 +13,7 @@ interface Props {
 
 const { profile, seo } = Astro.props;
 
-if (profile.theme.renderer_key !== PROMO_BLACK_GOLD_RENDERER_KEY) {
+if (!PROMO_PUBLIC_RENDERER_KEYS.includes(profile.theme.renderer_key)) {
   throw new Error('promo_public_renderer_unavailable');
 }
 ---

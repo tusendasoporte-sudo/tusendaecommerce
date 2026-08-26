@@ -215,7 +215,7 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(shell, /promo\.content\.manage/);
   assert.match(shell, /promo\.translations\.manage/);
   assert.match(shell, /max_locales/);
-  assert.match(editor, /Guardar no crea candidata ni publica/);
+  assert.match(editor, /Al guardar, los cambios válidos se reflejan automáticamente en la página/);
   assert.match(editor, /referencia[^\n]*no se guarda/i);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
@@ -227,7 +227,7 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(api, /refreshAuthFromCookie/);
   assert.match(api, /requireCurrentStoreForAdmin/);
   assert.match(api, /promoCmsSameOriginMutation/);
-  assert.match(api, /promo\.draft\.update\.v1/);
+  assert.match(api, /promo\.live\.update\.v1/);
   assert.match(styles, /@media \(max-width: 1120px\)/);
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /@media \(max-width: 420px\)/);

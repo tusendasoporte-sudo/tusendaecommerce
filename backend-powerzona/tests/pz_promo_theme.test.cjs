@@ -27,6 +27,18 @@ function release(status = 'approved', overrides = {}) {
   return { ...values, get(key) { return values[key]; }, getString(key) { return String(values[key] ?? ''); } };
 }
 
+function releaseFor(entry, status = 'approved') {
+  return release(status, {
+    id: `theme-${entry.manifest.theme_id.replace(/[^a-z]/g, '')}`.slice(0, 15),
+    theme_id: entry.manifest.theme_id,
+    version: entry.manifest.version,
+    renderer_key: entry.manifest.renderer_key,
+    contract_version: entry.manifest.contract_version,
+    manifest_sha256: entry.manifest_sha256,
+    token_schema_sha256: entry.token_schema_sha256,
+  });
+}
+
 function selection(tokens = {}) {
   return {
     theme_id: theme.BLACK_GOLD_MANIFEST.theme_id,
@@ -37,7 +49,7 @@ function selection(tokens = {}) {
 
 function publicDocument(tokens = {}) {
   return {
-    contract: 'promo.site.v1',
+    contract: 'promo.site.v2',
     system_catalog_version: 'promo.system.v1',
     locales: { default: 'es', published: ['es'] },
     theme: selection(tokens),
@@ -48,10 +60,10 @@ function publicDocument(tokens = {}) {
       config: { media_use_key: '', action_key: '' }, media_use_keys: [],
     }],
     media_refs: {},
-    contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
+    contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [], qr_media_use_key: '' },
     content_by_locale: {
       es: {
-        identity: { name: "Aladdin's Carpet" },
+        identity: { name: "Aladdin's Carpet", slogan: '' },
         navigation: { 'hero-main': 'Inicio' },
         sections: { 'hero-main': { heading: 'Alfombras con historia' } },
         contact: {}, media_alt: {},
@@ -63,15 +75,35 @@ function publicDocument(tokens = {}) {
 }
 
 test('registry versionado fija hashes reproducibles y no contiene código o URLs configurables', () => {
-  const entry = theme.registryEntry('promo.black-gold', '1.0.0');
-  assert.ok(entry);
-  assert.equal(sha256(theme.manifestHashMaterial(entry)), theme.BLACK_GOLD_MANIFEST_SHA256);
-  assert.equal(sha256(theme.tokenSchemaHashMaterial(entry)), theme.BLACK_GOLD_TOKEN_SCHEMA_SHA256);
+  const entries = Object.values(theme.THEME_REGISTRY);
+  assert.equal(entries.length, 6);
+  for (const entry of entries) {
+    assert.equal(sha256(theme.manifestHashMaterial(entry)), entry.manifest_sha256);
+    assert.equal(sha256(theme.tokenSchemaHashMaterial(entry)), entry.token_schema_sha256);
+    assert.equal(entry.manifest.document_contract, 'promo.site.v2');
+    const serialized = JSON.stringify(entry.manifest);
+    assert.doesNotMatch(serialized, /https?:|<script|javascript:|arbitrary_css|unsafe-eval/i);
+    assert.equal(entry.manifest.compatibility.content_preserving_switch, true);
+    assert.equal(entry.manifest.performance.third_party_scripts, false);
+  }
   assert.equal(theme.registryEntry('promo.black-gold', '9.9.9'), null);
-  const serialized = JSON.stringify(entry.manifest);
-  assert.doesNotMatch(serialized, /https?:|<script|javascript:|arbitrary_css|unsafe-eval/i);
-  assert.equal(entry.manifest.compatibility.content_preserving_switch, true);
-  assert.equal(entry.manifest.performance.third_party_scripts, false);
+});
+
+test('las seis apariencias resuelven defaults cerrados y contraste accesible', () => {
+  const themeIds = Object.values(theme.THEME_REGISTRY).map((entry) => entry.manifest.theme_id).sort();
+  assert.deepEqual(themeIds, [
+    'promo.artisan', 'promo.black-gold', 'promo.minimal',
+    'promo.portfolio', 'promo.professional', 'promo.vibrant',
+  ]);
+  for (const entry of Object.values(theme.THEME_REGISTRY)) {
+    const effective = theme.resolveEffectiveSelection({
+      theme_id: entry.manifest.theme_id,
+      version: entry.manifest.version,
+      tokens: {},
+    });
+    assert.equal(Object.keys(effective.tokens).length, Object.keys(entry.manifest.token_schema).length);
+    assert.equal(theme.assertAccessibleCombination(effective.tokens, entry), true);
+  }
 });
 
 test('tokens usan enums cerrados, defaults deterministas y combinaciones con contraste seguro', () => {
@@ -119,15 +151,15 @@ test('selección nueva exige approved; público y rollback retienen deprecated/r
 
 test('catálogo privado oculta releases no aprobados, retirados, unknown o con digest incompatible', () => {
   const catalog = theme.catalogFromReleases([
-    release('approved'),
+    ...Object.values(theme.THEME_REGISTRY).map((entry) => releaseFor(entry)),
     release('deprecated'),
     release('approved', { version: '9.9.9' }),
     release('approved', { manifest_sha256: 'f'.repeat(64) }),
   ]);
-  assert.equal(catalog.length, 1);
-  assert.equal(catalog[0].theme_id, 'promo.black-gold');
-  assert.equal(catalog[0].tokens.accent.type, 'enum');
-  assert.deepEqual(catalog[0].tokens.accent.values, ['heritage_gold', 'champagne_gold']);
+  assert.equal(catalog.length, 6);
+  const blackGold = catalog.find((item) => item.theme_id === 'promo.black-gold');
+  assert.equal(blackGold.tokens.accent.type, 'enum');
+  assert.deepEqual(blackGold.tokens.accent.values, ['heritage_gold', 'champagne_gold']);
   const serialized = JSON.stringify(catalog);
   assert.doesNotMatch(serialized, /manifest_sha256|token_schema_sha256|approved_by|#[a-f0-9]{6}/i);
 });

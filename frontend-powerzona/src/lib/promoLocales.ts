@@ -13,6 +13,7 @@ export const PROMO_LOCALES_CATALOG = Object.freeze([
 
 export const PROMO_LOCALES_TEXT_LIMITS = Object.freeze({
   businessName: 140,
+  slogan: 120,
   heading: 160,
   shortSummary: 600,
   body: 4000,
@@ -28,13 +29,13 @@ export const PROMO_LOCALES_TEXT_LIMITS = Object.freeze({
 });
 
 const LOCALIZED_KEYS = Object.freeze(['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
-const IDENTITY_KEYS = Object.freeze(['name', 'summary', 'owner_name', 'owner_bio']);
+const IDENTITY_KEYS = Object.freeze(['name', 'slogan', 'summary', 'owner_name', 'owner_bio']);
 const CONTACT_TEXT_KEYS = Object.freeze(['label', 'aria_label', 'message']);
 const SEO_KEYS = Object.freeze(['title', 'description', 'social_title', 'social_description']);
 const SECTION_TEXT_KEYS = Object.freeze({
   hero: ['heading', 'summary'],
   services: ['heading', 'summary', 'items'],
-  featured_work: ['heading', 'summary', 'items'],
+  featured_work: ['heading', 'summary'],
   gallery: ['heading', 'summary', 'items'],
   owner: ['heading', 'name', 'bio'],
   store_rating: ['heading'],
@@ -171,16 +172,11 @@ function normalizeLocalizedItems(section: JsonRecord, value: unknown) {
   const configured = Array.isArray(section.config?.item_keys) ? section.config.item_keys.map(key) : [];
   const seen = new Set<string>();
   const result = value.map((item) => {
-    const allowed = section.type === 'gallery'
-      ? ['key', 'caption']
-      : ['key', 'name', 'summary', 'caption'];
+    const allowed = ['key', 'name', 'summary', 'caption'];
     const source = onlyKeys(item, allowed);
     const itemKey = key(source.key);
     if (seen.has(itemKey) || !configured.includes(itemKey)) fail('invalid_promo_document');
     seen.add(itemKey);
-    if (section.type === 'gallery') {
-      return { key: itemKey, caption: safeText(source.caption || '', PROMO_LOCALES_TEXT_LIMITS.caption) };
-    }
     return {
       key: itemKey,
       name: safeText(source.name || '', PROMO_LOCALES_TEXT_LIMITS.itemName),
@@ -196,6 +192,7 @@ function normalizeLocalizedContent(document: JsonRecord, value: unknown) {
   const result = emptyLocalizedContent();
   result.identity = normalizeStringFields(source.identity, IDENTITY_KEYS, {
     name: PROMO_LOCALES_TEXT_LIMITS.businessName,
+    slogan: PROMO_LOCALES_TEXT_LIMITS.slogan,
     summary: PROMO_LOCALES_TEXT_LIMITS.shortSummary,
     owner_name: PROMO_LOCALES_TEXT_LIMITS.businessName,
     owner_bio: PROMO_LOCALES_TEXT_LIMITS.body,
@@ -352,14 +349,14 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
     if (!isRecord(sectionContent)) return;
     const required = SECTION_REQUIRED_TEXT[section.type as keyof typeof SECTION_REQUIRED_TEXT] || [];
     required.forEach((field) => check(textPresent(sectionContent[field]), `${label}: ${field}`));
-    if (['services', 'featured_work', 'gallery'].includes(section.type)) {
+    if (['services', 'gallery'].includes(section.type)) {
       const configured = Array.isArray(section.config?.item_keys) ? section.config.item_keys : [];
       const items = Array.isArray(sectionContent.items) ? sectionContent.items : [];
       const byKey = new Map(items.map((item: JsonRecord) => [item.key, item]));
       configured.forEach((itemKey: string) => {
         const item = byKey.get(itemKey);
         check(Boolean(item), `${label}: elemento ${itemKey}`);
-        if (item && section.type !== 'gallery') check(textPresent(item.name), `${label}: nombre ${itemKey}`);
+        if (item) check(textPresent(item.name), `${label}: nombre ${itemKey}`);
       });
     }
   });
@@ -392,7 +389,7 @@ export function diagnosePromoLocalesPublication(value: unknown) {
   try {
     published = normalizedLocaleList(document.locales.published) as PromoLocaleId[];
     const defaultLocale = localeMetadata(document.locales.default).locale;
-    if (!published.includes(defaultLocale)) issues.push('El idioma predeterminado no está incluido para publicación.');
+    if (!published.includes(defaultLocale)) issues.push('El idioma predeterminado no está visible en la página.');
   } catch (_) {
     issues.push('La configuración de idiomas no es compatible con el catálogo general.');
   }
@@ -470,12 +467,13 @@ export function promoLocalesErrorMessage(code: unknown) {
     blocked_by_plan: 'El plan actual bloquea la edición de este sitio.',
     promo_capability_denied: 'La cuota de idiomas de esta tienda no permite completar la operación.',
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar idiomas.',
-    promo_draft_conflict: 'El borrador cambió en otra sesión. Recárgalo antes de volver a guardar.',
-    incomplete_promo_locale: 'Completa todos los requisitos de ese idioma antes de incluirlo o usarlo como predeterminado.',
+    promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    incomplete_promo_locale: 'Completa todos los requisitos de ese idioma antes de mostrarlo o usarlo como predeterminado.',
     promo_default_locale_required: 'El idioma predeterminado no se puede retirar ni excluir.',
     promo_locale_already_enabled: 'Ese idioma ya está habilitado.',
     unsupported_promo_locale: 'Ese idioma no tiene un catálogo general completo y no puede habilitarse.',
-    unsupported_promo_system_catalog: 'El catálogo general del borrador no es compatible con este editor.',
+    unsupported_promo_system_catalog: 'El catálogo general de la página no es compatible con este editor.',
     invalid_promo_document: 'La configuración contiene datos incompletos o no permitidos.',
     unsafe_promo_document_value: 'La traducción incluye código, una URL o texto activo no permitido.',
     invalid_origin: 'La solicitud no proviene del panel administrativo.',

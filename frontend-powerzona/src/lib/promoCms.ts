@@ -1,7 +1,8 @@
 export const PROMO_CMS_API_PATH = '/api/admin/promo-cms';
 export const PROMO_CMS_DEFAULT_LOCALE = 'es';
-export const PROMO_CMS_DOCUMENT_CONTRACT = 'promo.site.v1';
-export const PROMO_CMS_DRAFT_CONTRACT = 'promo.draft.v1';
+export const PROMO_CMS_DOCUMENT_CONTRACT = 'promo.site.v2';
+export const PROMO_CMS_LEGACY_DOCUMENT_CONTRACT = 'promo.site.v1';
+export const PROMO_CMS_DRAFT_CONTRACT = 'promo.live.v1';
 
 export const PROMO_CMS_MANAGED_SECTION_TYPES = Object.freeze([
   'hero',
@@ -28,6 +29,7 @@ export const PROMO_CMS_FOOTER_MAX_LINKS = 8;
 
 export const PROMO_CMS_TEXT_LIMITS = Object.freeze({
   businessName: 140,
+  slogan: 120,
   heading: 160,
   shortSummary: 600,
   body: 4000,
@@ -68,7 +70,7 @@ export type PromoCmsDraft = Readonly<{
 }>;
 
 export type PromoCmsContentPatch = Readonly<{
-  identity: Readonly<{ name: string; summary: string }>;
+  identity: Readonly<{ name: string; slogan: string; summary: string }>;
   sectionOrder: readonly string[];
   sections: readonly Readonly<{
     key: string;
@@ -81,12 +83,19 @@ export type PromoCmsContentPatch = Readonly<{
     text?: string;
     navigationSectionKeys?: readonly string[];
     socialProfiles?: readonly Readonly<{ network: string; handle: string }>[];
-    items?: readonly Readonly<{ key: string; name: string; summary: string; caption: string }>[];
+    items?: readonly Readonly<{
+      key: string;
+      name: string;
+      summary: string;
+      caption: string;
+      galleryKey?: string;
+    }>[];
   }>[];
 }>;
 
 export type PromoCmsContactPatch = Readonly<{
   enabled: boolean;
+  qrMediaUseKey?: string;
   primaryActionKey: string;
   secondaryActionKeys: readonly string[];
   section: Readonly<{
@@ -180,7 +189,7 @@ function emptyLocalizedContent(): JsonRecord {
 function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number]) {
   const definitions: Record<string, JsonRecord> = {
     hero: { key: 'hero-main', config: { media_use_key: '', action_key: '' } },
-    services: { key: 'services-main', config: { item_keys: [] } },
+    services: { key: 'services-main', config: { item_keys: [], gallery_keys: [] } },
     owner: { key: 'owner-main', config: { media_use_key: '' } },
     contact: { key: 'contact-main', config: { action_keys: [] } },
     footer: { key: 'footer-main', config: { navigation_section_keys: [], social_profiles: [] } },
@@ -209,8 +218,176 @@ function navigationDefault(type: string) {
   } as Record<string, string>)[type] || 'Sección';
 }
 
+function uniqueMigratedKey(used: Set<string>, preferred: string, maximum = 64) {
+  const normalized = String(preferred || 'item').toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, maximum) || 'item';
+  const base = /^[a-z]/.test(normalized) ? normalized : `item-${normalized}`.slice(0, maximum);
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const ending = `-${suffix}`;
+    const candidate = `${base.slice(0, Math.max(1, maximum - ending.length))}${ending}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
+  return fail('invalid_promo_document');
+}
+
+function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
+  const next = clone(value);
+  if (next.contract === PROMO_CMS_DOCUMENT_CONTRACT) return next;
+  if (next.contract !== PROMO_CMS_LEGACY_DOCUMENT_CONTRACT) fail('invalid_payload');
+  if (!Array.isArray(next.sections) || !Array.isArray(next.section_order)
+    || !isRecord(next.contact) || !isRecord(next.content_by_locale)) fail('invalid_payload');
+
+  next.contract = PROMO_CMS_DOCUMENT_CONTRACT;
+  next.contact = { ...next.contact, qr_media_use_key: '' };
+  const localizedEntries = Object.values(next.content_by_locale);
+  localizedEntries.forEach((localized) => {
+    if (!isRecord(localized) || !isRecord(localized.identity) || !isRecord(localized.sections)) {
+      fail('invalid_payload');
+    }
+  });
+
+  const sectionKeys = new Set(next.sections.map((section: JsonRecord) => String(section && section.key || '')));
+  const gallerySections = next.sections.filter((section: JsonRecord) => section && section.type === 'gallery');
+  const legacyFeatured = next.sections.filter((section: JsonRecord) => section && section.type === 'featured_work');
+  if (!gallerySections.length && legacyFeatured.some((section: JsonRecord) => (
+    Array.isArray(section.config?.item_keys) && section.config.item_keys.length
+  ))) {
+    const sectionKey = uniqueMigratedKey(sectionKeys, 'gallery-portfolio');
+    const gallery = {
+      key: sectionKey,
+      type: 'gallery',
+      variant: 'default',
+      visible: true,
+      config: { item_keys: [], cover_media_use_key: '', items: [] },
+      media_use_keys: [],
+    };
+    next.sections.push(gallery);
+    next.section_order.push(sectionKey);
+    gallerySections.push(gallery);
+    localizedEntries.forEach((localized: any) => {
+      localized.navigation[sectionKey] = 'Galería';
+      localized.sections[sectionKey] = { heading: 'Galería', summary: '', items: [] };
+    });
+  }
+
+  gallerySections.forEach((section: JsonRecord) => {
+    if (!isRecord(section.config) || !Array.isArray(section.config.item_keys)
+      || !Array.isArray(section.media_use_keys)) fail('invalid_payload');
+    const itemKeys = section.config.item_keys.slice();
+    const mediaKeys = section.media_use_keys.slice();
+    section.config = {
+      item_keys: itemKeys,
+      cover_media_use_key: mediaKeys[0] || '',
+      items: itemKeys.map((itemKey: string, index: number) => ({
+        key: itemKey,
+        media_use_keys: mediaKeys[index] ? [mediaKeys[index]] : [],
+        featured: false,
+        visible: true,
+      })),
+    };
+    section.media_use_keys = Array.from(new Set([
+      section.config.cover_media_use_key,
+      ...section.config.items.flatMap((item: JsonRecord) => item.media_use_keys),
+    ].filter(Boolean)));
+    localizedEntries.forEach((localized: any) => {
+      const content = isRecord(localized.sections[section.key])
+        ? localized.sections[section.key]
+        : { heading: '', summary: '', items: [] };
+      const existing = new Map((Array.isArray(content.items) ? content.items : [])
+        .filter(isRecord).map((item: JsonRecord) => [item.key, item]));
+      content.items = itemKeys.map((itemKey: string, index: number) => {
+        const item = existing.get(itemKey) || {};
+        const caption = String(item.caption || '');
+        return {
+          key: itemKey,
+          name: String(item.name || caption || `Trabajo ${index + 1}`),
+          summary: String(item.summary || ''),
+          caption,
+        };
+      });
+      localized.sections[section.key] = content;
+    });
+  });
+
+  const targetGallery = gallerySections[0] || null;
+  legacyFeatured.forEach((section: JsonRecord) => {
+    if (!isRecord(section.config) || !Array.isArray(section.config.item_keys)
+      || !Array.isArray(section.media_use_keys)) fail('invalid_payload');
+    const itemKeys = section.config.item_keys.slice();
+    const mediaKeys = section.media_use_keys.slice();
+    if (targetGallery) {
+      const usedItemKeys = new Set(targetGallery.config.item_keys);
+      itemKeys.forEach((legacyKey: string, index: number) => {
+        const itemKey = uniqueMigratedKey(usedItemKeys, legacyKey);
+        const mediaKey = mediaKeys[index] || '';
+        targetGallery.config.item_keys.push(itemKey);
+        targetGallery.config.items.push({
+          key: itemKey,
+          media_use_keys: mediaKey ? [mediaKey] : [],
+          featured: true,
+          visible: true,
+        });
+        if (mediaKey && !targetGallery.media_use_keys.includes(mediaKey)) targetGallery.media_use_keys.push(mediaKey);
+        localizedEntries.forEach((localized: any) => {
+          const featured = isRecord(localized.sections[section.key]) ? localized.sections[section.key] : {};
+          const legacyItem = (Array.isArray(featured.items) ? featured.items : [])
+            .find((item: JsonRecord) => item && item.key === legacyKey) || {};
+          const target = localized.sections[targetGallery.key];
+          target.items.push({
+            key: itemKey,
+            name: String(legacyItem.name || legacyItem.caption || `Trabajo ${target.items.length + 1}`),
+            summary: String(legacyItem.summary || ''),
+            caption: String(legacyItem.caption || ''),
+          });
+        });
+      });
+    }
+    section.config = { item_keys: [] };
+    section.media_use_keys = [];
+    localizedEntries.forEach((localized: any) => {
+      const content = localized.sections[section.key];
+      if (isRecord(content)) delete content.items;
+    });
+  });
+
+  next.sections.filter((section: JsonRecord) => section && section.type === 'services').forEach((section: JsonRecord) => {
+    if (!isRecord(section.config) || !Array.isArray(section.config.item_keys)) fail('invalid_payload');
+    section.config = {
+      item_keys: section.config.item_keys.slice(),
+      gallery_keys: section.config.item_keys.map(() => targetGallery ? targetGallery.key : ''),
+    };
+    section.media_use_keys = [];
+  });
+  localizedEntries.forEach((localized: any) => {
+    localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || '') };
+  });
+  return next;
+}
+
 export function normalizePromoCmsDocument(value: unknown) {
-  const document = exactKeys(value, DOCUMENT_KEYS);
+  const input = exactKeys(value, DOCUMENT_KEYS);
+  if (![PROMO_CMS_DOCUMENT_CONTRACT, PROMO_CMS_LEGACY_DOCUMENT_CONTRACT].includes(String(input.contract || ''))
+    || input.system_catalog_version !== 'promo.system.v1'
+    || !isRecord(input.locales)
+    || !Array.isArray(input.locales.published)
+    || !isRecord(input.theme)
+    || !isRecord(input.identity)
+    || !Array.isArray(input.section_order)
+    || !Array.isArray(input.sections)
+    || !isRecord(input.media_refs)
+    || !isRecord(input.contact)
+    || !isRecord(input.content_by_locale)
+    || !isRecord(input.adapters)) {
+    fail('invalid_payload');
+  }
+  const document = upgradeLegacyPromoCmsDocument(input);
   if (document.contract !== PROMO_CMS_DOCUMENT_CONTRACT
     || document.system_catalog_version !== 'promo.system.v1'
     || !isRecord(document.locales)
@@ -244,8 +421,10 @@ export function normalizePromoCmsDocument(value: unknown) {
 export function normalizePromoCmsDraftResponse(value: unknown): PromoCmsDraft {
   const response = exactKeys(value, ['ok', 'contract', 'draft']);
   if (response.ok !== true || response.contract !== PROMO_CMS_DRAFT_CONTRACT) fail('invalid_payload');
-  const draft = exactKeys(response.draft, ['schema_version', 'version', 'document']);
-  if (draft.schema_version !== 1 || !Number.isSafeInteger(draft.version) || draft.version < 1) {
+  const draft = exactKeys(response.draft, ['schema_version', 'version', 'generation', 'public_state', 'document']);
+  if (draft.schema_version !== 2 || !Number.isSafeInteger(draft.version) || draft.version < 1
+    || !Number.isSafeInteger(draft.generation) || draft.generation < 0
+    || !['active', 'inactive'].includes(String(draft.public_state || ''))) {
     fail('invalid_payload');
   }
   return Object.freeze({
@@ -395,8 +574,9 @@ export function buildPromoCmsContentDocument(
   }
 
   const name = safeText(patch.identity?.name, PROMO_CMS_TEXT_LIMITS.businessName);
+  const slogan = safeText(patch.identity?.slogan || '', PROMO_CMS_TEXT_LIMITS.slogan);
   const summary = safeText(patch.identity?.summary, PROMO_CMS_TEXT_LIMITS.shortSummary);
-  localized.identity = { ...localized.identity, name, summary };
+  localized.identity = { ...localized.identity, name, slogan, summary };
 
   let serviceCount = 0;
   const sectionMap = new Map(document.sections.map((section: JsonRecord) => [section.key, section]));
@@ -421,6 +601,9 @@ export function buildPromoCmsContentDocument(
     } else if (section.type === 'services') {
       const items = Array.isArray(sectionPatch.items) ? sectionPatch.items : [];
       const itemKeys = new Set<string>();
+      const previousGalleryByItem = new Map<string, string>((section.config.item_keys || []).map(
+        (itemKey: string, index: number) => [itemKey, String(section.config.gallery_keys?.[index] || '')],
+      ));
       const normalizedItems = items.map((item) => {
         const itemKey = key(item.key);
         if (itemKeys.has(itemKey)) fail('invalid_promo_document');
@@ -430,15 +613,22 @@ export function buildPromoCmsContentDocument(
           name: safeText(item.name, PROMO_CMS_TEXT_LIMITS.itemName),
           summary: safeText(item.summary, PROMO_CMS_TEXT_LIMITS.shortSummary),
           caption: safeText(item.caption, PROMO_CMS_TEXT_LIMITS.caption),
+          galleryKey: key(item.galleryKey ?? previousGalleryByItem.get(itemKey) ?? '', true),
         };
       });
       serviceCount += normalizedItems.length;
       section.config.item_keys = normalizedItems.map((item) => item.key);
+      section.config.gallery_keys = normalizedItems.map((item) => item.galleryKey);
       localized.sections[sectionKey] = {
         ...current,
         heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
         summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
-        items: normalizedItems,
+        items: normalizedItems.map(({ key: itemKey, name, summary, caption }) => ({
+          key: itemKey,
+          name,
+          summary,
+          caption,
+        })),
       };
     } else if (section.type === 'owner') {
       localized.sections[sectionKey] = {
@@ -560,6 +750,7 @@ export function buildPromoCmsContactDocument(value: unknown, patch: PromoCmsCont
     primary_action_key: primaryActionKey,
     secondary_action_keys: secondaryActionKeys,
     actions,
+    qr_media_use_key: key(patch.qrMediaUseKey ?? document.contact.qr_media_use_key ?? '', true),
   };
   contactSection.config.action_keys = actions.filter((action: JsonRecord) => action.enabled)
     .map((action: JsonRecord) => action.key);
@@ -574,7 +765,8 @@ export function promoCmsErrorMessage(code: unknown) {
     blocked_by_plan: 'El plan actual bloquea la edición de este sitio.',
     promo_capability_denied: 'La capacidad o cuota necesaria no está disponible para esta tienda.',
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar este cambio.',
-    promo_draft_conflict: 'El borrador cambió en otra sesión. Recárgalo antes de volver a guardar.',
+    promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     invalid_promo_document: 'Revisa los campos: hay datos incompletos o con un formato no permitido.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',
     unsupported_promo_action: 'Ese tipo de contacto todavía no está habilitado.',

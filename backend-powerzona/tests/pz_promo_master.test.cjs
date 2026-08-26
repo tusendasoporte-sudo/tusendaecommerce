@@ -98,7 +98,7 @@ test('catálogo reservado exige Master activo y la misma sesión vigente', () =>
 
 test('lifecycle exige payload exacto, CAS y reason code allowlisted', () => {
   assert.deepEqual(master.MASTER_LIFECYCLE_TRANSITIONS, {
-    draft: [], active: ['suspended'], paused: ['suspended', 'retired'], suspended: ['retired'], retired: [],
+    draft: ['active'], active: ['suspended'], paused: ['suspended', 'retired'], suspended: ['retired'], retired: [],
   });
   assert.deepEqual(master.parseLifecycleUpdate({
     contract: master.LIFECYCLE_UPDATE_CONTRACT,
@@ -158,8 +158,9 @@ test('proyecciones Master no exponen records, filtros, actor o contenido Promo c
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_master_lib.js'), 'utf8');
   assert.match(source, /requireActiveMasterSession/);
   assert.match(source, /requirePromoAction\(app, auth, "promo\.master\.support"/);
-  assert.match(source, /validateDraftCandidate/);
-  assert.match(source, /validateRevisionTarget/);
+  assert.match(source, /validatedStoredDraft/);
+  assert.match(source, /assertDraftTheme/);
+  assert.match(source, /assertEntitlementMetrics/);
   assert.match(source, /resolvePublicProjectionForSite/);
   assert.match(source, /domainPrivateProjection/);
   assert.match(source, /entitlementResponse/);

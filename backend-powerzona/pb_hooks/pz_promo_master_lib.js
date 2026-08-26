@@ -26,12 +26,6 @@ const theme = typeof __hooks === "undefined"
 const domain = typeof __hooks === "undefined"
   ? require("./pz_promo_domain_lib.js")
   : require(`${__hooks}/pz_promo_domain_lib.js`);
-const publish = typeof __hooks === "undefined"
-  ? require("./pz_promo_publish_lib.js")
-  : require(`${__hooks}/pz_promo_publish_lib.js`);
-const publishApi = typeof __hooks === "undefined"
-  ? require("./pz_promo_publish_api_lib.js")
-  : require(`${__hooks}/pz_promo_publish_api_lib.js`);
 
 const CATALOG_READ_CONTRACT = "promo.master.store.catalog.read.v1";
 const CATALOG_RESPONSE_CONTRACT = "promo.master.store.catalog.v1";
@@ -43,7 +37,7 @@ const LIFECYCLE_REASON_CODES = Object.freeze([
   "administrative_request", "contract_change", "incident_recovery", "incident_response",
 ]);
 const MASTER_LIFECYCLE_TRANSITIONS = Object.freeze({
-  draft: Object.freeze([]),
+  draft: Object.freeze(["active"]),
   active: Object.freeze(["suspended"]),
   paused: Object.freeze(["suspended", "retired"]),
   suspended: Object.freeze(["retired"]),
@@ -58,7 +52,8 @@ const REQUIRED_COLLECTIONS = Object.freeze([
 const SAFE_ERRORS = new Set([
   "unauthorized", "session_revoked", "user_inactive", "promo_not_found", "store_not_promo",
   "store_inactive", "promo_site_inactive", "promo_store_context_required", "invalid_payload",
-  "invalid_promo_site_transition", "promo_lifecycle_conflict", "promo_master_unavailable",
+  "invalid_promo_site_transition", "promo_lifecycle_conflict", "promo_lifecycle_validation_failed",
+  "promo_capability_denied", "promo_master_unavailable",
 ]);
 
 function codedError(code, status) {
@@ -272,7 +267,13 @@ function draftProjection(app, decision) {
   try { document = pubcfgApi.validatedStoredDraft(draft); }
   catch (_) { return Object.freeze({ state: "incoherent", version: 0, digest: "", theme: null, locales: null, readiness: { state: "blocked", code: "promo_draft_unavailable" } }); }
   const version = recordInteger(draft, "version") || 0;
-  const readiness = validationState(() => publishApi.validateDraftCandidate(app, decision, draft, version));
+  const readiness = validationState(() => {
+    const publicDocument = pubcfg.validatePromoDocument(document, { publicRevision: true });
+    pubcfgApi.assertDraftTheme(app, publicDocument, { selectionChanged: false });
+    const assets = pubcfgApi.loadDocumentAssets(app, recordId(decision.site), publicDocument, { publicRevision: true });
+    pubcfgApi.assertEntitlementMetrics(decision.entitlement, publicDocument, assets);
+    return true;
+  });
   return Object.freeze({
     state: "available",
     version,
@@ -287,32 +288,6 @@ function draftProjection(app, decision) {
       published: Array.isArray(document.locales.published) ? document.locales.published.slice(0, 10) : [],
     }),
     readiness: Object.freeze({ state: readiness.state, code: readiness.code }),
-  });
-}
-
-function revisionProjection(app, decision, revision, currentRevisionId) {
-  const document = safeJson(revision, "snapshot_json");
-  const revisionId = recordId(revision);
-  const publishState = validationState(() => publishApi.validateRevisionTarget(app, decision, revisionId, "publish"));
-  const rollbackState = validationState(() => publishApi.validateRevisionTarget(app, decision, revisionId, "rollback"));
-  return Object.freeze({
-    revision_id: revisionId,
-    sequence: recordInteger(revision, "sequence") || 0,
-    digest: recordString(revision, "snapshot_sha256"),
-    source_draft_version: recordInteger(revision, "source_draft_version") || 0,
-    created: recordString(revision, "created"),
-    current: revisionId === currentRevisionId,
-    theme: Object.freeze({
-      theme_id: String(document && document.theme && document.theme.theme_id || ""),
-      version: String(document && document.theme && document.theme.version || ""),
-    }),
-    locales: Object.freeze({
-      default: recordString(revision, "default_locale"),
-      published: Array.isArray(document && document.locales && document.locales.published)
-        ? document.locales.published.slice(0, 10) : [],
-    }),
-    publish_readiness: Object.freeze({ state: publishState.state, code: publishState.code }),
-    rollback_readiness: Object.freeze({ state: rollbackState.state, code: rollbackState.code }),
   });
 }
 
@@ -376,50 +351,26 @@ function recentActivity(app, siteId) {
 
 function operationSnapshot(app, auth, storeId) {
   const can = (action) => promo.canPromoAction(app, auth, action, { requestedStoreId: storeId });
-  const candidateAllowed = can("promo.publication.publish");
-  let publishAllowed = false;
-  try {
-    publishApi.decisionFor(app, auth, storeId, "publish");
-    publishAllowed = true;
-  } catch (_) {}
-  const rollbackAllowed = can("promo.master.publication.rollback");
   return Object.freeze({
     lifecycle_update: can("promo.master.site.lifecycle"),
     entitlements_update: can("promo.master.entitlements.manage"),
     domains_manage: can("promo.master.domains.manage"),
     theme_releases_manage: can("promo.master.theme_releases.manage"),
-    candidate_create: candidateAllowed,
-    publish: publishAllowed,
-    rollback: rollbackAllowed,
-    unpublish: rollbackAllowed,
-    canonical_switch: rollbackAllowed,
-    pause: rollbackAllowed,
-    resume: rollbackAllowed,
+    candidate_create: false,
+    publish: false,
+    rollback: false,
+    unpublish: false,
+    canonical_switch: false,
+    pause: false,
+    resume: false,
   });
 }
 
 function publicationControls(decision, slot, operations) {
-  const allowedByOperation = {
-    publish: operations.publish,
-    rollback: operations.rollback,
-    unpublish: operations.unpublish,
-    binding_switch: operations.canonical_switch,
-    pause: operations.pause,
-    resume: operations.resume,
-  };
-  const result = {};
-  let operationalStore = true;
-  try { publishApi.assertOperationalStore(decision); }
-  catch (_) { operationalStore = false; }
-  Object.keys(allowedByOperation).forEach((operation) => {
-    let allowed = operationalStore && !!slot && allowedByOperation[operation] === true;
-    if (allowed) {
-      try { publishApi.assertStateForOperation(decision, slot, operation); }
-      catch (_) { allowed = false; }
-    }
-    result[operation] = allowed;
-  });
-  return Object.freeze(result);
+  void decision;
+  void slot;
+  void operations;
+  return Object.freeze({});
 }
 
 function publicationHealth(app, decision, slot) {
@@ -434,7 +385,6 @@ function publicationHealth(app, decision, slot) {
       canonicalMode,
       primaryBindingId: relationId(slot, "primary_binding"),
       expectedGeneration: recordInteger(slot, "generation"),
-      expectedRevisionId: relationId(slot, "published_revision"),
     });
     return Object.freeze({ state: "healthy", issues: [] });
   } catch (_) { return Object.freeze({ state: "incoherent", issues: ["public_projection_unavailable"] }); }
@@ -447,9 +397,7 @@ function overviewResponse(app, auth, storeId) {
   if (!entitlement) throw codedError("promo_master_unavailable", 503);
   const slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
   const publication = slotProjection(slot);
-  const revisions = findRows(app, "promo_revisions", "site = {:site}", "-sequence", 20, { site: siteId }, 0)
-    .filter((row) => relationId(row, "site") === siteId)
-    .map((row) => revisionProjection(app, decision, row, publication.revision_id));
+  const revisions = Object.freeze([]);
   const operations = operationSnapshot(app, auth, storeId);
   const issues = [];
   if (recordInteger(decision.site, "contract_version") !== 1) issues.push("site_contract_incoherent");
@@ -457,7 +405,6 @@ function overviewResponse(app, auth, storeId) {
   const draft = draftProjection(app, decision);
   if (draft.state !== "available") issues.push("draft_unavailable");
   const health = publicationHealth(app, decision, slot);
-  const currentRevision = revisions.find((item) => item.current) || null;
   issues.push(...health.issues);
   return Object.freeze({
     ok: true,
@@ -476,13 +423,13 @@ function overviewResponse(app, auth, storeId) {
       ...publication,
       health,
       controls: publicationControls(decision, slot, operations),
-      reason_codes: publish.REASON_CODES,
+      reason_codes: Object.freeze({}),
     }),
     revisions,
     domains: domainProjections(app, siteId),
     theme: Object.freeze({
       draft: draft.theme,
-      published: currentRevision ? currentRevision.theme : null,
+      published: publication.state === "active" ? draft.theme : null,
       releases: themeReleaseProjections(app),
     }),
     activity: recentActivity(app, siteId),
@@ -516,6 +463,61 @@ function parseLifecycleUpdate(body) {
   };
 }
 
+function syncLifecycleSlot(app, decision, nextStatus, reasonCode) {
+  const siteId = recordId(decision.site);
+  let slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
+  if (!slot) throw codedError("promo_master_unavailable", 503);
+  app.db().newQuery("UPDATE promo_publication_slots SET id = id WHERE id = {:id}")
+    .bind({ id: recordId(slot) }).execute();
+  slot = findRecord(app, "promo_publication_slots", recordId(slot));
+  if (!slot || relationId(slot, "site") !== siteId) throw codedError("promo_master_unavailable", 503);
+  const previous = {
+    state: recordString(slot, "state"),
+    generation: Math.max(0, recordInteger(slot, "generation") || 0),
+    canonical_mode: recordString(slot, "canonical_mode") || "platform",
+  };
+  if (nextStatus === "active") {
+    if (recordString(decision.store, "status") !== "active"
+      || !promo.resolvePromoCapabilityAccess(decision.entitlement, "promo_site_enabled").allowed
+      || !promo.resolvePromoCapabilityAccess(decision.entitlement, "publish_enabled").allowed) {
+      throw codedError("promo_capability_denied", 403);
+    }
+    try {
+      const live = pubcfgApi.findDraft(app, siteId);
+      const document = pubcfg.validatePromoDocument(pubcfgApi.validatedStoredLive(live), { publicRevision: true });
+      pubcfgApi.assertDraftTheme(app, document, { selectionChanged: false });
+      const assets = pubcfgApi.loadDocumentAssets(app, siteId, document, { publicRevision: true });
+      pubcfgApi.assertEntitlementMetrics(decision.entitlement, document, assets);
+    } catch (error) {
+      if (String(error && (error.code || error.message) || "") === "promo_capability_denied") throw error;
+      throw codedError("promo_lifecycle_validation_failed", 409);
+    }
+    slot.set("state", "active");
+    slot.set("published_at", new Date().toISOString());
+  } else {
+    slot.set("state", "unpublished");
+  }
+  slot.set("published_revision", "");
+  slot.set("generation", previous.generation + 1);
+  slot.set("published_by", recordId(decision.actor));
+  app.save(slot);
+  audit.createPromoAudit(app, decision, {
+    action: "promo.lifecycle.public_state.update",
+    resourceType: "promo_publication_slot",
+    resourceId: recordId(slot),
+    changedPaths: ["/state", "/generation"],
+    previousValues: previous,
+    newValues: {
+      state: recordString(slot, "state"),
+      generation: recordInteger(slot, "generation"),
+      canonical_mode: recordString(slot, "canonical_mode") || "platform",
+      reason_code: reasonCode,
+    },
+    sourceEventKey: `promo.lifecycle.slot.${recordId(slot)}.${previous.generation + 1}`,
+  });
+  return slot;
+}
+
 function handleLifecycleUpdate(e) {
   let context;
   let input;
@@ -543,6 +545,7 @@ function handleLifecycleUpdate(e) {
       }
       if (input.nextStatus !== input.expectedStatus) {
         const previous = siteAuditSnapshot(site);
+        syncLifecycleSlot(app, { ...decision, site }, input.nextStatus, input.reasonCode);
         site.set("status", input.nextStatus);
         site.set("updated_by", recordId(decision.actor));
         app.save(site);
@@ -567,7 +570,7 @@ function handleLifecycleUpdate(e) {
 
 function emptyDraftDocument() {
   return {
-    contract: "promo.site.v1",
+    contract: "promo.site.v2",
     system_catalog_version: "promo.system.v1",
     locales: { default: "", published: [] },
     theme: { theme_id: "", version: "", tokens: {} },
@@ -575,7 +578,7 @@ function emptyDraftDocument() {
     section_order: [],
     sections: [],
     media_refs: {},
-    contact: { enabled: false, primary_action_key: "", secondary_action_keys: [], actions: [] },
+    contact: { enabled: false, primary_action_key: "", secondary_action_keys: [], actions: [], qr_media_use_key: "" },
     content_by_locale: {},
     adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
   };
@@ -648,7 +651,7 @@ function errorCode(error) {
 function errorStatus(error) {
   const code = errorCode(error);
   if (["store_not_promo", "promo_not_found"].includes(code)) return 404;
-  if (code === "promo_lifecycle_conflict") return 409;
+  if (["promo_lifecycle_conflict", "promo_lifecycle_validation_failed"].includes(code)) return 409;
   if (["invalid_payload", "invalid_promo_site_transition"].includes(code)) return 400;
   if (code === "promo_master_unavailable") return 503;
   if (Number.isInteger(error && error.status)) return error.status;

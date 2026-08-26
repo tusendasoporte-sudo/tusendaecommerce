@@ -24,7 +24,7 @@ const RANDOM_FILE_PATTERN = /^[a-f0-9]{32}\.(?:webp|mp4|webm)$/;
 const STORED_FILE_PATTERN = /^[a-f0-9]{32}(?:_[A-Za-z0-9]{6,32})?\.(?:webp|mp4|webm)$/;
 
 const PURPOSES = Object.freeze([
-  "hero", "service", "gallery", "owner", "footer", "social", "video_poster",
+  "hero", "service", "gallery", "owner", "footer", "social", "video_poster", "qr",
 ]);
 const VIDEO_PURPOSES = Object.freeze(["hero", "gallery"]);
 const IMAGE_PURPOSES = Object.freeze(PURPOSES.slice());
@@ -37,6 +37,7 @@ const PURPOSE_POLICIES = Object.freeze({
   footer: Object.freeze({ minWidth: 480, minHeight: 120, maxWidth: 1600, maxHeight: 800, widths: Object.freeze([480, 960, 1280]), sizes: "100vw", priority: false }),
   social: Object.freeze({ minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630, widths: Object.freeze([600, 1200]), sizes: "100vw", priority: false }),
   video_poster: Object.freeze({ minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900, widths: Object.freeze([480, 960, 1440]), sizes: "100vw", priority: false }),
+  qr: Object.freeze({ minWidth: 512, minHeight: 512, maxWidth: 512, maxHeight: 512, widths: Object.freeze([512]), sizes: "min(18rem, 80vw)", priority: false }),
 });
 
 function safeText(value, max) {

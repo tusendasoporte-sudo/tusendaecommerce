@@ -7,6 +7,7 @@ interface Props {
   scope: PromoCmsScope;
   maxServices?: number;
   canSave: boolean;
+  canManageMedia?: boolean;
 }
 
 const {
@@ -14,6 +15,7 @@ const {
   scope,
   maxServices = 0,
   canSave,
+  canManageMedia = false,
 } = Astro.props;
 const isContent = scope === 'content';
 ---
@@ -25,19 +27,20 @@ const isContent = scope === 'content';
   data-scope={scope}
   data-max-services={maxServices}
   data-can-save={canSave ? 'true' : 'false'}
+  data-can-manage-media={canManageMedia ? 'true' : 'false'}
   aria-labelledby="promo-cms-title"
 >
   <header class="pz-promo-cms__intro">
     <div>
-      <span class="pz-promo-cms__kicker">Borrador privado</span>
+      <span class="pz-promo-cms__kicker">Página pública en vivo</span>
       <h2 id="promo-cms-title">{isContent ? 'Editor de contenido' : 'Canales de contacto'}</h2>
       <p>
         {isContent
-          ? 'Organiza identidad, portada, servicios, propietario y pie del sitio. Guardar no publica los cambios.'
-          : 'Configura canales tipados y el método principal. El destino nunca se convierte en una URL libre.'}
+          ? 'Organiza identidad, portada, servicios, propietario y pie del sitio. Guardar actualiza la página automáticamente.'
+          : 'Configura canales, QR y el método principal. Guardar actualiza la página automáticamente.'}
       </p>
     </div>
-    <div class="pz-promo-cms__draft-meta" aria-label="Estado del borrador">
+    <div class="pz-promo-cms__draft-meta" aria-label="Estado de la página">
       <span data-cms-locale>Idioma base: —</span>
       <span data-cms-version>Versión: —</span>
     </div>
@@ -56,13 +59,13 @@ const isContent = scope === 'content';
 
   <div class="pz-promo-cms__notice" role="status" aria-live="polite" data-cms-status>
     <span class="pz-promo-cms__spinner" aria-hidden="true"></span>
-    <span>Cargando el borrador seguro…</span>
+    <span>Cargando la página segura…</span>
   </div>
 
   <div class="pz-promo-cms__error" role="alert" tabindex="-1" data-cms-error hidden>
     <strong>No se pudo continuar</strong>
     <p data-cms-error-message></p>
-    <button type="button" data-cms-reload>Recargar borrador</button>
+    <button type="button" data-cms-reload>Recargar página</button>
   </div>
 
   <form class="pz-promo-cms__form" data-cms-form hidden novalidate>
@@ -81,6 +84,11 @@ const isContent = scope === 'content';
               <span>Nombre público</span>
               <input type="text" maxlength="140" autocomplete="organization" data-cms-identity-name />
               <small>Máximo 140 caracteres.</small>
+            </label>
+            <label class="pz-promo-cms__field">
+              <span>Slogan</span>
+              <input type="text" maxlength="120" data-cms-identity-slogan />
+              <small>Frase opcional bajo el nombre; máximo 120 caracteres.</small>
             </label>
             <label class="pz-promo-cms__field is-wide">
               <span>Resumen del negocio</span>
@@ -108,13 +116,13 @@ const isContent = scope === 'content';
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
               <h3 id="cms-contact-section-title">Presentación de contacto</h3>
-              <p>Controla la visibilidad y los textos editoriales sin publicar ni generar enlaces.</p>
+              <p>Controla la visibilidad, textos y QR que aparecen en la página pública.</p>
             </div>
           </div>
           <div class="pz-promo-cms__fields two-columns">
             <label class="pz-promo-cms__switch is-wide">
               <input type="checkbox" data-cms-contact-section-visible />
-              <span><strong>Mostrar sección de contacto</strong><small>Puede permanecer oculta mientras preparas el borrador.</small></span>
+              <span><strong>Mostrar sección de contacto</strong><small>Puede permanecer oculta hasta que completes la información.</small></span>
             </label>
             <label class="pz-promo-cms__field">
               <span>Etiqueta de navegación</span>
@@ -131,9 +139,29 @@ const isContent = scope === 'content';
           </div>
         </section>
 
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-actions-title">
+        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-qr-title">
           <div class="pz-promo-cms__panel-heading with-action">
             <span class="pz-promo-cms__step" aria-hidden="true">02</span>
+            <div>
+              <h3 id="cms-contact-qr-title">Código QR propio</h3>
+              <p>Sube una imagen de QR; se convertirá a WebP 512×512 con fondo blanco y sin recorte.</p>
+            </div>
+            <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-qr disabled={!canSave}>Quitar QR</button>
+          </div>
+          <div class="pz-promo-cms__qr-grid">
+            <div class="pz-promo-cms__qr-preview" data-cms-qr-preview><span>Sin QR</span></div>
+            <label class="pz-promo-cms__field">
+              <span>Imagen del QR</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
+              <small>La carga queda asociada al guardar los cambios.</small>
+            </label>
+            <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-qr disabled={!canManageMedia}>Procesar QR</button>
+          </div>
+        </section>
+
+        <section class="pz-promo-cms__panel" aria-labelledby="cms-contact-actions-title">
+          <div class="pz-promo-cms__panel-heading with-action">
+            <span class="pz-promo-cms__step" aria-hidden="true">03</span>
             <div>
               <h3 id="cms-contact-actions-title">Métodos permitidos</h3>
               <p>WhatsApp y teléfono exigen E.164; correo exige una dirección válida. No se aceptan URLs.</p>
@@ -142,7 +170,7 @@ const isContent = scope === 'content';
           </div>
           <label class="pz-promo-cms__switch pz-promo-cms__contact-master">
             <input type="checkbox" data-cms-contact-enabled />
-            <span><strong>Habilitar contacto en el borrador</strong><small>Al habilitarlo debes elegir un método principal disponible.</small></span>
+            <span><strong>Habilitar contacto en la página</strong><small>Al habilitarlo debes elegir un método principal disponible.</small></span>
           </label>
           <div class="pz-promo-cms__action-list" data-cms-contact-actions></div>
         </section>
@@ -152,10 +180,10 @@ const isContent = scope === 'content';
     <footer class="pz-promo-cms__actions">
       <div>
         <strong data-cms-unsaved>Sin cambios pendientes</strong>
-        <small>Los datos públicos no cambian hasta completar el flujo de publicación en su módulo autorizado.</small>
+        <small>Al guardar, la página pública se actualiza automáticamente después de validar permisos, medios y contenido.</small>
       </div>
       <button class="pz-promo-cms__save" type="submit" data-cms-save disabled>
-        <span data-cms-save-label>Guardar borrador</span>
+        <span data-cms-save-label>Guardar cambios</span>
       </button>
     </footer>
   </form>
@@ -199,7 +227,9 @@ const isContent = scope === 'content';
     const scope = root.dataset.scope === 'contact' ? 'contact' : 'content';
     const maxServices = Number(root.dataset.maxServices || 0);
     const canSave = root.dataset.canSave === 'true';
+    const canManageMedia = root.dataset.canManageMedia === 'true';
     const endpoint = `${PROMO_CMS_API_PATH}?store=${encodeURIComponent(storeSlug)}`;
+    const mediaEndpoint = `/api/admin/promo-media?store=${encodeURIComponent(storeSlug)}`;
     const form = root.querySelector<HTMLFormElement>('[data-cms-form]');
     const status = root.querySelector<HTMLElement>('[data-cms-status]');
     const errorBox = root.querySelector<HTMLElement>('[data-cms-error]');
@@ -212,6 +242,7 @@ const isContent = scope === 'content';
     let locale = '';
     let dirty = false;
     let busy = false;
+    let qrUseKey = '';
 
     function element<K extends keyof HTMLElementTagNameMap>(
       tag: K,
@@ -252,7 +283,7 @@ const isContent = scope === 'content';
       busy = next;
       root.setAttribute('aria-busy', next ? 'true' : 'false');
       if (saveButton) saveButton.disabled = next || !canSave || !dirty;
-      if (saveLabel) saveLabel.textContent = next ? message : 'Guardar borrador';
+      if (saveLabel) saveLabel.textContent = next ? message : 'Guardar cambios';
       form?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select').forEach((control) => {
         control.disabled = next || !canSave;
       });
@@ -262,6 +293,10 @@ const isContent = scope === 'content';
       if (!next) {
         updateServiceQuota();
         root.querySelectorAll<HTMLElement>('[data-cms-contact-action]').forEach(setContactControlState);
+        const qrFile = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
+        const qrUpload = root.querySelector<HTMLButtonElement>('[data-cms-upload-qr]');
+        if (qrFile) qrFile.disabled = !canManageMedia;
+        if (qrUpload) qrUpload.disabled = !canManageMedia;
       }
     }
 
@@ -322,7 +357,7 @@ const isContent = scope === 'content';
       return controls;
     }
 
-    function createServiceItem(item: CmsDocument, sectionKey: string) {
+    function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '') {
       const card = element('article', 'pz-promo-cms__service-item');
       card.dataset.cmsServiceItem = item.key;
       const header = element('header', 'pz-promo-cms__item-heading');
@@ -343,8 +378,22 @@ const isContent = scope === 'content';
       const name = inputField('Nombre del servicio', item.name || '', { max: 160, data: 'name' });
       const summary = inputField('Resumen', item.summary || '', { textarea: true, max: 600, data: 'summary' });
       const caption = inputField('Nota o caption', item.caption || '', { max: 500, data: 'caption' });
+      const galleryLabel = element('label', 'pz-promo-cms__field');
+      galleryLabel.append(element('span', '', 'Galería relacionada'));
+      const gallerySelect = element('select');
+      gallerySelect.dataset.cmsField = 'gallery';
+      const noGallery = element('option', '', 'Sin galería');
+      noGallery.value = '';
+      gallerySelect.append(noGallery);
+      (documentValue?.sections || []).filter((section: CmsDocument) => section.type === 'gallery').forEach((section: CmsDocument) => {
+        const option = element('option', '', documentValue?.content_by_locale?.[locale]?.navigation?.[section.key] || section.key);
+        option.value = section.key;
+        option.selected = section.key === galleryKey;
+        gallerySelect.append(option);
+      });
+      galleryLabel.append(gallerySelect);
       name.control.addEventListener('input', () => { title.textContent = name.control.value || 'Servicio sin nombre'; });
-      fields.append(name.label, summary.label, caption.label);
+      fields.append(name.label, summary.label, caption.label, galleryLabel);
       card.dataset.sectionKey = sectionKey;
       card.append(header, fields);
       return card;
@@ -370,7 +419,7 @@ const isContent = scope === 'content';
       visibleInput.type = 'checkbox';
       visibleInput.checked = section.visible === true;
       visibleInput.dataset.cmsField = 'visible';
-      visible.append(visibleInput, element('span', '', 'Visible en la próxima publicación'));
+      visible.append(visibleInput, element('span', '', 'Visible en la página'));
 
       const fields = element('div', 'pz-promo-cms__fields two-columns');
       const navigation = inputField('Etiqueta de navegación', localized.navigation?.[section.key] || labelText, {
@@ -403,9 +452,10 @@ const isContent = scope === 'content';
         const localizedItems = Array.isArray(sectionContent.items) ? sectionContent.items : [];
         const itemByKey = new Map(localizedItems.map((item: CmsDocument) => [item.key, item]));
         const orderedKeys = [...new Set([...(section.config.item_keys || []), ...localizedItems.map((item: CmsDocument) => item.key)])];
-        orderedKeys.forEach((itemKey) => list.append(createServiceItem(
+        orderedKeys.forEach((itemKey, index) => list.append(createServiceItem(
           itemByKey.get(itemKey) || { key: itemKey, name: '', summary: '', caption: '' },
           section.key,
+          section.config.gallery_keys?.[index] || '',
         )));
         add.addEventListener('click', () => {
           if (serviceTotal() >= maxServices) return;
@@ -483,8 +533,10 @@ const isContent = scope === 'content';
       if (!documentValue) return;
       const localized = documentValue.content_by_locale[locale];
       const name = root.querySelector<HTMLInputElement>('[data-cms-identity-name]');
+      const slogan = root.querySelector<HTMLInputElement>('[data-cms-identity-slogan]');
       const summary = root.querySelector<HTMLTextAreaElement>('[data-cms-identity-summary]');
       if (name) name.value = localized.identity?.name || '';
+      if (slogan) slogan.value = localized.identity?.slogan || '';
       if (summary) summary.value = localized.identity?.summary || '';
       const list = root.querySelector<HTMLElement>('[data-cms-sections]');
       if (!list) return;
@@ -597,6 +649,77 @@ const isContent = scope === 'content';
       });
     }
 
+    function renderQrPreview() {
+      const preview = root.querySelector<HTMLElement>('[data-cms-qr-preview]');
+      if (!preview || !documentValue) return;
+      preview.replaceChildren();
+      const assetId = documentValue.media_refs?.[qrUseKey]?.asset_id || '';
+      if (!qrUseKey || !/^[a-z0-9]{15}$/.test(assetId)) {
+        preview.append(element('span', '', 'Sin QR'));
+        return;
+      }
+      const image = element('img');
+      image.src = `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
+      image.alt = 'Vista previa del código QR';
+      image.width = 192;
+      image.height = 192;
+      preview.append(image);
+    }
+
+    async function uploadQr() {
+      const file = root.querySelector<HTMLInputElement>('[data-cms-qr-file]')?.files?.[0];
+      if (!documentValue || !file || !canManageMedia || busy) return;
+      clearError();
+      setBusy(true, 'Procesando QR…');
+      try {
+        const payload = new FormData();
+        payload.append('file', file);
+        payload.append('purpose', 'qr');
+        payload.append('poster_asset_id', '');
+        const response = await fetch(mediaEndpoint, {
+          method: 'POST', body: payload, headers: { Accept: 'application/json' }, credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => null);
+        const assetId = String(result?.asset?.asset_id || '');
+        if (!response.ok || result?.ok !== true || !/^[a-z0-9]{15}$/.test(assetId)
+          || result.asset?.purpose !== 'qr' || Number(result.asset?.width) !== 512 || Number(result.asset?.height) !== 512) {
+          throw Object.assign(new Error('promo_media_upload_failed'), { code: result?.error });
+        }
+        if (!qrUseKey) {
+          qrUseKey = 'qr-contact';
+          if (documentValue.media_refs[qrUseKey]) {
+            const random = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+            qrUseKey = `qr-contact-${random}`.slice(0, 120);
+          }
+        }
+        documentValue.media_refs[qrUseKey] = { asset_id: assetId, purpose: 'qr' };
+        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+          content.media_alt[qrUseKey] = { alt: 'Código QR de contacto', decorative: false };
+        });
+        documentValue.contact.qr_media_use_key = qrUseKey;
+        renderQrPreview();
+        setDirty();
+        if (status) {
+          status.hidden = false;
+          status.querySelector('span:last-child')!.textContent = 'QR procesado. Guarda los cambios para actualizar la página.';
+        }
+      } catch (error) {
+        showError((error as { code?: string })?.code || 'promo_media_upload_failed');
+      } finally {
+        setBusy(false, '');
+      }
+    }
+
+    function removeQr() {
+      if (!documentValue || !qrUseKey || !canSave) return;
+      delete documentValue.media_refs[qrUseKey];
+      Object.values(documentValue.content_by_locale).forEach((content: any) => delete content.media_alt[qrUseKey]);
+      documentValue.contact.qr_media_use_key = '';
+      qrUseKey = '';
+      renderQrPreview();
+      setDirty();
+    }
+
     function renderContact() {
       if (!documentValue) return;
       const localized = documentValue.content_by_locale[locale];
@@ -612,6 +735,8 @@ const isContent = scope === 'content';
       if (heading) heading.value = sectionContent.heading || '';
       if (summary) summary.value = sectionContent.summary || '';
       if (enabled) enabled.checked = documentValue.contact.enabled === true;
+      qrUseKey = documentValue.contact.qr_media_use_key || '';
+      renderQrPreview();
       const list = root.querySelector<HTMLElement>('[data-cms-contact-actions]');
       if (list) list.replaceChildren(...documentValue.contact.actions.map((action: CmsDocument) => (
         createContactAction(action, localized.contact?.[action.key] || {})
@@ -621,10 +746,11 @@ const isContent = scope === 'content';
 
     function collectContentPatch() {
       const identityName = root.querySelector<HTMLInputElement>('[data-cms-identity-name]')?.value || '';
+      const identitySlogan = root.querySelector<HTMLInputElement>('[data-cms-identity-slogan]')?.value || '';
       const identitySummary = root.querySelector<HTMLTextAreaElement>('[data-cms-identity-summary]')?.value || '';
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-section-key]'));
       return {
-        identity: { name: identityName, summary: identitySummary },
+        identity: { name: identityName, slogan: identitySlogan, summary: identitySummary },
         sectionOrder: cards.map((card) => card.dataset.cmsSectionKey || ''),
         sections: cards.map((card) => {
           const type = card.dataset.cmsSectionType || '';
@@ -655,6 +781,7 @@ const isContent = scope === 'content';
                 name: item.querySelector<HTMLInputElement>('[data-cms-field="name"]')?.value || '',
                 summary: item.querySelector<HTMLTextAreaElement>('[data-cms-field="summary"]')?.value || '',
                 caption: item.querySelector<HTMLInputElement>('[data-cms-field="caption"]')?.value || '',
+                galleryKey: item.querySelector<HTMLSelectElement>('[data-cms-field="gallery"]')?.value || '',
               })),
             });
           }
@@ -668,6 +795,7 @@ const isContent = scope === 'content';
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-contact-action]'));
       return {
         enabled: root.querySelector<HTMLInputElement>('[data-cms-contact-enabled]')?.checked === true,
+        qrMediaUseKey: qrUseKey,
         primaryActionKey: root.querySelector<HTMLInputElement>('[data-cms-primary]:checked')?.value || '',
         secondaryActionKeys: Array.from(root.querySelectorAll<HTMLInputElement>('[data-cms-secondary]:checked')).map((input) => input.value),
         section: {
@@ -717,7 +845,7 @@ const isContent = scope === 'content';
       if (status) {
         status.hidden = false;
         status.classList.remove('is-success');
-        status.querySelector('span:last-child')!.textContent = 'Cargando el borrador seguro…';
+        status.querySelector('span:last-child')!.textContent = 'Cargando la página segura…';
       }
       if (form) form.hidden = true;
       setBusy(true, 'Cargando…');
@@ -740,6 +868,8 @@ const isContent = scope === 'content';
     }
 
     root.querySelector('[data-cms-reload]')?.addEventListener('click', loadDraft);
+    root.querySelector('[data-cms-upload-qr]')?.addEventListener('click', uploadQr);
+    root.querySelector('[data-cms-remove-qr]')?.addEventListener('click', removeQr);
     root.querySelector('[data-cms-add-contact]')?.addEventListener('click', () => {
       const list = root.querySelector<HTMLElement>('[data-cms-contact-actions]');
       if (!list || list.children.length >= 32) return;
@@ -786,7 +916,7 @@ const isContent = scope === 'content';
           status.hidden = false;
           status.classList.add('is-success');
           status.querySelector('span:last-child')!.textContent = result.changed === true
-            ? 'Borrador guardado. El sitio publicado no cambió.'
+            ? 'Página pública actualizada correctamente.'
             : 'No había cambios nuevos para guardar.';
         }
       } catch (error) {

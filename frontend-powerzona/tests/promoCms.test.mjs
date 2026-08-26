@@ -6,6 +6,7 @@ import {
   buildPromoCmsContactDocument,
   buildPromoCmsContentDocument,
   createPromoCmsWorkspace,
+  normalizePromoCmsDocument,
   normalizePromoCmsDraftResponse,
   parsePromoCmsUpdate,
   PromoCmsError,
@@ -133,11 +134,11 @@ test('workspace vacío asigna solo el locale base y las secciones del alcance CM
 
   const contact = createPromoCmsWorkspace(emptyDraft(), 'contact');
   assert.deepEqual(contact.document.sections.map((section) => section.type), ['contact']);
-  assert.deepEqual(contact.document.contact, emptyDraft().contact);
+  assert.deepEqual(contact.document.contact, normalizePromoCmsDocument(emptyDraft()).contact);
 });
 
 test('edición de contenido preserva tema, media, galería, contacto, adapters y locales ajenos', () => {
-  const original = completeDocument();
+  const original = normalizePromoCmsDocument(completeDocument());
   const protectedBefore = structuredClone({
     theme: original.theme,
     media_refs: original.media_refs,
@@ -194,7 +195,7 @@ test('servicios respetan cuota efectiva y el documento no acepta contenido activ
 });
 
 test('contacto actualiza canales tipados sin alterar las otras facetas del tenant', () => {
-  const original = completeDocument();
+  const original = normalizePromoCmsDocument(completeDocument());
   const protectedBefore = structuredClone({
     theme: original.theme,
     media_refs: original.media_refs,
@@ -230,6 +231,7 @@ test('contacto actualiza canales tipados sin alterar las otras facetas del tenan
       { key: 'call-main', type: 'whatsapp', enabled: true, config: { phone_e164: '+13055550184' } },
       { key: 'mail-main', type: 'email', enabled: true, config: { email_address: 'contacto@example.com' } },
     ],
+    qr_media_use_key: '',
   });
   assert.equal(updated.content_by_locale.es.contact['call-main'].message, 'Deseo solicitar un estimado.');
   assert.deepEqual({
@@ -256,9 +258,19 @@ test('envelopes, tenant slug y origen fallan cerrados ante campos o señales amb
   assert.equal(promoCmsStoreSlug(' Promo-A '), 'promo-a');
   assert.equal(promoCmsStoreSlug('../promo-a'), '');
   assert.throws(() => parsePromoCmsUpdate({ expected_version: 1, document, store_id: 'storeaaaaaaaaaa' }));
-  assert.throws(() => normalizePromoCmsDraftResponse({
-    ok: true, contract: 'promo.draft.v1', draft: { schema_version: 1, version: 1, document }, token: 'secret',
-  }));
+  const live = {
+    ok: true,
+    contract: 'promo.live.v1',
+    draft: {
+      schema_version: 2,
+      version: 1,
+      generation: 0,
+      public_state: 'inactive',
+      document,
+    },
+  };
+  assert.equal(normalizePromoCmsDraftResponse(live).document.contract, 'promo.site.v2');
+  assert.throws(() => normalizePromoCmsDraftResponse({ ...live, token: 'secret' }));
   assert.equal(promoCmsSameOriginMutation(new Request('https://admin.test/api/admin/promo-cms', {
     method: 'PUT', headers: { Origin: 'https://admin.test', 'Sec-Fetch-Site': 'same-origin' },
   })), true);
@@ -277,11 +289,14 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(api, /context\.store\.slug[\s\S]*?storeSlug/);
   assert.match(api, /promoCmsSameOriginMutation/);
   assert.match(api, /expected_version: parsed\.expectedVersion/);
-  assert.match(api, /\/api\/pz\/promo\/private\/v1\/draft\/read/);
-  assert.match(api, /\/api\/pz\/promo\/private\/v1\/draft\/update/);
+  assert.match(api, /\/api\/pz\/promo\/private\/v1\/live\/read/);
+  assert.match(api, /\/api\/pz\/promo\/private\/v1\/live\/update/);
+  assert.match(api, /promo\.live\.read\.v1/);
+  assert.match(api, /promo\.live\.update\.v1/);
   assert.match(api, /X-PZ-Promo-Store/);
   assert.doesNotMatch(api, /filter|sort|fields|expand|realtime|Cloudflare|Coolify/);
-  assert.match(editor, /Guardar no publica los cambios/);
+  assert.match(editor, /Guardar actualiza la página automáticamente/);
+  assert.match(editor, /la página pública se actualiza automáticamente después de validar permisos/);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /reportValidity\(\)/);
@@ -291,5 +306,7 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(shell, /section === 'content' \|\| section === 'contact'/);
   assert.match(shell, /<PromoCmsEditor/);
-  assert.doesNotMatch(editor, /promo-media|themes\/catalog|publication|preview|Cloudflare|Coolify/);
+  assert.match(editor, /\/api\/admin\/promo-media/);
+  assert.match(editor, /purpose: 'qr'/);
+  assert.doesNotMatch(editor, /themes\/catalog|publication|Cloudflare|Coolify/);
 });

@@ -159,7 +159,7 @@ test('DOM-CORE resuelve primary exacto a un solo tenant y proyecta ruta pública
     platformHosts: ['tusenda84.com', 'api.tusenda84.com'],
   });
   assert.equal(resolved.site_id, ids.siteA);
-  assert.equal(resolved.revision_id, ids.revisionA);
+  assert.equal(resolved.generation, 4);
   assert.equal(resolved.binding_role, 'primary');
   assert.deepEqual(domain.projectHostRoute({ ...resolved, projection: {} }), {
     ok: true,

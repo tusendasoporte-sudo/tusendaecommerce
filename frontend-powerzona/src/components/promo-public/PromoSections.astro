@@ -5,6 +5,7 @@ import type {
   PromoPublicProfile,
   PromoPublicSection,
 } from '../../lib/promoPublicShell';
+import PromoContactAction from './PromoContactAction.astro';
 import PromoSectionMedia from './PromoSectionMedia.astro';
 
 interface Props {
@@ -15,6 +16,17 @@ interface Props {
   navigationLabel: string;
   primaryHeading: boolean;
 }
+
+type WorkModel = {
+  key: string;
+  galleryKey: string;
+  galleryHeading: string;
+  name: string;
+  summary: string;
+  caption: string;
+  featured: boolean;
+  media: PromoPublicMedia[];
+};
 
 const {
   profile,
@@ -27,17 +39,52 @@ const {
 const sectionId = `promo-section-${section.key}`;
 const items = Array.isArray(localized.items) ? localized.items : [];
 const mediaByKey = new Map(profile.media.map((item) => [item.key, item]));
-const sectionMedia = section.media_use_keys
-  .map((key) => mediaByKey.get(key))
-  .filter((item): item is PromoPublicMedia => Boolean(item));
+const sectionByKey = new Map(profile.sections.map((item) => [item.key, item]));
+const gallerySections = profile.sections.filter((item) => item.type === 'gallery');
 const ownerMediaKey = String(section.config.media_use_key || section.media_use_keys[0] || '');
 const ownerMedia = ownerMediaKey ? mediaByKey.get(ownerMediaKey) : undefined;
-const itemMedia = (index: number) => sectionMedia[index];
-const itemLabel = (item: Record<string, string>, index: number) => (
-  String(item.name || item.caption || mediaByKey.get(section.media_use_keys[index])?.accessibility.alt
-    || `${navigationLabel} ${index + 1}`)
-);
 const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
+const estimateLabel = profile.system.messages['contact.request_estimate'];
+const moreLabel = profile.locale.lang.startsWith('es') ? 'Ver más' : 'View more';
+
+const galleryWorks = (gallery: PromoPublicSection): WorkModel[] => {
+  const content = profile.content.sections[gallery.key] || {};
+  const localizedItems = new Map((Array.isArray(content.items) ? content.items : [])
+    .map((item: Record<string, string>) => [item.key, item]));
+  return (Array.isArray(gallery.config.items) ? gallery.config.items : [])
+    .filter((item: Record<string, any>) => item.visible === true)
+    .map((item: Record<string, any>) => {
+      const copy = localizedItems.get(item.key) || {};
+      return {
+        key: String(item.key),
+        galleryKey: gallery.key,
+        galleryHeading: String(content.heading || profile.content.navigation[gallery.key] || ''),
+        name: String(copy.name || ''),
+        summary: String(copy.summary || ''),
+        caption: String(copy.caption || ''),
+        featured: item.featured === true,
+        media: (Array.isArray(item.media_use_keys) ? item.media_use_keys : [])
+          .map((key: string) => mediaByKey.get(key))
+          .filter((media): media is PromoPublicMedia => Boolean(media && media.purpose === 'gallery')),
+      };
+    });
+};
+
+const featuredWorks = gallerySections.flatMap(galleryWorks).filter((work) => work.featured);
+const currentGalleryWorks = section.type === 'gallery' ? galleryWorks(section) : [];
+const serviceGalleryKeys = Array.isArray(section.config.gallery_keys) ? section.config.gallery_keys : [];
+const services = section.type === 'services' ? items.map((item: Record<string, string>, index: number) => {
+  const galleryKey = String(serviceGalleryKeys[index] || '');
+  const gallery = galleryKey ? sectionByKey.get(galleryKey) : undefined;
+  const coverKey = gallery?.type === 'gallery' ? String(gallery.config.cover_media_use_key || '') : '';
+  const cover = coverKey ? mediaByKey.get(coverKey) : undefined;
+  return { item, gallery, cover: cover?.purpose === 'gallery' ? cover : undefined };
+}) : [];
+const itemCount = section.type === 'featured_work'
+  ? featuredWorks.length
+  : section.type === 'gallery'
+    ? currentGalleryWorks.length
+    : items.length;
 ---
 
 <section
@@ -46,8 +93,7 @@ const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
   aria-labelledby={`${sectionId}-heading`}
   data-section-type={section.type}
   data-section-variant={section.variant}
-  data-section-item-count={String(items.length)}
-  data-section-media-count={String(sectionMedia.length + (ownerMedia && !sectionMedia.includes(ownerMedia) ? 1 : 0))}
+  data-section-item-count={String(itemCount)}
 >
   <div class:list={['promo-shell-section__inner', 'promo-sections__inner', { 'promo-sections__inner--owner': section.type === 'owner' }]}>
     {section.type === 'owner' && (
@@ -77,55 +123,67 @@ const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
       )}
     </div>
 
-    {section.type === 'services' && items.length > 0 && (
+    {section.type === 'services' && services.length > 0 && (
       <ul class="promo-sections__services-list">
-        {items.map((item: Record<string, string>, index: number) => {
-          const media = itemMedia(index);
-          return (
-            <li>
-              <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': media }]}>
-                <div class="promo-sections__service-media">
-                  {media ? (
-                    <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
-                  ) : (
-                    <div class="promo-sections__service-mark" aria-hidden="true"><span></span></div>
-                  )}
-                </div>
-                <div class="promo-sections__service-copy">
-                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
-                  {item.name && <h3>{item.name}</h3>}
-                  {item.summary && <p>{item.summary}</p>}
-                  {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
-                </div>
-              </article>
-            </li>
-          );
-        })}
+        {services.map(({ item, gallery, cover }, index) => (
+          <li>
+            <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': cover }]}>
+              <div class="promo-sections__service-media">
+                {cover ? (
+                  <PromoSectionMedia media={cover} accessibleLabel={String(item.name || navigationLabel)} />
+                ) : (
+                  <div class="promo-sections__service-mark" aria-hidden="true"><span></span></div>
+                )}
+              </div>
+              <div class="promo-sections__service-copy">
+                <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                {item.name && <h3>{item.name}</h3>}
+                {item.summary && <p>{item.summary}</p>}
+                {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
+                {gallery && (
+                  <a class="promo-sections__more" href={`#promo-section-${gallery.key}`}>
+                    {moreLabel}<span aria-hidden="true"> →</span>
+                  </a>
+                )}
+              </div>
+            </article>
+          </li>
+        ))}
       </ul>
     )}
 
-    {section.type === 'featured_work' && items.length > 0 && (
+    {section.type === 'featured_work' && featuredWorks.length > 0 && (
       <ol class="promo-sections__featured-list">
-        {items.map((item: Record<string, string>, index: number) => {
-          const media = itemMedia(index);
+        {featuredWorks.map((work, index) => {
+          const carouselId = `${sectionId}-${work.galleryKey}-${work.key}`;
           return (
             <li>
               <article class="promo-sections__featured-card">
-                <div class:list={['promo-sections__featured-media', { 'promo-sections__featured-media--empty': !media }]}>
-                  {media ? (
-                    <figure>
-                      <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
-                      {item.caption && <figcaption>{item.caption}</figcaption>}
-                    </figure>
-                  ) : (
-                    <div class="promo-sections__media-placeholder" aria-hidden="true"><span></span></div>
+                <div class="promo-sections__featured-media">
+                  <ol class="promo-sections__work-slides" aria-label={work.name} tabindex={work.media.length > 1 ? '0' : undefined}>
+                    {work.media.map((media, mediaIndex) => (
+                      <li id={`${carouselId}-media-${mediaIndex + 1}`}>
+                        <PromoSectionMedia media={media} accessibleLabel={work.name} />
+                      </li>
+                    ))}
+                  </ol>
+                  {work.media.length > 1 && (
+                    <nav class="promo-sections__work-controls" aria-label={`${work.name} - ${work.media.length}`}>
+                      {work.media.map((_, mediaIndex) => (
+                        <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${work.media.length}`}>
+                          {mediaIndex + 1}
+                        </a>
+                      ))}
+                    </nav>
                   )}
                 </div>
                 <div class="promo-sections__featured-copy">
                   <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
-                  {item.name && <h3>{item.name}</h3>}
-                  {item.summary && <p>{item.summary}</p>}
-                  {!media && item.caption && <p class="promo-sections__caption">{item.caption}</p>}
+                  <p class="promo-sections__category">{work.galleryHeading}</p>
+                  <h3>{work.name}</h3>
+                  {work.summary && <p>{work.summary}</p>}
+                  {work.caption && <p class="promo-sections__caption">{work.caption}</p>}
+                  <PromoContactAction profile={profile} className="promo-sections__estimate" fallbackLabel={estimateLabel} />
                 </div>
               </article>
             </li>
@@ -134,20 +192,39 @@ const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
       </ol>
     )}
 
-    {section.type === 'gallery' && items.length > 0 && (
-      <ul class="promo-sections__gallery-list">
-        {items.map((item: Record<string, string>, index: number) => {
-          const media = itemMedia(index);
+    {section.type === 'gallery' && currentGalleryWorks.length > 0 && (
+      <ul class="promo-sections__gallery-list promo-sections__work-grid">
+        {currentGalleryWorks.map((work, index) => {
+          const carouselId = `${sectionId}-${work.key}`;
           return (
-            <li class:list={{ 'promo-sections__gallery-item--empty': !media }}>
-              <figure>
-                {media ? (
-                  <PromoSectionMedia media={media} accessibleLabel={itemLabel(item, index)} />
-                ) : (
-                  <div class="promo-sections__media-placeholder" aria-hidden="true"><span></span></div>
-                )}
-                {item.caption && <figcaption>{item.caption}</figcaption>}
-              </figure>
+            <li>
+              <article class="promo-sections__work-card">
+                <div class="promo-sections__work-media">
+                  <ol class="promo-sections__work-slides" aria-label={work.name} tabindex={work.media.length > 1 ? '0' : undefined}>
+                    {work.media.map((media, mediaIndex) => (
+                      <li id={`${carouselId}-media-${mediaIndex + 1}`}>
+                        <PromoSectionMedia media={media} accessibleLabel={work.name} />
+                      </li>
+                    ))}
+                  </ol>
+                  {work.media.length > 1 && (
+                    <nav class="promo-sections__work-controls" aria-label={`${work.name} - ${work.media.length}`}>
+                      {work.media.map((_, mediaIndex) => (
+                        <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${work.media.length}`}>
+                          {mediaIndex + 1}
+                        </a>
+                      ))}
+                    </nav>
+                  )}
+                </div>
+                <div class="promo-sections__work-copy">
+                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                  <h3>{work.name}</h3>
+                  {work.summary && <p>{work.summary}</p>}
+                  {work.caption && <p class="promo-sections__caption">{work.caption}</p>}
+                  <PromoContactAction profile={profile} className="promo-sections__estimate" fallbackLabel={estimateLabel} />
+                </div>
+              </article>
             </li>
           );
         })}

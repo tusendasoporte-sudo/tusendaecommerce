@@ -1,5 +1,6 @@
 ---
 import '../../styles/promo-black-gold.css';
+import '../../styles/promo-theme-variants.css';
 import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
 import PromoHero from './PromoHero.astro';
 import PromoContact from './PromoContact.astro';
@@ -43,7 +44,7 @@ const description = String(content.seo.description || identity.summary || '');
 >
   <a class="promo-skip-link" href="#promo-main">{system.messages['a11y.skip_to_content']}</a>
 
-  <div class="promo-public-shell promo-black-gold">
+  <div class="promo-public-shell promo-black-gold promo-theme">
     <header class="promo-shell-header">
       <a class="promo-shell-brand" href={locale.canonical_path} aria-label={identity.name}>
         <span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span>

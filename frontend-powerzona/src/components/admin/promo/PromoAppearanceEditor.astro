@@ -27,13 +27,13 @@ const {
 >
   <header class="pz-promo-appearance__intro">
     <div>
-      <span class="pz-promo-appearance__kicker">Borrador privado</span>
+      <span class="pz-promo-appearance__kicker">Página pública en vivo</span>
       <h2 id="promo-appearance-title">Apariencia del sitio</h2>
-      <p>Elige únicamente temas aprobados y ajusta sus valores visuales permitidos. Guardar no publica los cambios.</p>
+      <p>Elige una de las seis apariencias aprobadas. Guardar actualiza la página pública automáticamente.</p>
     </div>
-    <div class="pz-promo-appearance__draft-meta" aria-label="Estado del borrador visual">
+    <div class="pz-promo-appearance__draft-meta" aria-label="Estado visual de la página">
       <span data-appearance-current>Tema actual: —</span>
-      <span data-appearance-version>Versión del borrador: —</span>
+      <span data-appearance-version>Versión de página: —</span>
     </div>
   </header>
 
@@ -42,7 +42,7 @@ const {
       <strong>Acceso de solo lectura</strong>
       <p>
         {!canManageContent
-          ? 'El backend exige también Contenido para reemplazar el borrador completo mediante CAS.'
+          ? 'El backend exige también Contenido para reemplazar el documento completo mediante CAS.'
           : 'Esta sesión puede consultar la apariencia, pero no seleccionar temas ni editar tokens.'}
       </p>
     </div>
@@ -50,7 +50,7 @@ const {
 
   <div class="pz-promo-appearance__notice" role="status" aria-live="polite" data-appearance-status>
     <span class="pz-promo-appearance__spinner" aria-hidden="true"></span>
-    <span>Cargando catálogo aprobado y borrador…</span>
+    <span>Cargando catálogo aprobado y página…</span>
   </div>
 
   <div class="pz-promo-appearance__error" role="alert" tabindex="-1" data-appearance-error hidden>
@@ -67,7 +67,7 @@ const {
             <span class="pz-promo-appearance__step" aria-hidden="true">01</span>
             <div>
               <h3 id="appearance-themes-title">Temas aprobados</h3>
-              <p>La lista llega del catálogo privado del backend. Temas draft, retirados o incompatibles no aparecen como opciones.</p>
+              <p>La lista llega del catálogo privado del backend. Temas no aprobados, retirados o incompatibles no aparecen como opciones.</p>
             </div>
           </div>
           <div class="pz-promo-appearance__legacy" role="status" data-appearance-legacy hidden></div>
@@ -100,7 +100,7 @@ const {
             <span class="pz-promo-appearance__step" aria-hidden="true">03</span>
             <div>
               <h3 id="appearance-preview-title">Vista previa visual</h3>
-              <p>Ilustración local del tema y tokens; no es una candidata ni el preview integral del sitio.</p>
+              <p>Vista de referencia del tema y sus ajustes visuales antes de guardar.</p>
             </div>
           </div>
           <span data-appearance-preview-label>—</span>
@@ -338,9 +338,9 @@ const {
       if (unsaved) unsaved.textContent = dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes';
       if (authority) {
         authority.textContent = !selectedThemeKey
-          ? 'Selecciona explícitamente un tema aprobado para guardarlo en el borrador.'
+          ? 'Selecciona explícitamente una apariencia aprobada para aplicarla a la página.'
           : missingContent
-            ? 'Falta la acción Contenido requerida por el reemplazo completo del borrador.'
+            ? 'Falta la acción Contenido requerida por el reemplazo completo del documento.'
             : missingSelect
               ? 'Cambiar ID o versión requiere la acción Seleccionar tema.'
               : missingAppearance
@@ -452,7 +452,7 @@ const {
         badges.append(approved);
         if (key === persistedKey) {
           const current = document.createElement('b');
-          current.textContent = 'En borrador';
+          current.textContent = 'Actual';
           badges.append(current);
         }
         if (catalog?.fallback.selectable
@@ -488,7 +488,7 @@ const {
         const unavailable = Boolean(draft.document.theme.theme_id && !selectedTheme);
         legacy.hidden = !unavailable;
         legacy.textContent = unavailable
-          ? `El tema actual ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} ${draft.document.theme.version} se conserva en el borrador, pero no está disponible para una nueva selección. Elige un release aprobado para cambiarlo.`
+          ? `La apariencia actual ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} ${draft.document.theme.version} se conserva, pero no está disponible para una nueva selección. Elige una apariencia aprobada para cambiarla.`
           : '';
       }
 
@@ -514,7 +514,7 @@ const {
           ? `Tema actual: ${promoAppearanceThemeLabel(draft.document.theme.theme_id)} · ${draft.document.theme.version}`
           : 'Tema actual: sin selección; se muestra el fallback seguro';
       }
-      if (versionLabel) versionLabel.textContent = `Versión del borrador: ${draft.version}`;
+      if (versionLabel) versionLabel.textContent = `Versión de página: ${draft.version}`;
       form.hidden = false;
       dirty = false;
       updateChangeState();
@@ -524,7 +524,7 @@ const {
     async function loadEditor() {
       clearError();
       if (form) form.hidden = true;
-      setBusy(true, 'Cargando catálogo aprobado y borrador…');
+      setBusy(true, 'Cargando catálogo aprobado y página…');
       try {
         const [draftResult, catalogResult] = await Promise.all([
           responseJson(await fetch(endpoint(PROMO_APPEARANCE_DRAFT_API_PATH), {
@@ -568,7 +568,7 @@ const {
           || (requirements.appearanceManage && !canManageAppearance)) {
           throw Object.assign(new Error('promo_permission_denied'), { code: 'promo_permission_denied' });
         }
-        setBusy(true, 'Guardando borrador con CAS…');
+        setBusy(true, 'Actualizando página con CAS…');
         const result = await responseJson(await fetch(endpoint(PROMO_APPEARANCE_DRAFT_API_PATH), {
           method: 'PUT',
           headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -583,8 +583,8 @@ const {
         catalog = normalizePromoAppearanceCatalog(catalogResult);
         initializeWorkspace();
         setStatus(result.changed === true
-          ? 'Apariencia guardada en el borrador. El sitio publicado no cambió.'
-          : 'El borrador ya tenía esa apariencia.', true);
+          ? 'Apariencia aplicada a la página pública.'
+          : 'La página ya tenía esa apariencia.', true);
       } catch (error) {
         showError(error);
       } finally {

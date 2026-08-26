@@ -29,6 +29,9 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787520400_promo_permissions.js',
   '1787520500_promo_publication_zero_generation.js',
   '1787520600_promo_analytics_landing_qr.js',
+  '1787520650_promo_theme_catalog.js',
+  '1787520660_promo_qr_media.js',
+  '1787520700_promo_live_content.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',

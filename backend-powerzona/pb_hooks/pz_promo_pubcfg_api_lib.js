@@ -58,6 +58,8 @@ const SAFE_PRIVATE_ERRORS = new Set([
   "incomplete_promo_locale",
   "promo_draft_conflict",
   "promo_draft_unavailable",
+  "promo_live_conflict",
+  "promo_live_unavailable",
   "promo_pubcfg_unavailable",
 ]);
 
@@ -177,8 +179,8 @@ function privateStatus(error) {
     "incomplete_promo_locale",
   ].includes(code)) return 400;
   if (["promo_not_found", "store_not_promo"].includes(code)) return 404;
-  if (code === "promo_draft_conflict") return 409;
-  if (["promo_draft_unavailable", "promo_pubcfg_unavailable"].includes(code)) return 503;
+  if (["promo_draft_conflict", "promo_live_conflict"].includes(code)) return 409;
+  if (["promo_draft_unavailable", "promo_live_unavailable", "promo_pubcfg_unavailable"].includes(code)) return 503;
   return 403;
 }
 
@@ -378,7 +380,6 @@ function resolvePublicProjectionForSite(app, site, options) {
   const canonicalMode = settings.canonicalMode === "custom" ? "custom" : "platform";
   const expectedBindingId = canonicalMode === "custom" ? safeText(settings.primaryBindingId, 80) : "";
   const expectedGeneration = Number.isInteger(settings.expectedGeneration) ? settings.expectedGeneration : null;
-  const expectedRevisionId = safeText(settings.expectedRevisionId, 80);
   const publicSlug = recordString(site, "public_slug");
   try { data.assertPublicSlug(publicSlug); } catch (_) { throw codedError("promo_not_found", 404); }
   if (!site || recordString(site, "status") !== "active"
@@ -402,38 +403,35 @@ function resolvePublicProjectionForSite(app, site, options) {
     || (expectedGeneration !== null && generation !== expectedGeneration)) {
     throw codedError("promo_not_found", 404);
   }
-  const revisionId = relationId(slot, "published_revision");
-  if (expectedRevisionId && revisionId !== expectedRevisionId) throw codedError("promo_not_found", 404);
-  const revision = findRecord(app, "promo_revisions", revisionId);
-  if (!revision || relationId(revision, "site") !== siteId || recordInteger(revision, "schema_version") !== 1) {
-    throw codedError("promo_not_found", 404);
-  }
-  const document = contract.validatePromoDocument(jsonRecordValue(revision, "snapshot_json"), { publicRevision: true });
-  assertDigest(document, recordString(revision, "snapshot_sha256"));
-  const locales = jsonRecordValue(revision, "published_locales_json");
-  if (recordString(revision, "default_locale") !== document.locales.default
-    || contract.canonicalJson(locales) !== contract.canonicalJson(document.locales.published)) {
-    throw codedError("promo_pubcfg_unavailable", 503);
-  }
-  const theme = findRecord(app, "promo_theme_releases", relationId(revision, "theme_release"));
+  const live = findDraft(app, siteId);
+  const document = contract.validatePromoDocument(validatedStoredLive(live), { publicRevision: true });
+  const theme = findExact(
+    app,
+    "promo_theme_releases",
+    "theme_id = {:theme} && version = {:version}",
+    { theme: document.theme.theme_id, version: document.theme.version },
+  );
   try {
     promoTheme.assertReleaseForSelection(theme, document.theme, { mode: "public" });
   } catch (_) {
     throw codedError("promo_pubcfg_unavailable", 503);
   }
   const assets = loadDocumentAssets(app, siteId, document, { publicRevision: true });
-  validateRevisionMediaRows(app, siteId, revisionId, document, assets);
   assertEntitlementMetrics(entitlement, document, assets);
   const finalSlot = findRecord(app, "promo_publication_slots", recordId(slot));
+  const finalLive = findRecord(app, "promo_draft_documents", recordId(live));
   const finalBindingId = finalSlot && relationId(finalSlot, "primary_binding");
   const finalCanonicalBindingValid = canonicalMode === "platform"
     ? !finalBindingId
     : Boolean(expectedBindingId) && finalBindingId === expectedBindingId;
   if (!finalSlot || recordInteger(finalSlot, "generation") !== generation
-    || relationId(finalSlot, "published_revision") !== revisionId
     || recordString(finalSlot, "state") !== "active"
     || recordString(finalSlot, "canonical_mode") !== canonicalMode
-    || !finalCanonicalBindingValid) {
+    || !finalCanonicalBindingValid
+    || !finalLive
+    || relationId(finalLive, "site") !== siteId
+    || recordInteger(finalLive, "version") !== recordInteger(live, "version")
+    || recordString(finalLive, "document_sha256") !== recordString(live, "document_sha256")) {
     throw codedError("promo_not_found", 404);
   }
   return {
@@ -442,8 +440,8 @@ function resolvePublicProjectionForSite(app, site, options) {
     siteId,
     slot: finalSlot,
     generation,
-    revision,
-    revisionId,
+    live: finalLive,
+    contentVersion: recordInteger(finalLive, "version"),
     document,
   };
 }
@@ -462,7 +460,7 @@ function resolvePublicProjection(app, publicSlug) {
 
 function resolvePublicMediaContext(app, publicSlug, useKey) {
   const validated = resolvePublicProjectionContext(app, publicSlug);
-  const { projection, site, siteId: ownerSiteId, slot, generation, revision, revisionId, document } = validated;
+  const { projection, site, siteId: ownerSiteId, slot, generation, live, document } = validated;
   if (!contract.USE_KEY_PATTERN.test(useKey)
     || !projection.media.some((item) => item.key === useKey)) {
     throw codedError("promo_not_found", 404);
@@ -471,18 +469,6 @@ function resolvePublicMediaContext(app, publicSlug, useKey) {
   const asset = ref && findRecord(app, "promo_media_assets", ref.asset_id);
   try { promoMedia.assertReadyAsset(asset, { siteId: ownerSiteId, purpose: ref && ref.purpose }); }
   catch (_) { throw codedError("promo_not_found", 404); }
-  const rows = findRecords(
-    app,
-    "promo_revision_media_refs",
-    "revision = {:revision} && use_key = {:key}",
-    "id",
-    2,
-    { revision: revisionId, key: useKey },
-  );
-  if (rows.length !== 1 || relationId(rows[0], "site") !== ownerSiteId
-    || relationId(rows[0], "media_asset") !== recordId(asset)) {
-    throw codedError("promo_not_found", 404);
-  }
   let poster = null;
   if (recordString(asset, "kind") === "video") {
     poster = findRecord(app, "promo_media_assets", relationId(asset, "poster_asset"));
@@ -490,14 +476,17 @@ function resolvePublicMediaContext(app, publicSlug, useKey) {
     catch (_) { throw codedError("promo_not_found", 404); }
   }
   const finalSlot = findRecord(app, "promo_publication_slots", recordId(slot));
+  const finalLive = findRecord(app, "promo_draft_documents", recordId(live));
   if (!finalSlot || recordInteger(finalSlot, "generation") !== generation
-    || relationId(finalSlot, "published_revision") !== revisionId
     || recordString(finalSlot, "state") !== "active"
     || recordString(finalSlot, "canonical_mode") !== "platform"
-    || relationId(finalSlot, "primary_binding")) {
+    || relationId(finalSlot, "primary_binding")
+    || !finalLive
+    || recordInteger(finalLive, "version") !== recordInteger(live, "version")
+    || recordString(finalLive, "document_sha256") !== recordString(live, "document_sha256")) {
     throw codedError("promo_not_found", 404);
   }
-  return { asset, poster, revision, site, slot };
+  return { asset, poster, live: finalLive, site, slot };
 }
 
 function handlePublicProjection(e) {
@@ -557,23 +546,25 @@ function findDraft(app, siteId) {
   return findExact(app, "promo_draft_documents", "site = {:site}", { site: siteId });
 }
 
-function validatedStoredDraft(draft) {
-  if (!draft || recordInteger(draft, "schema_version") !== 1 || (recordInteger(draft, "version") || 0) < 1) {
-    throw codedError("promo_draft_unavailable", 503);
+function validatedStoredLive(live) {
+  if (!live || recordInteger(live, "schema_version") !== 1 || (recordInteger(live, "version") || 0) < 1) {
+    throw codedError("promo_live_unavailable", 503);
   }
-  const document = contract.validatePromoDocument(jsonRecordValue(draft, "document_json"), { publicRevision: false });
-  assertDigest(document, recordString(draft, "document_sha256"));
-  return document;
+  const storedDocument = contract.validatePromoDocument(jsonRecordValue(live, "document_json"), { publicRevision: false });
+  assertDigest(storedDocument, recordString(live, "document_sha256"));
+  return contract.validatePromoDocument(contract.upgradePromoDocument(storedDocument), { publicRevision: false });
 }
 
-function draftResponse(draft, document, changed) {
+function liveResponse(live, document, changed, generation, publicState) {
   return {
     ok: true,
-    contract: contract.DRAFT_RESPONSE_CONTRACT,
+    contract: contract.LIVE_RESPONSE_CONTRACT,
     ...(typeof changed === "boolean" ? { changed } : {}),
-    draft: {
-      schema_version: 1,
-      version: recordInteger(draft, "version"),
+    live: {
+      schema_version: 2,
+      version: recordInteger(live, "version"),
+      generation: Number.isSafeInteger(generation) ? generation : 0,
+      public_state: publicState === "active" ? "active" : "inactive",
       document: contract.normalizeJson(document),
     },
   };
@@ -581,17 +572,20 @@ function draftResponse(draft, document, changed) {
 
 function parseDraftRead(body) {
   return exactPayload(body, ["contract"])
-    && bodyValue(body, "contract") === contract.DRAFT_READ_CONTRACT;
+    && [contract.LIVE_READ_CONTRACT, contract.DRAFT_READ_CONTRACT].includes(bodyValue(body, "contract"));
 }
 
 function parseDraftUpdate(body) {
   if (!exactPayload(body, ["contract", "expected_version", "document"])
-    || bodyValue(body, "contract") !== contract.DRAFT_UPDATE_CONTRACT) return null;
+    || ![contract.LIVE_UPDATE_CONTRACT, contract.DRAFT_UPDATE_CONTRACT].includes(bodyValue(body, "contract"))) return null;
   const expectedVersion = Number(bodyValue(body, "expected_version"));
   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) return null;
   return {
     expectedVersion,
-    document: contract.validatePromoDocument(bodyValue(body, "document"), { publicRevision: false }),
+    document: contract.validatePromoDocument(
+      contract.upgradePromoDocument(bodyValue(body, "document")),
+      { publicRevision: false },
+    ),
   };
 }
 
@@ -601,8 +595,15 @@ function handleDraftRead(e) {
     if (!parseDraftRead(context.info.body || {})) throw codedError("invalid_payload", 400);
     const decision = draftDecision(e.app, e.auth, context.supportStoreId, ["promo.site.view"]);
     const draft = findDraft(e.app, recordId(decision.site));
-    const document = validatedStoredDraft(draft);
-    return e.json(200, draftResponse(draft, document));
+    const document = validatedStoredLive(draft);
+    const slot = findExact(e.app, "promo_publication_slots", "site = {:site}", { site: recordId(decision.site) });
+    return e.json(200, liveResponse(
+      draft,
+      document,
+      undefined,
+      slot ? recordInteger(slot, "generation") : 0,
+      slot ? recordString(slot, "state") : "inactive",
+    ));
   } catch (error) {
     return sendPrivateError(e, error);
   }
@@ -618,13 +619,13 @@ function createDraftAudit(app, decision, draft, paths, previousDocument, nextDoc
   const previousSnapshot = promoAudit.draftAuditSnapshot(previousDocument, previousDigest, nextVersion - 1);
   const nextSnapshot = promoAudit.draftAuditSnapshot(nextDocument, nextDigest, nextVersion);
   promoAudit.createPromoAudit(app, decision, {
-    action: "promo.draft.update",
-    resourceType: "promo_draft_document",
+    action: "promo.content.live.update",
+    resourceType: "promo_live_document",
     resourceId: recordId(draft),
     changedPaths: paths,
     previousValues: previousSnapshot,
     newValues: nextSnapshot,
-    sourceEventKey: `promo.draft.${recordId(draft)}.v${nextVersion}`,
+    sourceEventKey: `promo.live.${recordId(draft)}.v${nextVersion}`,
   });
   const localizationPaths = paths.filter((path) => (
     path === "/system_catalog_version" || path === "/locales" || path === "/content_by_locale"
@@ -632,7 +633,7 @@ function createDraftAudit(app, decision, draft, paths, previousDocument, nextDoc
   if (localizationPaths.length) {
     promoAudit.createPromoAudit(app, decision, {
       action: "promo.localization.update",
-      resourceType: "promo_draft_document",
+      resourceType: "promo_live_document",
       resourceId: recordId(draft),
       changedPaths: localizationPaths,
       previousValues: previousSnapshot,
@@ -644,7 +645,7 @@ function createDraftAudit(app, decision, draft, paths, previousDocument, nextDoc
   if (themePaths.length) {
     promoAudit.createPromoAudit(app, decision, {
       action: "promo.theme.selection.update",
-      resourceType: "promo_draft_document",
+      resourceType: "promo_live_document",
       resourceId: recordId(draft),
       changedPaths: themePaths,
       previousValues: previousSnapshot,
@@ -652,6 +653,12 @@ function createDraftAudit(app, decision, draft, paths, previousDocument, nextDoc
       sourceEventKey: `promo.theme.selection.${recordId(draft)}.v${nextVersion}`,
     });
   }
+}
+
+function lockPublicationSlot(app, slotId) {
+  app.db().newQuery("UPDATE promo_publication_slots SET id = id WHERE id = {:id}")
+    .bind({ id: slotId })
+    .execute();
 }
 
 function handleDraftUpdate(e) {
@@ -673,9 +680,14 @@ function handleDraftUpdate(e) {
       lockDraft(app, recordId(draft));
       draft = findRecord(app, "promo_draft_documents", recordId(draft));
       if (!draft || relationId(draft, "site") !== recordId(decision.site)) throw codedError("promo_not_found", 404);
-      const previousDocument = validatedStoredDraft(draft);
+      const previousDocument = validatedStoredLive(draft);
       const currentVersion = recordInteger(draft, "version");
-      if (currentVersion !== parsed.expectedVersion) throw codedError("promo_draft_conflict", 409);
+      if (currentVersion !== parsed.expectedVersion) throw codedError("promo_live_conflict", 409);
+      if (parsed.document.contract !== contract.LIVE_DOCUMENT_CONTRACT) {
+        throw codedError("unknown_promo_contract", 400);
+      }
+      const siteIsActive = recordString(decision.site, "status") === "active";
+      parsed.document = contract.validatePromoDocument(parsed.document, { publicRevision: siteIsActive });
       const syntacticActions = contract.changedActionKeys(previousDocument, parsed.document, []);
       decision = draftDecision(app, e.auth, context.supportStoreId, syntacticActions.length
         ? syntacticActions
@@ -683,7 +695,7 @@ function handleDraftUpdate(e) {
       const selectionChanged = previousDocument.theme.theme_id !== parsed.document.theme.theme_id
         || previousDocument.theme.version !== parsed.document.theme.version;
       assertDraftTheme(app, parsed.document, { selectionChanged });
-      const assets = loadDocumentAssets(app, recordId(decision.site), parsed.document, { publicRevision: false });
+      const assets = loadDocumentAssets(app, recordId(decision.site), parsed.document, { publicRevision: siteIsActive });
       assertEntitlementMetrics(decision.entitlement, parsed.document, assets);
       const requiredActions = contract.changedActionKeys(previousDocument, parsed.document, assets);
       if (requiredActions.length !== syntacticActions.length) {
@@ -692,7 +704,14 @@ function handleDraftUpdate(e) {
       const previousDigest = contract.digestDocument(previousDocument);
       const nextDigest = contract.digestDocument(parsed.document);
       if (previousDigest === nextDigest) {
-        response = draftResponse(draft, previousDocument, false);
+        const currentSlot = findExact(app, "promo_publication_slots", "site = {:site}", { site: recordId(decision.site) });
+        response = liveResponse(
+          draft,
+          previousDocument,
+          false,
+          currentSlot ? recordInteger(currentSlot, "generation") : 0,
+          currentSlot ? recordString(currentSlot, "state") : "inactive",
+        );
         return;
       }
       const nextVersion = currentVersion + 1;
@@ -702,6 +721,15 @@ function handleDraftUpdate(e) {
       draft.set("version", nextVersion);
       draft.set("updated_by", recordId(decision.actor));
       app.save(draft);
+      let slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: recordId(decision.site) });
+      if (!slot) throw codedError("promo_live_unavailable", 503);
+      lockPublicationSlot(app, recordId(slot));
+      slot = findRecord(app, "promo_publication_slots", recordId(slot));
+      const nextGeneration = Math.max(0, recordInteger(slot, "generation")) + 1;
+      slot.set("state", siteIsActive ? "active" : "unpublished");
+      slot.set("published_revision", "");
+      slot.set("generation", nextGeneration);
+      app.save(slot);
       createDraftAudit(
         app,
         decision,
@@ -714,7 +742,7 @@ function handleDraftUpdate(e) {
         nextVersion,
       );
       draft = findRecord(app, "promo_draft_documents", recordId(draft));
-      response = draftResponse(draft, parsed.document, true);
+      response = liveResponse(draft, parsed.document, true, nextGeneration, siteIsActive ? "active" : "unpublished");
     });
     return e.json(200, response);
   } catch (error) {
@@ -744,5 +772,6 @@ module.exports = {
   resolvePublicProjectionForSite,
   findDraft,
   validateRevisionMediaRows,
-  validatedStoredDraft,
+  validatedStoredLive,
+  validatedStoredDraft: validatedStoredLive,
 };

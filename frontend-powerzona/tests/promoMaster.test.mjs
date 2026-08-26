@@ -71,13 +71,15 @@ test('rutas Master específicas de Commerce fallan cerradas para Promo o clasifi
   }
 });
 
-test('UI consume operaciones, transiciones y estados proyectados y mantiene feedback accesible', () => {
-  assert.match(view, /overview\.publication\.controls/);
+test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo editorial', () => {
+  assert.match(view, /El Admin guarda directamente/);
+  assert.match(view, /estado canónico es informativo/i);
   assert.match(view, /overview\.site\.allowed_next_statuses/);
   assert.match(view, /binding\.allowed_next_statuses/);
   assert.match(view, /release\.allowed_next_statuses/);
   assert.match(view, /aria-live="polite"/);
   assert.match(view, /promo_capability_denied/);
   assert.match(view, /verification_evidence_sha256/);
+  assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
 });

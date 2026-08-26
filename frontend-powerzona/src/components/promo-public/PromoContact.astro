@@ -1,6 +1,7 @@
 ---
-import type { PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
+import type { PromoPublicMedia, PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
 import PromoContactAction from './PromoContactAction.astro';
+import PromoSectionMedia from './PromoSectionMedia.astro';
 
 interface Props {
   profile: PromoPublicProfile;
@@ -18,6 +19,11 @@ const primaryCopy = primaryKey ? profile.content.contact[primaryKey] : undefined
 const fallbackLabel = String(primaryCopy?.label || profile.system.messages['contact.request_estimate']);
 const actionKeys = Array.isArray(section.config.action_keys) ? section.config.action_keys : [];
 const contactEnabled = Boolean(primaryKey && actionKeys.includes(primaryKey));
+const qrMediaKey = String(profile.contact.qr_media_use_key || '');
+const qrMedia = profile.media.find((media): media is PromoPublicMedia => (
+  media.key === qrMediaKey && media.kind === 'image' && media.purpose === 'qr'
+));
+const qrHeading = profile.locale.lang.startsWith('es') ? 'Escanea para contactar' : 'Scan to contact';
 ---
 
 <section
@@ -43,8 +49,15 @@ const contactEnabled = Boolean(primaryKey && actionKeys.includes(primaryKey));
       />
     </div>
 
-    <div class="promo-contact__ornament" aria-hidden="true">
-      <span></span><span></span><span></span>
-    </div>
+    {qrMedia ? (
+      <figure class="promo-contact__qr">
+        <PromoSectionMedia media={qrMedia} accessibleLabel={qrHeading} />
+        <figcaption>{qrHeading}</figcaption>
+      </figure>
+    ) : (
+      <div class="promo-contact__ornament" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    )}
   </div>
 </section>

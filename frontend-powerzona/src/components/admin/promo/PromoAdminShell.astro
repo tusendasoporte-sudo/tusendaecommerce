@@ -7,7 +7,6 @@ import PromoCmsEditor from './PromoCmsEditor.astro';
 import PromoGalleryEditor from './PromoGalleryEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
 import PromoLandingQrEditor from './PromoLandingQrEditor.astro';
-import PromoPreviewEditor from './PromoPreviewEditor.astro';
 import PromoReviewsEditor from './PromoReviewsEditor.astro';
 import {
   getPromoAdminModule,
@@ -42,9 +41,21 @@ const primaryModules = visibleModules.filter((module) => (
 const audienceModules = visibleModules.filter((module) => !primaryModules.includes(module));
 const isMasterSupport = adminContext.isMasterSupport || accessContext.access.is_master;
 const masterReturnPath = `/master/stores/${encodeURIComponent(adminContext.storeId)}`;
+const publicSlug = String(accessContext.site.public_slug || '').trim().toLowerCase();
+const publicPagePath = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/.test(publicSlug)
+  ? `/promo/${encodeURIComponent(publicSlug)}`
+  : '';
+const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const supportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim().toLowerCase();
+const supportMessage = encodeURIComponent(`Hola, necesito ayuda con la Tienda Promo ${storeName}.`);
+const masterSupportHref = /^[1-9][0-9]{7,14}$/.test(supportWhatsapp)
+  ? `https://wa.me/${supportWhatsapp}?text=${supportMessage}`
+  : (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supportEmail)
+    ? `mailto:${encodeURIComponent(supportEmail)}?subject=${encodeURIComponent(`Soporte Tienda Promo ${storeName}`)}`
+    : '');
 
 const siteStatusLabels: Record<string, string> = {
-  draft: 'Borrador',
+  draft: 'Configuración',
   active: 'Activo',
   paused: 'Pausado',
 };
@@ -74,7 +85,6 @@ const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appeara
 const canManageLocaleContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canManagePromoTranslations = hasPromoAction(accessContext, 'promo.translations.manage');
 const maxLocales = Number(accessContext.capabilities.max_locales || 0);
-const canPreparePromoPreview = hasPromoAction(accessContext, 'promo.publication.publish');
 const canManagePromoReviews = hasPromoAction(accessContext, 'promo.reviews.manage');
 const canConfigurePromoReviews = canManagePromoReviews && hasPromoAction(accessContext, 'promo.content.manage');
 const canConfigurePromoLandingQr = hasPromoAction(accessContext, 'promo.landing_qr.bridge.manage');
@@ -176,6 +186,18 @@ function initials(value: string) {
       </nav>
 
       <div class="pz-promo-admin__sidebar-footer">
+        <div class="pz-promo-admin__sidebar-actions" aria-label="Acciones de la Tienda Promo">
+          {publicPagePath ? (
+            <a href={publicPagePath} target="_blank" rel="noopener noreferrer">Ver mi página <span aria-hidden="true">↗</span></a>
+          ) : (
+            <button type="button" disabled>Ver mi página</button>
+          )}
+          {!isMasterSupport && masterSupportHref ? (
+            <a href={masterSupportHref} target={masterSupportHref.startsWith('https:') ? '_blank' : undefined} rel={masterSupportHref.startsWith('https:') ? 'noopener noreferrer' : undefined}>Contactar soporte Master</a>
+          ) : !isMasterSupport ? (
+            <button type="button" disabled title="El Master aún no configuró un canal de soporte">Soporte no disponible</button>
+          ) : null}
+        </div>
         <span class="pz-promo-admin__user">
           <span aria-hidden="true">{initials(userName)}</span>
           <span><strong>{userName}</strong><small>{accessContext.user.role || 'Usuario Promo'}</small></span>
@@ -242,6 +264,7 @@ function initials(value: string) {
             scope={cmsScope}
             maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
             canSave={canSaveCms}
+            canManageMedia={canManageGalleryMedia}
           />
         ) : activeModule && section === 'gallery' ? (
           <PromoGalleryEditor
@@ -267,11 +290,6 @@ function initials(value: string) {
             canManageContent={canManageLocaleContent}
             canManageTranslations={canManagePromoTranslations}
           />
-        ) : activeModule && section === 'publication' ? (
-          <PromoPreviewEditor
-            storeSlug={storeSlug}
-            canPrepare={canPreparePromoPreview}
-          />
         ) : activeModule && section === 'reviews' ? (
           <PromoReviewsEditor
             storeSlug={storeSlug}
@@ -290,7 +308,7 @@ function initials(value: string) {
               <span class="pz-promo-admin__module-state-kicker">Acceso validado</span>
               <h2 id="promo-module-state-title">La navegación de {activeModule.label} está lista</h2>
               <p>{activeModule.delivery}</p>
-              <p class="pz-promo-admin__module-state-note">Este shell no guarda, publica ni modifica contenido. La autorización efectiva seguirá siendo validada por el backend cuando se incorpore la herramienta correspondiente.</p>
+              <p class="pz-promo-admin__module-state-note">La autorización efectiva de cada cambio continúa validándose en el backend.</p>
               <a href={homePath}>Volver al resumen</a>
             </div>
           </section>

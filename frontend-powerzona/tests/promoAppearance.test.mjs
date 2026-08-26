@@ -12,6 +12,7 @@ import {
   promoAppearancePreview,
   PromoAppearanceError,
 } from '../src/lib/promoAppearance.ts';
+import { normalizePromoCmsDocument } from '../src/lib/promoCms.ts';
 
 const require = createRequire(import.meta.url);
 const backendTheme = require('../../backend-powerzona/pb_hooks/pz_promo_theme_lib.js');
@@ -102,14 +103,15 @@ test('catálogo privado acepta solo manifests aprobados con schema enum exacto',
 test('edición guarda solo overrides permitidos y preserva todas las demás facetas', () => {
   const catalog = normalizePromoAppearanceCatalog(catalogResponse());
   const original = documentFixture();
+  const normalizedOriginal = normalizePromoCmsDocument(original);
   const protectedBefore = structuredClone({
-    locales: original.locales,
-    identity: original.identity,
-    sections: original.sections,
-    media_refs: original.media_refs,
-    contact: original.contact,
-    content_by_locale: original.content_by_locale,
-    adapters: original.adapters,
+    locales: normalizedOriginal.locales,
+    identity: normalizedOriginal.identity,
+    sections: normalizedOriginal.sections,
+    media_refs: normalizedOriginal.media_refs,
+    contact: normalizedOriginal.contact,
+    content_by_locale: normalizedOriginal.content_by_locale,
+    adapters: normalizedOriginal.adapters,
   });
   const updated = buildPromoAppearanceDocument(original, catalog, {
     themeId: 'promo.black-gold',
@@ -143,7 +145,7 @@ test('edición guarda solo overrides permitidos y preserva todas las demás face
     adapters: updated.adapters,
   }, protectedBefore);
   assert.deepEqual(
-    backendDocument.changedActionKeys(original, updated, []),
+    backendDocument.changedActionKeys(normalizedOriginal, updated, []),
     ['promo.content.manage', 'promo.appearance.manage'],
   );
 });
@@ -164,7 +166,7 @@ test('selección inicial usa defaults sin convertirlos en overrides ni pedir apa
     changed: true, content: true, themeSelect: true, appearanceManage: false,
   });
   assert.deepEqual(
-    backendDocument.changedActionKeys(original, updated, []),
+    backendDocument.changedActionKeys(normalizePromoCmsDocument(original), updated, []),
     ['promo.content.manage', 'promo.theme.select'],
   );
 });
@@ -217,8 +219,8 @@ test('shell y proxy conservan auth central, tenant exacto, CAS y límites del pr
   assert.match(api, /promo\.theme\.catalog\.read\.v1/);
   assert.match(api, /X-PZ-Promo-Store/);
   assert.match(editor, /expected_version: draft\.version/);
-  assert.match(editor, /Guardar no publica los cambios/);
-  assert.match(editor, /no es una candidata ni el preview integral/);
+  assert.match(editor, /Guardar actualiza la página pública automáticamente/);
+  assert.match(editor, /Vista de referencia del tema y sus ajustes visuales antes de guardar/);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /reportValidity\(\)/);

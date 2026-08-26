@@ -101,7 +101,8 @@ function analyticsReady(app) {
     const daily = app.findCollectionByNameOrId("promo_analytics_daily");
     data.assertCollectionRulesClosed(events);
     data.assertCollectionRulesClosed(daily);
-    return Array.from(events.fields.getByName("event_type").values || []).includes("landing_qr_open")
+    return Boolean(events.fields.getByName("content_generation"))
+      && Array.from(events.fields.getByName("event_type").values || []).includes("landing_qr_open")
       && Array.from(daily.fields.getByName("event_type").values || []).includes("landing_qr_open");
   } catch (_) { return false; }
 }
@@ -146,9 +147,9 @@ function setRecord(record, values) {
 function saveEvent(app, resolved, parsed, now) {
   const context = resolved.context;
   const siteId = recordId(context.site);
-  const revisionId = recordId(context.revision);
+  const contentGeneration = Math.trunc(Number(context.generation));
   const projected = analytics.validateAgainstProfile(parsed, resolved.profile);
-  if (!siteId || !revisionId || relationId(context.revision, "site") !== siteId) {
+  if (!siteId || !Number.isSafeInteger(contentGeneration) || contentGeneration < 1) {
     throw new Error("promo_analytics_unavailable");
   }
   const dedupeKey = `${parsed.eventType}:${parsed.eventId}`;
@@ -164,7 +165,8 @@ function saveEvent(app, resolved, parsed, now) {
   const expiresAt = new Date(now.getTime() + RAW_RETENTION_DAYS * 86400000).toISOString();
   const event = setRecord(new Record(app.findCollectionByNameOrId("promo_analytics_events"), {}), {
     site: siteId,
-    revision: revisionId,
+    revision: "",
+    content_generation: contentGeneration,
     event_type: parsed.eventType,
     day,
     locale: parsed.locale,

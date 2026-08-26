@@ -17,6 +17,7 @@ export const PROMO_MEDIA_PURPOSE_POLICIES = Object.freeze({
   footer: Object.freeze({ minWidth: 480, minHeight: 120, maxWidth: 1600, maxHeight: 800 }),
   social: Object.freeze({ minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630 }),
   video_poster: Object.freeze({ minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900 }),
+  qr: Object.freeze({ minWidth: 128, minHeight: 128, maxWidth: 512, maxHeight: 512 }),
 });
 
 export type PromoMediaPurpose = keyof typeof PROMO_MEDIA_PURPOSE_POLICIES;
@@ -101,6 +102,9 @@ function assertPurpose(value: unknown): PromoMediaPurpose {
 
 function assertDimensions(purpose: PromoMediaPurpose, width: number, height: number) {
   const policy = PROMO_MEDIA_PURPOSE_POLICIES[purpose];
+  if (purpose === 'qr' && (width !== 512 || height !== 512)) {
+    throw new PromoMediaError('promo_media_dimensions_invalid');
+  }
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
     || width < policy.minWidth || height < policy.minHeight
     || width > policy.maxWidth || height > policy.maxHeight) {
@@ -162,18 +166,22 @@ export async function optimizePromoImage(
     throw new PromoMediaError('promo_media_dimensions_invalid');
   }
 
-  const scales = [1, 0.85, 0.7, 0.55, 0.42];
-  const qualities = [84, 76, 68, 60, 52, 44, 36, 28, 22];
+  const scales = purpose === 'qr' ? [1] : [1, 0.85, 0.7, 0.55, 0.42];
+  const qualities = purpose === 'qr' ? [100] : [84, 76, 68, 60, 52, 44, 36, 28, 22];
   let output: Buffer | null = null;
   for (const scale of scales) {
     const width = Math.max(policy.minWidth, Math.round(policy.maxWidth * scale));
     const height = Math.max(policy.minHeight, Math.round(policy.maxHeight * scale));
     for (const quality of qualities) {
       try {
-        const candidate = await sharp(source, { failOn: 'error', limitInputPixels: 36_000_000, sequentialRead: true })
+        const pipeline = sharp(source, { failOn: 'error', limitInputPixels: 36_000_000, sequentialRead: true })
           .rotate()
-          .resize({ width, height, fit: 'inside', withoutEnlargement: true })
-          .webp({ quality, effort: 4, smartSubsample: true })
+          .resize(purpose === 'qr'
+            ? { width: 512, height: 512, fit: 'contain', background: '#ffffff', withoutEnlargement: false, kernel: 'nearest' }
+            : { width, height, fit: 'inside', withoutEnlargement: true });
+        const candidate = await (purpose === 'qr'
+          ? pipeline.webp({ lossless: true, effort: 6 })
+          : pipeline.webp({ quality, effort: 4, smartSubsample: true }))
           .toBuffer();
         if (candidate.byteLength <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES) {
           output = candidate;

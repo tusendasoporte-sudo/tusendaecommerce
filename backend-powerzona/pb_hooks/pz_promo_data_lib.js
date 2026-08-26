@@ -555,7 +555,6 @@ function assertPublicationSlot(app, record, previous) {
   const revisionId = relationId(record, "published_revision");
   const mode = recordString(record, "canonical_mode");
   const bindingId = relationId(record, "primary_binding");
-  if (state === "active" && !revisionId) fail("missing_promo_published_revision", "published_revision");
   if (revisionId) assertSameSite(app, siteId, "promo_revisions", revisionId, "published_revision");
   if (mode === "platform" && bindingId) fail("promo_platform_binding_forbidden", "primary_binding");
   if (mode === "custom") {
@@ -605,7 +604,12 @@ function assertAudit(record) {
 
 function assertAnalytics(app, record) {
   const siteId = relationId(record, "site");
-  assertSameSite(app, siteId, "promo_revisions", relationId(record, "revision"), "revision");
+  const revisionId = relationId(record, "revision");
+  if (revisionId) assertSameSite(app, siteId, "promo_revisions", revisionId, "revision");
+  const contentGeneration = integerValue(record, "content_generation");
+  if (contentGeneration === null || contentGeneration < 1) {
+    fail("invalid_promo_content_generation", "content_generation");
+  }
   const type = recordString(record, "event_type");
   const section = recordString(record, "section_key");
   const action = recordString(record, "action_type");

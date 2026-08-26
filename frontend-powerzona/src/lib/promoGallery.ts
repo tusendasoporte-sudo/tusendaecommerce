@@ -7,7 +7,7 @@ import {
 
 export const PROMO_GALLERY_MEDIA_API_PATH = '/api/admin/promo-media';
 export const PROMO_GALLERY_DRAFT_API_PATH = '/api/admin/promo-cms';
-export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['featured_work', 'gallery'] as const);
+export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['gallery'] as const);
 export const PROMO_GALLERY_HARD_MAX_VISIBLE = 24;
 
 export const PROMO_GALLERY_TEXT_LIMITS = Object.freeze({
@@ -23,13 +23,13 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const MEDIA_KINDS = new Set(['image', 'video']);
-const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster']);
+const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr']);
 const MEDIA_STATUSES = new Set(['uploaded', 'processing', 'ready', 'retired', 'rejected', 'quarantined']);
 const MIME_TYPES = new Set(['image/webp', 'video/mp4', 'video/webm']);
 const LOCALIZED_KEYS = Object.freeze(['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
 
 type JsonRecord = Record<string, any>;
-export type PromoGallerySectionType = (typeof PROMO_GALLERY_SECTION_TYPES)[number];
+export type PromoGallerySectionType = 'gallery';
 
 export type PromoGalleryAsset = Readonly<{
   assetId: string;
@@ -58,23 +58,30 @@ export type PromoGalleryCatalog = Readonly<{
   }>;
 }>;
 
+export type PromoGalleryMediaPatch = Readonly<{
+  useKey: string;
+  assetId: string;
+  alt: string;
+  decorative: boolean;
+}>;
+
 export type PromoGalleryPatch = Readonly<{
-  sections: readonly Readonly<{
+  heroMedia: readonly PromoGalleryMediaPatch[];
+  galleries: readonly Readonly<{
     key: string;
-    type: PromoGallerySectionType;
     visible: boolean;
     navigationLabel: string;
     heading: string;
     summary: string;
+    coverUseKey: string;
     items: readonly Readonly<{
       key: string;
-      useKey: string;
-      assetId: string;
+      featured: boolean;
+      visible: boolean;
       name: string;
       summary: string;
       caption: string;
-      alt: string;
-      decorative: boolean;
+      media: readonly PromoGalleryMediaPatch[];
     }>[];
   }>[];
 }>;
@@ -120,9 +127,10 @@ function safeText(value: unknown, maximum: number, required = false) {
   return value;
 }
 
-function checkedKey(value: unknown, pattern = KEY_PATTERN) {
+function checkedKey(value: unknown, pattern = KEY_PATTERN, empty = false) {
   const normalized = String(value || '');
-  return pattern.test(normalized) ? normalized : fail('invalid_promo_document');
+  if ((empty && !normalized) || pattern.test(normalized)) return normalized;
+  return fail('invalid_promo_document');
 }
 
 function emptyLocalizedContent(): JsonRecord {
@@ -136,10 +144,9 @@ function ensureLocale(document: JsonRecord) {
     document.locales = { default: locale, published: [locale] };
   }
   if (!document.locales.published.includes(locale)) fail();
-  if (!isRecord(document.content_by_locale[locale])) {
-    document.content_by_locale[locale] = emptyLocalizedContent();
-  } else {
-    const localized = exactKeys(document.content_by_locale[locale], LOCALIZED_KEYS);
+  if (!isRecord(document.content_by_locale[locale])) document.content_by_locale[locale] = emptyLocalizedContent();
+  for (const candidate of Object.keys(document.content_by_locale)) {
+    const localized = exactKeys(document.content_by_locale[candidate], LOCALIZED_KEYS);
     LOCALIZED_KEYS.forEach((field) => { if (!isRecord(localized[field])) fail(); });
   }
   return locale;
@@ -155,22 +162,38 @@ function uniqueSectionKey(document: JsonRecord, preferred: string) {
   return fail('invalid_promo_document');
 }
 
-function ensureSection(document: JsonRecord, locale: string, type: PromoGallerySectionType) {
-  if (document.sections.some((section: JsonRecord) => section.type === type)) return;
-  const preferred = type === 'featured_work' ? 'featured-work-main' : 'gallery-main';
-  const sectionKey = uniqueSectionKey(document, preferred);
-  document.sections.push({
+function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'featured_work' | 'gallery') {
+  const existing = document.sections.find((section: JsonRecord) => section.type === type);
+  if (existing) return existing;
+  const sectionKey = uniqueSectionKey(document, ({
+    hero: 'hero-main', featured_work: 'featured-work-main', gallery: 'gallery-main',
+  })[type]);
+  const section = {
     key: sectionKey,
     type,
     variant: 'default',
-    visible: true,
-    config: { item_keys: [] },
+    visible: type !== 'gallery',
+    config: type === 'hero'
+      ? { media_use_key: '', action_key: '' }
+      : (type === 'featured_work'
+        ? { item_keys: [] }
+        : { item_keys: [], cover_media_use_key: '', items: [] }),
     media_use_keys: [],
-  });
-  document.section_order.push(sectionKey);
-  const localized = document.content_by_locale[locale];
-  localized.navigation[sectionKey] = type === 'featured_work' ? 'Trabajos destacados' : 'Galería';
-  localized.sections[sectionKey] = { heading: '', summary: '', items: [] };
+  };
+  const footerIndex = document.sections.findIndex((item: JsonRecord) => item.type === 'footer');
+  const insertion = footerIndex < 0 ? document.sections.length : footerIndex;
+  document.sections.splice(insertion, 0, section);
+  document.section_order = document.sections.map((item: JsonRecord) => item.key);
+  for (const [candidate, content] of Object.entries(document.content_by_locale)) {
+    const localized = content as JsonRecord;
+    localized.navigation[sectionKey] = type === 'hero'
+      ? (candidate === locale ? 'Inicio' : 'Home')
+      : (type === 'featured_work' ? 'Trabajos destacados' : 'Galería');
+    localized.sections[sectionKey] = type === 'gallery'
+      ? { heading: '', summary: '', items: [] }
+      : { heading: '', summary: '' };
+  }
+  return section;
 }
 
 function previewShape(value: unknown, kind: string, assetId: string) {
@@ -207,15 +230,9 @@ function normalizeAsset(value: unknown): PromoGalleryAsset {
   previewShape(asset.preview, kind, assetId);
   return Object.freeze({
     assetId,
-    kind: kind as 'image' | 'video',
-    purpose,
-    status,
-    mime,
-    bytes: integer(asset.bytes, 1),
-    width: integer(asset.width, 1),
-    height: integer(asset.height, 1),
-    durationMs: integer(asset.duration_ms),
-    posterAssetId,
+    kind: kind as 'image' | 'video', purpose, status, mime,
+    bytes: integer(asset.bytes, 1), width: integer(asset.width, 1), height: integer(asset.height, 1),
+    durationMs: integer(asset.duration_ms), posterAssetId,
   });
 }
 
@@ -232,11 +249,7 @@ export function normalizePromoGalleryCatalog(value: unknown): PromoGalleryCatalo
   if (new Set(assets.map((asset) => asset.assetId)).size !== assets.length) fail();
   return Object.freeze({
     assets: Object.freeze(assets),
-    usage: Object.freeze({
-      images: integer(usage.images),
-      videos: integer(usage.videos),
-      bytes: integer(usage.bytes),
-    }),
+    usage: Object.freeze({ images: integer(usage.images), videos: integer(usage.videos), bytes: integer(usage.bytes) }),
     limits: Object.freeze({
       maxImageBytes: integer(limits.max_image_bytes, 1),
       maxVideoBytes: integer(limits.max_video_bytes, 1),
@@ -252,28 +265,73 @@ export function normalizePromoGalleryCatalog(value: unknown): PromoGalleryCatalo
 export function createPromoGalleryWorkspace(value: unknown) {
   const document = normalizePromoCmsDocument(value);
   const locale = ensureLocale(document);
-  PROMO_GALLERY_SECTION_TYPES.forEach((type) => ensureSection(document, locale, type));
+  ensureSection(document, locale, 'hero');
+  ensureSection(document, locale, 'featured_work');
+  if (!document.sections.some((section: JsonRecord) => section.type === 'gallery')) ensureSection(document, locale, 'gallery');
   return Object.freeze({ document, locale });
 }
 
-function patchSections(patch: PromoGalleryPatch, managedSections: JsonRecord[]) {
-  if (!isRecord(patch) || !Array.isArray(patch.sections) || patch.sections.length !== managedSections.length) fail();
-  const result = new Map<string, PromoGalleryPatch['sections'][number]>();
-  patch.sections.forEach((section) => {
-    if (!isRecord(section) || !KEY_PATTERN.test(String(section.key || ''))
-      || !PROMO_GALLERY_SECTION_TYPES.includes(section.type)
-      || result.has(section.key)) fail();
-    result.set(section.key, section);
-  });
-  if (managedSections.some((section) => !result.has(section.key))) fail();
-  return result;
+function validateMediaPatch(
+  raw: unknown,
+  purpose: 'hero' | 'gallery',
+  availableAssets: Map<string, PromoGalleryAsset>,
+  allUseKeys: Set<string>,
+) {
+  const item = exactKeys(raw, ['useKey', 'assetId', 'alt', 'decorative']);
+  if (typeof item.decorative !== 'boolean') fail();
+  const useKey = checkedKey(item.useKey, USE_KEY_PATTERN);
+  const assetId = String(item.assetId || '');
+  const asset = availableAssets.get(assetId);
+  if (allUseKeys.has(useKey) || !asset || asset.status !== 'ready' || asset.purpose !== purpose
+    || !['image', 'video'].includes(asset.kind)) fail('invalid_promo_media_reference');
+  allUseKeys.add(useKey);
+  return {
+    useKey,
+    assetId,
+    alt: safeText(item.decorative ? '' : item.alt, PROMO_GALLERY_TEXT_LIMITS.alt, !item.decorative),
+    decorative: item.decorative,
+  };
 }
 
-function nonDefaultMediaAlt(document: JsonRecord, locale: string, useKey: string) {
-  return Object.entries(document.content_by_locale).some(([candidate, content]) => (
-    candidate !== locale && isRecord(content) && isRecord(content.media_alt)
-      && Object.prototype.hasOwnProperty.call(content.media_alt, useKey)
+function setMediaReference(document: JsonRecord, locale: string, item: ReturnType<typeof validateMediaPatch>, purpose: string) {
+  document.media_refs[item.useKey] = { asset_id: item.assetId, purpose };
+  for (const [candidate, rawContent] of Object.entries(document.content_by_locale)) {
+    const content = rawContent as JsonRecord;
+    if (!isRecord(content.media_alt)) content.media_alt = {};
+    if (candidate === locale || !isRecord(content.media_alt[item.useKey])) {
+      content.media_alt[item.useKey] = { alt: item.alt, decorative: item.decorative };
+    }
+  }
+}
+
+function galleryPatches(patch: PromoGalleryPatch) {
+  if (!isRecord(patch) || !Array.isArray(patch.heroMedia) || !Array.isArray(patch.galleries)) fail();
+  const keys = new Set<string>();
+  return patch.galleries.map((raw) => {
+    const gallery = exactKeys(raw, [
+      'key', 'visible', 'navigationLabel', 'heading', 'summary', 'coverUseKey', 'items',
+    ]);
+    const sectionKey = checkedKey(gallery.key);
+    if (keys.has(sectionKey) || typeof gallery.visible !== 'boolean' || !Array.isArray(gallery.items)) fail();
+    keys.add(sectionKey);
+    return gallery;
+  });
+}
+
+function localizedGalleryItems(content: JsonRecord, sectionKey: string, defaults: JsonRecord[], isDefault: boolean) {
+  const sectionContent = isRecord(content.sections[sectionKey]) ? content.sections[sectionKey] : {};
+  const existing = new Map((Array.isArray(sectionContent.items) ? sectionContent.items : []).map(
+    (item: JsonRecord) => [String(item.key || ''), item],
   ));
+  return defaults.map((item) => {
+    const previous = existing.get(item.key) as JsonRecord | undefined;
+    return isDefault || !previous ? clone(item) : {
+      key: item.key,
+      name: String(previous.name || item.name),
+      summary: String(previous.summary || ''),
+      caption: String(previous.caption || ''),
+    };
+  });
 }
 
 export function buildPromoGalleryDocument(
@@ -285,82 +343,129 @@ export function buildPromoGalleryDocument(
   const workspace = createPromoGalleryWorkspace(value);
   const document = workspace.document;
   const locale = workspace.locale;
-  const localized = document.content_by_locale[locale];
-  const managedSections = document.sections.filter((section: JsonRecord) => (
-    PROMO_GALLERY_SECTION_TYPES.includes(section.type)
-  ));
-  const patches = patchSections(patch, managedSections);
+  const galleries = galleryPatches(patch);
   const availableAssets = new Map((catalogAssets || []).map((asset) => [asset.assetId, asset]));
-  const previousManagedUseKeys = new Set<string>(managedSections.flatMap((section: JsonRecord) => section.media_use_keys));
-  const nextManagedUseKeys = new Set<string>();
-  let galleryItems = 0;
+  const previousManagedUseKeys = new Set<string>();
+  document.sections.filter((section: JsonRecord) => ['hero', 'gallery'].includes(section.type))
+    .forEach((section: JsonRecord) => section.media_use_keys.forEach((useKey: string) => previousManagedUseKeys.add(useKey)));
+  const allUseKeys = new Set(Object.keys(document.media_refs).filter((useKey) => !previousManagedUseKeys.has(useKey)));
 
-  managedSections.forEach((section: JsonRecord) => {
-    const sectionPatch = patches.get(section.key);
-    if (!sectionPatch || sectionPatch.type !== section.type || typeof sectionPatch.visible !== 'boolean'
-      || !Array.isArray(sectionPatch.items)) fail();
-    section.visible = sectionPatch.visible;
-    localized.navigation[section.key] = safeText(
-      sectionPatch.navigationLabel,
-      PROMO_GALLERY_TEXT_LIMITS.navigation,
-      true,
-    );
+  const hero = document.sections.find((section: JsonRecord) => section.type === 'hero');
+  if (!hero) fail();
+  const heroMedia = patch.heroMedia.map((item) => validateMediaPatch(item, 'hero', availableAssets, allUseKeys));
+  hero.media_use_keys = heroMedia.map((item) => item.useKey);
+  hero.config.media_use_key = hero.media_use_keys[0] || '';
+  heroMedia.forEach((item) => setMediaReference(document, locale, item, 'hero'));
+
+  let galleryMediaCount = 0;
+  const nextGalleries = galleries.map((raw) => {
+    const sectionKey = checkedKey(raw.key);
+    const existing = document.sections.find((section: JsonRecord) => section.key === sectionKey);
+    if (existing && existing.type !== 'gallery') fail('invalid_promo_document');
     const itemKeys = new Set<string>();
-    const useKeys = new Set<string>();
-    const localizedItems = sectionPatch.items.map((item) => {
-      if (!isRecord(item) || typeof item.decorative !== 'boolean') fail();
+    const galleryUseKeys: string[] = [];
+    const itemDefinitions: JsonRecord[] = [];
+    const localizedItems: JsonRecord[] = [];
+    raw.items.forEach((rawItem: unknown) => {
+      const item = exactKeys(rawItem, ['key', 'featured', 'visible', 'name', 'summary', 'caption', 'media']);
       const itemKey = checkedKey(item.key);
-      const useKey = checkedKey(item.useKey, USE_KEY_PATTERN);
-      const assetId = String(item.assetId || '');
-      const asset = availableAssets.get(assetId);
-      if (itemKeys.has(itemKey) || useKeys.has(useKey) || !asset || asset.status !== 'ready'
-        || asset.purpose !== 'gallery' || !['image', 'video'].includes(asset.kind)) {
-        fail('invalid_promo_media_reference');
-      }
+      if (itemKeys.has(itemKey) || typeof item.featured !== 'boolean'
+        || typeof item.visible !== 'boolean' || !Array.isArray(item.media)) fail();
       itemKeys.add(itemKey);
-      useKeys.add(useKey);
-      nextManagedUseKeys.add(useKey);
-      const alt = safeText(item.decorative ? '' : item.alt, PROMO_GALLERY_TEXT_LIMITS.alt, !item.decorative);
-      localized.media_alt[useKey] = { alt, decorative: item.decorative };
-      document.media_refs[useKey] = { asset_id: assetId, purpose: 'gallery' };
-      if (section.type === 'gallery') {
-        return { key: itemKey, caption: safeText(item.caption, PROMO_GALLERY_TEXT_LIMITS.caption) };
-      }
-      return {
+      const media = item.media.map((entry: unknown) => validateMediaPatch(entry, 'gallery', availableAssets, allUseKeys));
+      media.forEach((entry) => {
+        galleryUseKeys.push(entry.useKey);
+        setMediaReference(document, locale, entry, 'gallery');
+      });
+      itemDefinitions.push({
+        key: itemKey,
+        media_use_keys: media.map((entry) => entry.useKey),
+        featured: item.featured,
+        visible: item.visible,
+      });
+      localizedItems.push({
         key: itemKey,
         name: safeText(item.name, PROMO_GALLERY_TEXT_LIMITS.name),
         summary: safeText(item.summary, PROMO_GALLERY_TEXT_LIMITS.summary),
         caption: safeText(item.caption, PROMO_GALLERY_TEXT_LIMITS.caption),
-      };
+      });
     });
-    if (section.type === 'gallery') galleryItems += localizedItems.length;
-    section.config.item_keys = localizedItems.map((item) => item.key);
-    section.media_use_keys = sectionPatch.items.map((item) => item.useKey);
-    localized.sections[section.key] = {
-      ...(isRecord(localized.sections[section.key]) ? localized.sections[section.key] : {}),
-      heading: safeText(sectionPatch.heading, PROMO_GALLERY_TEXT_LIMITS.heading),
-      summary: safeText(sectionPatch.summary, PROMO_GALLERY_TEXT_LIMITS.summary),
-      items: localizedItems,
+    galleryMediaCount += galleryUseKeys.length;
+    const coverUseKey = checkedKey(raw.coverUseKey, USE_KEY_PATTERN, true);
+    if (coverUseKey && !galleryUseKeys.includes(coverUseKey)) fail('invalid_promo_media_reference');
+    if (raw.visible && (!coverUseKey || itemDefinitions.some((item) => item.visible && !item.media_use_keys.length))) {
+      fail('invalid_promo_document');
+    }
+    for (const [candidate, rawContent] of Object.entries(document.content_by_locale)) {
+      const localized = rawContent as JsonRecord;
+      const isDefault = candidate === locale;
+      const previous = isRecord(localized.sections[sectionKey]) ? localized.sections[sectionKey] : {};
+      localized.navigation[sectionKey] = isDefault
+        ? safeText(raw.navigationLabel, PROMO_GALLERY_TEXT_LIMITS.navigation, true)
+        : String(localized.navigation[sectionKey] || raw.navigationLabel);
+      localized.sections[sectionKey] = {
+        heading: isDefault ? safeText(raw.heading, PROMO_GALLERY_TEXT_LIMITS.heading) : String(previous.heading || raw.heading),
+        summary: isDefault ? safeText(raw.summary, PROMO_GALLERY_TEXT_LIMITS.summary) : String(previous.summary || raw.summary),
+        items: localizedGalleryItems(localized, sectionKey, localizedItems, isDefault),
+      };
+    }
+    return {
+      key: sectionKey,
+      type: 'gallery',
+      variant: 'default',
+      visible: raw.visible,
+      config: {
+        item_keys: itemDefinitions.map((item) => item.key),
+        cover_media_use_key: coverUseKey,
+        items: itemDefinitions,
+      },
+      media_use_keys: Array.from(new Set([coverUseKey, ...galleryUseKeys].filter(Boolean))),
     };
   });
 
   const effectiveMaximum = Number.isSafeInteger(maxGalleryAssets) && maxGalleryAssets >= 0
     ? Math.min(maxGalleryAssets, PROMO_GALLERY_HARD_MAX_VISIBLE)
     : 0;
-  if (galleryItems > effectiveMaximum) fail('promo_capability_denied', 403);
+  if (galleryMediaCount > effectiveMaximum) fail('promo_capability_denied', 403);
 
-  const allUsedUseKeys = new Set<string>(document.sections.flatMap((section: JsonRecord) => section.media_use_keys));
-  document.sections.forEach((section: JsonRecord) => {
-    if (['hero', 'owner'].includes(section.type) && section.config.media_use_key) {
-      allUsedUseKeys.add(section.config.media_use_key);
-    }
+  const nextGalleryKeys = new Set(nextGalleries.map((section) => section.key));
+  const removedGalleryKeys = new Set(document.sections
+    .filter((section: JsonRecord) => section.type === 'gallery' && !nextGalleryKeys.has(section.key))
+    .map((section: JsonRecord) => section.key));
+  for (const content of Object.values(document.content_by_locale) as JsonRecord[]) {
+    removedGalleryKeys.forEach((sectionKey) => {
+      delete content.navigation[sectionKey];
+      delete content.sections[sectionKey];
+    });
+  }
+  document.sections.filter((section: JsonRecord) => section.type === 'services').forEach((section: JsonRecord) => {
+    section.config.gallery_keys = (section.config.gallery_keys || []).map((galleryKey: string) => (
+      removedGalleryKeys.has(galleryKey) ? '' : galleryKey
+    ));
   });
+  document.sections.filter((section: JsonRecord) => section.type === 'footer').forEach((section: JsonRecord) => {
+    section.config.navigation_section_keys = (section.config.navigation_section_keys || [])
+      .filter((sectionKey: string) => !removedGalleryKeys.has(sectionKey));
+  });
+
+  const withoutGalleries = document.sections.filter((section: JsonRecord) => section.type !== 'gallery');
+  const featuredIndex = withoutGalleries.findIndex((section: JsonRecord) => section.type === 'featured_work');
+  const contactIndex = withoutGalleries.findIndex((section: JsonRecord) => ['contact', 'footer'].includes(section.type));
+  const insertion = featuredIndex >= 0 ? featuredIndex + 1 : (contactIndex >= 0 ? contactIndex : withoutGalleries.length);
+  withoutGalleries.splice(insertion, 0, ...nextGalleries);
+  document.sections = withoutGalleries;
+  document.section_order = document.sections.map((section: JsonRecord) => section.key);
+
+  const usedUseKeys = new Set<string>();
+  document.sections.forEach((section: JsonRecord) => {
+    section.media_use_keys.forEach((useKey: string) => usedUseKeys.add(useKey));
+    if (['hero', 'owner'].includes(section.type) && section.config.media_use_key) usedUseKeys.add(section.config.media_use_key);
+  });
+  if (document.contact.qr_media_use_key) usedUseKeys.add(document.contact.qr_media_use_key);
   previousManagedUseKeys.forEach((useKey) => {
-    if (nextManagedUseKeys.has(useKey)) return;
-    delete localized.media_alt[useKey];
-    if (!allUsedUseKeys.has(useKey) && !nonDefaultMediaAlt(document, locale, useKey)) {
-      delete document.media_refs[useKey];
-    }
+    if (usedUseKeys.has(useKey)) return;
+    delete document.media_refs[useKey];
+    for (const content of Object.values(document.content_by_locale) as JsonRecord[]) delete content.media_alt[useKey];
   });
   return document;
 }
@@ -380,17 +485,18 @@ export function promoGalleryErrorMessage(code: unknown) {
   const messages: Record<string, string> = {
     unauthorized: 'Tu sesión terminó. Vuelve a iniciar sesión.',
     session_revoked: 'Tu sesión ya no está vigente. Vuelve a iniciar sesión.',
-    blocked_by_plan: 'El plan actual bloquea la gestión de esta galería.',
+    blocked_by_plan: 'El plan actual bloquea la gestión de galerías.',
     promo_permission_denied: 'Tu sesión no tiene todos los permisos necesarios para esta acción.',
     promo_capability_denied: 'La cuota o capacidad necesaria no está disponible para esta tienda.',
-    promo_draft_conflict: 'El borrador cambió en otra sesión. Recárgalo antes de guardar.',
-    invalid_promo_document: 'Revisa textos, orden y metadatos accesibles de los trabajos.',
-    invalid_promo_media_reference: 'Selecciona un medio listo y perteneciente a esta galería.',
+    promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
+    promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
+    invalid_promo_document: 'Revisa las galerías, portadas, trabajos y metadatos accesibles.',
+    invalid_promo_media_reference: 'Selecciona un medio listo y del tipo correcto para esta ubicación.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',
     promo_media_duplicate: 'Este archivo ya existe en la biblioteca de la tienda.',
     promo_media_count_exceeded: 'La biblioteca alcanzó el máximo de medios permitido.',
     promo_media_storage_exceeded: 'La tienda alcanzó su cuota de almacenamiento.',
-    promo_media_in_use: 'El medio sigue asociado al borrador o a una revisión publicada.',
+    promo_media_in_use: 'El medio sigue asociado a la página.',
     promo_media_conflict: 'El estado del medio cambió. Actualiza la biblioteca.',
     promo_media_poster_required: 'Selecciona primero un poster listo para el video.',
     promo_media_required: 'Selecciona un archivo para continuar.',
@@ -401,8 +507,8 @@ export function promoGalleryErrorMessage(code: unknown) {
     promo_media_corrupt: 'El archivo está dañado o no contiene metadata válida.',
     promo_media_animated_unsupported: 'Las imágenes animadas no están permitidas.',
     promo_media_output_too_large: 'La imagen no pudo optimizarse dentro del límite permitido.',
-    promo_media_dimensions_invalid: 'Las dimensiones del archivo no cumplen el perfil de galería.',
-    promo_media_image_dimensions_invalid: 'La imagen debe tener dimensiones válidas para galería o poster.',
+    promo_media_dimensions_invalid: 'Las dimensiones del archivo no cumplen el perfil seleccionado.',
+    promo_media_image_dimensions_invalid: 'La imagen debe tener dimensiones válidas.',
     promo_media_video_dimensions_invalid: 'El video debe respetar la resolución permitida.',
     promo_media_video_bitrate_invalid: 'El bitrate del video supera el máximo permitido.',
     invalid_origin: 'La solicitud no proviene del panel administrativo.',

@@ -27,11 +27,11 @@ const canSave = canManageContent && canManageTranslations;
 >
   <header class="pz-promo-locales__intro">
     <div>
-      <span class="pz-promo-locales__kicker">Borrador privado</span>
+      <span class="pz-promo-locales__kicker">Página pública en vivo</span>
       <h2 id="promo-locales-title">Idiomas y traducciones</h2>
-      <p>Prepara cada idioma, revisa su completitud y decide cuáles formarán parte de una futura publicación. Guardar no crea candidata ni publica.</p>
+      <p>Administra los idiomas visibles y sus traducciones. Al guardar, los cambios válidos se reflejan automáticamente en la página.</p>
     </div>
-    <div class="pz-promo-locales__draft-meta" aria-label="Estado del borrador">
+    <div class="pz-promo-locales__draft-meta" aria-label="Estado de la página">
       <span data-locales-version>Versión: —</span>
       <span data-locales-quota>Idiomas: —</span>
     </div>
@@ -50,13 +50,13 @@ const canSave = canManageContent && canManageTranslations;
 
   <div class="pz-promo-locales__notice" role="status" aria-live="polite" data-locales-status>
     <span class="pz-promo-locales__spinner" aria-hidden="true"></span>
-    <span>Cargando el borrador y sus locales…</span>
+    <span>Cargando la página y sus idiomas…</span>
   </div>
 
   <div class="pz-promo-locales__error" role="alert" tabindex="-1" data-locales-error hidden>
     <strong>No se pudo continuar</strong>
     <p data-locales-error-message></p>
-    <button type="button" data-locales-reload>Recargar borrador</button>
+    <button type="button" data-locales-reload>Recargar página</button>
   </div>
 
   <form class="pz-promo-locales__form" data-locales-form hidden novalidate>
@@ -84,8 +84,8 @@ const canSave = canManageContent && canManageTranslations;
         <div>
           <span class="pz-promo-locales__step" aria-hidden="true">✓</span>
           <div>
-            <h3 id="promo-locales-publication-title">Gate de completitud</h3>
-            <p>La referencia del idioma base nunca cuenta como traducción. El backend vuelve a validar todo al crear una candidata.</p>
+            <h3 id="promo-locales-publication-title">Estado de idiomas visibles</h3>
+            <p>La referencia del idioma base nunca cuenta como traducción. Antes de guardar se valida cada idioma que verá el público.</p>
           </div>
         </div>
         <strong data-locales-publication-state>Revisando…</strong>
@@ -96,10 +96,10 @@ const canSave = canManageContent && canManageTranslations;
     <footer class="pz-promo-locales__actions">
       <div>
         <strong data-locales-unsaved>Sin cambios pendientes</strong>
-        <small>El sitio publicado permanece en su revisión actual hasta un flujo de publicación autorizado.</small>
+        <small>Guardar reemplaza la configuración pública actual de forma segura.</small>
       </div>
       <button class="pz-promo-locales__save" type="submit" data-locales-save data-locale-edit-control disabled>
-        <span data-locales-save-label>Guardar borrador</span>
+        <span data-locales-save-label>Guardar y actualizar página</span>
       </button>
     </footer>
   </form>
@@ -217,7 +217,7 @@ const canSave = canManageContent && canManageTranslations;
       busy = value;
       root.setAttribute('aria-busy', value ? 'true' : 'false');
       if (saveLabel && label) saveLabel.textContent = label;
-      if (saveLabel && !value) saveLabel.textContent = 'Guardar borrador';
+      if (saveLabel && !value) saveLabel.textContent = 'Guardar y actualizar página';
       applyControlState();
     }
 
@@ -276,7 +276,7 @@ const canSave = canManageContent && canManageTranslations;
         name.append(element('strong', '', info.label), element('small', '', locale));
         const badges = element('span', 'pz-promo-locales__badges');
         if (locale === documentValue.locales.default) badges.append(element('small', 'is-base', 'Base'));
-        if (documentValue.locales.published.includes(locale)) badges.append(element('small', 'is-target', 'Incluido'));
+        if (documentValue.locales.published.includes(locale)) badges.append(element('small', 'is-target', 'Visible'));
         top.append(name, badges);
         const progress = element('progress');
         progress.max = 100;
@@ -294,6 +294,7 @@ const canSave = canManageContent && canManageTranslations;
       const fields = element('div', 'pz-promo-locales__fields two-columns');
       const definitions = [
         ['name', 'Nombre público', 140, true, false],
+        ['slogan', 'Slogan', 120, false, false],
         ['summary', 'Resumen del negocio', 600, false, true],
         ['owner_name', 'Nombre público del propietario', 140, false, false],
         ['owner_bio', 'Presentación general del propietario', 4000, false, true],
@@ -322,19 +323,17 @@ const canSave = canManageContent && canManageTranslations;
           ? baseItems.find((entry: LocaleDocument) => entry.key === itemKey) || {}
           : {};
         const card = element('article', 'pz-promo-locales__item');
-        card.append(element('h5', '', `${section.type === 'gallery' ? 'Elemento' : 'Entrada'} ${index + 1}`));
+        card.append(element('h5', '', `${section.type === 'gallery' ? 'Trabajo' : 'Servicio'} ${index + 1}`));
         const fields = element('div', 'pz-promo-locales__fields two-columns');
-        if (section.type !== 'gallery') {
-          const name = field('Nombre', item.name || '', { max: 160, required: true, fallback: baseItem.name || '' });
-          name.control.dataset.localeItemSection = section.key;
-          name.control.dataset.localeItemKey = itemKey;
-          name.control.dataset.localeItemField = 'name';
-          const summary = field('Resumen', item.summary || '', { max: 600, textarea: true, fallback: baseItem.summary || '' });
-          summary.control.dataset.localeItemSection = section.key;
-          summary.control.dataset.localeItemKey = itemKey;
-          summary.control.dataset.localeItemField = 'summary';
-          fields.append(name.label, summary.label);
-        }
+        const name = field('Nombre', item.name || '', { max: 160, required: true, fallback: baseItem.name || '' });
+        name.control.dataset.localeItemSection = section.key;
+        name.control.dataset.localeItemKey = itemKey;
+        name.control.dataset.localeItemField = 'name';
+        const summary = field('Resumen', item.summary || '', { max: 600, textarea: true, fallback: baseItem.summary || '' });
+        summary.control.dataset.localeItemSection = section.key;
+        summary.control.dataset.localeItemKey = itemKey;
+        summary.control.dataset.localeItemField = 'summary';
+        fields.append(name.label, summary.label);
         const caption = field('Descripción', item.caption || '', { max: 500, fallback: baseItem.caption || '' });
         caption.control.dataset.localeItemSection = section.key;
         caption.control.dataset.localeItemKey = itemKey;
@@ -384,7 +383,7 @@ const canSave = canManageContent && canManageTranslations;
           fields.append(entry.label);
         });
         card.append(cardHeader, fields);
-        if (['services', 'featured_work', 'gallery'].includes(section.type)) card.append(itemFields(section, sectionContent));
+        if (['services', 'gallery'].includes(section.type)) card.append(itemFields(section, sectionContent));
         stack.append(card);
       });
       panel.append(stack);
@@ -431,7 +430,7 @@ const canSave = canManageContent && canManageTranslations;
       panel.append(heading('Accesibilidad de medios', 'Cada referencia requiere alt localizado o una marca decorativa explícita.'));
       const stack = element('div', 'pz-promo-locales__items');
       const mediaKeys = Object.keys(documentValue!.media_refs);
-      if (!mediaKeys.length) stack.append(element('p', 'pz-promo-locales__empty', 'No hay medios referenciados en el borrador.'));
+      if (!mediaKeys.length) stack.append(element('p', 'pz-promo-locales__empty', 'No hay medios referenciados en la página.'));
       mediaKeys.forEach((useKey) => {
         const current = localized.media_alt?.[useKey] || { alt: '', decorative: false };
         const card = element('article', 'pz-promo-locales__item');
@@ -466,7 +465,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createSeoPanel(localized: LocaleDocument) {
       const panel = element('section', 'pz-promo-locales__panel');
-      panel.append(heading('SEO localizado', 'Los campos obligatorios participan en el gate; canonical y hreflang pertenecen al prompt SEO posterior.'));
+      panel.append(heading('SEO localizado', 'Los campos obligatorios se validan al guardar; canonical y hreflang se administran desde su configuración técnica.'));
       const fields = element('div', 'pz-promo-locales__fields two-columns');
       const definitions = [
         ['title', 'Título SEO', 70, true, false],
@@ -499,7 +498,7 @@ const canSave = canManageContent && canManageTranslations;
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-section]').forEach((control) => {
         content.sections[control.dataset.localeSection || ''][control.dataset.localeSectionField || ''] = control.value;
       });
-      documentValue!.sections.filter((section: LocaleDocument) => ['services', 'featured_work', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
+      documentValue!.sections.filter((section: LocaleDocument) => ['services', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
         const items: LocaleDocument[] = [];
         (section.config.item_keys || []).forEach((itemKey: string) => {
           const item: LocaleDocument = { key: itemKey };
@@ -544,7 +543,7 @@ const canSave = canManageContent && canManageTranslations;
     function renderPublication(source = documentValue) {
       if (!source || !publicationList || !publicationState) return;
       const result = diagnosePromoLocalesPublication(source);
-      publicationState.textContent = result.ready ? 'Apto por idiomas' : 'Publicación bloqueada';
+      publicationState.textContent = result.ready ? 'Idiomas listos' : 'Hay datos pendientes';
       publicationState.className = result.ready ? 'is-ready' : 'is-blocked';
       const rows = source.locales.published.map((locale: string) => {
         const diagnostic = diagnosePromoLocale(source, locale);
@@ -629,7 +628,7 @@ const canSave = canManageContent && canManageTranslations;
       remove.dataset.localeLocked = documentValue.locales.default === activeLocale ? 'true' : 'false';
       remove.disabled = !canSave || documentValue.locales.default === activeLocale;
       remove.addEventListener('click', () => {
-        if (!window.confirm(`Quitar ${info.label} y sus traducciones del borrador?`)) return;
+        if (!window.confirm(`¿Quitar ${info.label} y sus traducciones de la página?`)) return;
         try {
           clearError();
           documentValue = removePromoLocale(documentValue, activeLocale);
@@ -650,10 +649,10 @@ const canSave = canManageContent && canManageTranslations;
       publishToggle.dataset.localeLocked = activeLocale === documentValue.locales.default || (!publishToggle.checked && !diagnostic.complete) ? 'true' : 'false';
       publishToggle.disabled = !canSave || activeLocale === documentValue.locales.default || (!publishToggle.checked && !diagnostic.complete);
       const publishCopy = element('span');
-      publishCopy.append(element('strong', '', 'Incluir en una futura publicación'));
+      publishCopy.append(element('strong', '', 'Mostrar este idioma en la página'));
       publishCopy.append(element('small', '', activeLocale === documentValue.locales.default
-        ? 'El idioma base siempre forma parte del conjunto publicable.'
-        : 'Solo puede activarse cuando el idioma esté completo.'));
+        ? 'El idioma base siempre permanece visible.'
+        : 'Solo puede mostrarse cuando el idioma esté completo.'));
       publishLabel.append(publishToggle, publishCopy);
       publishToggle.addEventListener('change', () => {
         try {
@@ -675,7 +674,7 @@ const canSave = canManageContent && canManageTranslations;
       fallbackToggle.disabled = activeLocale === documentValue.locales.default;
       const fallbackCopy = element('span');
       fallbackCopy.append(element('strong', '', 'Mostrar referencia del idioma base'));
-      fallbackCopy.append(element('small', '', 'Solo ayuda a traducir: no rellena, no guarda y no habilita publicación.'));
+      fallbackCopy.append(element('small', '', 'Solo ayuda a traducir: no rellena, no guarda ni hace visible el idioma.'));
       fallback.append(fallbackToggle, fallbackCopy);
       fallbackToggle.addEventListener('change', () => {
         try { commitActive(); } catch (_) { return; }
@@ -743,7 +742,7 @@ const canSave = canManageContent && canManageTranslations;
       if (status) {
         status.hidden = false;
         status.classList.remove('is-success');
-        status.querySelector('span:last-child')!.textContent = 'Cargando el borrador y sus locales…';
+        status.querySelector('span:last-child')!.textContent = 'Cargando la página y sus idiomas…';
       }
       if (form) form.hidden = true;
       setBusy(true, 'Cargando…');
@@ -835,7 +834,7 @@ const canSave = canManageContent && canManageTranslations;
           status.hidden = false;
           status.classList.add('is-success');
           status.querySelector('span:last-child')!.textContent = result.changed === true
-            ? 'Idiomas guardados en el borrador. El sitio publicado no cambió.'
+            ? 'Idiomas guardados y página pública actualizada.'
             : 'No había cambios nuevos para guardar.';
         }
       } catch (error) {

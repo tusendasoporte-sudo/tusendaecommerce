@@ -223,3 +223,16 @@
 body[data-promo-token-motion="reduced"] .promo-hero__slides {
   scroll-behavior: auto;
 }
+
+.promo-hero__slogan {
+  width: fit-content;
+  margin: 0 0 1rem;
+  border-inline-start: 3px solid var(--promo-accent);
+  color: var(--promo-accent-bright);
+  font-size: clamp(.82rem, 1.2vw, 1rem);
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1.5;
+  padding-inline-start: .85rem;
+  text-transform: uppercase;
+}

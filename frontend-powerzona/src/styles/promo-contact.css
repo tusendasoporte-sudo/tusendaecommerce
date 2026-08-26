@@ -153,3 +153,37 @@ body[data-promo-token-motion="reduced"] .promo-contact-action:hover {
   filter: none;
   transform: none;
 }
+
+.promo-contact__qr {
+  width: min(100%, 20rem);
+  justify-self: end;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--promo-border) 44%, transparent);
+  border-radius: var(--promo-radius);
+  background: #fff;
+  padding: clamp(.8rem, 2vw, 1.2rem);
+  box-shadow: var(--promo-shadow);
+}
+
+.promo-contact__qr img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.promo-contact__qr figcaption {
+  margin-block-start: .65rem;
+  color: #17212b;
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .promo-contact__qr { width: min(78vw, 18rem); justify-self: start; }
+}

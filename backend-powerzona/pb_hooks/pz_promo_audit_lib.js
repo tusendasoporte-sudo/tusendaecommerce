@@ -31,17 +31,21 @@ function definition(moduleName, severity, resources, summary, options) {
 const ACTION_CATALOG = Object.freeze({
   "promo.site.create": definition("support", "critical", ["promo_site"], "Creó una Tienda Promo", { allowEmptyPaths: true }),
   "promo.site.status.update": definition("support", "critical", ["promo_site"], "Cambió el estado de la Tienda Promo"),
+  "promo.lifecycle.public_state.update": definition("publication", "critical", ["promo_publication_slot"], "Cambió la disponibilidad pública de la Tienda Promo"),
   "promo.team.permissions.update": definition("support", "critical", ["promo_user_permissions"], "Actualizó permisos Promo de un miembro del equipo"),
   "promo.entitlements.update": definition("entitlement", "critical", ["promo_site_entitlements"], "Actualizó capacidades de la Tienda Promo"),
   "promo.draft.update": definition("content", "important", ["promo_draft_document"], "Actualizó el borrador de la Tienda Promo", {
+    criticalPaths: ["/theme", "/locales", "/contact", "/adapters"],
+  }),
+  "promo.content.live.update": definition("content", "important", ["promo_live_document"], "Actualizó el contenido público de la Tienda Promo", {
     criticalPaths: ["/theme", "/locales", "/contact", "/adapters"],
   }),
   "promo.revision.create": definition("content", "important", ["promo_revision"], "Creó una revisión Promo inmutable", { allowEmptyPaths: true }),
   "promo.media.create": definition("media", "important", ["promo_media_asset"], "Creó un medio Promo", { allowEmptyPaths: true }),
   "promo.media.status.update": definition("media", "critical", ["promo_media_asset"], "Cambió el estado de un medio Promo"),
   "promo.theme.release.update": definition("theme", "critical", ["promo_theme_release"], "Cambió un release de tema Promo", { global: true }),
-  "promo.theme.selection.update": definition("theme", "critical", ["promo_draft_document"], "Cambió la selección de tema Promo"),
-  "promo.localization.update": definition("localization", "important", ["promo_draft_document"], "Cambió locales o traducciones Promo"),
+  "promo.theme.selection.update": definition("theme", "critical", ["promo_draft_document", "promo_live_document"], "Cambió la selección de tema Promo"),
+  "promo.localization.update": definition("localization", "important", ["promo_draft_document", "promo_live_document"], "Cambió locales o traducciones Promo"),
   "promo.contact.update": definition("contact", "critical", ["promo_draft_document"], "Cambió la configuración de contacto Promo"),
   "promo.reviews.moderate": definition("reviews", "important", ["promo_store_review"], "Moderó una reseña de tienda en Promo"),
   "promo.publication.publish": definition("publication", "critical", ["promo_publication_slot"], "Publicó una revisión Promo"),
@@ -67,6 +71,7 @@ const RESOURCE_SAFE_FIELDS = Object.freeze({
   promo_user_permissions: Object.freeze(["permissions", "version", "sessions_revoked"]),
   promo_site_entitlements: Object.freeze(["source", "updated", "capabilities"]),
   promo_draft_document: Object.freeze(["digest", "version", "theme", "locales", "contact", "media", "adapters", "sections"]),
+  promo_live_document: Object.freeze(["digest", "version", "theme", "locales", "contact", "media", "adapters", "sections"]),
   promo_revision: Object.freeze(["sequence", "digest", "theme", "default_locale", "published_locales", "source_draft_version"]),
   promo_media_asset: Object.freeze(["kind", "purpose", "status", "mime_detected", "bytes", "width", "height", "duration_ms"]),
   promo_theme_release: Object.freeze(["theme_id", "version", "status", "renderer_key", "contract_version"]),
@@ -81,6 +86,10 @@ const RESOURCE_PATH_PREFIXES = Object.freeze({
   promo_user_permissions: Object.freeze(["/permissions", "/promo_permissions", "/version", "/sessions_revoked"]),
   promo_site_entitlements: Object.freeze(["/source", "/updated", "/capabilities"]),
   promo_draft_document: Object.freeze([
+    "/contract", "/system_catalog_version", "/locales", "/theme", "/identity",
+    "/section_order", "/sections", "/media_refs", "/contact", "/content_by_locale", "/adapters",
+  ]),
+  promo_live_document: Object.freeze([
     "/contract", "/system_catalog_version", "/locales", "/theme", "/identity",
     "/section_order", "/sections", "/media_refs", "/contact", "/content_by_locale", "/adapters",
   ]),

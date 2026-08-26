@@ -496,17 +496,12 @@ function resolveHostBindingContext(app, headers, options) {
   assertPublicRoot(entitlement);
   const slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
   const generation = recordInteger(slot, "generation");
-  const revisionId = relationId(slot, "published_revision");
   const primaryId = relationId(slot, "primary_binding");
   if (relationId(slot, "site") !== siteId || recordString(slot, "state") !== "active"
     || recordString(slot, "canonical_mode") !== "custom" || generation === null || generation < 1
-    || !revisionId || !primaryId) fail("promo_host_unavailable", 421);
+    || !primaryId) fail("promo_host_unavailable", 421);
   const primary = findRecord(app, "promo_domain_bindings", primaryId);
   assertActiveBinding(primary, siteId, "", "primary");
-  const revision = findRecord(app, "promo_revisions", revisionId);
-  if (relationId(revision, "site") !== siteId || recordInteger(revision, "schema_version") !== 1) {
-    fail("promo_host_unavailable", 421);
-  }
   const bindingRole = recordString(binding, "role");
   if (bindingRole === "primary" && recordId(binding) !== recordId(primary)) fail("promo_host_unavailable", 421);
 
@@ -522,7 +517,6 @@ function resolveHostBindingContext(app, headers, options) {
   if (recordString(finalSite, "status") !== "active" || recordString(finalStore, "status") !== "active"
     || recordInteger(finalSlot, "generation") !== generation
     || relationId(finalSlot, "site") !== siteId
-    || relationId(finalSlot, "published_revision") !== revisionId
     || relationId(finalSlot, "primary_binding") !== recordId(primary)
     || recordString(finalSlot, "state") !== "active"
     || recordString(finalSlot, "canonical_mode") !== "custom") {
@@ -535,8 +529,6 @@ function resolveHostBindingContext(app, headers, options) {
     canonical_hostname: recordString(finalPrimary, "hostname_ascii"),
     entitlement: finalEntitlement,
     generation,
-    revision,
-    revision_id: revisionId,
     site: finalSite,
     site_id: siteId,
     slot: finalSlot,
@@ -552,7 +544,6 @@ function resolveHostContext(app, headers, options) {
       canonicalMode: "custom",
       primaryBindingId: relationId(context.slot, "primary_binding"),
       expectedGeneration: context.generation,
-      expectedRevisionId: context.revision_id,
     });
   } catch (_) {
     fail("promo_host_unavailable", 421);
@@ -562,8 +553,8 @@ function resolveHostContext(app, headers, options) {
     document: published.document,
     generation: published.generation,
     projection: published.projection,
-    revision: published.revision,
-    revision_id: published.revisionId,
+    live: published.live,
+    content_version: published.contentVersion,
     slot: published.slot,
   });
 }

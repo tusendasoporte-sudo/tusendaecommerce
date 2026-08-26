@@ -80,7 +80,7 @@ function customProjectionFixture() {
     slot: 'slotaaaaaaaaaaa', revision: 'revaaaaaaaaaaaa', theme: 'themeaaaaaaaaaa',
     binding: 'bindprimaryaaaa',
   };
-  const document = publishedDocument();
+  const document = contract.upgradePromoDocument(publishedDocument());
   const site = record(ids.site, {
     store: ids.store, public_slug: 'aladdin-carpet', status: 'active', contract_version: 1,
   });
@@ -95,13 +95,9 @@ function customProjectionFixture() {
     })],
     promo_publication_slots: [record(ids.slot, {
       site: ids.site, state: 'active', canonical_mode: 'custom', primary_binding: ids.binding,
-      published_revision: ids.revision, generation: 4,
+      published_revision: '', generation: 4,
     })],
-    promo_revisions: [record(ids.revision, {
-      site: ids.site, schema_version: 1, snapshot_json: document,
-      snapshot_sha256: contract.digestDocument(document, sha256), default_locale: 'es',
-      published_locales_json: document.locales.published, theme_release: ids.theme,
-    })],
+    promo_revisions: [],
     promo_theme_releases: [record(ids.theme, {
       theme_id: 'promo.black-gold', version: '1.0.0', status: 'approved',
       renderer_key: theme.BLACK_GOLD_MANIFEST.renderer_key,
@@ -112,7 +108,11 @@ function customProjectionFixture() {
     promo_domain_bindings: [record(ids.binding, {
       site: ids.site, role: 'primary', status: 'active', is_current: true,
     })],
-    promo_draft_documents: [], promo_media_assets: [], promo_revision_media_refs: [], promo_audit_events: [],
+    promo_draft_documents: [record('draftaaaaaaaaaa', {
+      site: ids.site, schema_version: 1, version: 7, document_json: document,
+      document_sha256: contract.digestDocument(document, sha256),
+    })],
+    promo_media_assets: [], promo_revision_media_refs: [], promo_audit_events: [],
   };
   const app = {
     findCollectionByNameOrId(name) {
@@ -141,9 +141,11 @@ test('PUBCFG registra una ruta pública por slug y dos POST privados autenticado
     '/api/pz/promo/public/v1/sites/{publicSlug}',
     '/api/pz/promo/private/v1/draft/read',
     '/api/pz/promo/private/v1/draft/update',
+    '/api/pz/promo/private/v1/live/read',
+    '/api/pz/promo/private/v1/live/update',
   ]);
-  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 2);
-  assert.equal((source.match(/\$apis\.bodyLimit\(/g) || []).length, 3);
+  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 4);
+  assert.equal((source.match(/\$apis\.bodyLimit\(/g) || []).length, 5);
   assert.doesNotMatch(source, /PATCH|DELETE|filter|expand|realtime/);
 });
 
@@ -156,6 +158,100 @@ test('contrato draft v1 es exacto, determinista y acepta workspace incompleto se
   assert.throws(() => contract.validatePromoDocument({ ...draft, store_id: 'storeaaaaaaaaaa' }), /invalid_promo_document/);
   assert.throws(() => contract.validatePromoDocument({ ...draft, price: 10 }), /invalid_promo_document/);
   assert.throws(() => contract.validatePromoDocument({ ...draft, system_catalog_version: 'promo.unknown.v9' }), /unknown_promo_contract/);
+});
+
+test('contrato vivo v2 migra v1 sin snapshots y añade slogan, QR y enlaces de galería', () => {
+  const live = contract.upgradePromoDocument(emptyDraft());
+  assert.equal(live.contract, 'promo.site.v2');
+  assert.equal(live.contact.qr_media_use_key, '');
+  assert.deepEqual(contract.validatePromoDocument(live), live);
+  assert.equal(contract.LIVE_READ_CONTRACT, 'promo.live.read.v1');
+  assert.equal(contract.LIVE_UPDATE_CONTRACT, 'promo.live.update.v1');
+});
+
+test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y admite slogan y QR', () => {
+  const live = contract.upgradePromoDocument(publishedDocument());
+  live.section_order = ['hero-main', 'services-main', 'featured-main', 'gallery-rugs', 'contact-main'];
+  live.sections = [
+    live.sections[0],
+    {
+      key: 'services-main', type: 'services', variant: 'default', visible: true,
+      config: { item_keys: ['restoration'], gallery_keys: ['gallery-rugs'] }, media_use_keys: [],
+    },
+    {
+      key: 'featured-main', type: 'featured_work', variant: 'default', visible: true,
+      config: { item_keys: [] }, media_use_keys: [],
+    },
+    {
+      key: 'gallery-rugs', type: 'gallery', variant: 'default', visible: true,
+      config: {
+        item_keys: ['silk-rug', 'wool-rug'],
+        cover_media_use_key: 'gallery-cover',
+        items: [
+          { key: 'silk-rug', media_use_keys: ['gallery-cover'], featured: true, visible: true },
+          { key: 'wool-rug', media_use_keys: ['gallery-wool'], featured: false, visible: true },
+        ],
+      },
+      media_use_keys: ['gallery-cover', 'gallery-wool'],
+    },
+    live.sections[1],
+  ];
+  live.media_refs = {
+    'gallery-cover': { asset_id: 'a'.repeat(15), purpose: 'gallery' },
+    'gallery-wool': { asset_id: 'b'.repeat(15), purpose: 'gallery' },
+    contact_qr: { asset_id: 'c'.repeat(15), purpose: 'qr' },
+  };
+  live.contact.qr_media_use_key = 'contact_qr';
+  live.content_by_locale.es.identity.slogan = 'Restauramos historias';
+  live.content_by_locale.es.navigation = {
+    'hero-main': 'Inicio', 'services-main': 'Servicios', 'featured-main': 'Destacados',
+    'gallery-rugs': 'Galerías', 'contact-main': 'Contacto',
+  };
+  live.content_by_locale.es.sections = {
+    'hero-main': live.content_by_locale.es.sections['hero-main'],
+    'services-main': {
+      heading: 'Servicios', summary: 'Elige el trabajo que necesitas',
+      items: [{ key: 'restoration', name: 'Restauración', summary: 'Cuidado especializado', caption: '' }],
+    },
+    'featured-main': { heading: 'Trabajos destacados', summary: 'Selección desde las galerías' },
+    'gallery-rugs': {
+      heading: 'Alfombras', summary: 'Trabajos y productos',
+      items: [
+        { key: 'silk-rug', name: 'Alfombra de seda', summary: 'Restauración completa', caption: 'Antes y después' },
+        { key: 'wool-rug', name: 'Alfombra de lana', summary: 'Limpieza profunda', caption: '' },
+      ],
+    },
+    'contact-main': live.content_by_locale.es.sections['contact-main'],
+  };
+  live.content_by_locale.es.media_alt = {
+    'gallery-cover': { alt: 'Alfombra de seda restaurada', decorative: false },
+    'gallery-wool': { alt: 'Alfombra de lana limpia', decorative: false },
+    contact_qr: { alt: 'Código QR de contacto', decorative: false },
+  };
+
+  assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
+  assert.equal(live.sections.find((section) => section.type === 'featured_work').config.item_keys.length, 0);
+  assert.equal(live.sections.find((section) => section.type === 'gallery').config.items[0].featured, true);
+
+  const serviceWithDirectMedia = structuredClone(live);
+  serviceWithDirectMedia.sections[1].media_use_keys = ['gallery-cover'];
+  assert.throws(
+    () => contract.validatePromoDocument(serviceWithDirectMedia, { publicRevision: true }),
+    /invalid_promo_document/,
+  );
+  const missingLinkedGallery = structuredClone(live);
+  missingLinkedGallery.sections[1].config.gallery_keys = ['missing-gallery'];
+  assert.throws(
+    () => contract.validatePromoDocument(missingLinkedGallery, { publicRevision: true }),
+    /invalid_promo_document/,
+  );
+  const visibleWorkWithoutMedia = structuredClone(live);
+  visibleWorkWithoutMedia.sections[3].config.items[1].media_use_keys = [];
+  visibleWorkWithoutMedia.sections[3].media_use_keys = ['gallery-cover'];
+  assert.throws(
+    () => contract.validatePromoDocument(visibleWorkWithoutMedia, { publicRevision: true }),
+    /incomplete_promo_locale/,
+  );
 });
 
 test('contrato rechaza código, URLs, token keys, campos Commerce y tokens de tema aún no aprobados', () => {
@@ -214,21 +310,20 @@ test('proyección pública se construye por allowlist y elimina destino, IDs y r
   ]) assert.equal(serialized.includes(forbidden), false, `proyección no contiene ${forbidden}`);
 });
 
-test('lector PUBCFG interno admite custom solo con binding, generación y revisión exactos', () => {
+test('lector PUBCFG interno admite custom solo con binding, generación y documento vivo exactos', () => {
   const { app, ids, site } = customProjectionFixture();
   const previousSecurity = global.$security;
   global.$security = { sha256 };
   try {
     const resolved = api.resolvePublicProjectionForSite(app, site, {
       canonicalMode: 'custom', primaryBindingId: ids.binding,
-      expectedGeneration: 4, expectedRevisionId: ids.revision,
+      expectedGeneration: 4,
     });
     assert.equal(resolved.projection.contract, 'promo.public.projection.v1');
     assert.equal(resolved.projection.site.public_slug, 'aladdin-carpet');
     for (const options of [
       { canonicalMode: 'custom', primaryBindingId: 'bindwrongaaaaaa', expectedGeneration: 4 },
       { canonicalMode: 'custom', primaryBindingId: ids.binding, expectedGeneration: 3 },
-      { canonicalMode: 'custom', primaryBindingId: ids.binding, expectedGeneration: 4, expectedRevisionId: 'revwrongaaaaaaa' },
       { canonicalMode: 'platform' },
     ]) assert.throws(() => api.resolvePublicProjectionForSite(app, site, options));
   } finally {
@@ -238,15 +333,16 @@ test('lector PUBCFG interno admite custom solo con binding, generación y revisi
 });
 
 test('payloads privados versionados rechazan tenant, revisión, filters y campos adicionales', () => {
+  assert.equal(api.parseDraftRead({ contract: 'promo.live.read.v1' }), true);
   assert.equal(api.parseDraftRead({ contract: 'promo.draft.read.v1' }), true);
   assert.equal(api.parseDraftRead({ contract: 'promo.draft.read.v1', store_id: 'storeaaaaaaaaaa' }), false);
-  const document = emptyDraft();
+  const document = contract.upgradePromoDocument(emptyDraft());
   assert.deepEqual(api.parseDraftUpdate({
-    contract: 'promo.draft.update.v1', expected_version: 2, document,
+    contract: 'promo.live.update.v1', expected_version: 2, document,
   }), { expectedVersion: 2, document });
   for (const injected of ['store_id', 'site_id', 'revision_id', 'filter', 'sort', 'fields', 'expand']) {
     assert.equal(api.parseDraftUpdate({
-      contract: 'promo.draft.update.v1', expected_version: 2, document, [injected]: 'attacker',
+      contract: 'promo.live.update.v1', expected_version: 2, document, [injected]: 'attacker',
     }), null);
   }
 });

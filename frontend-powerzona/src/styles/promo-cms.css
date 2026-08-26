@@ -213,6 +213,31 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.pz-promo-cms__qr-grid {
+  display: grid;
+  grid-template-columns: 192px minmax(240px, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.pz-promo-cms__qr-preview {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  inline-size: 192px;
+  aspect-ratio: 1;
+  border: 1px solid var(--pc-line);
+  border-radius: .85rem;
+  background: #fff;
+  color: var(--pc-muted);
+}
+
+.pz-promo-cms__qr-preview img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
 .pz-promo-cms__field {
   min-width: 0;
   display: grid;
@@ -569,6 +594,9 @@
   .pz-promo-cms__fields.two-columns {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .pz-promo-cms__qr-grid { grid-template-columns: 1fr; }
+  .pz-promo-cms__qr-preview { inline-size: min(100%, 240px); }
 
   .pz-promo-cms__footer-option-grid,
   .pz-promo-cms__footer-social-grid {

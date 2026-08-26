@@ -266,6 +266,41 @@ html.pz-promo-admin-nav-open {
   background: rgba(0, 0, 0, 0.08);
 }
 
+.pz-promo-admin__sidebar-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.pz-promo-admin__sidebar-actions a,
+.pz-promo-admin__sidebar-actions button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f5fa;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pz-promo-admin__sidebar-actions a:hover,
+.pz-promo-admin__sidebar-actions a:focus-visible {
+  border-color: #c69af3;
+  background: rgba(134, 76, 190, 0.18);
+}
+
+.pz-promo-admin__sidebar-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
 .pz-promo-admin__user {
   min-width: 0;
   display: grid;

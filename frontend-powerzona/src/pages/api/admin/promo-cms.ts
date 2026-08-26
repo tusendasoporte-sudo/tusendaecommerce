@@ -10,8 +10,8 @@ import {
   promoCmsStoreSlug,
 } from '../../../lib/promoCms';
 
-const READ_PATH = '/api/pz/promo/private/v1/draft/read';
-const UPDATE_PATH = '/api/pz/promo/private/v1/draft/update';
+const READ_PATH = '/api/pz/promo/private/v1/live/read';
+const UPDATE_PATH = '/api/pz/promo/private/v1/live/update';
 const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
 const SAFE_ERROR_CODES = new Set([
   'unauthorized', 'session_revoked', 'user_inactive', 'blocked_by_plan', 'promo_not_found',
@@ -19,8 +19,8 @@ const SAFE_ERROR_CODES = new Set([
   'promo_capability_denied', 'promo_permission_denied', 'invalid_payload',
   'invalid_promo_document', 'unsafe_promo_document_value', 'unknown_promo_contract',
   'unknown_promo_theme_token', 'unsupported_promo_action', 'invalid_promo_media_reference',
-  'invalid_promo_contact_reference', 'incomplete_promo_locale', 'promo_draft_conflict',
-  'promo_draft_unavailable', 'promo_pubcfg_unavailable',
+  'invalid_promo_contact_reference', 'incomplete_promo_locale', 'promo_live_conflict',
+  'promo_live_unavailable', 'promo_draft_unavailable', 'promo_pubcfg_unavailable',
 ]);
 
 function json(payload: unknown, status = 200) {
@@ -115,14 +115,24 @@ export const GET: APIRoute = async ({ request }) => {
     const result = await backendRequest(
       READ_PATH,
       authPb.authStore.token,
-      { contract: 'promo.draft.read.v1' },
+      { contract: 'promo.live.read.v1' },
       context.isMasterSupport ? context.storeId : '',
     );
-    const draft = normalizePromoCmsDraftResponse(result);
+    const draft = normalizePromoCmsDraftResponse({
+      ok: result.ok,
+      contract: result.contract,
+      draft: result.live,
+    });
     return json({
       ok: true,
-      contract: 'promo.draft.v1',
-      draft: { schema_version: 1, version: draft.version, document: draft.document },
+      contract: 'promo.live.v1',
+      draft: {
+        schema_version: 2,
+        version: draft.version,
+        generation: Number(result.live?.generation || 0),
+        public_state: String(result.live?.public_state || 'inactive'),
+        document: draft.document,
+      },
     });
   } catch (error) {
     return errorResponse(error);
@@ -148,7 +158,7 @@ export const PUT: APIRoute = async ({ request }) => {
       UPDATE_PATH,
       authPb.authStore.token,
       {
-        contract: 'promo.draft.update.v1',
+        contract: 'promo.live.update.v1',
         expected_version: parsed.expectedVersion,
         document: parsed.document,
       },
@@ -157,13 +167,19 @@ export const PUT: APIRoute = async ({ request }) => {
     const draft = normalizePromoCmsDraftResponse({
       ok: result.ok,
       contract: result.contract,
-      draft: result.draft,
+      draft: result.live,
     });
     return json({
       ok: true,
-      contract: 'promo.draft.v1',
+      contract: 'promo.live.v1',
       changed: result.changed === true,
-      draft: { schema_version: 1, version: draft.version, document: draft.document },
+      draft: {
+        schema_version: 2,
+        version: draft.version,
+        generation: Number(result.live?.generation || 0),
+        public_state: String(result.live?.public_state || 'inactive'),
+        document: draft.document,
+      },
     });
   } catch (error) {
     if (error instanceof SyntaxError) return json({ ok: false, error: 'invalid_payload' }, 400);

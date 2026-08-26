@@ -22,7 +22,7 @@ const publicPath = getLandingQrPath(storeSlug);
     <div>
       <span class="pz-promo-landing-qr__kicker">Puente de solo acceso</span>
       <h2 id="promo-landing-qr-title">Landing QR existente</h2>
-      <p>Publica un enlace discreto hacia la página de enlaces actual sin duplicar su contenido ni convertirla en acción de contacto.</p>
+      <p>Muestra un enlace discreto hacia la página de enlaces actual sin duplicar su contenido ni convertirla en acción de contacto.</p>
     </div>
     <a href={publicPath}>Abrir Landing QR actual</a>
   </header>
@@ -31,9 +31,9 @@ const publicPath = getLandingQrPath(storeSlug);
 
   <section class="pz-promo-landing-qr__card" aria-labelledby="promo-landing-qr-config-title">
     <div class="pz-promo-landing-qr__copy">
-      <span>Revisión Promo</span>
+      <span>Página Promo</span>
       <h3 id="promo-landing-qr-config-title">Enlace público</h3>
-      <p>El cambio se guarda únicamente en el borrador. Debes publicar una revisión nueva para que el renderer Promo lo use.</p>
+      <p>Al guardar, el enlace con Landing QR Commerce se actualiza automáticamente en la página pública.</p>
     </div>
 
     <label class="pz-promo-landing-qr__switch">
@@ -44,7 +44,7 @@ const publicPath = getLandingQrPath(storeSlug);
       </span>
     </label>
 
-    <button type="button" data-landing-qr-save disabled={!canConfigure}>Guardar en borrador</button>
+    <button type="button" data-landing-qr-save disabled={!canConfigure}>Guardar y actualizar página</button>
 
     {!canConfigure && (
       <p class="pz-promo-landing-qr__permission" role="note">
@@ -113,7 +113,7 @@ const publicPath = getLandingQrPath(storeSlug);
         draftVersion = draft.version;
         draftDocument = draft.document;
         if (enabled) enabled.checked = draft.document.adapters.landing_qr_link.enabled === true;
-        show('Puente guardado en el borrador. Publica una revisión nueva para aplicarlo.', 'success');
+        show('Enlace guardado y página pública actualizada.', 'success');
       } catch (error) {
         show(promoLandingQrErrorMessage((error as { code?: string })?.code), 'error');
       } finally {

@@ -48,7 +48,7 @@ test('collector acepta solo cuatro familias y payload exacto sin PII', () => {
   assert.throws(() => analytics.parseCollect({ ...event('page_view'), event_id: 'not-a-uuid' }), /invalid_payload/);
 });
 
-test('dimensiones se derivan de la revisi처n publicada y Landing QR falla cerrado', () => {
+test('dimensiones se derivan del contenido vivo y Landing QR falla cerrado', () => {
   const current = profile();
   assert.deepEqual(analytics.validateAgainstProfile(analytics.parseCollect(event('page_view')), current), {
     actionType: '', dimensionKey: '', themeKey: 'promo.black-gold@1.0.0',
@@ -74,7 +74,7 @@ test('dimensiones se derivan de la revisi처n publicada y Landing QR falla cerrad
   ), /promo_analytics_unavailable/);
 });
 
-test('DATA admite landing_qr_open sin secci처n/acci처n y conserva tenant/revisi처n estrictos', () => {
+test('DATA admite landing_qr_open con generaci처n viva y conserva tenant estricto', () => {
   const siteId = 'site00000000001';
   const revision = { id: 'revision0000001', site: siteId };
   const app = {
@@ -85,9 +85,13 @@ test('DATA admite landing_qr_open sin secci처n/acci처n y conserva tenant/revisi�
     },
   };
   const row = {
-    site: siteId, revision: revision.id, event_type: 'landing_qr_open', section_key: '', action_type: '', locale: 'es',
+    site: siteId, revision: '', content_generation: 3,
+    event_type: 'landing_qr_open', section_key: '', action_type: '', locale: 'es',
   };
   assert.equal(data.assertPromoRecord(app, 'promo_analytics_events', row, 'create'), true);
+  assert.throws(() => data.assertPromoRecord(app, 'promo_analytics_events', {
+    ...row, content_generation: 0,
+  }, 'create'), /invalid_promo_content_generation/);
   assert.throws(() => data.assertPromoRecord(app, 'promo_analytics_events', {
     ...row, revision: 'revision0000002',
   }, 'create'), /invalid_promo_relation/);

@@ -2,7 +2,7 @@
 
 "use strict";
 
-const CACHE_CONTRACT = "promo.public.cache.v1";
+const CACHE_CONTRACT = "promo.public.cache.v2";
 const CACHE_CONTRACT_HEADER = "X-PZ-Promo-Cache-Contract";
 const CACHE_KEY_HEADER = "X-PZ-Promo-Cache-Key";
 const HTML_REPRESENTATION = "text/html; charset=utf-8";
@@ -60,7 +60,6 @@ function generationCacheIdentity(input, sha256) {
   const canonicalHost = safeText(value.canonicalHost, HOST_PATTERN, 253);
   if (canonicalHost.includes("..")) fail();
   const tenantId = safeText(value.tenantId, RECORD_ID_PATTERN, 15);
-  const revisionId = safeText(value.revisionId, RECORD_ID_PATTERN, 15);
   const generation = Number(value.generation);
   if (!Number.isSafeInteger(generation) || generation < 1) fail();
   const locale = safeText(value.locale, LOCALE_PATTERN, 80);
@@ -74,7 +73,6 @@ function generationCacheIdentity(input, sha256) {
     CACHE_CONTRACT,
     canonicalHost,
     tenantId,
-    revisionId,
     generation,
     locale,
     themeId,

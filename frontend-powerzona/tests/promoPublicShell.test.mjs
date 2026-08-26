@@ -83,11 +83,13 @@ function shellEnvelope(source = 'platform') {
         config: { media_use_key: '', action_key: '' }, media_use_keys: [],
       }],
       media: [],
-      contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [] },
+      contact: {
+        enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [], qr_media_use_key: '',
+      },
       contact_action: { contract: 'promo.contact.action.v1', available: false, action: null },
       footer: { contract: 'promo.footer.v1', sections: [] },
       content: {
-        identity: { name: 'Negocio demo', summary: 'Presentación pública' },
+        identity: { name: 'Negocio demo', slogan: 'Oficio que perdura', summary: 'Presentación pública' },
         navigation: { 'hero-main': 'Inicio' },
         sections: { 'hero-main': { heading: 'Negocio demo', summary: 'Trabajo profesional' } },
         contact: {}, media_alt: {}, seo: { title: 'Negocio demo', description: 'Presentación pública' },
@@ -161,6 +163,7 @@ function imageDelivery({
     gallery: { widths: [480, 768, 1280], sizes: '(min-width: 900px) 50vw, 100vw' },
     owner: { widths: [320, 640, 960], sizes: '(min-width: 900px) 40vw, 100vw' },
     video_poster: { widths: [480, 960, 1440], sizes: '100vw' },
+    qr: { widths: [512], sizes: 'min(18rem, 80vw)' },
   };
   const policy = policies[purpose];
   assert.ok(policy, `purpose MEDIA sin fixture: ${purpose}`);
@@ -190,16 +193,30 @@ function shellEnvelopeWithSections() {
   envelope.profile.sections = [
     {
       key: 'services-main', type: 'services', variant: 'default',
-      config: { item_keys: ['service-clean', 'service-restore'] },
-      media_use_keys: ['service-clean-media', 'service-restore-media'],
+      config: {
+        item_keys: ['service-clean', 'service-restore'],
+        gallery_keys: ['gallery-main', 'gallery-main'],
+      },
+      media_use_keys: [],
     },
     {
       key: 'featured-main', type: 'featured_work', variant: 'default',
-      config: { item_keys: ['featured-hall'] }, media_use_keys: ['featured-hall-media'],
+      config: { item_keys: [] }, media_use_keys: [],
     },
     {
       key: 'gallery-main', type: 'gallery', variant: 'default',
-      config: { item_keys: ['gallery-room', 'gallery-stair'] },
+      config: {
+        item_keys: ['gallery-room', 'gallery-stair'],
+        cover_media_use_key: 'gallery-room-media',
+        items: [
+          {
+            key: 'gallery-room', media_use_keys: ['gallery-room-media'], featured: true, visible: true,
+          },
+          {
+            key: 'gallery-stair', media_use_keys: ['gallery-stair-media'], featured: false, visible: true,
+          },
+        ],
+      },
       media_use_keys: ['gallery-room-media', 'gallery-stair-media'],
     },
     {
@@ -208,9 +225,6 @@ function shellEnvelopeWithSections() {
     },
   ];
   const mediaDefinitions = [
-    ['service-clean-media', 'service', 640, 640, 'Limpieza cuidadosa'],
-    ['service-restore-media', 'service', 640, 640, 'Restauración artesanal'],
-    ['featured-hall-media', 'gallery', 960, 720, 'Salón con alfombra restaurada'],
     ['gallery-room-media', 'gallery', 960, 720, 'Detalle de una alfombra en sala'],
     ['owner-portrait', 'owner', 640, 800, 'Retrato del propietario'],
   ];
@@ -235,7 +249,7 @@ function shellEnvelopeWithSections() {
     accessibility: { alt: 'Escalera renovada con alfombra', decorative: false },
   });
   envelope.profile.content = {
-    identity: { name: 'Negocio demo', summary: 'Presentación pública' },
+    identity: { name: 'Negocio demo', slogan: 'Oficio que perdura', summary: 'Presentación pública' },
     navigation: {
       'services-main': 'Servicios', 'featured-main': 'Trabajo destacado',
       'gallery-main': 'Galería', 'owner-main': 'Propietario',
@@ -250,13 +264,18 @@ function shellEnvelopeWithSections() {
       },
       'featured-main': {
         heading: 'Una pieza recuperada', summary: 'Trabajo destacado',
-        items: [{ key: 'featured-hall', name: 'Salón principal', summary: 'Restauración completa', caption: 'Proyecto reciente' }],
       },
       'gallery-main': {
         heading: 'Nuestro trabajo', summary: 'Selección visual',
         items: [
-          { key: 'gallery-room', caption: 'Detalle en sala' },
-          { key: 'gallery-stair', caption: 'Instalación en escalera' },
+          {
+            key: 'gallery-room', name: 'Salón principal',
+            summary: 'Restauración completa', caption: 'Detalle en sala',
+          },
+          {
+            key: 'gallery-stair', name: 'Escalera',
+            summary: 'Instalación artesanal', caption: 'Instalación en escalera',
+          },
         ],
       },
       'owner-main': { heading: 'Tradición personal', name: 'Dueño artesano', bio: 'Experiencia y oficio.' },
@@ -279,6 +298,7 @@ function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
     primary_action_key: 'estimate',
     secondary_action_keys: [],
     actions: [{ key: 'estimate', type: 'phone', enabled: true }],
+    qr_media_use_key: '',
   };
   envelope.profile.content.contact = {
     estimate: { label: 'Solicitar estimado', aria_label: 'Solicitar un estimado', message: 'Cuéntanos tu idea' },
@@ -447,7 +467,7 @@ test('FOOTER acepta solo enlaces compilados, redes tipadas y branding reservado'
   assert.throws(() => normalizePromoPublicShellResponse(commerce), PromoPublicShellError);
 });
 
-test('QR acepta solo el acceso central compilado, localizado y separado del CTA', () => {
+test('Landing QR acepta solo el acceso central compilado, localizado y separado del CTA', () => {
   const envelope = shellEnvelope();
   Object.assign(envelope.profile.system.messages, {
     'landing_qr.open': 'Más enlaces',
@@ -480,6 +500,35 @@ test('QR acepta solo el acceso central compilado, localizado y separado del CTA'
   assert.throws(() => normalizePromoPublicShellResponse(unapproved), PromoPublicShellError);
 });
 
+test('CONTACT acepta un QR propio únicamente como imagen normalizada 512 por 512', () => {
+  const envelope = shellEnvelope();
+  envelope.profile.contact.qr_media_use_key = 'contact-qr';
+  envelope.profile.media.push({
+    key: 'contact-qr', purpose: 'qr', kind: 'image', width: 512, height: 512, duration_ms: 0,
+    delivery: imageDelivery({
+      key: 'contact-qr', purpose: 'qr', width: 512, height: 512,
+      priority: false, sha: 'd'.repeat(64),
+    }),
+    accessibility: { alt: 'Código QR de contacto', decorative: false },
+  });
+  envelope.profile.content.media_alt['contact-qr'] = {
+    alt: 'Código QR de contacto', decorative: false,
+  };
+
+  const normalized = normalizePromoPublicShellResponse(envelope);
+  assert.equal(normalized.profile.contact.qr_media_use_key, 'contact-qr');
+  const qrMedia = normalized.profile.media.find((media) => media.key === 'contact-qr');
+  assert.equal(qrMedia?.purpose, 'qr');
+  assert.deepEqual([qrMedia?.width, qrMedia?.height], [512, 512]);
+
+  const wrongPurpose = structuredClone(envelope);
+  wrongPurpose.profile.media[0].purpose = 'gallery';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongPurpose), PromoPublicShellError);
+  const wrongDimensions = structuredClone(envelope);
+  wrongDimensions.profile.media[0].width = 511;
+  assert.throws(() => normalizePromoPublicShellResponse(wrongDimensions), PromoPublicShellError);
+});
+
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithSections());
   assert.deepEqual(normalized.profile.section_order, [
@@ -492,7 +541,15 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
   assert.ok(normalized.profile.media.every((media) => (
     media.kind === 'image' ? media.delivery.loading === 'lazy' : media.delivery.preload === 'none'
   )));
-  assert.equal(normalized.profile.media.find((media) => media.key === 'service-clean-media').purpose, 'service');
+  assert.deepEqual(
+    normalized.profile.sections.find((section) => section.type === 'services').config.gallery_keys,
+    ['gallery-main', 'gallery-main'],
+  );
+  assert.deepEqual(
+    normalized.profile.sections.find((section) => section.type === 'featured_work').config.item_keys,
+    [],
+  );
+  assert.equal(normalized.profile.media.find((media) => media.key === 'gallery-room-media').purpose, 'gallery');
   assert.equal(normalized.profile.media.find((media) => media.key === 'owner-portrait').purpose, 'owner');
   assert.equal(normalized.profile.media.find((media) => media.key === 'gallery-stair-media').delivery.autoplay, false);
 
@@ -570,6 +627,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   const sectionMedia = read('../src/components/promo-public/PromoSectionMedia.astro');
   const styles = read('../src/styles/promo-public-shell.css');
   const themeStyles = read('../src/styles/promo-black-gold.css');
+  const variantStyles = read('../src/styles/promo-theme-variants.css');
   const heroStyles = read('../src/styles/promo-hero.css');
   const contactStyles = read('../src/styles/promo-contact.css');
   const footerStyles = read('../src/styles/promo-footer.css');
@@ -578,8 +636,12 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   const platform = read('../src/pages/promo/[publicSlug]/index.astro');
   const localized = read('../src/pages/promo/[publicSlug]/[locale].astro');
   const commerce = read('../src/pages/t/[storeSlug]/index.astro');
-  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${footer}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${heroStyles}\n${contactStyles}\n${footerStyles}\n${sectionStyles}\n${platform}\n${localized}`;
-  assert.match(shell, /PROMO_BLACK_GOLD_RENDERER_KEY/);
+  const combined = `${layout}\n${shell}\n${theme}\n${hero}\n${contactAction}\n${contact}\n${footer}\n${sections}\n${sectionMedia}\n${styles}\n${themeStyles}\n${variantStyles}\n${heroStyles}\n${contactStyles}\n${footerStyles}\n${sectionStyles}\n${platform}\n${localized}`;
+  assert.match(shell, /PROMO_PUBLIC_RENDERER_KEYS/);
+  for (const renderer of [
+    'promo.black-gold', 'promo.minimal', 'promo.artisan',
+    'promo.vibrant', 'promo.professional', 'promo.portfolio',
+  ]) assert.match(`${themeStyles}\n${variantStyles}`, new RegExp(`data-promo-theme-renderer="${renderer.replace('.', '\\.')}"`));
   assert.equal(PROMO_PUBLIC_INTERNAL_PATH, '/promo-shell-internal');
   assert.match(internal, /Astro\.locals\.promoPublicProfile/);
   assert.match(shell, /promo_public_renderer_unavailable/);
@@ -631,6 +693,8 @@ test('renderer ALADDIN aplica la release negra/dorada y delega contacto y QR a r
   assert.match(theme, /<PromoContact/);
   assert.match(theme, /<PromoLandingQrLink/);
   assert.match(contact, /data-contact-available/);
+  assert.match(contact, /profile\.contact\.qr_media_use_key/);
+  assert.match(contact, /<PromoSectionMedia/);
   assert.match(theme, /promo-shell-section__ornament/);
   assert.match(layout, /data-promo-token-accent=\{themeTokens\.accent\}/);
   assert.ok(Buffer.byteLength(styles, 'utf8') <= 50 * 1024, 'CSS del renderer excede el budget Theme de 50 KiB');
@@ -692,7 +756,7 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
     'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
 });
 
-test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidratar ni activar Commerce/contacto', () => {
+test('SECTIONS enlaza servicios, deriva destacados y mantiene galerías sin hidratar Commerce', () => {
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const media = read('../src/components/promo-public/PromoSectionMedia.astro');
@@ -708,6 +772,10 @@ test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidrat
   assert.match(sections, /section\.type === 'gallery'/);
   assert.match(sections, /section\.type === 'owner'/);
   assert.match(sections, /section\.config\.media_use_key/);
+  assert.match(sections, /section\.config\.gallery_keys/);
+  assert.match(sections, /gallerySections\.flatMap\(galleryWorks\)\.filter/);
+  assert.match(sections, /href=\{`#promo-section-\$\{gallery\.key\}`\}/);
+  assert.match(sections, /<PromoContactAction/);
   assert.match(sections, /data-section-item-count/);
   assert.match(media, /loading=\{media\.delivery\.loading\}/);
   assert.match(media, /fetchpriority=\{media\.delivery\.fetch_priority\}/);
@@ -717,7 +785,7 @@ test('SECTIONS especializa servicios, trabajo, galería y propietario sin hidrat
   assert.match(sectionStyles, /@media \(max-width: 720px\)/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)/);
   assert.match(sectionStyles, /video:focus-visible/);
-  assert.doesNotMatch(`${sections}\n${media}`, /<script|<button|<form|href=|tel:|mailto:|wa\.me|onclick|addEventListener/i);
+  assert.doesNotMatch(`${sections}\n${media}`, /<script|<button|<form|tel:|mailto:|wa\.me|onclick|addEventListener/i);
   assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|products|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.doesNotMatch(sectionStyles, /url\(|@import|https?:/i);
   assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 50 * 1024,

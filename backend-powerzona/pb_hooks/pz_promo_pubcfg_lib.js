@@ -14,10 +14,16 @@ const promoFooter = typeof __hooks === "undefined"
   : require(`${__hooks}/pz_promo_footer_lib.js`);
 
 const DOCUMENT_CONTRACT = "promo.site.v1";
+const LIVE_DOCUMENT_CONTRACT = "promo.site.v2";
 const PUBLIC_CONTRACT = "promo.public.projection.v1";
 const DRAFT_READ_CONTRACT = "promo.draft.read.v1";
 const DRAFT_UPDATE_CONTRACT = "promo.draft.update.v1";
 const DRAFT_RESPONSE_CONTRACT = "promo.draft.v1";
+// Additive live-content contracts. Legacy names remain available while
+// existing documents and clients are migrated in a verified deployment.
+const LIVE_READ_CONTRACT = "promo.live.read.v1";
+const LIVE_UPDATE_CONTRACT = "promo.live.update.v1";
+const LIVE_RESPONSE_CONTRACT = "promo.live.v1";
 const SYSTEM_CATALOG_VERSION = "promo.system.v1";
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
@@ -31,7 +37,7 @@ const SECTION_TYPES = Object.freeze([
   "hero", "services", "featured_work", "gallery", "owner", "store_rating", "contact", "footer",
 ]);
 const MEDIA_PURPOSES = Object.freeze([
-  "hero", "service", "gallery", "owner", "footer", "social", "video_poster",
+  "hero", "service", "gallery", "owner", "footer", "social", "video_poster", "qr",
 ]);
 const CONTACT_TYPES = Object.freeze([
   "whatsapp", "phone", "email", "internal_form", "approved_live_chat",
@@ -43,6 +49,16 @@ const SECTION_CONFIG_KEYS = Object.freeze({
   services: ["item_keys"],
   featured_work: ["item_keys"],
   gallery: ["item_keys"],
+  owner: ["media_use_key"],
+  store_rating: [],
+  contact: ["action_keys"],
+  footer: ["navigation_section_keys", "social_profiles"],
+});
+const LIVE_SECTION_CONFIG_KEYS = Object.freeze({
+  hero: ["media_use_key", "action_key"],
+  services: ["item_keys", "gallery_keys"],
+  featured_work: ["item_keys"],
+  gallery: ["item_keys", "cover_media_use_key", "items"],
   owner: ["media_use_key"],
   store_rating: [],
   contact: ["action_keys"],
@@ -61,6 +77,16 @@ const LOCALIZED_SECTION_KEYS = Object.freeze({
   hero: ["heading", "summary"],
   services: ["heading", "summary", "items"],
   featured_work: ["heading", "summary", "items"],
+  gallery: ["heading", "summary", "items"],
+  owner: ["heading", "name", "bio"],
+  store_rating: ["heading"],
+  contact: ["heading", "summary"],
+  footer: ["heading", "summary", "text"],
+});
+const LIVE_LOCALIZED_SECTION_KEYS = Object.freeze({
+  hero: ["heading", "summary"],
+  services: ["heading", "summary", "items"],
+  featured_work: ["heading", "summary"],
   gallery: ["heading", "summary", "items"],
   owner: ["heading", "name", "bio"],
   store_rating: ["heading"],
@@ -218,8 +244,8 @@ function validateIdentity(value) {
   assertKey(identity.public_business_key, BUSINESS_KEY_PATTERN, true);
 }
 
-function validateSectionConfig(section, knownActions, knownMedia) {
-  const expected = SECTION_CONFIG_KEYS[section.type];
+function validateSectionConfig(section, knownActions, knownMedia, liveDocument, publicRevision) {
+  const expected = (liveDocument ? LIVE_SECTION_CONFIG_KEYS : SECTION_CONFIG_KEYS)[section.type];
   if (section.type === "footer") {
     try { promoFooter.normalizeFooterConfig(section.config); }
     catch (error) {
@@ -232,6 +258,48 @@ function validateSectionConfig(section, knownActions, knownMedia) {
   const config = section.config;
   if (["services", "featured_work", "gallery"].includes(section.type)) {
     assertStringArray(config.item_keys, { max: data.HARD_LIMITS.max_services, pattern: KEY_PATTERN });
+  }
+  if (liveDocument && section.type === "services") {
+    if (!Array.isArray(config.gallery_keys) || config.gallery_keys.length !== config.item_keys.length) {
+      fail("invalid_promo_document", 400);
+    }
+    config.gallery_keys.forEach((key) => assertKey(key, KEY_PATTERN, true));
+    if (section.media_use_keys.length) fail("invalid_promo_document", 400);
+  }
+  if (liveDocument && section.type === "featured_work") {
+    if (config.item_keys.length || section.media_use_keys.length) fail("invalid_promo_document", 400);
+  }
+  if (liveDocument && section.type === "gallery") {
+    assertKey(config.cover_media_use_key, USE_KEY_PATTERN, true);
+    if (!Array.isArray(config.items) || config.items.length > data.HARD_LIMITS.max_services) {
+      fail("invalid_promo_document", 400);
+    }
+    const itemKeys = [];
+    const configuredMedia = [];
+    const appendMedia = (key) => {
+      if (!configuredMedia.includes(key)) configuredMedia.push(key);
+    };
+    if (config.cover_media_use_key) appendMedia(config.cover_media_use_key);
+    config.items.forEach((item) => {
+      const normalized = exactKeys(item, ["key", "media_use_keys", "featured", "visible"]);
+      const itemKey = assertKey(normalized.key, KEY_PATTERN, false);
+      const itemMedia = assertStringArray(normalized.media_use_keys, { max: 12, pattern: USE_KEY_PATTERN });
+      assertBoolean(normalized.featured);
+      assertBoolean(normalized.visible);
+      itemKeys.push(itemKey);
+      itemMedia.forEach(appendMedia);
+    });
+    if (itemKeys.length !== config.item_keys.length
+      || itemKeys.some((key, index) => key !== config.item_keys[index])
+      || configuredMedia.length !== section.media_use_keys.length
+      || configuredMedia.some((key, index) => key !== section.media_use_keys[index])) {
+      fail("invalid_promo_document", 400);
+    }
+    if (publicRevision && section.visible && (!config.cover_media_use_key
+      || config.items.some((item) => item.visible && !item.media_use_keys.length))) {
+      fail("incomplete_promo_locale", 400);
+    }
+    configuredMedia.forEach((key) => knownMedia.add(key));
   }
   if (section.type === "contact") {
     assertStringArray(config.action_keys, { max: data.HARD_LIMITS.max_contact_actions, pattern: KEY_PATTERN });
@@ -249,7 +317,7 @@ function validateSectionConfig(section, knownActions, knownMedia) {
   }
 }
 
-function validateSections(document, publicRevision) {
+function validateSections(document, publicRevision, liveDocument) {
   assertStringArray(document.section_order, { max: data.HARD_LIMITS.max_sections, pattern: KEY_PATTERN });
   if (!Array.isArray(document.sections) || document.sections.length > data.HARD_LIMITS.max_sections) {
     fail("invalid_promo_document", 400);
@@ -272,13 +340,24 @@ function validateSections(document, publicRevision) {
     assertBoolean(section.visible);
     assertStringArray(section.media_use_keys, { max: 30, pattern: USE_KEY_PATTERN })
       .forEach((key) => media.add(key));
-    validateSectionConfig(section, actions, media);
+    validateSectionConfig(section, actions, media, liveDocument, publicRevision);
   }
   if (new Set(keys).size !== keys.length || keys.length !== document.section_order.length
     || keys.some((key, index) => key !== document.section_order[index])) {
     fail("invalid_promo_document", 400);
   }
   const sectionByKey = new Map(document.sections.map((section) => [section.key, section]));
+  if (liveDocument) {
+    document.sections.filter((section) => section.type === "services").forEach((section) => {
+      section.config.gallery_keys.forEach((galleryKey) => {
+        const gallery = galleryKey ? sectionByKey.get(galleryKey) : null;
+        if (galleryKey && (!gallery || gallery.type !== "gallery")) fail("invalid_promo_document", 400);
+        if (publicRevision && section.visible && (!gallery || !gallery.visible)) {
+          fail("incomplete_promo_locale", 400);
+        }
+      });
+    });
+  }
   document.sections.filter((section) => section.type === "footer").forEach((section) => {
     const config = promoFooter.normalizeFooterConfig(section.config);
     config.navigation_section_keys.forEach((sectionKey) => {
@@ -306,9 +385,11 @@ function validateMediaRefs(value) {
   }
 }
 
-function validateSectionMediaPurposes(document) {
+function validateSectionMediaPurposes(document, liveDocument) {
   for (const section of document.sections) {
-    const allowed = SECTION_MEDIA_PURPOSES[section.type] || [];
+    const allowed = liveDocument && ["services", "featured_work"].includes(section.type)
+      ? []
+      : (SECTION_MEDIA_PURPOSES[section.type] || []);
     const keys = new Set(section.media_use_keys);
     if (["hero", "owner"].includes(section.type) && section.config.media_use_key) {
       keys.add(section.config.media_use_key);
@@ -340,10 +421,13 @@ function validateContactConfig(action) {
   }
 }
 
-function validateContact(value) {
-  const contact = exactKeys(value, ["enabled", "primary_action_key", "secondary_action_keys", "actions"]);
+function validateContact(value, liveDocument) {
+  const contact = exactKeys(value, liveDocument
+    ? ["enabled", "primary_action_key", "secondary_action_keys", "actions", "qr_media_use_key"]
+    : ["enabled", "primary_action_key", "secondary_action_keys", "actions"]);
   assertBoolean(contact.enabled);
   assertKey(contact.primary_action_key, KEY_PATTERN, true);
+  if (liveDocument) assertKey(contact.qr_media_use_key, USE_KEY_PATTERN, true);
   assertStringArray(contact.secondary_action_keys, {
     max: data.HARD_LIMITS.max_contact_actions, pattern: KEY_PATTERN,
   });
@@ -373,25 +457,29 @@ function validateContact(value) {
   return actions;
 }
 
-function validateLocalizedItems(items, type, publicRevision, configuredKeys) {
+function validateLocalizedItems(items, type, publicRevision, configuredKeys, liveDocument) {
   if (!Array.isArray(items) || items.length > data.HARD_LIMITS.max_services) fail("invalid_promo_document", 400);
   const keys = [];
   for (const item of items) {
-    const allowed = type === "gallery" ? ["key", "caption"] : ["key", "name", "summary", "caption"];
+    const allowed = type === "gallery" && !liveDocument
+      ? ["key", "caption"]
+      : ["key", "name", "summary", "caption"];
     const normalized = onlyKeys(item, allowed);
     keys.push(assertKey(normalized.key, KEY_PATTERN, false));
     if (Object.prototype.hasOwnProperty.call(normalized, "name")) assertSafeText(normalized.name, 160, { empty: !publicRevision });
     if (Object.prototype.hasOwnProperty.call(normalized, "summary")) assertSafeText(normalized.summary, 600, { empty: true });
     if (Object.prototype.hasOwnProperty.call(normalized, "caption")) assertSafeText(normalized.caption, 500, { empty: true });
-    if (publicRevision && type !== "gallery" && !normalized.name) fail("incomplete_promo_locale", 400);
+    if (publicRevision && (type !== "gallery" || liveDocument) && !normalized.name) {
+      fail("incomplete_promo_locale", 400);
+    }
   }
   if (new Set(keys).size !== keys.length) fail("invalid_promo_document", 400);
   if (publicRevision && (keys.length !== configuredKeys.length
     || keys.some((key, index) => key !== configuredKeys[index]))) fail("incomplete_promo_locale", 400);
 }
 
-function validateLocalizedSection(value, section, publicRevision) {
-  const localized = onlyKeys(value, LOCALIZED_SECTION_KEYS[section.type]);
+function validateLocalizedSection(value, section, publicRevision, liveDocument) {
+  const localized = onlyKeys(value, (liveDocument ? LIVE_LOCALIZED_SECTION_KEYS : LOCALIZED_SECTION_KEYS)[section.type]);
   const textLimits = { heading: 160, summary: 600, name: 140, bio: 4000, text: 4000 };
   Object.keys(textLimits).forEach((key) => {
     if (Object.prototype.hasOwnProperty.call(localized, key)) {
@@ -399,14 +487,14 @@ function validateLocalizedSection(value, section, publicRevision) {
     }
   });
   if (Object.prototype.hasOwnProperty.call(localized, "items")) {
-    validateLocalizedItems(localized.items, section.type, publicRevision, section.config.item_keys || []);
+    validateLocalizedItems(localized.items, section.type, publicRevision, section.config.item_keys || [], liveDocument);
   } else if (publicRevision && ["services", "featured_work", "gallery"].includes(section.type)
     && section.config.item_keys.length) {
     fail("incomplete_promo_locale", 400);
   }
 }
 
-function validateLocalizedContent(document, publicRevision) {
+function validateLocalizedContent(document, publicRevision, liveDocument) {
   const byLocale = plainObject(document.content_by_locale);
   const localeKeys = Object.keys(byLocale);
   if (localeKeys.length > data.HARD_LIMITS.max_locales) fail("invalid_promo_document", 400);
@@ -420,9 +508,14 @@ function validateLocalizedContent(document, publicRevision) {
   const actionKeys = document.contact.actions.map((action) => action.key);
   for (const locale of localeKeys) {
     const localized = exactKeys(byLocale[locale], ["identity", "navigation", "sections", "contact", "media_alt", "seo"]);
-    const identity = onlyKeys(localized.identity, ["name", "summary", "owner_name", "owner_bio"]);
+    const identity = onlyKeys(localized.identity, liveDocument
+      ? ["name", "slogan", "summary", "owner_name", "owner_bio"]
+      : ["name", "summary", "owner_name", "owner_bio"]);
     if (Object.prototype.hasOwnProperty.call(identity, "name")) assertSafeText(identity.name, 140, { empty: !publicRevision });
     if (Object.prototype.hasOwnProperty.call(identity, "summary")) assertSafeText(identity.summary, 600, { empty: true });
+    if (liveDocument && Object.prototype.hasOwnProperty.call(identity, "slogan")) {
+      assertSafeText(identity.slogan, 120, { empty: true });
+    }
     if (Object.prototype.hasOwnProperty.call(identity, "owner_name")) assertSafeText(identity.owner_name, 140, { empty: true });
     if (Object.prototype.hasOwnProperty.call(identity, "owner_bio")) assertSafeText(identity.owner_bio, 4000, { empty: true });
     if (publicRevision && !identity.name) fail("incomplete_promo_locale", 400);
@@ -436,7 +529,7 @@ function validateLocalizedContent(document, publicRevision) {
     for (const key of Object.keys(localizedSections)) {
       const section = sectionMap.get(key);
       if (!section) fail("invalid_promo_document", 400);
-      validateLocalizedSection(localizedSections[key], section, publicRevision);
+      validateLocalizedSection(localizedSections[key], section, publicRevision, liveDocument);
     }
     if (publicRevision) {
       document.sections.filter((section) => section.visible).forEach((section) => {
@@ -487,31 +580,175 @@ function validateAdapters(value) {
   assertBoolean(exactKeys(adapters.landing_qr_link, ["enabled"]).enabled);
 }
 
+function uniqueDocumentKey(used, preferred, maximum) {
+  const limit = Number.isInteger(maximum) ? maximum : 64;
+  const normalized = String(preferred || "item").toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, limit) || "item";
+  const base = /^[a-z]/.test(normalized) ? normalized : `item-${normalized}`.slice(0, limit);
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const ending = `-${suffix}`;
+    const candidate = `${base.slice(0, Math.max(1, limit - ending.length))}${ending}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
+  fail("invalid_promo_document", 400);
+}
+
+function upgradePromoDocument(input) {
+  const document = normalizeJson(input);
+  if (document.contract === LIVE_DOCUMENT_CONTRACT) return document;
+  if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
+  const next = normalizeJson(document);
+  next.contract = LIVE_DOCUMENT_CONTRACT;
+  next.contact = { ...next.contact, qr_media_use_key: "" };
+
+  const sectionKeys = new Set(next.sections.map((section) => section.key));
+  const gallerySections = next.sections.filter((section) => section.type === "gallery");
+  const legacyFeatured = next.sections.filter((section) => section.type === "featured_work");
+  if (!gallerySections.length && legacyFeatured.some((section) => section.config.item_keys.length)) {
+    const key = uniqueDocumentKey(sectionKeys, "gallery-portfolio", 64);
+    const gallery = {
+      key,
+      type: "gallery",
+      variant: "default",
+      visible: true,
+      config: { item_keys: [], cover_media_use_key: "", items: [] },
+      media_use_keys: [],
+    };
+    next.sections.push(gallery);
+    next.section_order.push(key);
+    gallerySections.push(gallery);
+    Object.values(next.content_by_locale).forEach((localized) => {
+      localized.navigation[key] = "Galería";
+      localized.sections[key] = { heading: "Galería", summary: "", items: [] };
+    });
+  }
+
+  gallerySections.forEach((section) => {
+    const itemKeys = Array.isArray(section.config.item_keys) ? section.config.item_keys.slice() : [];
+    const mediaKeys = Array.isArray(section.media_use_keys) ? section.media_use_keys.slice() : [];
+    section.config = {
+      item_keys: itemKeys,
+      cover_media_use_key: mediaKeys[0] || "",
+      items: itemKeys.map((key, index) => ({
+        key,
+        media_use_keys: mediaKeys[index] ? [mediaKeys[index]] : [],
+        featured: false,
+        visible: true,
+      })),
+    };
+    section.media_use_keys = Array.from(new Set([
+      section.config.cover_media_use_key,
+      ...section.config.items.flatMap((item) => item.media_use_keys),
+    ].filter(Boolean)));
+    Object.values(next.content_by_locale).forEach((localized) => {
+      const content = localized.sections[section.key] || { heading: "", summary: "", items: [] };
+      const existing = new Map((Array.isArray(content.items) ? content.items : []).map((item) => [item.key, item]));
+      content.items = itemKeys.map((key, index) => {
+        const item = existing.get(key) || {};
+        const caption = String(item.caption || "");
+        return {
+          key,
+          name: String(item.name || caption || `Trabajo ${index + 1}`),
+          summary: String(item.summary || ""),
+          caption,
+        };
+      });
+      localized.sections[section.key] = content;
+    });
+  });
+
+  const targetGallery = gallerySections[0] || null;
+  legacyFeatured.forEach((section) => {
+    const itemKeys = Array.isArray(section.config.item_keys) ? section.config.item_keys.slice() : [];
+    const mediaKeys = Array.isArray(section.media_use_keys) ? section.media_use_keys.slice() : [];
+    if (targetGallery) {
+      const usedItemKeys = new Set(targetGallery.config.item_keys);
+      itemKeys.forEach((legacyKey, index) => {
+        const itemKey = uniqueDocumentKey(usedItemKeys, legacyKey, 64);
+        const mediaKey = mediaKeys[index] || "";
+        targetGallery.config.item_keys.push(itemKey);
+        targetGallery.config.items.push({
+          key: itemKey,
+          media_use_keys: mediaKey ? [mediaKey] : [],
+          featured: true,
+          visible: true,
+        });
+        if (mediaKey && !targetGallery.media_use_keys.includes(mediaKey)) {
+          targetGallery.media_use_keys.push(mediaKey);
+        }
+        Object.values(next.content_by_locale).forEach((localized) => {
+          const featured = localized.sections[section.key] || {};
+          const legacyItem = (featured.items || []).find((item) => item.key === legacyKey) || {};
+          const target = localized.sections[targetGallery.key];
+          target.items.push({
+            key: itemKey,
+            name: String(legacyItem.name || legacyItem.caption || `Trabajo ${target.items.length + 1}`),
+            summary: String(legacyItem.summary || ""),
+            caption: String(legacyItem.caption || ""),
+          });
+        });
+      });
+    }
+    section.config = { item_keys: [] };
+    section.media_use_keys = [];
+    Object.values(next.content_by_locale).forEach((localized) => {
+      const content = localized.sections[section.key];
+      if (content) delete content.items;
+    });
+  });
+
+  next.sections.filter((section) => section.type === "services").forEach((section) => {
+    section.config = {
+      item_keys: section.config.item_keys.slice(),
+      gallery_keys: section.config.item_keys.map(() => targetGallery ? targetGallery.key : ""),
+    };
+    section.media_use_keys = [];
+  });
+  Object.values(next.content_by_locale).forEach((localized) => {
+    localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || "") };
+  });
+  return next;
+}
+
 function validatePromoDocument(input, options) {
   const settings = options || {};
   const document = normalizeJson(input);
+  const liveDocument = document && document.contract === LIVE_DOCUMENT_CONTRACT;
   exactKeys(document, [
     "contract", "system_catalog_version", "locales", "theme", "identity", "section_order",
     "sections", "media_refs", "contact", "content_by_locale", "adapters",
   ]);
-  if (document.contract !== DOCUMENT_CONTRACT || document.system_catalog_version !== SYSTEM_CATALOG_VERSION) {
+  if (![DOCUMENT_CONTRACT, LIVE_DOCUMENT_CONTRACT].includes(document.contract)
+    || document.system_catalog_version !== SYSTEM_CATALOG_VERSION) {
     fail("unknown_promo_contract", 400);
   }
   data.assertDocumentHardLimits(document);
   validateLocales(document.locales, settings.publicRevision === true);
   validateTheme(document.theme, settings.publicRevision === true);
   validateIdentity(document.identity);
-  const used = validateSections(document, settings.publicRevision === true);
+  const used = validateSections(document, settings.publicRevision === true, liveDocument);
   validateMediaRefs(document.media_refs);
-  validateSectionMediaPurposes(document);
-  const contactActions = validateContact(document.contact);
+  validateSectionMediaPurposes(document, liveDocument);
+  const contactActions = validateContact(document.contact, liveDocument);
+  if (liveDocument && document.contact.qr_media_use_key) {
+    const qrRef = document.media_refs[document.contact.qr_media_use_key];
+    if (!qrRef || qrRef.purpose !== "qr") fail("invalid_promo_media_reference", 400);
+    used.media.add(document.contact.qr_media_use_key);
+  }
   used.media.forEach((key) => {
     if (!Object.prototype.hasOwnProperty.call(document.media_refs, key)) fail("invalid_promo_media_reference", 400);
   });
   used.actions.forEach((key) => {
     if (!contactActions.has(key)) fail("invalid_promo_contact_reference", 400);
   });
-  validateLocalizedContent(document, settings.publicRevision === true);
+  validateLocalizedContent(document, settings.publicRevision === true, liveDocument);
   validateAdapters(document.adapters);
   return document;
 }
@@ -521,7 +758,11 @@ function documentMetrics(document, assets) {
   let gallery = 0;
   document.sections.forEach((section) => {
     if (section.type === "services") services += section.config.item_keys.length;
-    if (section.type === "gallery") gallery += section.config.item_keys.length;
+    if (section.type === "gallery") {
+      gallery += document.contract === LIVE_DOCUMENT_CONTRACT
+        ? section.media_use_keys.length
+        : section.config.item_keys.length;
+    }
   });
   const media = assets || [];
   return Object.freeze({
@@ -632,6 +873,9 @@ function projectPublicDocument(document, siteSlug, media) {
       primary_action_key: document.contact.enabled ? document.contact.primary_action_key : "",
       secondary_action_keys: document.contact.enabled ? document.contact.secondary_action_keys.slice() : [],
       actions: enabledActions.map((action) => ({ key: action.key, type: action.type, enabled: true })),
+      ...(document.contract === LIVE_DOCUMENT_CONTRACT
+        ? { qr_media_use_key: document.contact.qr_media_use_key }
+        : {}),
     },
     content_by_locale: resultContent,
     adapters: normalizeJson(document.adapters),
@@ -641,9 +885,13 @@ function projectPublicDocument(document, siteSlug, media) {
 module.exports = {
   CONTACT_TYPES,
   DOCUMENT_CONTRACT,
+  LIVE_DOCUMENT_CONTRACT,
   DRAFT_READ_CONTRACT,
   DRAFT_RESPONSE_CONTRACT,
   DRAFT_UPDATE_CONTRACT,
+  LIVE_READ_CONTRACT,
+  LIVE_RESPONSE_CONTRACT,
+  LIVE_UPDATE_CONTRACT,
   KEY_PATTERN,
   MEDIA_PURPOSES,
   PromoPubcfgError,
@@ -660,5 +908,6 @@ module.exports = {
   documentMetrics,
   normalizeJson,
   projectPublicDocument,
+  upgradePromoDocument,
   validatePromoDocument,
 };

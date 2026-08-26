@@ -14,7 +14,6 @@ function identity(overrides = {}, hash = sha256) {
   return performance.generationCacheIdentity({
     canonicalHost: 'tusenda84.com',
     tenantId: 'siteaaaaaaaaaaa',
-    revisionId: 'revaaaaaaaaaaaa',
     generation: 7,
     locale: 'es',
     themeId: 'promo.black-gold',
@@ -27,12 +26,11 @@ function identity(overrides = {}, hash = sha256) {
 
 test('cache generation-aware separa cada dimensión pública contractual', () => {
   const base = identity();
-  assert.equal(base.contract, 'promo.public.cache.v1');
+  assert.equal(base.contract, 'promo.public.cache.v2');
   assert.match(base.key, /^[a-f0-9]{64}$/);
   const variants = [
     identity({ canonicalHost: 'primary.example.test' }),
     identity({ tenantId: 'sitebbbbbbbbbbb' }),
-    identity({ revisionId: 'revbbbbbbbbbbbb' }),
     identity({ generation: 8 }),
     identity({ locale: 'en' }),
     identity({ themeVersion: '1.0.1' }),
@@ -41,11 +39,10 @@ test('cache generation-aware separa cada dimensión pública contractual', () =>
   assert.equal(new Set([base.key, ...variants.map((item) => item.key)]).size, variants.length + 1);
 });
 
-test('cache falla cerrada ante host, tenant, revisión, tema, ruta o representación ambiguos', () => {
+test('cache falla cerrada ante host, tenant, generación, tema, ruta o representación ambiguos', () => {
   for (const overrides of [
     { canonicalHost: 'evil.test/path' },
     { tenantId: 'short' },
-    { revisionId: 'short' },
     { generation: 0 },
     { locale: 'es?tenant=b' },
     { themeVersion: 'latest' },
@@ -58,5 +55,6 @@ test('cache falla cerrada ante host, tenant, revisión, tema, ruta o representac
 test('módulo PERF no depende de Cloudflare, DNS, secretos ni Commerce', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_performance_lib.js'), 'utf8');
   assert.doesNotMatch(source, /cloudflare|dns|token|secret|products|orders|cart|checkout/i);
-  assert.match(source, /published|revision|generation|theme|locale|representation/i);
+  assert.match(source, /generation|theme|locale|representation/i);
+  assert.doesNotMatch(source, /revisionId/);
 });

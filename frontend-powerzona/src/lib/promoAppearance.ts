@@ -472,7 +472,14 @@ function humanize(value: string) {
 }
 
 export function promoAppearanceThemeLabel(themeId: string) {
-  return themeId === 'promo.black-gold' ? 'Negro y dorado' : humanize(themeId);
+  return ({
+    'promo.black-gold': 'Negro y dorado',
+    'promo.minimal': 'Minimalista clara',
+    'promo.artisan': 'Artesanal cálida',
+    'promo.vibrant': 'Vibrante moderna',
+    'promo.professional': 'Profesional corporativa',
+    'promo.portfolio': 'Portafolio visual',
+  } as Record<string, string>)[themeId] || humanize(themeId);
 }
 
 export function promoAppearanceTokenLabel(key: string) {
@@ -504,32 +511,57 @@ export function promoAppearancePreview(
   tokenValues: Readonly<Record<string, string>>,
 ): PromoAppearancePreview {
   const tokens = promoAppearanceEffectiveTokens(theme, tokenValues);
-  if (theme.rendererKey !== 'promo.black-gold') {
-    return Object.freeze({
-      rendererAvailable: false,
-      themeLabel: promoAppearanceThemeLabel(theme.themeId),
-      version: theme.version,
-      style: SAFE_PREVIEW_DEFAULTS,
-    });
-  }
-  const accent = tokens.accent === 'champagne_gold' ? '#d9bf84' : '#c8a45a';
-  const radius = tokens.radius === 'soft' ? '18px' : '8px';
-  const shadow = tokens.shadow === 'lifted'
-    ? '0 24px 64px rgba(0, 0, 0, 0.5)'
-    : '0 18px 48px rgba(0, 0, 0, 0.34)';
-  return Object.freeze({
-    rendererAvailable: true,
-    themeLabel: promoAppearanceThemeLabel(theme.themeId),
-    version: theme.version,
-    style: Object.freeze({
+  const styles: Record<string, PromoAppearancePreview['style']> = {
+    'promo.black-gold': Object.freeze({
       ...SAFE_PREVIEW_DEFAULTS,
-      accent,
-      border: accent,
-      radius,
-      shadow,
+      accent: tokens.accent === 'champagne_gold' ? '#d9bf84' : '#c8a45a',
+      border: tokens.border === 'champagne_gold' ? '#d9bf84' : '#c8a45a',
+      radius: tokens.radius === 'soft' ? '18px' : '8px',
+      shadow: tokens.shadow === 'lifted' ? '0 24px 64px rgba(0, 0, 0, 0.5)' : SAFE_PREVIEW_DEFAULTS.shadow,
       spacing: tokens.density === 'compact' ? '0.85rem' : '1.25rem',
       motionDuration: tokens.motion === 'reduced' ? '0ms' : '220ms',
     }),
+    'promo.minimal': Object.freeze({
+      surface: '#ffffff', surfaceRaised: '#f5f7fa', text: '#17212b', muted: '#667085',
+      accent: '#175cd3', border: '#d7dee7', focus: '#175cd3',
+      headingFont: 'Inter, system-ui, sans-serif', bodyFont: 'Inter, system-ui, sans-serif',
+      radius: '2px', shadow: 'none', spacing: '1.6rem', motionDuration: tokens.motion === 'reduced' ? '0ms' : '180ms',
+    }),
+    'promo.artisan': Object.freeze({
+      surface: '#f5ead9', surfaceRaised: '#fff7eb', text: '#3b2418', muted: '#745445',
+      accent: '#9b3f24', border: '#c98f70', focus: '#3b2418',
+      headingFont: 'Georgia, serif', bodyFont: 'system-ui, sans-serif',
+      radius: '24px 8px 20px 6px', shadow: '0 16px 34px rgba(92, 51, 28, .16)', spacing: '1.25rem',
+      motionDuration: tokens.motion === 'reduced' ? '0ms' : '220ms',
+    }),
+    'promo.vibrant': Object.freeze({
+      surface: '#10142e', surfaceRaised: '#20285a', text: '#ffffff', muted: '#c7c8eb',
+      accent: '#ff8a6b', border: '#58a6ff', focus: '#c8f560',
+      headingFont: 'Impact, system-ui, sans-serif', bodyFont: 'system-ui, sans-serif',
+      radius: '28px', shadow: '0 0 32px rgba(88, 166, 255, .32)', spacing: '1rem',
+      motionDuration: tokens.motion === 'reduced' ? '0ms' : '300ms',
+    }),
+    'promo.professional': Object.freeze({
+      surface: '#0c2d48', surfaceRaised: '#123e60', text: '#ffffff', muted: '#c3d7e6',
+      accent: '#78b7ff', border: '#7693aa', focus: '#ffffff',
+      headingFont: 'Arial, system-ui, sans-serif', bodyFont: 'Arial, system-ui, sans-serif',
+      radius: '4px', shadow: '0 12px 26px rgba(3, 18, 30, .24)', spacing: '.85rem',
+      motionDuration: tokens.motion === 'reduced' ? '0ms' : '160ms',
+    }),
+    'promo.portfolio': Object.freeze({
+      surface: '#171717', surfaceRaised: '#252525', text: '#ffffff', muted: '#c7c7c7',
+      accent: '#e7c99b', border: '#626262', focus: '#ffffff',
+      headingFont: 'Georgia, serif', bodyFont: 'system-ui, sans-serif',
+      radius: '2px', shadow: '0 26px 70px rgba(0, 0, 0, .48)', spacing: '1.4rem',
+      motionDuration: tokens.motion === 'reduced' ? '0ms' : '360ms',
+    }),
+  };
+  const style = styles[theme.rendererKey];
+  return Object.freeze({
+    rendererAvailable: Boolean(style),
+    themeLabel: promoAppearanceThemeLabel(theme.themeId),
+    version: theme.version,
+    style: style || SAFE_PREVIEW_DEFAULTS,
   });
 }
 
@@ -540,12 +572,13 @@ export function promoAppearanceErrorMessage(code: unknown) {
     blocked_by_plan: 'El plan actual bloquea la edición de este sitio.',
     promo_capability_denied: 'La personalización visual no está habilitada para esta tienda.',
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar este cambio.',
-    promo_draft_conflict: 'El borrador cambió en otra sesión. Recárgalo antes de volver a guardar.',
+    promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_theme_not_selectable: 'Ese tema ya no está aprobado para una nueva selección.',
     promo_theme_unavailable: 'La selección visual actual no puede editarse de forma segura.',
     invalid_promo_theme_tokens: 'Uno de los valores visuales no pertenece al tema aprobado.',
     incompatible_promo_theme_tokens: 'Esa combinación visual no está aprobada para este tema.',
-    invalid_promo_document: 'El backend rechazó la combinación visual o el borrador completo.',
+    invalid_promo_document: 'El backend rechazó la combinación visual o el documento completo.',
     invalid_origin: 'La solicitud no proviene del panel administrativo.',
   };
   return messages[String(code || '')] || 'No se pudo completar la operación. Intenta nuevamente.';
