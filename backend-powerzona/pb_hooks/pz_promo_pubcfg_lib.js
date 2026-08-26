@@ -640,7 +640,7 @@ function upgradePromoDocument(input) {
         key,
         media_use_keys: mediaKeys[index] ? [mediaKeys[index]] : [],
         featured: false,
-        visible: true,
+        visible: !!mediaKeys[index],
       })),
     };
     section.media_use_keys = Array.from(new Set([
@@ -678,7 +678,7 @@ function upgradePromoDocument(input) {
           key: itemKey,
           media_use_keys: mediaKey ? [mediaKey] : [],
           featured: true,
-          visible: true,
+          visible: !!mediaKey,
         });
         if (mediaKey && !targetGallery.media_use_keys.includes(mediaKey)) {
           targetGallery.media_use_keys.push(mediaKey);
@@ -711,11 +711,16 @@ function upgradePromoDocument(input) {
     && targetGallery.media_use_keys.length) {
     targetGallery.config.cover_media_use_key = targetGallery.media_use_keys[0];
   }
+  gallerySections.forEach((section) => {
+    if (!section.config.cover_media_use_key) section.visible = false;
+  });
 
   next.sections.filter((section) => section.type === "services").forEach((section) => {
     section.config = {
       item_keys: section.config.item_keys.slice(),
-      gallery_keys: section.config.item_keys.map(() => targetGallery ? targetGallery.key : ""),
+      gallery_keys: section.config.item_keys.map(() => (
+        targetGallery && targetGallery.visible ? targetGallery.key : ""
+      )),
     };
     section.media_use_keys = [];
   });

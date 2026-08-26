@@ -49,3 +49,19 @@ test('upgrade v1 deriva la portada de una galería creada desde destacados', () 
   assert.equal(gallery.config.cover_media_use_key, 'featured-rug');
   assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
 });
+
+test('upgrade v1 conserva pero oculta un destacado legado sin imagen', () => {
+  const legacy = legacyFeaturedDocument();
+  legacy.sections[0].config.item_keys.push('rug-pending');
+  legacy.content_by_locale.es.sections['featured-main'].items.push({
+    key: 'rug-pending', name: 'Trabajo pendiente', summary: '', caption: '',
+  });
+  assert.deepEqual(contract.validatePromoDocument(legacy, { publicRevision: true }), legacy);
+
+  const live = contract.upgradePromoDocument(legacy);
+  const gallery = live.sections.find((section) => section.type === 'gallery');
+  const pending = gallery.config.items.find((item) => item.key === 'rug-pending');
+
+  assert.equal(pending.visible, false);
+  assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
+});
