@@ -129,8 +129,9 @@ test('workspace vacío asigna solo el locale base y las secciones del alcance CM
   const content = createPromoCmsWorkspace(emptyDraft(), 'content');
   assert.equal(content.locale, 'es');
   assert.deepEqual(content.document.locales, { default: 'es', published: ['es'] });
-  assert.deepEqual(content.document.sections.map((section) => section.type), ['hero', 'services', 'owner', 'footer']);
-  assert.equal(content.document.sections.some((section) => ['gallery', 'featured_work', 'contact'].includes(section.type)), false);
+  assert.deepEqual(content.document.sections.map((section) => section.type), ['hero', 'services', 'owner', 'gallery', 'footer']);
+  assert.equal(content.document.sections.find((section) => section.type === 'gallery')?.key, 'videos-main');
+  assert.equal(content.document.sections.some((section) => ['featured_work', 'contact'].includes(section.type)), false);
 
   const contact = createPromoCmsWorkspace(emptyDraft(), 'contact');
   assert.deepEqual(contact.document.sections.map((section) => section.type), ['contact']);

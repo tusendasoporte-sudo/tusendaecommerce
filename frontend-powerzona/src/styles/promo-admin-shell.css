@@ -204,6 +204,33 @@ html.pz-promo-admin-nav-open {
   text-transform: uppercase;
 }
 
+.pz-promo-admin__nav-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.pz-promo-admin__nav-tree > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-radius: 12px;
+  color: #d7dce6;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.pz-promo-admin__nav-tree > summary::-webkit-details-marker { display: none; }
+.pz-promo-admin__nav-tree > summary:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+.pz-promo-admin__nav-tree > summary:focus-visible { outline: 3px solid #c69af3; outline-offset: 2px; }
+.pz-promo-admin__nav-tree[open] > summary .pz-promo-admin__nav-chevron { transform: rotate(180deg); }
+.pz-promo-admin__nav-chevron { margin-left: auto; transition: transform 160ms ease; }
+.pz-promo-admin__nav-children { display: grid; gap: 4px; padding-left: 12px; }
+.pz-promo-admin__nav-link.is-child { min-height: 40px; font-size: 12px; }
+
 .pz-promo-admin__nav-link {
   min-height: 44px;
   display: flex;

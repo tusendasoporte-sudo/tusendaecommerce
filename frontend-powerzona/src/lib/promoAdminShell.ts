@@ -11,11 +11,19 @@ import { getStoreAdminPath } from './adminRoutes.ts';
 export const PROMO_ADMIN_MODULES = Object.freeze([
   Object.freeze({
     section: 'content',
-    label: 'Contenido',
-    shortLabel: 'Contenido',
-    description: 'Identidad, slogan, servicios vinculados y pie del sitio.',
+    label: 'Organización',
+    shortLabel: 'Organización',
+    description: 'Identidad, estructura, servicios y pie del sitio.',
     actions: Object.freeze(['promo.content.manage'] as PromoActionKey[]),
     delivery: 'Guarda contenido validado y actualiza la página pública automáticamente.',
+  }),
+  Object.freeze({
+    section: 'gallery',
+    label: 'Galería y productos',
+    shortLabel: 'Galería y productos',
+    description: 'Portada visual, fotos de servicios, ofertas, productos y videos.',
+    actions: Object.freeze(['promo.content.manage', 'promo.media.manage'] as PromoActionKey[]),
+    delivery: 'Administra los medios vinculados a la página sin una biblioteca privada separada.',
   }),
   Object.freeze({
     section: 'appearance',
@@ -96,7 +104,6 @@ export function normalizePromoAdminSection(section: unknown): PromoAdminSection 
   const normalized = safeText(section).replace(/^\/+|\/+$/g, '').toLowerCase();
   if (!normalized || normalized === 'promo') return 'overview';
   if (!normalized.startsWith('promo/')) return null;
-  if (normalized === 'promo/gallery') return 'content';
   const module = getPromoAdminModule(normalized.slice('promo/'.length));
   return module?.section || null;
 }

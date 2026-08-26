@@ -56,8 +56,8 @@ test('catálogo del shell usa únicamente action keys Promo y rutas centrales po
   assert.equal(getPromoAdminSectionPath(' Promo A ', 'landing-qr'), '/t/promo-a/admin/promo/landing-qr');
   assert.equal(normalizePromoAdminSection(''), 'overview');
   assert.equal(normalizePromoAdminSection('promo/content'), 'content');
-  assert.equal(normalizePromoAdminSection('promo/gallery'), 'content');
-  assert.equal(PROMO_ADMIN_MODULES.some((module) => module.section === 'gallery'), false);
+  assert.equal(normalizePromoAdminSection('promo/gallery'), 'gallery');
+  assert.equal(PROMO_ADMIN_MODULES.some((module) => module.section === 'gallery'), true);
   assert.equal(normalizePromoAdminSection('orders'), null);
   assert.equal(normalizePromoAdminSection('promo/unknown'), null);
 });
@@ -70,11 +70,11 @@ test('módulos visibles y rutas directas nunca amplían allowed_actions del back
   ]);
   assert.deepEqual(
     visiblePromoAdminModules(access).map((module) => module.section),
-    ['content', 'appearance'],
+    ['content', 'gallery', 'appearance'],
   );
   assert.equal(canOpenPromoAdminSection(access, 'overview'), true);
   assert.equal(canOpenPromoAdminSection(access, 'appearance'), true);
-  assert.equal(canOpenPromoAdminSection(access, 'gallery'), false);
+  assert.equal(canOpenPromoAdminSection(access, 'gallery'), true);
   assert.deepEqual(visiblePromoAdminModules(context(['promo.content.manage'])), []);
   assert.equal(canOpenPromoAdminSection(context(['promo.content.manage']), 'overview'), false);
 });
@@ -171,7 +171,9 @@ test('shell es separado, responsive y no monta navegación Commerce', () => {
   const moduleRoute = read('../src/pages/t/[storeSlug]/admin/promo/[section].astro');
 
   assert.doesNotMatch(shell, /AdminSidebar|storeTeam|storeCapabilities|StorePlanIndicator/);
-  assert.doesNotMatch(shell, /PromoGalleryEditor|section === 'gallery'/);
+  assert.doesNotMatch(shell, /PromoGalleryEditor/);
+  assert.match(shell, /section === 'gallery'[\s\S]*?<PromoServiceProductsEditor/);
+  assert.match(shell, /pz-promo-admin__nav-tree/);
   assert.match(shell, /visiblePromoAdminModules\(accessContext\)/);
   assert.match(shell, /aria-label="Navegación de Tienda Promo"/);
   assert.match(shell, /aria-current=\{section === module\.section \? 'page' : undefined\}/);
@@ -193,5 +195,6 @@ test('shell es separado, responsive y no monta navegación Commerce', () => {
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(baseRoute, /showPromoDashboard[\s\S]*?<PromoAdminShell/);
   assert.match(moduleRoute, /canOpenPromoAdminSection\(accessContext, section\)/);
-  assert.match(moduleRoute, /requestedModule === 'gallery'[\s\S]*?getPromoAdminSectionPath\(storeSlug, 'content'\)/);
+  assert.doesNotMatch(moduleRoute, /requestedModule === 'gallery'/);
+  assert.match(moduleRoute, /canOpenPromoAdminSection\(accessContext, section\)/);
 });

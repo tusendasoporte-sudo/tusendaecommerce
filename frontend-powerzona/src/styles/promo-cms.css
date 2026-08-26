@@ -358,6 +358,29 @@
   padding: 18px;
 }
 
+.pz-promo-cms__section-list.is-root {
+  padding: 0;
+}
+
+.pz-promo-cms__section-card > .pz-promo-cms__accordion-summary,
+.pz-promo-cms__service-item > .pz-promo-cms__accordion-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.pz-promo-cms__section-card > .pz-promo-cms__accordion-summary::-webkit-details-marker,
+.pz-promo-cms__service-item > .pz-promo-cms__accordion-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pz-promo-cms__section-card:not([open]) > .pz-promo-cms__accordion-summary,
+.pz-promo-cms__service-item:not([open]) > .pz-promo-cms__accordion-summary {
+  border-bottom-color: transparent;
+}
+
 .pz-promo-cms__section-card,
 .pz-promo-cms__contact-action {
   overflow: hidden;

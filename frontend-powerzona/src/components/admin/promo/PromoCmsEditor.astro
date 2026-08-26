@@ -33,7 +33,7 @@ const isContent = scope === 'content';
   <header class="pz-promo-cms__intro">
     <div>
       <span class="pz-promo-cms__kicker">Página pública en vivo</span>
-      <h2 id="promo-cms-title">{isContent ? 'Editor de contenido' : 'Canales de contacto'}</h2>
+      <h2 id="promo-cms-title">{isContent ? 'Organización del contenido' : 'Canales de contacto'}</h2>
       <p>
         {isContent
           ? 'Organiza identidad, portada, servicios, propietario y pie del sitio. Guardar actualiza la página automáticamente.'
@@ -71,14 +71,15 @@ const isContent = scope === 'content';
   <form class="pz-promo-cms__form" data-cms-form hidden novalidate>
     {isContent ? (
       <>
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-identity-title">
-          <div class="pz-promo-cms__panel-heading">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" open aria-labelledby="cms-identity-title">
+          <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
               <h3 id="cms-identity-title">Identidad pública</h3>
-              <p>Nombre y resumen del negocio en el idioma base. No modifica usuarios ni datos internos.</p>
+              <p>Nombre, slogan y resumen público del negocio.</p>
             </div>
-          </div>
+            <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <div class="pz-promo-cms__fields two-columns">
             <label class="pz-promo-cms__field">
               <span>Nombre público</span>
@@ -96,18 +97,9 @@ const isContent = scope === 'content';
               <small>Texto plano, sin HTML, scripts ni URLs.</small>
             </label>
           </div>
-        </section>
+        </details>
 
-        <section class="pz-promo-cms__panel" aria-labelledby="cms-sections-title">
-          <div class="pz-promo-cms__panel-heading">
-            <span class="pz-promo-cms__step" aria-hidden="true">02</span>
-            <div>
-              <h3 id="cms-sections-title">Orden y contenido de secciones</h3>
-              <p>Usa los botones de orden para mantener una experiencia accesible también por teclado.</p>
-            </div>
-          </div>
-          <div class="pz-promo-cms__section-list" data-cms-sections></div>
-        </section>
+        <div class="pz-promo-cms__section-list is-root" data-cms-sections></div>
       </>
     ) : (
       <>
@@ -233,6 +225,7 @@ const isContent = scope === 'content';
     PROMO_CMS_CONTACT_TYPES,
     PROMO_CMS_FOOTER_MAX_LINKS,
     PROMO_CMS_FOOTER_SOCIAL_NETWORKS,
+    PROMO_CMS_VIDEO_GALLERY_KEY,
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
 
@@ -387,38 +380,40 @@ const isContent = scope === 'content';
       const up = element('button', '', 'Subir');
       up.type = 'button';
       up.setAttribute('aria-label', `Subir ${label}`);
-      up.addEventListener('click', () => moveCard(card, -1));
+      up.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); moveCard(card, -1); });
       const down = element('button', '', 'Bajar');
       down.type = 'button';
       down.setAttribute('aria-label', `Bajar ${label}`);
-      down.addEventListener('click', () => moveCard(card, 1));
+      down.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); moveCard(card, 1); });
       controls.append(up, down);
       return controls;
     }
 
     function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '') {
-      const card = element('article', 'pz-promo-cms__service-item');
+      const card = element('details', 'pz-promo-cms__service-item pz-promo-cms__accordion') as HTMLDetailsElement;
       card.dataset.cmsServiceItem = item.key;
       card.dataset.cmsServicePortfolioKey = galleryKey;
-      const header = element('header', 'pz-promo-cms__item-heading');
+      const header = element('summary', 'pz-promo-cms__item-heading pz-promo-cms__accordion-summary');
       const title = element('h5', '', item.name || 'Servicio sin nombre');
       title.tabIndex = -1;
       const controls = actionButtons(card, 'servicio');
       const remove = element('button', 'is-danger', 'Quitar');
       remove.type = 'button';
       remove.setAttribute('aria-label', `Quitar servicio ${item.name || item.key}`);
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         card.remove();
         updateServiceQuota();
         setDirty();
       });
       controls.append(remove);
-      header.append(title, controls);
+      header.append(title, controls, element('span', 'pz-promo-cms__accordion-chevron', '⌄'));
       const fields = element('div', 'pz-promo-cms__fields two-columns');
       const name = inputField('Nombre del servicio', item.name || '', { max: 160, data: 'name' });
       const summary = inputField('Resumen', item.summary || '', { textarea: true, max: 600, data: 'summary' });
       const caption = inputField('Nota o caption', item.caption || '', { max: 500, data: 'caption' });
-      const categoryNote = element('p', 'pz-promo-cms__scope-note', 'Este servicio funciona como categoría. Su portada y sus productos se administran en «Portada, servicios y productos», más abajo.');
+      const categoryNote = element('p', 'pz-promo-cms__scope-note', 'La foto, las ofertas y los productos de este servicio se administran en «Galería y productos».');
       name.control.addEventListener('input', () => { title.textContent = name.control.value || 'Servicio sin nombre'; });
       fields.append(name.label, summary.label, caption.label, categoryNote);
       card.dataset.sectionKey = sectionKey;
@@ -427,19 +422,20 @@ const isContent = scope === 'content';
     }
 
     function createSectionCard(section: CmsDocument, localized: CmsDocument) {
-      const labelText = sectionLabels[section.type] || 'Sección';
+      const isVideoSection = section.key === PROMO_CMS_VIDEO_GALLERY_KEY;
+      const labelText = isVideoSection ? 'Videos' : (sectionLabels[section.type] || 'Sección');
       const sectionContent = localized.sections?.[section.key] || {};
-      const card = element('article', 'pz-promo-cms__section-card');
+      const card = element('details', 'pz-promo-cms__section-card pz-promo-cms__accordion') as HTMLDetailsElement;
       card.dataset.cmsSectionKey = section.key;
       card.dataset.cmsSectionType = section.type;
-      const header = element('header', 'pz-promo-cms__section-card-heading');
+      const header = element('summary', 'pz-promo-cms__section-card-heading pz-promo-cms__accordion-summary');
       const titleGroup = element('div');
       titleGroup.append(element('span', 'pz-promo-cms__type', labelText));
       const title = element('h4', '', localized.navigation?.[section.key] || labelText);
       title.tabIndex = -1;
       titleGroup.append(title);
       const controls = actionButtons(card, `sección ${labelText}`);
-      header.append(titleGroup, controls);
+      header.append(titleGroup, controls, element('span', 'pz-promo-cms__accordion-chevron', '⌄'));
 
       const visible = element('label', 'pz-promo-cms__switch compact');
       const visibleInput = element('input');
@@ -497,6 +493,12 @@ const isContent = scope === 'content';
         serviceHeader.append(serviceTitle, add);
         card.append(header, visible, fields, serviceHeader, list);
         return card;
+      } else if (section.type === 'gallery' && isVideoSection) {
+        fields.append(
+          inputField('Título de videos', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
+          inputField('Resumen de videos', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+          element('p', 'pz-promo-cms__scope-note', 'Los archivos y sus descripciones se administran en «Galería y productos». Límite total: 3 videos.'),
+        );
       } else if (section.type === 'owner') {
         fields.append(
           inputField('Título de propietario', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
@@ -567,7 +569,10 @@ const isContent = scope === 'content';
       if (summary) summary.value = localized.identity?.summary || '';
       const list = root.querySelector<HTMLElement>('[data-cms-sections]');
       if (!list) return;
-      list.replaceChildren(...documentValue.sections.map((section: CmsDocument) => createSectionCard(section, localized)));
+      const organizationSections = documentValue.sections.filter((section: CmsDocument) => (
+        section.type !== 'gallery' || section.key === PROMO_CMS_VIDEO_GALLERY_KEY
+      ));
+      list.replaceChildren(...organizationSections.map((section: CmsDocument) => createSectionCard(section, localized)));
       updateServiceQuota();
     }
 
@@ -850,47 +855,64 @@ const isContent = scope === 'content';
       const identitySlogan = root.querySelector<HTMLInputElement>('[data-cms-identity-slogan]')?.value || '';
       const identitySummary = root.querySelector<HTMLTextAreaElement>('[data-cms-identity-summary]')?.value || '';
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-section-key]'));
-      return {
-        identity: { name: identityName, slogan: identitySlogan, summary: identitySummary },
-        sectionOrder: cards.map((card) => card.dataset.cmsSectionKey || ''),
-        sections: cards.map((card) => {
-          const type = card.dataset.cmsSectionType || '';
-          const field = (name: string) => card.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-cms-field="${name}"]`)?.value || '';
-          const result: CmsDocument = {
-            key: card.dataset.cmsSectionKey || '',
-            visible: card.querySelector<HTMLInputElement>('[data-cms-field="visible"]')?.checked === true,
-            navigationLabel: field('navigation'),
-          };
-          if (type === 'hero') Object.assign(result, { heading: field('heading'), summary: field('summary') });
-          if (type === 'owner') Object.assign(result, { heading: field('heading'), name: field('name'), bio: field('bio') });
-          if (type === 'footer') Object.assign(result, {
+      const renderedSections = cards.map((card) => {
+        const type = card.dataset.cmsSectionType || '';
+        const field = (name: string) => card.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-cms-field="${name}"]`)?.value || '';
+        const result: CmsDocument = {
+          key: card.dataset.cmsSectionKey || '',
+          visible: card.querySelector<HTMLInputElement>('[data-cms-field="visible"]')?.checked === true,
+          navigationLabel: field('navigation'),
+        };
+        if (type === 'hero' || type === 'gallery') Object.assign(result, { heading: field('heading'), summary: field('summary') });
+        if (type === 'owner') Object.assign(result, { heading: field('heading'), name: field('name'), bio: field('bio') });
+        if (type === 'footer') Object.assign(result, {
+          heading: field('heading'),
+          summary: field('summary'),
+          text: field('text'),
+          navigationSectionKeys: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-link]:checked'))
+            .map((input) => input.value),
+          socialProfiles: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-social]'))
+            .map((input) => ({ network: input.dataset.cmsFooterSocial || '', handle: input.value }))
+            .filter((profile) => profile.handle.trim()),
+        });
+        if (type === 'services') {
+          Object.assign(result, {
             heading: field('heading'),
             summary: field('summary'),
-            text: field('text'),
-            navigationSectionKeys: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-link]:checked'))
-              .map((input) => input.value),
-            socialProfiles: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-social]'))
-              .map((input) => ({ network: input.dataset.cmsFooterSocial || '', handle: input.value }))
-              .filter((profile) => profile.handle.trim()),
+            items: Array.from(card.querySelectorAll<HTMLElement>('[data-cms-service-item]')).map((item) => ({
+              key: item.dataset.cmsServiceItem || '',
+              name: item.querySelector<HTMLInputElement>('[data-cms-field="name"]')?.value || '',
+              summary: item.querySelector<HTMLTextAreaElement>('[data-cms-field="summary"]')?.value || '',
+              caption: item.querySelector<HTMLInputElement>('[data-cms-field="caption"]')?.value || '',
+              galleryKey: item.dataset.cmsServicePortfolioKey || '',
+            })),
           });
-          if (type === 'services') {
-            Object.assign(result, {
-              heading: field('heading'),
-              summary: field('summary'),
-              items: Array.from(card.querySelectorAll<HTMLElement>('[data-cms-service-item]')).map((item) => ({
-                key: item.dataset.cmsServiceItem || '',
-                name: item.querySelector<HTMLInputElement>('[data-cms-field="name"]')?.value || '',
-                summary: item.querySelector<HTMLTextAreaElement>('[data-cms-field="summary"]')?.value || '',
-                caption: item.querySelector<HTMLInputElement>('[data-cms-field="caption"]')?.value || '',
-                galleryKey: item.dataset.cmsServicePortfolioKey || '',
-              })),
-            });
-          }
-          return result;
-        }),
+        }
+        return result;
+      });
+      const renderedByKey = new Map(renderedSections.map((section) => [section.key, section]));
+      const renderedOrder = renderedSections.map((section) => section.key);
+      let renderedIndex = 0;
+      const sectionOrder = (documentValue?.sections || []).map((section: CmsDocument) => {
+        if (section.type === 'gallery' && section.key !== PROMO_CMS_VIDEO_GALLERY_KEY) return section.key;
+        return renderedOrder[renderedIndex++] || section.key;
+      });
+      const localized = documentValue?.content_by_locale?.[locale] || {};
+      const sections = (documentValue?.sections || []).map((section: CmsDocument) => (
+        renderedByKey.get(section.key) || {
+          key: section.key,
+          visible: section.visible === true,
+          navigationLabel: localized.navigation?.[section.key] || sectionLabels[section.type] || section.key,
+          heading: localized.sections?.[section.key]?.heading || '',
+          summary: localized.sections?.[section.key]?.summary || '',
+        }
+      ));
+      return {
+        identity: { name: identityName, slogan: identitySlogan, summary: identitySummary },
+        sectionOrder,
+        sections,
       };
     }
-
     function collectContactPatch() {
       const section = documentValue?.sections.find((entry: CmsDocument) => entry.type === 'contact');
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-contact-action]'));

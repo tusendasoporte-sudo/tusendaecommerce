@@ -1,4 +1,6 @@
 import {
+  ensurePromoVideoGallerySection,
+  PROMO_CMS_VIDEO_GALLERY_KEY,
   normalizePromoCmsDocument,
   normalizePromoCmsDraftResponse,
   promoCmsStoreSlug,
@@ -10,6 +12,7 @@ export const PROMO_GALLERY_DRAFT_API_PATH = '/api/admin/promo-cms';
 export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['gallery'] as const);
 export const PROMO_GALLERY_HARD_MAX_VISIBLE = 150;
 export const PROMO_PRODUCT_MAX_MEDIA = 3;
+export const PROMO_GALLERY_HARD_MAX_VIDEOS = 3;
 
 export const PROMO_GALLERY_TEXT_LIMITS = Object.freeze({
   navigation: 80,
@@ -269,7 +272,7 @@ export function createPromoGalleryWorkspace(value: unknown) {
   const locale = ensureLocale(document);
   ensureSection(document, locale, 'hero');
   ensureSection(document, locale, 'featured_work');
-  if (!document.sections.some((section: JsonRecord) => section.type === 'gallery')) ensureSection(document, locale, 'gallery');
+  ensurePromoVideoGallerySection(document, locale);
   return Object.freeze({ document, locale });
 }
 
@@ -364,6 +367,9 @@ export function buildPromoGalleryDocument(
     const sectionKey = checkedKey(raw.key);
     const existing = document.sections.find((section: JsonRecord) => section.key === sectionKey);
     if (existing && existing.type !== 'gallery') fail('invalid_promo_document');
+    if (sectionKey === PROMO_CMS_VIDEO_GALLERY_KEY && raw.items.length > PROMO_GALLERY_HARD_MAX_VIDEOS) {
+      fail('promo_capability_denied', 403);
+    }
     const itemKeys = new Set<string>();
     const galleryUseKeys: string[] = [];
     const itemDefinitions: JsonRecord[] = [];
@@ -376,6 +382,10 @@ export function buildPromoGalleryDocument(
         || item.media.length > PROMO_PRODUCT_MAX_MEDIA) fail();
       itemKeys.add(itemKey);
       const media = item.media.map((entry: unknown) => validateMediaPatch(entry, 'gallery', availableAssets, allUseKeys));
+      if (sectionKey === PROMO_CMS_VIDEO_GALLERY_KEY
+        && (media.length > 1 || media.some((entry) => availableAssets.get(entry.assetId)?.kind !== 'video'))) {
+        fail('invalid_promo_document');
+      }
       media.forEach((entry) => {
         galleryUseKeys.push(entry.useKey);
         setMediaReference(document, locale, entry, 'gallery');

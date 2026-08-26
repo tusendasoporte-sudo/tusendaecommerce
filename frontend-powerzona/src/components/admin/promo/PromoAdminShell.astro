@@ -43,8 +43,12 @@ const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
 const visibleModules = visiblePromoAdminModules(accessContext);
 const activeModule = section === 'overview' ? null : getPromoAdminModule(section);
 const primaryModules = visibleModules.filter((module) => (
-  ['content', 'appearance', 'languages', 'contact'] as PromoAdminModule['section'][]
+  ['content', 'gallery', 'appearance', 'languages', 'contact'] as PromoAdminModule['section'][]
 ).includes(module.section));
+const contentModules = primaryModules.filter((module) => (
+  ['content', 'gallery'] as PromoAdminModule['section'][]
+).includes(module.section));
+const siteModules = primaryModules.filter((module) => !contentModules.includes(module));
 const audienceModules = visibleModules.filter((module) => !primaryModules.includes(module));
 const isMasterSupport = adminContext.isMasterSupport || accessContext.access.is_master;
 const masterReturnPath = `/master/stores/${encodeURIComponent(adminContext.storeId)}`;
@@ -157,7 +161,28 @@ function initials(value: string) {
         {primaryModules.length > 0 && (
           <section class="pz-promo-admin__nav-group" aria-labelledby="promo-nav-site">
             <h2 id="promo-nav-site">{t('Sitio')}</h2>
-            {primaryModules.map((module) => (
+            {contentModules.length > 0 && (
+              <details class="pz-promo-admin__nav-tree" open={contentModules.some((module) => module.section === section)}>
+                <summary>
+                  <span class="pz-promo-admin__nav-dot" aria-hidden="true"></span>
+                  <span>{t('Contenido')}</span>
+                  <span class="pz-promo-admin__nav-chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <div class="pz-promo-admin__nav-children">
+                  {contentModules.map((module) => (
+                    <a
+                      class:list={['pz-promo-admin__nav-link', 'is-child', { 'is-active': section === module.section }]}
+                      href={modulePath(module)}
+                      aria-current={section === module.section ? 'page' : undefined}
+                    >
+                      <span class="pz-promo-admin__nav-dot" aria-hidden="true"></span>
+                      <span>{t(module.shortLabel)}</span>
+                    </a>
+                  ))}
+                </div>
+              </details>
+            )}
+            {siteModules.map((module) => (
               <a
                 class:list={['pz-promo-admin__nav-link', { 'is-active': section === module.section }]}
                 href={modulePath(module)}
@@ -288,26 +313,23 @@ function initials(value: string) {
               )}
             </section>
           </>
+        ) : activeModule && section === 'gallery' ? (
+          <PromoServiceProductsEditor
+            storeSlug={storeSlug}
+            maxPageMedia={Number.isSafeInteger(maxPageMedia) && maxPageMedia >= 0 ? maxPageMedia : 0}
+            maxVideos={Number.isSafeInteger(maxVideos) && maxVideos >= 0 ? maxVideos : 0}
+            canSave={hasPromoAction(accessContext, 'promo.content.manage')}
+            canManageMedia={canManagePromoMedia}
+            canManageVideo={canManagePromoVideo}
+          />
         ) : activeModule && cmsScope ? (
-          <>
-            <PromoCmsEditor
-              storeSlug={storeSlug}
-              scope={cmsScope}
-              maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
-              canSave={canSaveCms}
-              canManageMedia={canManagePromoMedia}
-            />
-            {section === 'content' && (
-              <PromoServiceProductsEditor
-                storeSlug={storeSlug}
-                maxPageMedia={Number.isSafeInteger(maxPageMedia) && maxPageMedia >= 0 ? maxPageMedia : 0}
-                maxVideos={Number.isSafeInteger(maxVideos) && maxVideos >= 0 ? maxVideos : 0}
-                canSave={canSaveCms}
-                canManageMedia={canManagePromoMedia}
-                canManageVideo={canManagePromoVideo}
-              />
-            )}
-          </>
+          <PromoCmsEditor
+            storeSlug={storeSlug}
+            scope={cmsScope}
+            maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
+            canSave={canSaveCms}
+            canManageMedia={canManagePromoMedia}
+          />
         ) : activeModule && section === 'appearance' ? (
           <PromoAppearanceEditor
             storeSlug={storeSlug}

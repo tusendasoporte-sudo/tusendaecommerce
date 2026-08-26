@@ -13,9 +13,6 @@ const requestedModule = String(Astro.params.section || '').trim().toLowerCase();
 const section = normalizePromoAdminSection(`promo/${requestedModule}`);
 
 if (!adminContext || !accessContext) return Astro.redirect('/login');
-if (requestedModule === 'gallery') {
-  return Astro.redirect(getPromoAdminSectionPath(storeSlug, 'content'));
-}
 if (!section || section === 'overview' || !canOpenPromoAdminSection(accessContext, section)) {
   return Astro.redirect(getPromoAdminSectionPath(storeSlug, 'overview'));
 }

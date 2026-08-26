@@ -8,9 +8,10 @@ import {
   createPromoGalleryWorkspace,
   normalizePromoGalleryCatalog,
   promoGalleryPreviewPath,
+  PROMO_GALLERY_HARD_MAX_VIDEOS,
   PROMO_PRODUCT_MAX_MEDIA,
 } from '../src/lib/promoGallery.ts';
-import { PromoCmsError } from '../src/lib/promoCms.ts';
+import { PROMO_CMS_VIDEO_GALLERY_KEY, PromoCmsError } from '../src/lib/promoCms.ts';
 
 const require = createRequire(import.meta.url);
 const backendContract = require('../../backend-powerzona/pb_hooks/pz_promo_pubcfg_lib.js');
@@ -184,6 +185,61 @@ test('workspace vacío crea portada, destacados derivados y una galería base', 
   assert.equal(workspace.document.sections.find((section) => section.type === 'gallery').visible, false);
 });
 
+test('la sección Videos admite hasta tres tarjetas y rechaza medios que no sean video', () => {
+  const workspace = createPromoGalleryWorkspace(emptyDocument());
+  const videoItems = Array.from({ length: PROMO_GALLERY_HARD_MAX_VIDEOS }, (_, index) => ({
+    key: `video-${index + 1}`,
+    featured: false,
+    visible: true,
+    name: `Video ${index + 1}`,
+    summary: '',
+    caption: '',
+    media: [{
+      useKey: `video-media-${index + 1}`,
+      assetId: 'assetv000000001',
+      alt: `Video ${index + 1}`,
+      decorative: false,
+    }],
+  }));
+  const videoPatch = {
+    heroMedia: [],
+    galleries: [{
+      key: PROMO_CMS_VIDEO_GALLERY_KEY,
+      visible: true,
+      navigationLabel: 'Videos',
+      heading: 'Videos',
+      summary: '',
+      coverUseKey: 'video-media-1',
+      items: videoItems,
+    }],
+  };
+  const updated = buildPromoGalleryDocument(workspace.document, videoPatch, 12, assets);
+  const videos = updated.sections.find((section) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY);
+  assert.equal(videos.config.items.length, 3);
+  assert.equal(videos.config.items.every((item) => item.media_use_keys.length === 1), true);
+
+  const tooMany = structuredClone(videoPatch);
+  tooMany.galleries[0].items.push({
+    ...structuredClone(videoItems[0]),
+    key: 'video-4',
+    media: [{ ...structuredClone(videoItems[0].media[0]), useKey: 'video-media-4' }],
+  });
+  assert.throws(
+    () => buildPromoGalleryDocument(workspace.document, tooMany, 12, assets),
+    (error) => error instanceof PromoCmsError && error.code === 'promo_capability_denied',
+  );
+
+  const imageInstead = structuredClone(videoPatch);
+  imageInstead.galleries[0].items = [{
+    ...imageInstead.galleries[0].items[0],
+    media: [{ useKey: 'video-image-1', assetId: 'assetg000000001', alt: 'Imagen', decorative: false }],
+  }];
+  imageInstead.galleries[0].coverUseKey = 'video-image-1';
+  assert.throws(
+    () => buildPromoGalleryDocument(workspace.document, imageInstead, 12, assets),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+});
 test('editor guarda carrusel y productos internos sin exponer enlaces de galería', () => {
   const original = completeDocument();
   const update = patch(original);
@@ -358,26 +414,30 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
   assert.throws(() => normalizePromoGalleryCatalog({ ...catalog, tenant: 'otro' }), PromoCmsError);
 });
 
-test('shell retira Galería separada y conserva el proxy de medios central sin Commerce', () => {
+test('shell separa Galería y productos sin biblioteca privada y conserva el proxy central', () => {
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
   const productsEditor = readFileSync(new URL('../src/components/admin/promo/PromoServiceProductsEditor.astro', import.meta.url), 'utf8');
   const moduleRoute = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promo/[section].astro', import.meta.url), 'utf8');
   const mediaApi = readFileSync(new URL('../src/pages/api/admin/promo-media.ts', import.meta.url), 'utf8');
-  assert.doesNotMatch(shell, /PromoGalleryEditor|section === 'gallery'/);
+  assert.doesNotMatch(shell, /PromoGalleryEditor/);
+  assert.match(shell, /section === 'gallery'[\s\S]*?<PromoServiceProductsEditor/);
   assert.match(shell, /promo\.media\.manage/);
   assert.match(shell, /promo\.content\.manage/);
   assert.match(shell, /PromoServiceProductsEditor/);
   assert.match(cmsEditor, /mediaEndpoint/);
   assert.match(cmsEditor, /expected_version: version/);
-  assert.match(moduleRoute, /requestedModule === 'gallery'[\s\S]*?getPromoAdminSectionPath\(storeSlug, 'content'\)/);
+  assert.doesNotMatch(moduleRoute, /requestedModule === 'gallery'/);
   assert.match(mediaApi, /refreshAuthFromCookie/);
   assert.match(mediaApi, /exactMediaQuery/);
   assert.match(mediaApi, /sec-fetch-site/);
   assert.match(mediaApi, /Range: rangeHeader/);
   assert.match(mediaApi, /X-PZ-Promo-Store/);
   assert.match(mediaApi, /promo\/private\/v1\/media/);
-  assert.match(productsEditor, /Portada, servicios y productos/);
+  assert.match(productsEditor, /Galería y productos/);
+  assert.match(productsEditor, /data-products-videos/);
+  assert.match(productsEditor, /PROMO_CMS_VIDEO_GALLERY_KEY/);
+  assert.match(productsEditor, /Math\.min\(3/);
   assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
   assert.match(productsEditor, /data-products-add-hero-video/);
   assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);

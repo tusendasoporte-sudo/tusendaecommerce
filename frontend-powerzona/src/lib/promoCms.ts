@@ -3,6 +3,7 @@ export const PROMO_CMS_DEFAULT_LOCALE = 'es';
 export const PROMO_CMS_DOCUMENT_CONTRACT = 'promo.site.v2';
 export const PROMO_CMS_LEGACY_DOCUMENT_CONTRACT = 'promo.site.v1';
 export const PROMO_CMS_DRAFT_CONTRACT = 'promo.live.v1';
+export const PROMO_CMS_VIDEO_GALLERY_KEY = 'videos-main';
 
 export const PROMO_CMS_MANAGED_SECTION_TYPES = Object.freeze([
   'hero',
@@ -522,11 +523,37 @@ function ensureSection(document: JsonRecord, locale: string, type: (typeof PROMO
   return section;
 }
 
+export function ensurePromoVideoGallerySection(document: JsonRecord, locale: string) {
+  const existing = document.sections.find((section: JsonRecord) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY);
+  if (existing) {
+    if (existing.type !== 'gallery') fail('invalid_promo_document');
+    return existing;
+  }
+  const section = {
+    key: PROMO_CMS_VIDEO_GALLERY_KEY,
+    type: 'gallery',
+    variant: 'default',
+    visible: false,
+    config: { item_keys: [], cover_media_use_key: '', items: [] },
+    media_use_keys: [],
+  };
+  const insertion = document.sections.findIndex((item: JsonRecord) => ['contact', 'footer'].includes(item.type));
+  document.sections.splice(insertion < 0 ? document.sections.length : insertion, 0, section);
+  document.section_order = document.sections.map((item: JsonRecord) => item.key);
+  Object.values(document.content_by_locale).forEach((rawContent) => {
+    const content = rawContent as JsonRecord;
+    content.navigation[PROMO_CMS_VIDEO_GALLERY_KEY] = 'Videos';
+    content.sections[PROMO_CMS_VIDEO_GALLERY_KEY] = { heading: 'Videos', summary: '', items: [] };
+  });
+  return section;
+}
+
 export function createPromoCmsWorkspace(value: unknown, scope: PromoCmsScope) {
   const document = normalizePromoCmsDocument(value);
   const locale = ensureLocale(document);
   if (scope === 'content') {
     (['hero', 'services', 'owner', 'footer'] as const).forEach((type) => ensureSection(document, locale, type));
+    ensurePromoVideoGallerySection(document, locale);
   } else if (scope === 'contact') {
     ensureSection(document, locale, 'contact');
   } else {
@@ -636,6 +663,12 @@ export function buildPromoCmsContentDocument(
           summary,
           caption,
         })),
+      };
+    } else if (section.type === 'gallery' && section.key === PROMO_CMS_VIDEO_GALLERY_KEY) {
+      localized.sections[sectionKey] = {
+        ...current,
+        heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
+        summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
       };
     } else if (section.type === 'owner') {
       localized.sections[sectionKey] = {

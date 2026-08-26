@@ -18,6 +18,7 @@ const {
   canManageMedia,
   canManageVideo,
 } = Astro.props;
+const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.max(0, maxVideos)) : 0;
 ---
 
 <section
@@ -25,7 +26,7 @@ const {
   data-promo-service-products
   data-store-slug={storeSlug}
   data-max-page-media={maxPageMedia}
-  data-max-videos={maxVideos}
+  data-max-videos={effectiveMaxVideos}
   data-can-save={canSave ? 'true' : 'false'}
   data-can-manage-media={canManageMedia ? 'true' : 'false'}
   data-can-manage-video={canManageVideo ? 'true' : 'false'}
@@ -34,15 +35,15 @@ const {
   <header class="pz-promo-gallery__intro">
     <div>
       <span class="pz-promo-gallery__eyebrow">Contenido visual</span>
-      <h2 id="promo-products-title">Portada, servicios y productos</h2>
-      <p>Cada servicio funciona como categoría: añade su portada, crea productos o trabajos y adjunta hasta tres fotos o videos por producto.</p>
+      <h2 id="promo-products-title">Galería y productos</h2>
+      <p>Administra la portada, la foto de cada servicio, sus productos o trabajos y hasta tres videos para toda la página Promo.</p>
     </div>
     <span class="pz-promo-gallery__draft-badge">Guardado directo · página pública</span>
   </header>
 
   <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de medios">
     <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
-    <article><strong data-products-video-count>—</strong><span>Videos almacenados</span><small data-products-video-limit>de {maxVideos}</small></article>
+    <article><strong data-products-video-count>—</strong><span>Videos almacenados</span><small data-products-video-limit>de {effectiveMaxVideos}</small></article>
     <article><strong data-products-page-count>—</strong><span>Medios usados en la página</span><small>de {maxPageMedia}</small></article>
   </div>
 
@@ -78,6 +79,7 @@ const {
       </div>
     </details>
 
+    <div data-products-videos></div>
     <div class="pz-promo-gallery__section-list" data-products-services></div>
 
     <footer class="pz-promo-gallery__savebar">
@@ -99,6 +101,7 @@ const {
     PROMO_GALLERY_MEDIA_API_PATH,
     PROMO_PRODUCT_MAX_MEDIA,
   } from '../../../lib/promoGallery.ts';
+  import { PROMO_CMS_VIDEO_GALLERY_KEY } from '../../../lib/promoCms.ts';
 
   type Catalog = ReturnType<typeof normalizePromoGalleryCatalog>;
   type Draft = ReturnType<typeof normalizePromoGalleryDraft>;
@@ -115,12 +118,13 @@ const {
   document.querySelectorAll<HTMLElement>('[data-promo-service-products]').forEach((root) => {
     const storeSlug = root.dataset.storeSlug || '';
     const maxPageMedia = Number(root.dataset.maxPageMedia || 0);
-    const maxVideos = Number(root.dataset.maxVideos || 0);
+    const maxVideos = Math.min(3, Math.max(0, Number(root.dataset.maxVideos || 0)));
     const canSave = root.dataset.canSave === 'true';
     const canManageMedia = root.dataset.canManageMedia === 'true';
     const canManageVideo = root.dataset.canManageVideo === 'true';
     const form = root.querySelector<HTMLFormElement>('[data-products-form]');
     const servicesElement = root.querySelector<HTMLElement>('[data-products-services]');
+    const videosElement = root.querySelector<HTMLElement>('[data-products-videos]');
     const heroElement = root.querySelector<HTMLElement>('[data-products-hero-media]');
     const statusElement = root.querySelector<HTMLElement>('[data-products-status]');
     const alertElement = root.querySelector<HTMLElement>('[data-products-alert]');
@@ -130,6 +134,16 @@ const {
     let locale = 'es';
     let heroMedia: MediaModel[] = [];
     let services: ServiceModel[] = [];
+    let videoGallery: GalleryModel = {
+      key: PROMO_CMS_VIDEO_GALLERY_KEY,
+      visible: false,
+      navigationLabel: 'Videos',
+      heading: 'Videos',
+      summary: '',
+      cover: null,
+      coverIndependent: false,
+      items: [],
+    };
     let preservedGalleries: GalleryModel[] = [];
     let dirty = false;
     let busy = false;
@@ -225,7 +239,17 @@ const {
       const servicesSection = documentValue.sections.find((section: any) => section.type === 'services');
       const serviceContent = localized.sections?.[servicesSection?.key] || {};
       const serviceCopy = new Map((serviceContent.items || []).map((item: any) => [item.key, item]));
-      const claimed = new Set<string>();
+      videoGallery = galleries.get(PROMO_CMS_VIDEO_GALLERY_KEY) || {
+        key: PROMO_CMS_VIDEO_GALLERY_KEY,
+        visible: false,
+        navigationLabel: 'Videos',
+        heading: 'Videos',
+        summary: '',
+        cover: null,
+        coverIndependent: false,
+        items: [],
+      };
+      const claimed = new Set<string>([PROMO_CMS_VIDEO_GALLERY_KEY]);
       const usedKeys = new Set(documentValue.sections.map((section: any) => text(section.key)));
       services = (servicesSection?.config?.item_keys || []).map((serviceKey: string, index: number) => {
         const copy: any = serviceCopy.get(serviceKey) || {};
@@ -404,6 +428,88 @@ const {
       return card;
     }
 
+    function renderVideoItem(videoItem: ProductModel, index: number) {
+      const card = element('article', 'pz-promo-gallery__work pz-promo-products__product');
+      const header = element('header');
+      const heading = element('strong', '', videoItem.name || `Video ${index + 1}`);
+      const visible = document.createElement('input');
+      visible.type = 'checkbox'; visible.checked = videoItem.visible; visible.disabled = !canSave || videoItem.media.length === 0;
+      const visibleLabel = element('label', 'pz-promo-gallery__check');
+      visibleLabel.append(visible, element('span', '', 'Visible'));
+      visible.addEventListener('change', () => { videoItem.visible = visible.checked; markDirty(); });
+      header.append(heading, visibleLabel); card.append(header);
+
+      const fields = element('div', 'pz-promo-gallery__section-fields');
+      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = videoItem.name; name.disabled = !canSave;
+      const description = document.createElement('textarea'); description.maxLength = 600; description.rows = 3; description.value = videoItem.summary; description.disabled = !canSave;
+      const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = videoItem.caption; caption.disabled = !canSave;
+      name.addEventListener('input', () => { videoItem.name = name.value; heading.textContent = name.value || `Video ${index + 1}`; markDirty(); });
+      description.addEventListener('input', () => { videoItem.summary = description.value; markDirty(); });
+      caption.addEventListener('input', () => { videoItem.caption = caption.value; markDirty(); });
+      const field = (label: string, control: HTMLElement, wide = false) => {
+        const wrapper = element('label', `pz-promo-gallery__field${wide ? ' is-wide' : ''}`, label);
+        wrapper.append(control); return wrapper;
+      };
+      fields.append(field('Título del video', name), field('Descripción', description), field('Nota opcional', caption, true));
+      card.append(fields);
+
+      const mediaList = element('div', 'pz-promo-gallery__items');
+      videoItem.media.forEach((media, mediaIndex) => {
+        const mediaCard = renderMedia(media, videoItem.media, mediaIndex, videoItem.name || 'video');
+        mediaCard.querySelector<HTMLButtonElement>('.is-danger')?.addEventListener('click', () => {
+          videoItem.visible = false;
+          markDirty();
+          render();
+        }, { once: true });
+        mediaList.append(mediaCard);
+      });
+      if (!videoItem.media.length) mediaList.append(element('p', 'pz-promo-gallery__empty', 'Selecciona el video y una imagen de portada.'));
+      card.append(mediaList);
+      if (!videoItem.media.length && canManageVideo) {
+        const controls = element('div', 'pz-promo-products__video-upload');
+        const videoLabel = element('label', '', 'Video MP4/WebM');
+        const video = document.createElement('input'); video.type = 'file'; video.accept = 'video/mp4,video/webm'; video.disabled = busy;
+        const posterLabel = element('label', '', 'Imagen de portada');
+        const poster = document.createElement('input'); poster.type = 'file'; poster.accept = 'image/jpeg,image/png,image/webp,image/avif'; poster.disabled = busy;
+        const upload = element('button', 'pz-promo-gallery__secondary', 'Subir video'); upload.type = 'button'; upload.disabled = busy;
+        upload.addEventListener('click', async () => {
+          await addVideo(video.files?.[0], poster.files?.[0], videoItem.media, 'gallery', 1);
+          if (videoItem.media.length) { videoItem.visible = true; markDirty('Video listo.'); render(); }
+        });
+        videoLabel.append(video); posterLabel.append(poster); controls.append(videoLabel, posterLabel, upload); card.append(controls);
+      }
+      const actions = element('div', 'pz-promo-gallery__work-actions');
+      actions.append(element('span', 'pz-promo-products__quote-note', 'Este video pertenece a la sección Videos de la página pública.'));
+      const remove = element('button', 'is-danger', 'Eliminar video'); remove.type = 'button'; remove.disabled = !canSave;
+      remove.addEventListener('click', () => { videoGallery.items.splice(index, 1); markDirty(); render(); });
+      actions.append(remove); card.append(actions);
+      return card;
+    }
+
+    function renderVideoSection() {
+      const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      const summary = element('summary');
+      const title = element('span');
+      title.append(element('span', 'pz-promo-gallery__eyebrow', 'Videos'), element('strong', '', `Videos de la página (${videoGallery.items.length} de ${maxVideos})`));
+      summary.append(title, element('span', '', '⌄')); details.append(summary);
+      const body = element('div', 'pz-promo-products__body');
+      body.append(element('p', '', 'Puedes publicar entre 0 y 3 videos en toda la página. Cada video requiere una imagen de portada.'));
+      const header = element('div', 'pz-promo-products__products-header');
+      header.append(element('div', '', ''), element('strong', '', 'Videos'));
+      const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir video');
+      add.type = 'button'; add.disabled = !canSave || !canManageVideo || busy || videoGallery.items.length >= maxVideos;
+      add.addEventListener('click', () => {
+        if (videoGallery.items.length >= maxVideos) return;
+        videoGallery.items.push({ key: newKey('video'), featured: false, visible: false, name: '', summary: '', caption: '', media: [] });
+        markDirty(); render();
+      });
+      header.append(add); body.append(header);
+      const items = element('div', 'pz-promo-gallery__works');
+      videoGallery.items.forEach((item, index) => items.append(renderVideoItem(item, index)));
+      if (!videoGallery.items.length) items.append(element('p', 'pz-promo-gallery__empty', maxVideos > 0 ? 'Todavía no hay videos en la página.' : 'El plan actual no incluye videos.'));
+      body.append(items); details.append(body);
+      return details;
+    }
     function renderService(service: ServiceModel, index: number) {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
       if (index === 0) details.open = true;
@@ -446,10 +552,12 @@ const {
     }
 
     function pageMediaCount() {
-      return heroMedia.length + services.reduce((total, service) => (
-        total + (service.cover?.useKey && service.coverIndependent ? 1 : 0)
-        + service.items.reduce((sum, item) => sum + item.media.length, 0)
-      ), 0);
+      return heroMedia.length
+        + videoGallery.items.reduce((total, item) => total + item.media.length, 0)
+        + services.reduce((total, service) => (
+          total + (service.cover?.useKey && service.coverIndependent ? 1 : 0)
+          + service.items.reduce((sum, item) => sum + item.media.length, 0)
+        ), 0);
     }
 
     function renderMetrics() {
@@ -469,6 +577,7 @@ const {
         heroMedia.forEach((media, index) => heroElement.append(renderMedia(media, heroMedia, index, 'portada')));
         if (!heroMedia.length) heroElement.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay medios en la portada.'));
       }
+      if (videosElement) videosElement.replaceChildren(renderVideoSection());
       if (servicesElement) {
         servicesElement.replaceChildren();
         services.forEach((service, index) => servicesElement.append(renderService(service, index)));
@@ -538,10 +647,16 @@ const {
           heading: service.serviceName || 'Productos',
           summary: service.serviceSummary,
         }, true));
+        const firstVideoMedia = videoGallery.items.flatMap((item) => item.media)[0] || null;
+        const videos = galleryPatch({
+          ...videoGallery,
+          cover: firstVideoMedia,
+          coverIndependent: false,
+        });
         const preserved = preservedGalleries.map((gallery) => galleryPatch(gallery));
         const nextDocument = buildPromoGalleryDocument(
           draft.document,
-          { heroMedia, galleries: [...linkedGalleries, ...preserved] } as any,
+          { heroMedia, galleries: [...linkedGalleries, videos, ...preserved] } as any,
           maxPageMedia,
           catalog.assets,
         );
