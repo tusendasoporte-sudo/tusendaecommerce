@@ -38,7 +38,7 @@ const PROMO_CAPABILITY_KEYS = Object.freeze([
 
 const PROMO_CAPABILITY_LIMITS = Object.freeze({
   max_services: 50,
-  max_gallery_assets: 24,
+  max_gallery_assets: 150,
   max_locales: 10,
   max_videos: 3,
   max_storage_bytes: 250 * 1024 * 1024,

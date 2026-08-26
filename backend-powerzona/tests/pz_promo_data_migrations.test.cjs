@@ -12,6 +12,7 @@ const MIGRATIONS = [
   '1787520100_promo_authoring_media.js',
   '1787520200_promo_revision_publication.js',
   '1787520300_promo_audit_analytics.js',
+  '1787683200_promo_media_quota_150.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -35,6 +36,11 @@ class FakeField {
 
 class FakeFields extends Array {
   add(field) { this.push(field); }
+  getByName(name) {
+    const field = this.find((item) => item.name === name);
+    if (!field) throw new Error(`field_not_found:${name}`);
+    return field;
+  }
 }
 
 class FakeCollection {
@@ -145,7 +151,7 @@ test('schema materializa límites aprobados, WebP protegido y canonical platform
   const field = (collection, name) => app.collections.get(collection).fields.find((item) => item.name === name);
 
   assert.equal(field('promo_site_entitlements', 'max_services').max, 50);
-  assert.equal(field('promo_site_entitlements', 'max_gallery_assets').max, 24);
+  assert.equal(field('promo_site_entitlements', 'max_gallery_assets').max, 150);
   assert.equal(field('promo_site_entitlements', 'max_locales').max, 10);
   assert.equal(field('promo_site_entitlements', 'max_videos').max, 3);
   assert.equal(field('promo_site_entitlements', 'max_storage_bytes').max, 250 * 1024 * 1024);

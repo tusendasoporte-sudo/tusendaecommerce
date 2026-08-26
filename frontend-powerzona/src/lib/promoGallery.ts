@@ -8,7 +8,8 @@ import {
 export const PROMO_GALLERY_MEDIA_API_PATH = '/api/admin/promo-media';
 export const PROMO_GALLERY_DRAFT_API_PATH = '/api/admin/promo-cms';
 export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['gallery'] as const);
-export const PROMO_GALLERY_HARD_MAX_VISIBLE = 24;
+export const PROMO_GALLERY_HARD_MAX_VISIBLE = 150;
+export const PROMO_PRODUCT_MAX_MEDIA = 3;
 
 export const PROMO_GALLERY_TEXT_LIMITS = Object.freeze({
   navigation: 80,
@@ -74,6 +75,7 @@ export type PromoGalleryPatch = Readonly<{
     heading: string;
     summary: string;
     coverUseKey: string;
+    coverMedia?: PromoGalleryMediaPatch | null;
     items: readonly Readonly<{
       key: string;
       featured: boolean;
@@ -308,9 +310,9 @@ function galleryPatches(patch: PromoGalleryPatch) {
   if (!isRecord(patch) || !Array.isArray(patch.heroMedia) || !Array.isArray(patch.galleries)) fail();
   const keys = new Set<string>();
   return patch.galleries.map((raw) => {
-    const gallery = exactKeys(raw, [
-      'key', 'visible', 'navigationLabel', 'heading', 'summary', 'coverUseKey', 'items',
-    ]);
+    const gallery = exactKeys(raw, Object.prototype.hasOwnProperty.call(raw, 'coverMedia')
+      ? ['key', 'visible', 'navigationLabel', 'heading', 'summary', 'coverUseKey', 'coverMedia', 'items']
+      : ['key', 'visible', 'navigationLabel', 'heading', 'summary', 'coverUseKey', 'items']);
     const sectionKey = checkedKey(gallery.key);
     if (keys.has(sectionKey) || typeof gallery.visible !== 'boolean' || !Array.isArray(gallery.items)) fail();
     keys.add(sectionKey);
@@ -370,7 +372,8 @@ export function buildPromoGalleryDocument(
       const item = exactKeys(rawItem, ['key', 'featured', 'visible', 'name', 'summary', 'caption', 'media']);
       const itemKey = checkedKey(item.key);
       if (itemKeys.has(itemKey) || typeof item.featured !== 'boolean'
-        || typeof item.visible !== 'boolean' || !Array.isArray(item.media)) fail();
+        || typeof item.visible !== 'boolean' || !Array.isArray(item.media)
+        || item.media.length > PROMO_PRODUCT_MAX_MEDIA) fail();
       itemKeys.add(itemKey);
       const media = item.media.map((entry: unknown) => validateMediaPatch(entry, 'gallery', availableAssets, allUseKeys));
       media.forEach((entry) => {
@@ -390,8 +393,15 @@ export function buildPromoGalleryDocument(
         caption: safeText(item.caption, PROMO_GALLERY_TEXT_LIMITS.caption),
       });
     });
+    const coverMedia = raw.coverMedia
+      ? validateMediaPatch(raw.coverMedia, 'gallery', availableAssets, allUseKeys)
+      : null;
+    if (coverMedia) {
+      galleryUseKeys.unshift(coverMedia.useKey);
+      setMediaReference(document, locale, coverMedia, 'gallery');
+    }
     galleryMediaCount += galleryUseKeys.length;
-    const coverUseKey = checkedKey(raw.coverUseKey, USE_KEY_PATTERN, true);
+    const coverUseKey = checkedKey(coverMedia?.useKey || raw.coverUseKey, USE_KEY_PATTERN, true);
     if (coverUseKey && !galleryUseKeys.includes(coverUseKey)) fail('invalid_promo_media_reference');
     if (raw.visible && (!coverUseKey || itemDefinitions.some((item) => item.visible && !item.media_use_keys.length))) {
       fail('invalid_promo_document');
@@ -445,7 +455,7 @@ export function buildPromoGalleryDocument(
   });
   document.sections.filter((section: JsonRecord) => section.type === 'footer').forEach((section: JsonRecord) => {
     section.config.navigation_section_keys = (section.config.navigation_section_keys || [])
-      .filter((sectionKey: string) => !removedGalleryKeys.has(sectionKey));
+      .filter((sectionKey: string) => !removedGalleryKeys.has(sectionKey) && !nextGalleryKeys.has(sectionKey));
   });
 
   const withoutGalleries = document.sections.filter((section: JsonRecord) => section.type !== 'gallery');

@@ -127,7 +127,6 @@ const canSave = canManageContent && canManageTranslations;
     hero: 'Portada',
     services: 'Servicios',
     featured_work: 'Trabajo destacado',
-    gallery: 'Galería',
     owner: 'Propietario',
     store_rating: 'Reseñas de tienda',
     contact: 'Contacto',
@@ -323,7 +322,7 @@ const canSave = canManageContent && canManageTranslations;
           ? baseItems.find((entry: LocaleDocument) => entry.key === itemKey) || {}
           : {};
         const card = element('article', 'pz-promo-locales__item');
-        card.append(element('h5', '', `${section.type === 'gallery' ? 'Trabajo' : 'Servicio'} ${index + 1}`));
+        card.append(element('h5', '', `${section.type === 'gallery' ? 'Producto o trabajo' : 'Servicio'} ${index + 1}`));
         const fields = element('div', 'pz-promo-locales__fields two-columns');
         const name = field('Nombre', item.name || '', { max: 160, required: true, fallback: baseItem.name || '' });
         name.control.dataset.localeItemSection = section.key;
@@ -349,7 +348,7 @@ const canSave = canManageContent && canManageTranslations;
       const panel = element('details', 'pz-promo-locales__panel');
       panel.append(heading('Navegación y secciones', 'Solo las secciones visibles bloquean la completitud, pero puedes traducir también las ocultas.'));
       const stack = element('div', 'pz-promo-locales__section-stack');
-      documentValue!.sections.forEach((section: LocaleDocument) => {
+      documentValue!.sections.filter((section: LocaleDocument) => section.type !== 'gallery').forEach((section: LocaleDocument) => {
         const sectionContent = localized.sections?.[section.key] || {};
         const card = element('article', 'pz-promo-locales__section-card');
         const cardHeader = element('header');
@@ -367,7 +366,7 @@ const canSave = canManageContent && canManageTranslations;
         fields.append(navigation.label);
         const keys: Record<string, readonly string[]> = {
           hero: ['heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
-          gallery: ['heading', 'summary'], owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
+          owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
           contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
         };
         (keys[section.type] || []).forEach((name) => {
@@ -383,7 +382,23 @@ const canSave = canManageContent && canManageTranslations;
           fields.append(entry.label);
         });
         card.append(cardHeader, fields);
-        if (['services', 'gallery'].includes(section.type)) card.append(itemFields(section, sectionContent));
+        if (section.type === 'services') {
+          card.append(itemFields(section, sectionContent));
+          const galleryKeys = Array.isArray(section.config?.gallery_keys) ? section.config.gallery_keys : [];
+          galleryKeys.forEach((galleryKey: string, serviceIndex: number) => {
+            const productSection = documentValue!.sections.find((candidate: LocaleDocument) => (
+              candidate.type === 'gallery' && candidate.key === galleryKey
+            ));
+            if (!productSection) return;
+            const productGroup = element('section', 'pz-promo-locales__product-group');
+            const serviceName = sectionContent.items?.find((item: LocaleDocument) => (
+              item.key === section.config.item_keys?.[serviceIndex]
+            ))?.name || `Servicio ${serviceIndex + 1}`;
+            productGroup.append(element('h5', '', `Productos de ${serviceName}`));
+            productGroup.append(itemFields(productSection, localized.sections?.[productSection.key] || {}));
+            card.append(productGroup);
+          });
+        }
         stack.append(card);
       });
       panel.append(stack);

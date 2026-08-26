@@ -23,6 +23,7 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787520650_promo_theme_catalog.js',
   '1787520660_promo_qr_media.js',
   '1787520700_promo_live_content.js',
+  '1787683200_promo_media_quota_150.js',
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
 ];

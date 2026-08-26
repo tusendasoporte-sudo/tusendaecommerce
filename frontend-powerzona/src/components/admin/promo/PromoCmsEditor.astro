@@ -399,6 +399,7 @@ const isContent = scope === 'content';
     function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '') {
       const card = element('article', 'pz-promo-cms__service-item');
       card.dataset.cmsServiceItem = item.key;
+      card.dataset.cmsServicePortfolioKey = galleryKey;
       const header = element('header', 'pz-promo-cms__item-heading');
       const title = element('h5', '', item.name || 'Servicio sin nombre');
       title.tabIndex = -1;
@@ -417,22 +418,9 @@ const isContent = scope === 'content';
       const name = inputField('Nombre del servicio', item.name || '', { max: 160, data: 'name' });
       const summary = inputField('Resumen', item.summary || '', { textarea: true, max: 600, data: 'summary' });
       const caption = inputField('Nota o caption', item.caption || '', { max: 500, data: 'caption' });
-      const galleryLabel = element('label', 'pz-promo-cms__field');
-      galleryLabel.append(element('span', '', 'Galería relacionada'));
-      const gallerySelect = element('select');
-      gallerySelect.dataset.cmsField = 'gallery';
-      const noGallery = element('option', '', 'Sin galería');
-      noGallery.value = '';
-      gallerySelect.append(noGallery);
-      (documentValue?.sections || []).filter((section: CmsDocument) => section.type === 'gallery').forEach((section: CmsDocument) => {
-        const option = element('option', '', documentValue?.content_by_locale?.[locale]?.navigation?.[section.key] || section.key);
-        option.value = section.key;
-        option.selected = section.key === galleryKey;
-        gallerySelect.append(option);
-      });
-      galleryLabel.append(gallerySelect);
+      const categoryNote = element('p', 'pz-promo-cms__scope-note', 'Este servicio funciona como categoría. Su portada y sus productos se administran en «Portada, servicios y productos», más abajo.');
       name.control.addEventListener('input', () => { title.textContent = name.control.value || 'Servicio sin nombre'; });
-      fields.append(name.label, summary.label, caption.label, galleryLabel);
+      fields.append(name.label, summary.label, caption.label, categoryNote);
       card.dataset.sectionKey = sectionKey;
       card.append(header, fields);
       return card;
@@ -894,7 +882,7 @@ const isContent = scope === 'content';
                 name: item.querySelector<HTMLInputElement>('[data-cms-field="name"]')?.value || '',
                 summary: item.querySelector<HTMLTextAreaElement>('[data-cms-field="summary"]')?.value || '',
                 caption: item.querySelector<HTMLInputElement>('[data-cms-field="caption"]')?.value || '',
-                galleryKey: item.querySelector<HTMLSelectElement>('[data-cms-field="gallery"]')?.value || '',
+                galleryKey: item.dataset.cmsServicePortfolioKey || '',
               })),
             });
           }
@@ -1040,6 +1028,7 @@ const isContent = scope === 'content';
             ? 'Página pública actualizada correctamente.'
             : 'No había cambios nuevos para guardar.';
         }
+        window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'cms' } }));
       } catch (error) {
         showError((error as { code?: string })?.code || 'promo_cms_unavailable');
       } finally {
@@ -1050,6 +1039,11 @@ const isContent = scope === 'content';
     window.addEventListener('beforeunload', (event) => {
       if (!dirty) return;
       event.preventDefault();
+    });
+
+    window.addEventListener('promo:document-updated', (event: Event) => {
+      const source = (event as CustomEvent)?.detail?.source;
+      if (source === 'products' && !dirty) loadDraft();
     });
 
     loadDraft();

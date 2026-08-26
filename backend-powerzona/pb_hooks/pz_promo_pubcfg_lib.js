@@ -284,7 +284,7 @@ function validateSectionConfig(section, knownActions, knownMedia, liveDocument, 
     config.items.forEach((item) => {
       const normalized = exactKeys(item, ["key", "media_use_keys", "featured", "visible"]);
       const itemKey = assertKey(normalized.key, KEY_PATTERN, false);
-      const itemMedia = assertStringArray(normalized.media_use_keys, { max: 12, pattern: USE_KEY_PATTERN });
+      const itemMedia = assertStringArray(normalized.media_use_keys, { max: 3, pattern: USE_KEY_PATTERN });
       assertBoolean(normalized.featured);
       assertBoolean(normalized.visible);
       itemKeys.push(itemKey);

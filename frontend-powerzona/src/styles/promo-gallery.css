@@ -11,6 +11,92 @@
   color: var(--pg-ink);
 }
 
+.pz-promo-products {
+  margin-top: 28px;
+}
+
+.pz-promo-products__accordion {
+  padding: 0;
+  overflow: clip;
+}
+
+.pz-promo-products__accordion > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.pz-promo-products__accordion > summary::-webkit-details-marker { display: none; }
+.pz-promo-products__accordion > summary > span:first-child { display: grid; gap: 5px; }
+.pz-promo-products__accordion > summary strong { color: #111827; font-size: 1.1rem; }
+.pz-promo-products__accordion[open] > summary { border-bottom: 1px solid #dde5ef; }
+.pz-promo-products__accordion[open] > summary > span:last-child { transform: rotate(180deg); }
+
+.pz-promo-products__body {
+  display: grid;
+  gap: 20px;
+  padding: 22px 24px 26px;
+}
+
+.pz-promo-products__body > p { margin: 0; color: #667085; line-height: 1.55; }
+
+.pz-promo-products__cover {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #dde5ef;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.pz-promo-products__cover h4 { margin: 0; color: #172033; }
+.pz-promo-products__cover-upload,
+.pz-promo-products__upload-row label {
+  display: grid;
+  gap: 7px;
+  color: #344054;
+  font-size: .82rem;
+  font-weight: 800;
+}
+
+.pz-promo-products__upload-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed #c7d2e2;
+  border-radius: 14px;
+  background: #fbfcfe;
+}
+
+.pz-promo-products__video-upload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.pz-promo-products__products-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.pz-promo-products__quote-note {
+  color: #667085;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .pz-promo-products__video-upload { grid-template-columns: 1fr; }
+  .pz-promo-products__products-header { align-items: stretch; flex-direction: column; }
+}
+
 .pz-promo-gallery__intro,
 .pz-promo-gallery__library > header,
 .pz-promo-gallery__section > header,

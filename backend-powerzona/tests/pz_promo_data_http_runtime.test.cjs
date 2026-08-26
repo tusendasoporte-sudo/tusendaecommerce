@@ -32,6 +32,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787520650_promo_theme_catalog.js',
   '1787520660_promo_qr_media.js',
   '1787520700_promo_live_content.js',
+  '1787683200_promo_media_quota_150.js',
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
 ];
@@ -414,7 +415,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     );
     const entitlementMax = (name) => entitlementMetadata.fields.find((field) => field.name === name).max;
     assert.equal(entitlementMax('max_services'), 50);
-    assert.equal(entitlementMax('max_gallery_assets'), 24);
+    assert.equal(entitlementMax('max_gallery_assets'), 150);
     assert.equal(entitlementMax('max_locales'), 10);
     assert.equal(entitlementMax('max_videos'), 3);
     assert.equal(entitlementMax('max_storage_bytes'), 250 * 1024 * 1024);
@@ -797,7 +798,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       'invalid_promo_image',
       'imagen mayor de 100 KiB',
     );
-    for (let index = 1; index < 200; index += 1) {
+    for (let index = 1; index < 150; index += 1) {
       const uploaded = await createMedia({
         site: siteA.id,
         kind: 'image',
@@ -805,7 +806,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
         status: 'uploaded',
         created_by: master.id,
       }, WEBP, `image-a-${String(index).padStart(3, '0')}.webp`, 'image/webp');
-      assertStatus(uploaded, [200, 201], `crear imagen ${index + 1}/200`);
+      assertStatus(uploaded, [200, 201], `crear imagen ${index + 1}/150`);
     }
     assertValidation(
       await createMedia({
@@ -814,9 +815,9 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
         purpose: 'gallery',
         status: 'uploaded',
         created_by: master.id,
-      }, WEBP, 'image-a-201.webp', 'image/webp'),
+      }, WEBP, 'image-a-151.webp', 'image/webp'),
       'promo_image_count_exceeded',
-      'imagen 201 bloqueada',
+      'imagen 151 bloqueada',
     );
 
     for (let index = 1; index <= 3; index += 1) {
@@ -1015,7 +1016,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     t.diagnostic(`PocketBase ${version.stdout.trim().replace(/^pocketbase(?:\.exe)?\s+version\s+/i, '')}`);
     t.diagnostic(`migrate up idempotente: ${migrationsAfterFirstUp} entradas sin duplicados`);
     t.diagnostic(`colecciones Promo privadas: ${promoMetadata.length}; indices: ${runtimeIndexes.length}`);
-    t.diagnostic('aislamiento A/B, 200/201 imagenes, 3/4 videos y API directa negativa verificados');
+    t.diagnostic('aislamiento A/B, 150/151 imágenes, 3/4 videos y API directa negativa verificados');
     t.diagnostic('rollback vacio aplicado; rollback con datos abortado sin perdida');
   } finally {
     await stopPocketBase(runtime);

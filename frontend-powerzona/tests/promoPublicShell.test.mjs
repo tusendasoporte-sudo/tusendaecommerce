@@ -702,7 +702,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   assert.match(layout, /promo\.analytics\.collect\.v1/);
   assert.match(layout, /credentials: 'omit'/);
   assert.doesNotMatch(combined, /layouts\/Layout\.astro|PublicStoreHome|innerHTML|set:html/);
-  assert.doesNotMatch(combined, /cart|checkout|products|categories|orders|inventory|stock|price|currency|coupon|shipping/i);
+  assert.doesNotMatch(combined, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
   assert.match(localized, /Astro\.url\.search/);
   assert.match(middleware, /readCustomHostPromoShell/);
@@ -793,7 +793,7 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
     'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
 });
 
-test('SECTIONS enlaza servicios, deriva destacados y mantiene galerías sin hidratar Commerce', () => {
+test('SECTIONS integra productos dentro de servicios, deriva destacados y no expone galerías internas', () => {
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const media = read('../src/components/promo-public/PromoSectionMedia.astro');
@@ -811,7 +811,10 @@ test('SECTIONS enlaza servicios, deriva destacados y mantiene galerías sin hidr
   assert.match(sections, /section\.config\.media_use_key/);
   assert.match(sections, /section\.config\.gallery_keys/);
   assert.match(sections, /gallerySections\.flatMap\(galleryWorks\)\.filter/);
-  assert.match(sections, /href=\{`#promo-section-\$\{gallery\.key\}`\}/);
+  assert.match(theme, /navigableSections = orderedSections\.filter\(\(section\) => section\.type !== 'gallery'\)/);
+  assert.match(sections, /promo-sections__product-grid/);
+  assert.match(sections, /labelOverride=\{quoteLabel\}/);
+  assert.match(sections, /context=\{quoteContext\}/);
   assert.match(sections, /<PromoContactAction/);
   assert.match(sections, /data-section-item-count/);
   assert.match(media, /loading=\{media\.delivery\.loading\}/);
@@ -823,7 +826,7 @@ test('SECTIONS enlaza servicios, deriva destacados y mantiene galerías sin hidr
   assert.match(sectionStyles, /@media \(max-width: 420px\)/);
   assert.match(sectionStyles, /video:focus-visible/);
   assert.doesNotMatch(`${sections}\n${media}`, /<script|<button|<form|tel:|mailto:|wa\.me|onclick|addEventListener/i);
-  assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|products|orders|inventory|stock|price|currency|coupon|shipping/i);
+  assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.doesNotMatch(sectionStyles, /url\(|@import|https?:/i);
   assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 50 * 1024,
     'CSS combinado ALADDIN/HERO/SECTIONS excede el budget Theme de 50 KiB');

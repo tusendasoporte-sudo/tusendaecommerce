@@ -62,14 +62,14 @@ test('hard ceilings aprobados quedan congelados en el contrato DATA', () => {
   assert.deepEqual(promo.HARD_LIMITS, {
     max_document_bytes: 1024 * 1024,
     max_services: 50,
-    max_gallery_assets: 24,
+    max_gallery_assets: 150,
     max_locales: 10,
     max_videos: 3,
     max_sections: 64,
     max_contact_actions: 32,
     max_media_refs: 512,
-    max_revision_images: 30,
-    max_stored_images: 200,
+    max_revision_images: 150,
+    max_stored_images: 150,
     max_image_bytes: 100 * 1024,
     max_video_bytes: 25 * 1024 * 1024,
     max_storage_bytes: 250 * 1024 * 1024,
@@ -103,7 +103,7 @@ test('entitlement unassigned solo admite gates false y cuotas cero', () => {
     promo_site_enabled: true,
     publish_enabled: true,
     max_services: 50,
-    max_gallery_assets: 24,
+    max_gallery_assets: 150,
     max_locales: 1,
     max_videos: 0,
     max_storage_bytes: 250 * 1024 * 1024,
@@ -137,7 +137,7 @@ test('documento Promo rechaza Commerce, código arbitrario y exceso de contenido
   assert.throws(
     () => promo.assertDocumentHardLimits({
       ...valid,
-      sections: [{ type: 'gallery', media_use_keys: Array.from({ length: 25 }, (_, id) => `image_${id}`) }],
+      sections: [{ type: 'gallery', media_use_keys: Array.from({ length: 151 }, (_, id) => `image_${id}`) }],
     }),
     /promo_gallery_limit/,
   );
@@ -150,9 +150,9 @@ test('locales publicados deben ser canonicales, sorted, únicos e incluir defaul
   assert.throws(() => promo.assertCanonicalLocales(['es-us'], 'es-US'), /invalid_promo_locales/);
 });
 
-test('200 WebP optimizados son válidos y la imagen 201 falla cerrada', () => {
+test('150 WebP optimizados son válidos y la imagen 151 falla cerrada', () => {
   const siteId = 'site00000000001';
-  const existing = Array.from({ length: 199 }, (_, index) => record(
+  const existing = Array.from({ length: 149 }, (_, index) => record(
     `image${String(index).padStart(10, '0')}`,
     { site: siteId, kind: 'image', bytes: 100 * 1024 },
   ));
@@ -172,7 +172,7 @@ test('200 WebP optimizados son válidos y la imagen 201 falla cerrada', () => {
     poster_asset: '',
   });
   assert.equal(promo.assertMedia(app, candidate, null), true);
-  app.lists.get('promo_media_assets').push(record('image0200000000', {
+  app.lists.get('promo_media_assets').push(record('image0150000000', {
     site: siteId, kind: 'image', bytes: 1,
   }));
   assert.throws(() => promo.assertMedia(app, candidate, null), /promo_image_count_exceeded/);

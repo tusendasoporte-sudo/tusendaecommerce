@@ -1,0 +1,580 @@
+---
+import '../../../styles/promo-gallery.css';
+
+interface Props {
+  storeSlug: string;
+  maxPageMedia: number;
+  maxVideos: number;
+  canSave: boolean;
+  canManageMedia: boolean;
+  canManageVideo: boolean;
+}
+
+const {
+  storeSlug,
+  maxPageMedia,
+  maxVideos,
+  canSave,
+  canManageMedia,
+  canManageVideo,
+} = Astro.props;
+---
+
+<section
+  class="pz-promo-gallery pz-promo-products"
+  data-promo-service-products
+  data-store-slug={storeSlug}
+  data-max-page-media={maxPageMedia}
+  data-max-videos={maxVideos}
+  data-can-save={canSave ? 'true' : 'false'}
+  data-can-manage-media={canManageMedia ? 'true' : 'false'}
+  data-can-manage-video={canManageVideo ? 'true' : 'false'}
+  aria-labelledby="promo-products-title"
+>
+  <header class="pz-promo-gallery__intro">
+    <div>
+      <span class="pz-promo-gallery__eyebrow">Contenido visual</span>
+      <h2 id="promo-products-title">Portada, servicios y productos</h2>
+      <p>Cada servicio funciona como categoría: añade su portada, crea productos o trabajos y adjunta hasta tres fotos o videos por producto.</p>
+    </div>
+    <span class="pz-promo-gallery__draft-badge">Guardado directo · página pública</span>
+  </header>
+
+  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de medios">
+    <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
+    <article><strong data-products-video-count>—</strong><span>Videos almacenados</span><small data-products-video-limit>de {maxVideos}</small></article>
+    <article><strong data-products-page-count>—</strong><span>Medios usados en la página</span><small>de {maxPageMedia}</small></article>
+  </div>
+
+  {!canSave && (
+    <aside class="pz-promo-gallery__permission" role="note">
+      <strong>Contenido visual en modo lectura.</strong>
+      <span>La sesión puede consultar, pero no actualizar estos medios.</span>
+    </aside>
+  )}
+
+  <div class="pz-promo-gallery__alert" data-products-alert role="alert" tabindex="-1" hidden></div>
+  <p class="pz-promo-gallery__status" data-products-status role="status" aria-live="polite">Cargando contenido y medios…</p>
+
+  <form class="pz-promo-gallery__form" data-products-form hidden novalidate>
+    <details class="pz-promo-gallery__section pz-promo-products__accordion" open>
+      <summary>
+        <span><span class="pz-promo-gallery__eyebrow">Portada</span><strong>Imagen principal o carrusel</strong></span>
+        <span aria-hidden="true">⌄</span>
+      </summary>
+      <div class="pz-promo-products__body">
+        <p>Una imagen crea una portada fija; varias imágenes o videos crean un carrusel accesible.</p>
+        <div class="pz-promo-gallery__items" data-products-hero-media></div>
+        <div class="pz-promo-products__upload-row">
+          <label>Agregar imágenes<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple data-products-hero-images disabled={!canManageMedia} /></label>
+          {canManageVideo && (
+            <div class="pz-promo-products__video-upload">
+              <label>Video MP4/WebM<input type="file" accept="video/mp4,video/webm" data-products-hero-video /></label>
+              <label>Poster del video<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-products-hero-poster /></label>
+              <button type="button" class="pz-promo-gallery__secondary" data-products-add-hero-video>Añadir video</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </details>
+
+    <div class="pz-promo-gallery__section-list" data-products-services></div>
+
+    <footer class="pz-promo-gallery__savebar">
+      <span data-products-version>Versión de página: —</span>
+      <button type="submit" data-products-save disabled>Guardar contenido visual</button>
+    </footer>
+  </form>
+</section>
+
+<script>
+  import {
+    buildPromoGalleryDocument,
+    createPromoGalleryWorkspace,
+    normalizePromoGalleryCatalog,
+    normalizePromoGalleryDraft,
+    promoGalleryErrorMessage,
+    promoGalleryPreviewPath,
+    PROMO_GALLERY_DRAFT_API_PATH,
+    PROMO_GALLERY_MEDIA_API_PATH,
+    PROMO_PRODUCT_MAX_MEDIA,
+  } from '../../../lib/promoGallery.ts';
+
+  type Catalog = ReturnType<typeof normalizePromoGalleryCatalog>;
+  type Draft = ReturnType<typeof normalizePromoGalleryDraft>;
+  type MediaModel = { useKey: string; assetId: string; alt: string; decorative: boolean };
+  type ProductModel = {
+    key: string; featured: boolean; visible: boolean; name: string; summary: string; caption: string; media: MediaModel[];
+  };
+  type GalleryModel = {
+    key: string; visible: boolean; navigationLabel: string; heading: string; summary: string;
+    cover: MediaModel | null; coverIndependent: boolean; items: ProductModel[];
+  };
+  type ServiceModel = GalleryModel & { serviceKey: string; serviceName: string; serviceSummary: string };
+
+  document.querySelectorAll<HTMLElement>('[data-promo-service-products]').forEach((root) => {
+    const storeSlug = root.dataset.storeSlug || '';
+    const maxPageMedia = Number(root.dataset.maxPageMedia || 0);
+    const maxVideos = Number(root.dataset.maxVideos || 0);
+    const canSave = root.dataset.canSave === 'true';
+    const canManageMedia = root.dataset.canManageMedia === 'true';
+    const canManageVideo = root.dataset.canManageVideo === 'true';
+    const form = root.querySelector<HTMLFormElement>('[data-products-form]');
+    const servicesElement = root.querySelector<HTMLElement>('[data-products-services]');
+    const heroElement = root.querySelector<HTMLElement>('[data-products-hero-media]');
+    const statusElement = root.querySelector<HTMLElement>('[data-products-status]');
+    const alertElement = root.querySelector<HTMLElement>('[data-products-alert]');
+    const saveButton = root.querySelector<HTMLButtonElement>('[data-products-save]');
+    let draft: Draft | null = null;
+    let catalog: Catalog | null = null;
+    let locale = 'es';
+    let heroMedia: MediaModel[] = [];
+    let services: ServiceModel[] = [];
+    let preservedGalleries: GalleryModel[] = [];
+    let dirty = false;
+    let busy = false;
+
+    const endpoint = (path: string) => `${path}?store=${encodeURIComponent(storeSlug)}`;
+    const text = (value: unknown) => String(value === null || value === undefined ? '' : value);
+    const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', value = '') => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (value) node.textContent = value;
+      return node;
+    };
+
+    function newKey(prefix: string, maximum = 64) {
+      const suffix = Array.from(crypto.getRandomValues(new Uint8Array(6)), (value) => value.toString(16).padStart(2, '0')).join('');
+      return `${prefix}-${suffix}`.slice(0, maximum);
+    }
+
+    function setStatus(message: string) {
+      if (statusElement) statusElement.textContent = message;
+    }
+
+    function showError(error: any) {
+      if (!alertElement) return;
+      alertElement.textContent = promoGalleryErrorMessage(error?.code || error?.message);
+      alertElement.hidden = false;
+      alertElement.focus();
+    }
+
+    function clearError() {
+      if (alertElement) alertElement.hidden = true;
+    }
+
+    function markDirty(message = 'Hay cambios sin guardar.') {
+      dirty = true;
+      if (saveButton) saveButton.disabled = busy || !canSave;
+      setStatus(`${message} Guardar actualizará la página pública.`);
+    }
+
+    async function requestJson(url: string, init?: RequestInit) {
+      const response = await fetch(url, {
+        ...init,
+        headers: { Accept: 'application/json', ...(init?.headers || {}) },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(text(result?.error || 'promo_media_unavailable')) as Error & { code?: string };
+        error.code = text(result?.error || 'promo_media_unavailable');
+        throw error;
+      }
+      return result;
+    }
+
+    function mediaFromDocument(documentValue: any, useKey: string): MediaModel | null {
+      const ref = documentValue.media_refs?.[useKey];
+      if (!ref?.asset_id) return null;
+      const copy = documentValue.content_by_locale?.[locale]?.media_alt?.[useKey] || {};
+      return { useKey, assetId: text(ref.asset_id), alt: text(copy.alt), decorative: copy.decorative === true };
+    }
+
+    function galleryFromSection(documentValue: any, section: any): GalleryModel {
+      const localized = documentValue.content_by_locale?.[locale] || {};
+      const content = localized.sections?.[section.key] || {};
+      const itemText = new Map((content.items || []).map((item: any) => [item.key, item]));
+      const items = (section.config?.items || []).map((item: any) => {
+        const copy: any = itemText.get(item.key) || {};
+        return {
+          key: text(item.key), featured: item.featured === true, visible: item.visible === true,
+          name: text(copy.name), summary: text(copy.summary), caption: text(copy.caption),
+          media: (item.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, useKey)).filter(Boolean),
+        } as ProductModel;
+      });
+      const itemUseKeys = new Set(items.flatMap((item) => item.media.map((media) => media.useKey)));
+      const coverKey = text(section.config?.cover_media_use_key);
+      return {
+        key: text(section.key), visible: section.visible === true,
+        navigationLabel: text(localized.navigation?.[section.key] || content.heading || 'Productos'),
+        heading: text(content.heading), summary: text(content.summary),
+        cover: coverKey ? mediaFromDocument(documentValue, coverKey) : null,
+        coverIndependent: Boolean(coverKey && !itemUseKeys.has(coverKey)),
+        items,
+      };
+    }
+
+    function modelFromDocument(documentValue: any) {
+      const localized = documentValue.content_by_locale?.[locale] || {};
+      const hero = documentValue.sections.find((section: any) => section.type === 'hero');
+      heroMedia = (hero?.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, useKey)).filter(Boolean);
+      const gallerySections = documentValue.sections.filter((section: any) => section.type === 'gallery');
+      const galleries = new Map(gallerySections.map((section: any) => [section.key, galleryFromSection(documentValue, section)]));
+      const servicesSection = documentValue.sections.find((section: any) => section.type === 'services');
+      const serviceContent = localized.sections?.[servicesSection?.key] || {};
+      const serviceCopy = new Map((serviceContent.items || []).map((item: any) => [item.key, item]));
+      const claimed = new Set<string>();
+      const usedKeys = new Set(documentValue.sections.map((section: any) => text(section.key)));
+      services = (servicesSection?.config?.item_keys || []).map((serviceKey: string, index: number) => {
+        const copy: any = serviceCopy.get(serviceKey) || {};
+        const existingKey = text(servicesSection.config.gallery_keys?.[index]);
+        let galleryKey = existingKey;
+        if (!galleryKey || !galleries.has(galleryKey)) {
+          const base = `service-${serviceKey}-products`.slice(0, 64);
+          galleryKey = base;
+          for (let suffix = 2; usedKeys.has(galleryKey); suffix += 1) {
+            const ending = `-${suffix}`;
+            galleryKey = `${base.slice(0, 64 - ending.length)}${ending}`;
+          }
+          usedKeys.add(galleryKey);
+        }
+        claimed.add(galleryKey);
+        const existing = galleries.get(galleryKey) || {
+          key: galleryKey, visible: false, navigationLabel: text(copy.name || 'Productos'),
+          heading: text(copy.name), summary: text(copy.summary), cover: null, coverIndependent: false, items: [],
+        };
+        return {
+          ...existing,
+          serviceKey: text(serviceKey),
+          serviceName: text(copy.name || `Servicio ${index + 1}`),
+          serviceSummary: text(copy.summary),
+        } as ServiceModel;
+      });
+      preservedGalleries = gallerySections
+        .filter((section: any) => !claimed.has(text(section.key)))
+        .map((section: any) => galleryFromSection(documentValue, section));
+    }
+
+    function assetById(assetId: string) {
+      return catalog?.assets.find((asset) => asset.assetId === assetId) || null;
+    }
+
+    function preview(media: MediaModel) {
+      const frame = element('div', 'pz-promo-gallery__item-preview');
+      const asset = assetById(media.assetId);
+      const src = promoGalleryPreviewPath(storeSlug, media.assetId);
+      if (!asset || !src) return frame;
+      if (asset.kind === 'video') {
+        const video = document.createElement('video');
+        video.src = src; video.controls = true; video.preload = 'metadata'; frame.append(video);
+      } else {
+        const image = document.createElement('img');
+        image.src = src; image.alt = ''; image.loading = 'lazy'; frame.append(image);
+      }
+      return frame;
+    }
+
+    function renderMedia(media: MediaModel, target: MediaModel[], index: number, label: string) {
+      const card = element('article', 'pz-promo-gallery__item');
+      card.append(preview(media));
+      const main = element('div', 'pz-promo-gallery__item-main');
+      const alt = document.createElement('input');
+      alt.type = 'text'; alt.maxLength = 300; alt.value = media.alt; alt.required = !media.decorative; alt.disabled = !canSave;
+      alt.setAttribute('aria-label', `Texto alternativo de ${label}`);
+      alt.addEventListener('input', () => { media.alt = alt.value; markDirty(); });
+      const decorative = document.createElement('input');
+      decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
+      decorative.addEventListener('change', () => {
+        media.decorative = decorative.checked;
+        if (media.decorative) { media.alt = ''; alt.value = ''; }
+        alt.required = !media.decorative;
+        markDirty();
+      });
+      const decorativeLabel = element('label', 'pz-promo-gallery__check');
+      decorativeLabel.append(decorative, element('span', '', 'Imagen decorativa'));
+      main.append(element('strong', '', assetById(media.assetId)?.kind === 'video' ? 'Video' : 'Imagen'), alt, decorativeLabel);
+      const actions = element('div', 'pz-promo-gallery__item-actions');
+      const up = element('button', '', '↑'); up.type = 'button'; up.disabled = !canSave || index === 0; up.ariaLabel = `Subir ${label}`;
+      const down = element('button', '', '↓'); down.type = 'button'; down.disabled = !canSave || index === target.length - 1; down.ariaLabel = `Bajar ${label}`;
+      const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button'; remove.disabled = !canSave;
+      up.addEventListener('click', () => { [target[index - 1], target[index]] = [target[index], target[index - 1]]; markDirty(); render(); });
+      down.addEventListener('click', () => { [target[index + 1], target[index]] = [target[index], target[index + 1]]; markDirty(); render(); });
+      remove.addEventListener('click', () => { target.splice(index, 1); markDirty(); render(); });
+      actions.append(up, down, remove); card.append(main, actions);
+      return card;
+    }
+
+    async function loadCatalog() {
+      catalog = normalizePromoGalleryCatalog(await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH)));
+    }
+
+    async function uploadAsset(file: File, purpose: 'hero' | 'gallery' | 'video_poster', posterAssetId = '') {
+      const payload = new FormData();
+      payload.append('file', file); payload.append('purpose', purpose); payload.append('poster_asset_id', posterAssetId);
+      const result = await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH), { method: 'POST', body: payload });
+      const assetId = text(result?.asset?.asset_id);
+      if (!/^[a-z0-9]{15}$/.test(assetId)) throw Object.assign(new Error('promo_media_unavailable'), { code: 'promo_media_unavailable' });
+      await loadCatalog();
+      return assetId;
+    }
+
+    async function addImages(files: FileList | null, target: MediaModel[], purpose: 'hero' | 'gallery', maximum = 150) {
+      if (!files?.length || !canManageMedia || busy) return;
+      clearError(); busy = true; render(); setStatus('Procesando y subiendo imágenes…');
+      try {
+        const room = Math.max(0, maximum - target.length);
+        for (const file of Array.from(files).slice(0, room)) {
+          const assetId = await uploadAsset(file, purpose);
+          target.push({ useKey: newKey(`${purpose}-media`, 120), assetId, alt: '', decorative: false });
+        }
+        markDirty('Imágenes listas.');
+      } catch (error) { showError(error); setStatus('No se pudieron subir las imágenes.'); }
+      finally { busy = false; render(); }
+    }
+
+    async function addVideo(video: File | undefined, poster: File | undefined, target: MediaModel[], purpose: 'hero' | 'gallery', maximum = 150) {
+      if (!video || !poster || !canManageVideo || busy || target.length >= maximum) return;
+      if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
+      clearError(); busy = true; render(); setStatus('Procesando poster y video…');
+      try {
+        const posterId = await uploadAsset(poster, 'video_poster');
+        const assetId = await uploadAsset(video, purpose, posterId);
+        target.push({ useKey: newKey(`${purpose}-video`, 120), assetId, alt: '', decorative: false });
+        markDirty('Video listo.');
+      } catch (error) { showError(error); setStatus('No se pudo subir el video.'); }
+      finally { busy = false; render(); }
+    }
+
+    function uploadControls(target: MediaModel[], purpose: 'gallery', maximum: number) {
+      const controls = element('div', 'pz-promo-products__upload-row');
+      const imageLabel = element('label', '', 'Agregar fotos');
+      const images = document.createElement('input');
+      images.type = 'file'; images.multiple = true; images.accept = 'image/jpeg,image/png,image/webp,image/avif';
+      images.disabled = busy || !canManageMedia || target.length >= maximum;
+      images.addEventListener('change', () => addImages(images.files, target, purpose, maximum));
+      imageLabel.append(images); controls.append(imageLabel);
+      if (canManageVideo) {
+        const videoGroup = element('div', 'pz-promo-products__video-upload');
+        const videoLabel = element('label', '', 'Video');
+        const video = document.createElement('input'); video.type = 'file'; video.accept = 'video/mp4,video/webm'; video.disabled = busy;
+        const posterLabel = element('label', '', 'Poster');
+        const poster = document.createElement('input'); poster.type = 'file'; poster.accept = 'image/jpeg,image/png,image/webp,image/avif'; poster.disabled = busy;
+        const add = element('button', 'pz-promo-gallery__secondary', 'Añadir video'); add.type = 'button'; add.disabled = busy || !canManageVideo || target.length >= maximum;
+        add.addEventListener('click', () => addVideo(video.files?.[0], poster.files?.[0], target, purpose, maximum));
+        videoLabel.append(video); posterLabel.append(poster); videoGroup.append(videoLabel, posterLabel, add); controls.append(videoGroup);
+      }
+      return controls;
+    }
+
+    function renderProduct(service: ServiceModel, product: ProductModel, index: number) {
+      const card = element('article', 'pz-promo-gallery__work pz-promo-products__product');
+      const header = element('header');
+      const heading = element('strong', '', product.name || `Producto ${index + 1}`);
+      const flags = element('div', 'pz-promo-gallery__flags');
+      const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible; visible.disabled = !canSave;
+      const featured = document.createElement('input'); featured.type = 'checkbox'; featured.checked = product.featured; featured.disabled = !canSave;
+      const visibleLabel = element('label', 'pz-promo-gallery__check'); visibleLabel.append(visible, element('span', '', 'Visible'));
+      const featuredLabel = element('label', 'pz-promo-gallery__check'); featuredLabel.append(featured, element('span', '', 'Destacado'));
+      visible.addEventListener('change', () => { product.visible = visible.checked; markDirty(); });
+      featured.addEventListener('change', () => { product.featured = featured.checked; markDirty(); });
+      flags.append(visibleLabel, featuredLabel); header.append(heading, flags); card.append(header);
+      const fields = element('div', 'pz-promo-gallery__section-fields');
+      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = product.visible; name.disabled = !canSave;
+      const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = product.summary; summary.disabled = !canSave;
+      const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = product.caption; caption.disabled = !canSave;
+      name.addEventListener('input', () => { product.name = name.value; heading.textContent = name.value || `Producto ${index + 1}`; markDirty(); });
+      summary.addEventListener('input', () => { product.summary = summary.value; markDirty(); });
+      caption.addEventListener('input', () => { product.caption = caption.value; markDirty(); });
+      const field = (label: string, control: HTMLElement, wide = false) => {
+        const wrapper = element('label', `pz-promo-gallery__field${wide ? ' is-wide' : ''}`, label); wrapper.append(control); return wrapper;
+      };
+      fields.append(field('Nombre del producto o trabajo', name), field('Descripción', summary), field('Nota opcional', caption, true));
+      card.append(fields);
+      const mediaList = element('div', 'pz-promo-gallery__items');
+      product.media.forEach((media, mediaIndex) => mediaList.append(renderMedia(media, product.media, mediaIndex, product.name || 'producto')));
+      if (!product.media.length) mediaList.append(element('p', 'pz-promo-gallery__empty', 'Añade al menos una foto para mostrar este producto.'));
+      card.append(mediaList, uploadControls(product.media, 'gallery', PROMO_PRODUCT_MAX_MEDIA));
+      const actions = element('div', 'pz-promo-gallery__work-actions');
+      actions.append(element('span', 'pz-promo-products__quote-note', 'El botón «Cotizar» se añade automáticamente con el contacto principal.'));
+      const remove = element('button', 'is-danger', 'Eliminar producto'); remove.type = 'button'; remove.disabled = !canSave;
+      remove.addEventListener('click', () => { service.items.splice(index, 1); markDirty(); render(); });
+      actions.append(remove); card.append(actions);
+      return card;
+    }
+
+    function renderService(service: ServiceModel, index: number) {
+      const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      if (index === 0) details.open = true;
+      const summary = element('summary');
+      const title = element('span'); title.append(element('span', 'pz-promo-gallery__eyebrow', `Servicio ${index + 1}`), element('strong', '', service.serviceName));
+      summary.append(title, element('span', '', '⌄')); details.append(summary);
+      const body = element('div', 'pz-promo-products__body');
+      if (service.serviceSummary) body.append(element('p', '', service.serviceSummary));
+      const cover = element('section', 'pz-promo-products__cover');
+      cover.append(element('h4', '', 'Foto de portada del servicio'));
+      if (service.cover) {
+        const coverTarget = [service.cover];
+        const card = renderMedia(service.cover, coverTarget, 0, `portada de ${service.serviceName}`);
+        card.querySelector<HTMLButtonElement>('.is-danger')?.addEventListener('click', () => {
+          service.cover = null; service.coverIndependent = false; markDirty(); render();
+        }, { once: true });
+        cover.append(card);
+      } else cover.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay foto de portada.'));
+      const coverInput = document.createElement('input'); coverInput.type = 'file'; coverInput.accept = 'image/jpeg,image/png,image/webp,image/avif'; coverInput.disabled = busy || !canManageMedia;
+      coverInput.addEventListener('change', async () => {
+        const holder: MediaModel[] = [];
+        await addImages(coverInput.files, holder, 'gallery', 1);
+        if (holder[0]) { service.cover = holder[0]; service.coverIndependent = true; render(); }
+      });
+      const coverLabel = element('label', 'pz-promo-products__cover-upload', service.cover ? 'Cambiar foto' : 'Agregar foto'); coverLabel.append(coverInput); cover.append(coverLabel);
+      body.append(cover);
+      const productsHeader = element('div', 'pz-promo-products__products-header');
+      productsHeader.append(element('div', '', ''), element('strong', '', `Productos o trabajos (${service.items.length})`));
+      const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir producto'); add.type = 'button'; add.disabled = !canSave;
+      add.addEventListener('click', () => {
+        service.items.push({ key: newKey('product'), featured: false, visible: true, name: '', summary: '', caption: '', media: [] });
+        markDirty(); render();
+      });
+      productsHeader.append(add); body.append(productsHeader);
+      const products = element('div', 'pz-promo-gallery__works');
+      service.items.forEach((product, productIndex) => products.append(renderProduct(service, product, productIndex)));
+      if (!service.items.length) products.append(element('p', 'pz-promo-gallery__empty', 'Este servicio todavía no tiene productos o trabajos.'));
+      body.append(products); details.append(body);
+      return details;
+    }
+
+    function pageMediaCount() {
+      return heroMedia.length + services.reduce((total, service) => (
+        total + (service.cover?.useKey && service.coverIndependent ? 1 : 0)
+        + service.items.reduce((sum, item) => sum + item.media.length, 0)
+      ), 0);
+    }
+
+    function renderMetrics() {
+      const images = root.querySelector<HTMLElement>('[data-products-image-count]');
+      const imageLimit = root.querySelector<HTMLElement>('[data-products-image-limit]');
+      const videos = root.querySelector<HTMLElement>('[data-products-video-count]');
+      const page = root.querySelector<HTMLElement>('[data-products-page-count]');
+      if (images) images.textContent = String(catalog?.usage.images || 0);
+      if (imageLimit) imageLimit.textContent = `de ${catalog?.limits.maxStoredImages || 150}`;
+      if (videos) videos.textContent = String(catalog?.usage.videos || 0);
+      if (page) page.textContent = String(pageMediaCount());
+    }
+
+    function render() {
+      if (heroElement) {
+        heroElement.replaceChildren();
+        heroMedia.forEach((media, index) => heroElement.append(renderMedia(media, heroMedia, index, 'portada')));
+        if (!heroMedia.length) heroElement.append(element('p', 'pz-promo-gallery__empty', 'Aún no hay medios en la portada.'));
+      }
+      if (servicesElement) {
+        servicesElement.replaceChildren();
+        services.forEach((service, index) => servicesElement.append(renderService(service, index)));
+        if (!services.length) servicesElement.append(element('p', 'pz-promo-gallery__empty', 'Primero crea y guarda un servicio en la sección superior de Contenido.'));
+      }
+      renderMetrics();
+      const version = root.querySelector<HTMLElement>('[data-products-version]');
+      if (version) version.textContent = `Versión de página: ${draft?.version || '—'}`;
+      if (saveButton) saveButton.disabled = busy || !canSave || !dirty;
+      root.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+
+    function galleryPatch(gallery: GalleryModel, forceVisible?: boolean) {
+      const complete = Boolean(gallery.cover) && gallery.items.every((item) => !item.visible || item.media.length > 0);
+      const common = {
+        key: gallery.key,
+        visible: forceVisible === undefined ? gallery.visible : (forceVisible && complete),
+        navigationLabel: gallery.navigationLabel || gallery.heading || 'Productos',
+        heading: gallery.heading || gallery.navigationLabel || 'Productos',
+        summary: gallery.summary,
+        coverUseKey: gallery.cover?.useKey || '',
+        items: gallery.items,
+      };
+      return gallery.cover?.useKey && gallery.coverIndependent
+        ? { ...common, coverMedia: gallery.cover }
+        : common;
+    }
+
+    async function loadAll() {
+      clearError(); busy = true; render(); setStatus('Cargando contenido y medios…');
+      try {
+        const [draftResult] = await Promise.all([
+          requestJson(endpoint(PROMO_GALLERY_DRAFT_API_PATH)),
+          loadCatalog(),
+        ]);
+        draft = normalizePromoGalleryDraft(draftResult);
+        const workspace = createPromoGalleryWorkspace(draft.document);
+        draft = { version: draft.version, document: workspace.document };
+        locale = workspace.locale;
+        modelFromDocument(workspace.document);
+        dirty = false;
+        if (form) form.hidden = false;
+        setStatus('Contenido visual cargado. Los cambios se aplicarán al guardar.');
+      } catch (error) { showError(error); setStatus('No se pudo cargar el contenido visual.'); }
+      finally { busy = false; render(); }
+    }
+
+    root.querySelector<HTMLInputElement>('[data-products-hero-images]')?.addEventListener('change', (event) => {
+      const input = event.currentTarget as HTMLInputElement;
+      addImages(input.files, heroMedia, 'hero');
+    });
+    root.querySelector<HTMLButtonElement>('[data-products-add-hero-video]')?.addEventListener('click', () => {
+      const video = root.querySelector<HTMLInputElement>('[data-products-hero-video]')?.files?.[0];
+      const poster = root.querySelector<HTMLInputElement>('[data-products-hero-poster]')?.files?.[0];
+      addVideo(video, poster, heroMedia, 'hero');
+    });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!draft || !catalog || !canSave || busy || !form.reportValidity()) return;
+      clearError(); busy = true; render(); setStatus('Validando y actualizando la página pública…');
+      try {
+        const linkedGalleries = services.map((service) => galleryPatch({
+          ...service,
+          visible: true,
+          navigationLabel: service.serviceName || 'Productos',
+          heading: service.serviceName || 'Productos',
+          summary: service.serviceSummary,
+        }, true));
+        const preserved = preservedGalleries.map((gallery) => galleryPatch(gallery));
+        const nextDocument = buildPromoGalleryDocument(
+          draft.document,
+          { heroMedia, galleries: [...linkedGalleries, ...preserved] } as any,
+          maxPageMedia,
+          catalog.assets,
+        );
+        const serviceSection = nextDocument.sections.find((section: any) => section.type === 'services');
+        if (!serviceSection || serviceSection.config.item_keys.length !== services.length
+          || serviceSection.config.item_keys.some((key: string, index: number) => key !== services[index].serviceKey)) {
+          throw Object.assign(new Error('promo_conflict'), { code: 'promo_conflict' });
+        }
+        serviceSection.config.gallery_keys = services.map((service) => service.key);
+        const internalProductSectionKeys = new Set(services.map((service) => service.key));
+        nextDocument.sections.filter((section: any) => section.type === 'footer').forEach((section: any) => {
+          section.config.navigation_section_keys = (section.config.navigation_section_keys || [])
+            .filter((sectionKey: string) => !internalProductSectionKeys.has(sectionKey));
+        });
+        const result = await requestJson(endpoint(PROMO_GALLERY_DRAFT_API_PATH), {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expected_version: draft.version, document: nextDocument }),
+        });
+        draft = normalizePromoGalleryDraft({ ok: result.ok, contract: result.contract, draft: result.draft });
+        const workspace = createPromoGalleryWorkspace(draft.document);
+        draft = { version: draft.version, document: workspace.document };
+        locale = workspace.locale; modelFromDocument(workspace.document); dirty = false;
+        setStatus(`Contenido visual actualizado · versión ${draft.version}.`);
+        window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'products' } }));
+      } catch (error) { showError(error); setStatus('No se guardaron los cambios.'); }
+      finally { busy = false; render(); }
+    });
+
+    window.addEventListener('promo:document-updated', (event: Event) => {
+      const source = (event as CustomEvent)?.detail?.source;
+      if (source === 'cms') loadAll();
+    });
+
+    loadAll();
+  });
+</script>

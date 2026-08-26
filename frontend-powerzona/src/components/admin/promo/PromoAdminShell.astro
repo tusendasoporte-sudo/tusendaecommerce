@@ -9,6 +9,7 @@ import {
 } from '../../../lib/promoAdminI18n';
 import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
+import PromoServiceProductsEditor from './PromoServiceProductsEditor.astro';
 import PromoLocalesEditor from './PromoLocalesEditor.astro';
 import PromoLandingQrEditor from './PromoLandingQrEditor.astro';
 import PromoReviewsEditor from './PromoReviewsEditor.astro';
@@ -76,7 +77,10 @@ const canSaveCms = section === 'content'
       && hasPromoAction(accessContext, 'promo.contact.manage')
     : false;
 const maxServices = Number(accessContext.capabilities.max_services || 0);
+const maxPageMedia = Number(accessContext.capabilities.max_gallery_assets || 0);
+const maxVideos = Number(accessContext.capabilities.max_videos || 0);
 const canManagePromoMedia = hasPromoAction(accessContext, 'promo.media.manage');
+const canManagePromoVideo = hasPromoAction(accessContext, 'promo.media.video.manage');
 const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
 const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appearance.manage');
@@ -285,13 +289,25 @@ function initials(value: string) {
             </section>
           </>
         ) : activeModule && cmsScope ? (
-          <PromoCmsEditor
-            storeSlug={storeSlug}
-            scope={cmsScope}
-            maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
-            canSave={canSaveCms}
-            canManageMedia={canManagePromoMedia}
-          />
+          <>
+            <PromoCmsEditor
+              storeSlug={storeSlug}
+              scope={cmsScope}
+              maxServices={Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0}
+              canSave={canSaveCms}
+              canManageMedia={canManagePromoMedia}
+            />
+            {section === 'content' && (
+              <PromoServiceProductsEditor
+                storeSlug={storeSlug}
+                maxPageMedia={Number.isSafeInteger(maxPageMedia) && maxPageMedia >= 0 ? maxPageMedia : 0}
+                maxVideos={Number.isSafeInteger(maxVideos) && maxVideos >= 0 ? maxVideos : 0}
+                canSave={canSaveCms}
+                canManageMedia={canManagePromoMedia}
+                canManageVideo={canManagePromoVideo}
+              />
+            )}
+          </>
         ) : activeModule && section === 'appearance' ? (
           <PromoAppearanceEditor
             storeSlug={storeSlug}

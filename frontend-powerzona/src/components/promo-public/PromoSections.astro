@@ -45,7 +45,7 @@ const ownerMediaKey = String(section.config.media_use_key || section.media_use_k
 const ownerMedia = ownerMediaKey ? mediaByKey.get(ownerMediaKey) : undefined;
 const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
 const estimateLabel = profile.system.messages['contact.request_estimate'];
-const moreLabel = profile.locale.lang.startsWith('es') ? 'Ver más' : 'View more';
+const quoteLabel = profile.locale.lang.startsWith('es') ? 'Cotizar' : 'Get a quote';
 
 const galleryWorks = (gallery: PromoPublicSection): WorkModel[] => {
   const content = profile.content.sections[gallery.key] || {};
@@ -78,7 +78,12 @@ const services = section.type === 'services' ? items.map((item: Record<string, s
   const gallery = galleryKey ? sectionByKey.get(galleryKey) : undefined;
   const coverKey = gallery?.type === 'gallery' ? String(gallery.config.cover_media_use_key || '') : '';
   const cover = coverKey ? mediaByKey.get(coverKey) : undefined;
-  return { item, gallery, cover: cover?.purpose === 'gallery' ? cover : undefined };
+  return {
+    item,
+    gallery,
+    cover: cover?.purpose === 'gallery' ? cover : undefined,
+    products: gallery?.type === 'gallery' ? galleryWorks(gallery) : [],
+  };
 }) : [];
 const itemCount = section.type === 'featured_work'
   ? featuredWorks.length
@@ -125,28 +130,74 @@ const itemCount = section.type === 'featured_work'
 
     {section.type === 'services' && services.length > 0 && (
       <ul class="promo-sections__services-list">
-        {services.map(({ item, gallery, cover }, index) => (
+        {services.map(({ item, cover, products }, index) => (
           <li>
-            <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': cover }]}>
-              <div class="promo-sections__service-media">
-                {cover ? (
-                  <PromoSectionMedia media={cover} accessibleLabel={String(item.name || navigationLabel)} />
-                ) : (
-                  <div class="promo-sections__service-mark" aria-hidden="true"><span></span></div>
-                )}
-              </div>
-              <div class="promo-sections__service-copy">
-                <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
-                {item.name && <h3>{item.name}</h3>}
-                {item.summary && <p>{item.summary}</p>}
-                {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
-                {gallery && (
-                  <a class="promo-sections__more" href={`#promo-section-${gallery.key}`}>
-                    {moreLabel}<span aria-hidden="true"> →</span>
-                  </a>
-                )}
-              </div>
-            </article>
+            <section class="promo-sections__service-category" aria-labelledby={`${sectionId}-service-${index + 1}`}>
+              <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': cover }]}>
+                <div class="promo-sections__service-media">
+                  {cover ? (
+                    <PromoSectionMedia media={cover} accessibleLabel={String(item.name || navigationLabel)} />
+                  ) : (
+                    <div class="promo-sections__service-mark" aria-hidden="true"><span></span></div>
+                  )}
+                </div>
+                <div class="promo-sections__service-copy">
+                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                  {item.name && <h3 id={`${sectionId}-service-${index + 1}`}>{item.name}</h3>}
+                  {item.summary && <p>{item.summary}</p>}
+                  {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
+                  {products.length > 0 && <p class="promo-sections__product-count">{products.length} {products.length === 1 ? (profile.locale.lang.startsWith('es') ? 'opción' : 'option') : (profile.locale.lang.startsWith('es') ? 'opciones' : 'options')}</p>}
+                </div>
+              </article>
+
+              {products.length > 0 && (
+                <ul class="promo-sections__product-grid">
+                  {products.map((product, productIndex) => {
+                    const carouselId = `${sectionId}-${product.galleryKey}-${product.key}`;
+                    const quoteContext = profile.locale.lang.startsWith('es')
+                      ? `Quiero cotizar: ${String(item.name || '')} · ${product.name}`
+                      : `Quote request: ${String(item.name || '')} · ${product.name}`;
+                    return (
+                      <li>
+                        <article class="promo-sections__work-card promo-sections__product-card">
+                          <div class="promo-sections__work-media">
+                            <ol class="promo-sections__work-slides" aria-label={product.name} tabindex={product.media.length > 1 ? '0' : undefined}>
+                              {product.media.map((media, mediaIndex) => (
+                                <li id={`${carouselId}-media-${mediaIndex + 1}`}>
+                                  <PromoSectionMedia media={media} accessibleLabel={product.name} />
+                                </li>
+                              ))}
+                            </ol>
+                            {product.media.length > 1 && (
+                              <nav class="promo-sections__work-controls" aria-label={`${product.name} - ${product.media.length}`}>
+                                {product.media.map((_, mediaIndex) => (
+                                  <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${product.media.length}`}>
+                                    {mediaIndex + 1}
+                                  </a>
+                                ))}
+                              </nav>
+                            )}
+                          </div>
+                          <div class="promo-sections__work-copy">
+                            <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(productIndex)}</span>
+                            <h4>{product.name}</h4>
+                            {product.summary && <p>{product.summary}</p>}
+                            {product.caption && <p class="promo-sections__caption">{product.caption}</p>}
+                            <PromoContactAction
+                              profile={profile}
+                              className="promo-sections__estimate"
+                              fallbackLabel={estimateLabel}
+                              labelOverride={quoteLabel}
+                              context={quoteContext}
+                            />
+                          </div>
+                        </article>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
           </li>
         ))}
       </ul>

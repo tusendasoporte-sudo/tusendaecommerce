@@ -8,6 +8,7 @@ import {
   createPromoGalleryWorkspace,
   normalizePromoGalleryCatalog,
   promoGalleryPreviewPath,
+  PROMO_PRODUCT_MAX_MEDIA,
 } from '../src/lib/promoGallery.ts';
 import { PromoCmsError } from '../src/lib/promoCms.ts';
 
@@ -183,7 +184,7 @@ test('workspace vacío crea portada, destacados derivados y una galería base', 
   assert.equal(workspace.document.sections.find((section) => section.type === 'gallery').visible, false);
 });
 
-test('editor guarda carrusel y trabajos destacados dentro de galerías sin alterar otras facetas', () => {
+test('editor guarda carrusel y productos internos sin exponer enlaces de galería', () => {
   const original = completeDocument();
   const update = patch(original);
   update.heroMedia = [{
@@ -215,6 +216,8 @@ test('editor guarda carrusel y trabajos destacados dentro de galerías sin alter
       seo: original.content_by_locale.en.seo,
     },
   });
+  protectedBefore.footer.config.navigation_section_keys = protectedBefore.footer.config.navigation_section_keys
+    .filter((sectionKey) => sectionKey !== 'gallery-rugs');
   const updated = buildPromoGalleryDocument(original, update, 24, assets);
   assert.deepEqual(backendContract.validatePromoDocument(updated, { publicRevision: false }), updated);
   const gallery = updated.sections.find((section) => section.type === 'gallery');
@@ -227,6 +230,8 @@ test('editor guarda carrusel y trabajos destacados dentro de galerías sin alter
   assert.deepEqual(updated.content_by_locale.es.media_alt['gallery-item-media-2'], {
     alt: 'Recorrido del proyecto', decorative: false,
   });
+  assert.equal(updated.sections.find((section) => section.type === 'footer')
+    .config.navigation_section_keys.includes('gallery-rugs'), false);
   assert.equal(updated.content_by_locale.en.sections['gallery-rugs'].items[0].name, 'Proceso audiovisual');
   assert.deepEqual(
     new Set(backendContract.changedActionKeys(original, updated, assets)),
@@ -263,6 +268,35 @@ test('eliminar una galería limpia sus medios y vínculos de servicios y pie', (
   assert.equal(Object.hasOwn(updated.media_refs, 'gallery-item-media-1'), false);
   assert.equal(Object.hasOwn(updated.content_by_locale.es.media_alt, 'gallery-item-media-1'), false);
   assert.equal(Object.hasOwn(updated.content_by_locale.en.media_alt, 'gallery-item-media-1'), false);
+});
+
+test('servicio admite portada independiente y cada producto queda limitado a tres medios', () => {
+  const original = completeDocument();
+  const update = patch(original);
+  update.galleries[0].coverUseKey = 'service-cover-media';
+  update.galleries[0].coverMedia = {
+    useKey: 'service-cover-media', assetId: 'assetg000000001',
+    alt: 'Portada del servicio de alfombras', decorative: false,
+  };
+  const updated = buildPromoGalleryDocument(original, update, 150, assets);
+  const gallery = updated.sections.find((section) => section.key === 'gallery-rugs');
+  assert.equal(gallery.config.cover_media_use_key, 'service-cover-media');
+  assert.deepEqual(gallery.media_use_keys, ['service-cover-media', 'gallery-item-media-1']);
+  assert.deepEqual(updated.media_refs['service-cover-media'], {
+    asset_id: 'assetg000000001', purpose: 'gallery',
+  });
+  assert.equal(PROMO_PRODUCT_MAX_MEDIA, 3);
+
+  const tooMany = patch(original);
+  tooMany.galleries[0].items[0].media = Array.from({ length: 4 }, (_, index) => ({
+    useKey: `gallery-product-media-${index + 1}`,
+    assetId: 'assetg000000001', alt: `Foto ${index + 1}`, decorative: false,
+  }));
+  tooMany.galleries[0].coverUseKey = 'gallery-product-media-1';
+  assert.throws(
+    () => buildPromoGalleryDocument(original, tooMany, 150, assets),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_payload',
+  );
 });
 
 test('cuota, portada y metadata accesible fallan cerradas', () => {
@@ -311,7 +345,7 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
     usage: { images: 1, videos: 0, bytes: 50000 },
     limits: {
       max_image_bytes: 102400, max_video_bytes: 26214400, max_video_duration_ms: 1800000,
-      max_stored_images: 200, max_stored_videos: 3, max_storage_bytes: 262144000,
+      max_stored_images: 150, max_stored_videos: 3, max_storage_bytes: 262144000,
       purposes: ['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr'],
     },
   });
@@ -327,11 +361,13 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
 test('shell retira Galería separada y conserva el proxy de medios central sin Commerce', () => {
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
+  const productsEditor = readFileSync(new URL('../src/components/admin/promo/PromoServiceProductsEditor.astro', import.meta.url), 'utf8');
   const moduleRoute = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promo/[section].astro', import.meta.url), 'utf8');
   const mediaApi = readFileSync(new URL('../src/pages/api/admin/promo-media.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(shell, /PromoGalleryEditor|section === 'gallery'/);
   assert.match(shell, /promo\.media\.manage/);
   assert.match(shell, /promo\.content\.manage/);
+  assert.match(shell, /PromoServiceProductsEditor/);
   assert.match(cmsEditor, /mediaEndpoint/);
   assert.match(cmsEditor, /expected_version: version/);
   assert.match(moduleRoute, /requestedModule === 'gallery'[\s\S]*?getPromoAdminSectionPath\(storeSlug, 'content'\)/);
@@ -341,5 +377,9 @@ test('shell retira Galería separada y conserva el proxy de medios central sin C
   assert.match(mediaApi, /Range: rangeHeader/);
   assert.match(mediaApi, /X-PZ-Promo-Store/);
   assert.match(mediaApi, /promo\/private\/v1\/media/);
-  assert.doesNotMatch(`${shell}\n${cmsEditor}\n${mediaApi}`, /products|categories|orders|checkout|cart|Cloudflare|Coolify/);
+  assert.match(productsEditor, /Portada, servicios y productos/);
+  assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
+  assert.match(productsEditor, /data-products-add-hero-video/);
+  assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);
+  assert.doesNotMatch(`${shell}\n${cmsEditor}\n${mediaApi}`, /orders|checkout|cart|Cloudflare|Coolify/);
 });

@@ -7,11 +7,14 @@ interface Props {
   className?: string;
   fallbackLabel: string;
   enabled?: boolean;
+  labelOverride?: string;
+  context?: string;
 }
 
-const { profile, className = '', fallbackLabel, enabled = true } = Astro.props;
+const { profile, className = '', fallbackLabel, enabled = true, labelOverride = '', context = '' } = Astro.props;
 const action = enabled && profile.contact_action.available ? profile.contact_action.action : null;
 const unavailable = profile.system.messages['contact.unavailable'];
+const actionLabel = labelOverride.trim() || action?.label || fallbackLabel;
 ---
 
 {action ? (
@@ -22,8 +25,9 @@ const unavailable = profile.system.messages['contact.unavailable'];
     rel={action.type === 'whatsapp' ? 'noopener noreferrer' : undefined}
     data-contact-action="primary"
     data-contact-type={action.type}
+    data-quote-context={context.trim() || undefined}
   >
-    <span class="promo-contact-action__label">{action.label}</span>
+    <span class="promo-contact-action__label">{actionLabel}</span>
     <span class="promo-contact-action__mark" aria-hidden="true">→</span>
   </a>
 ) : (

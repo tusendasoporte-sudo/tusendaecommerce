@@ -671,7 +671,7 @@ function normalizeSection(value: unknown): PromoPublicSection {
     config.items = source.items.map((raw: unknown) => {
       const item = exactRecord(raw, ['key', 'media_use_keys', 'featured', 'visible']);
       if (typeof item.featured !== 'boolean' || typeof item.visible !== 'boolean') fail();
-      const itemMedia = list(item.media_use_keys, 12);
+      const itemMedia = list(item.media_use_keys, 3);
       return {
         key: safePattern(item.key, KEY_PATTERN),
         media_use_keys: itemMedia,
