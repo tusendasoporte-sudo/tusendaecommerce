@@ -1,6 +1,7 @@
 const SUPPORT_ENDPOINT = '/api/pz/admin/support-contact';
 const SUPPORT_REQUEST_TIMEOUT_MS = 3500;
 const WHATSAPP_PATH_PATTERN = /^\/[1-9][0-9]{7,14}$/;
+const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 
 export type AdminSupportContact = {
   configured: boolean;
@@ -16,6 +17,7 @@ export type AdminSupportContactResult = {
 type SupportContactOptions = {
   baseUrl: string;
   token: string;
+  supportStoreId?: string;
   fetcher?: typeof fetch;
 };
 
@@ -48,18 +50,24 @@ function normalizeContact(value: unknown): AdminSupportContact | null {
 export async function getAdminSupportContact({
   baseUrl,
   token,
+  supportStoreId,
   fetcher = fetch,
 }: SupportContactOptions): Promise<AdminSupportContactResult> {
   const normalizedBaseUrl = String(baseUrl || '').trim().replace(/\/$/, '');
   const normalizedToken = String(token || '').trim();
+  const normalizedSupportStoreId = String(supportStoreId || '').trim().toLowerCase();
   if (!normalizedBaseUrl || !normalizedToken) return unavailable();
+  if (supportStoreId !== undefined && !RECORD_ID_PATTERN.test(normalizedSupportStoreId)) return unavailable();
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), SUPPORT_REQUEST_TIMEOUT_MS);
   try {
     const response = await fetcher(`${normalizedBaseUrl}${SUPPORT_ENDPOINT}`, {
       method: 'GET',
-      headers: { Authorization: `Bearer ${normalizedToken}` },
+      headers: {
+        Authorization: `Bearer ${normalizedToken}`,
+        ...(normalizedSupportStoreId ? { 'X-PZ-Support-Store': normalizedSupportStoreId } : {}),
+      },
       cache: 'no-store',
       signal: controller.signal,
     });

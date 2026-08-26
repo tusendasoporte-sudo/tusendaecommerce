@@ -631,6 +631,32 @@ export function ensurePromoWorkGallerySection(document: JsonRecord, locale: stri
   return section;
 }
 
+function enforceFixedSectionOrder(document: JsonRecord) {
+  const heroSections = document.sections.filter((section: JsonRecord) => section.type === 'hero');
+  const footerSections = document.sections.filter((section: JsonRecord) => section.type === 'footer');
+  if (heroSections.length > 1 || footerSections.length > 1) fail('invalid_promo_document');
+  const movableSections = document.sections.filter((section: JsonRecord) => (
+    section.type !== 'hero' && section.type !== 'footer'
+  ));
+  document.sections = [...heroSections, ...movableSections, ...footerSections];
+  document.section_order = document.sections.map((section: JsonRecord) => section.key);
+  return document;
+}
+
+function assertFixedSectionOrder(sectionOrder: readonly string[], sectionMap: Map<string, JsonRecord>) {
+  const heroKeys = Array.from(sectionMap.values())
+    .filter((section) => section.type === 'hero')
+    .map((section) => section.key);
+  const footerKeys = Array.from(sectionMap.values())
+    .filter((section) => section.type === 'footer')
+    .map((section) => section.key);
+  if (heroKeys.length > 1 || footerKeys.length > 1
+    || (heroKeys.length === 1 && sectionOrder[0] !== heroKeys[0])
+    || (footerKeys.length === 1 && sectionOrder[sectionOrder.length - 1] !== footerKeys[0])) {
+    fail('invalid_promo_document');
+  }
+}
+
 export const ensurePromoVideoGallerySection = ensurePromoWorkGallerySection;
 
 export function createPromoCmsWorkspace(value: unknown, scope: PromoCmsScope) {
@@ -644,6 +670,7 @@ export function createPromoCmsWorkspace(value: unknown, scope: PromoCmsScope) {
   } else {
     fail('invalid_payload');
   }
+  enforceFixedSectionOrder(document);
   return Object.freeze({ document, locale });
 }
 
@@ -699,6 +726,7 @@ export function buildPromoCmsContentDocument(
 
   let serviceCount = 0;
   const sectionMap = new Map(document.sections.map((section: JsonRecord) => [section.key, section]));
+  assertFixedSectionOrder(patch.sectionOrder, sectionMap);
   document.section_order = patch.sectionOrder.slice();
   document.sections = document.section_order.map((sectionKey: string) => {
     const section = sectionMap.get(sectionKey);

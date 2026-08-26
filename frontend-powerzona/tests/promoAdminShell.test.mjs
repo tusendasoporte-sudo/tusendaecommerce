@@ -187,7 +187,10 @@ test('shell es separado, responsive y no monta navegación Commerce', () => {
   assert.match(shell, /Contactar a Tu Senda 84/);
   assert.match(shell, /¿Necesitas ayuda con tu página\?/);
   assert.match(shell, /Escribir por WhatsApp/);
-  assert.match(shell, /https:\/\/wa\.me\/\$\{supportWhatsapp\}/);
+  assert.match(shell, /getAdminSupportContact/);
+  assert.match(shell, /supportStoreId: isMasterSupport \? adminContext\.storeId : undefined/);
+  assert.match(shell, /Astro\.locals\.adminAuthPb\?\.authStore\.token/);
+  assert.doesNotMatch(shell, /PUBLIC_MASTER_SUPPORT_WHATSAPP/);
   assert.doesNotMatch(shell, /PUBLIC_MASTER_SUPPORT_EMAIL|Contactar soporte Master/);
   assert.match(styles, /pz-promo-admin__support-card/);
   assert.match(styles, /pz-promo-admin__support-whatsapp[\s\S]*?background:\s*#168c49/);

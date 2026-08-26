@@ -33,6 +33,46 @@ test('consulta el contacto privado y acepta únicamente enlaces wa.me válidos',
   assert.match(result.contact.href, /^https:\/\/wa\.me\/5351234567\?text=/);
 });
 
+test('el modo soporte Master envía el contexto explícito de la tienda', async () => {
+  let request = null;
+  const result = await getAdminSupportContact({
+    baseUrl: 'https://api.example.test',
+    token: 'master-token',
+    supportStoreId: 'supportstore001',
+    fetcher: async (url, options) => {
+      request = { url, options };
+      return new Response(JSON.stringify({
+        ok: true,
+        contact: {
+          configured: true,
+          href: 'https://wa.me/5351234567?text=Hola%20soporte',
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  });
+
+  assert.equal(request.options.headers.Authorization, 'Bearer master-token');
+  assert.equal(request.options.headers['X-PZ-Support-Store'], 'supportstore001');
+  assert.equal(result.available, true);
+});
+
+test('un contexto Master inválido falla cerrado sin hacer la solicitud', async () => {
+  let called = false;
+  const result = await getAdminSupportContact({
+    baseUrl: 'https://api.example.test',
+    token: 'master-token',
+    supportStoreId: 'no-valido',
+    fetcher: async () => {
+      called = true;
+      throw new Error('no debería ejecutarse');
+    },
+  });
+
+  assert.equal(called, false);
+  assert.equal(result.available, false);
+  assert.deepEqual(result.contact, { configured: false, href: '' });
+});
+
 test('una respuesta manipulada no habilita el botón', async () => {
   const result = await getAdminSupportContact({
     baseUrl: 'https://api.example.test',

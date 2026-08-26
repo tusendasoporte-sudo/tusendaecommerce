@@ -49,6 +49,32 @@ test('el contacto del admin usa el WhatsApp configurado por el Master activo', (
   assert.equal(Object.hasOwn(contact, 'whatsapp_number'), false);
 });
 
+test('el Master activo puede consultar soporte solo con contexto explícito de tienda', () => {
+  const store = record(STORE_ID, { status: 'active', name: 'Tienda Norte', slug: 'tienda-norte' });
+  const actor = record('mastersupport03', { role: 'master_admin', status: 'active' });
+  const configuredMaster = record('mastersupport02', { role: 'master_admin', status: 'active', phone: '+53 5 123 4567' });
+  const app = appWith({ store, masters: [configuredMaster] });
+
+  const contact = support.supportContactSnapshot(app, actor, STORE_ID);
+  assert.equal(contact.configured, true);
+  assert.match(new URL(contact.href).searchParams.get('text'), /Tienda Norte \(tienda-norte\)/);
+  assert.throws(() => support.supportContactSnapshot(app, actor), /unauthorized/);
+  assert.throws(() => support.supportContactSnapshot(app, actor, 'no-valido'), /unauthorized/);
+});
+
+test('un admin de tienda no puede reemplazar su contexto mediante cabecera', () => {
+  const store = record(STORE_ID, { status: 'active', name: 'Tienda Norte', slug: 'tienda-norte' });
+  const actor = record('adminsupport001', { role: 'store_admin', status: 'active', store: STORE_ID });
+  const configuredMaster = record('mastersupport02', { role: 'master_admin', status: 'active', phone: '+53 5 123 4567' });
+
+  const contact = support.supportContactSnapshot(
+    appWith({ store, masters: [configuredMaster] }),
+    actor,
+    'otherstore00001',
+  );
+  assert.match(new URL(contact.href).searchParams.get('text'), /Tienda Norte \(tienda-norte\)/);
+});
+
 test('sin número Master válido devuelve un estado seguro deshabilitado', () => {
   const store = record(STORE_ID, { status: 'active', name: 'Tienda Norte', slug: 'tienda-norte' });
   const actor = record('staffsupport001', { role: 'store_staff', status: 'active', store: STORE_ID });

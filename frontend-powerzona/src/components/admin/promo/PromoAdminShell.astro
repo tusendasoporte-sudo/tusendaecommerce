@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import type { AdminStoreContext } from '../../../lib/storeContext';
+import { getAdminSupportContact } from '../../../lib/adminSupport';
 import { hasPromoAction, type PromoAccessContext } from '../../../lib/promoAccess';
 import {
   normalizePromoAdminLocale,
@@ -52,14 +53,17 @@ const siteModules = primaryModules.filter((module) => !contentModules.includes(m
 const audienceModules = visibleModules.filter((module) => !primaryModules.includes(module));
 const isMasterSupport = adminContext.isMasterSupport || accessContext.access.is_master;
 const masterReturnPath = `/master/stores/${encodeURIComponent(adminContext.storeId)}`;
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').trim();
+const authToken = String(Astro.locals.adminAuthPb?.authStore.token || '').trim();
+const supportContactResult = await getAdminSupportContact({
+  baseUrl: pocketbaseUrl,
+  token: authToken,
+  supportStoreId: isMasterSupport ? adminContext.storeId : undefined,
+});
+const masterSupportHref = supportContactResult.contact.configured ? supportContactResult.contact.href : '';
 const publicSlug = String(accessContext.site.public_slug || '').trim().toLowerCase();
 const publicPagePath = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/.test(publicSlug)
   ? `/promo/${encodeURIComponent(publicSlug)}`
-  : '';
-const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
-const supportMessage = encodeURIComponent(`Hola, necesito ayuda con la Tienda Promo ${storeName}.`);
-const masterSupportHref = /^[1-9][0-9]{7,14}$/.test(supportWhatsapp)
-  ? `https://wa.me/${supportWhatsapp}?text=${supportMessage}`
   : '';
 
 const siteStatusLabels: Record<string, string> = {

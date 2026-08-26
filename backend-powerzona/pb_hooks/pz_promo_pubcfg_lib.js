@@ -361,6 +361,17 @@ function validateSections(document, publicRevision, liveDocument) {
     || keys.some((key, index) => key !== document.section_order[index])) {
     fail("invalid_promo_document", 400);
   }
+  const heroIndexes = document.sections
+    .map((section, index) => (section.type === "hero" ? index : -1))
+    .filter((index) => index >= 0);
+  const footerIndexes = document.sections
+    .map((section, index) => (section.type === "footer" ? index : -1))
+    .filter((index) => index >= 0);
+  if (heroIndexes.length > 1 || footerIndexes.length > 1
+    || (heroIndexes.length === 1 && heroIndexes[0] !== 0)
+    || (footerIndexes.length === 1 && footerIndexes[0] !== document.sections.length - 1)) {
+    fail("invalid_promo_document", 400);
+  }
   const sectionByKey = new Map(document.sections.map((section) => [section.key, section]));
   if (liveDocument) {
     document.sections.filter((section) => section.type === "services").forEach((section) => {
@@ -384,6 +395,20 @@ function validateSections(document, publicRevision, liveDocument) {
     });
   });
   return { actions, media };
+}
+
+function enforceFixedSectionOrder(document) {
+  const heroSections = document.sections.filter((section) => section.type === "hero");
+  const footerSections = document.sections.filter((section) => section.type === "footer");
+  if (heroSections.length > 1 || footerSections.length > 1) {
+    fail("invalid_promo_document", 400);
+  }
+  const movableSections = document.sections.filter((section) => (
+    section.type !== "hero" && section.type !== "footer"
+  ));
+  document.sections = [...heroSections, ...movableSections, ...footerSections];
+  document.section_order = document.sections.map((section) => section.key);
+  return document;
 }
 
 function validateMediaRefs(value) {
@@ -699,7 +724,7 @@ function upgradePromoDocument(input) {
         current.contact.qr_media_use_key = "";
       }
     }
-    return upgradeHeroPresentation(current);
+    return enforceFixedSectionOrder(upgradeHeroPresentation(current));
   }
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
@@ -824,7 +849,7 @@ function upgradePromoDocument(input) {
   Object.values(next.content_by_locale).forEach((localized) => {
     localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || "") };
   });
-  return upgradeHeroPresentation(next);
+  return enforceFixedSectionOrder(upgradeHeroPresentation(next));
 }
 
 function validatePromoDocument(input, options) {

@@ -148,6 +148,41 @@ test('workspace vacío asigna solo el locale base y las secciones del alcance CM
   assert.deepEqual(contact.document.contact, normalizePromoCmsDocument(emptyDraft()).contact);
 });
 
+test('Organización fija Portada al inicio y Pie del sitio al final en UI y contrato', () => {
+  const disordered = completeDocument();
+  const byKey = new Map(disordered.sections.map((section) => [section.key, section]));
+  disordered.section_order = [
+    'footer-main', 'owner-main', 'services-main', 'hero-main', 'contact-main', 'gallery-main',
+  ];
+  disordered.sections = disordered.section_order.map((sectionKey) => byKey.get(sectionKey));
+
+  assert.throws(
+    () => backendContract.validatePromoDocument(disordered, { publicRevision: false }),
+    (error) => error?.code === 'invalid_promo_document',
+  );
+
+  const upgraded = backendContract.upgradePromoDocument(disordered);
+  assert.equal(upgraded.sections[0].type, 'hero');
+  assert.equal(upgraded.sections.at(-1).type, 'footer');
+  assert.deepEqual(upgraded.section_order, upgraded.sections.map((section) => section.key));
+  assert.deepEqual(backendContract.validatePromoDocument(upgraded, { publicRevision: false }), upgraded);
+
+  const workspace = createPromoCmsWorkspace(disordered, 'content');
+  assert.equal(workspace.document.sections[0].type, 'hero');
+  assert.equal(workspace.document.sections.at(-1).type, 'footer');
+  assert.equal(workspace.document.content_by_locale.es.navigation['videos-main'], 'Trabajos realizados');
+
+  const invalidPatch = contentPatch(workspace.document);
+  invalidPatch.sectionOrder = [
+    'footer-main',
+    ...invalidPatch.sectionOrder.filter((sectionKey) => sectionKey !== 'footer-main'),
+  ];
+  assert.throws(
+    () => buildPromoCmsContentDocument(workspace.document, invalidPatch, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+});
+
 test('normalización acepta documentos vivos anteriores al campo aditivo del logo', () => {
   const previousLive = backendContract.upgradePromoDocument(completeDocument());
   delete previousLive.contact.logo_media_use_key;
@@ -360,6 +395,8 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);
   assert.match(editor, /Bajar/);
+  assert.match(editor, /sectionType === 'hero' \|\| sectionType === 'footer'[\s\S]*?return null/);
+  assert.match(editor, /data-cms-section-move/);
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /\.pz-promo-cms__accordion:not\(\[open\]\)/);
   assert.match(styles, /\.pz-promo-cms__qr-grid[\s\S]*?grid-template-columns: 192px minmax\(240px, 1fr\)/);

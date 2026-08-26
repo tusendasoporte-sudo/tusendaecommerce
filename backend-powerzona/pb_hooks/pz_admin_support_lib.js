@@ -48,6 +48,27 @@ function activeStoreActor(record) {
     && RECORD_ID_PATTERN.test(relationId(record, "store"));
 }
 
+function activeMasterActor(record) {
+  return !!record
+    && recordString(record, "role", 40) === "master_admin"
+    && recordString(record, "status", 40).toLowerCase() === "active";
+}
+
+function requestHeader(info, name) {
+  const lower = String(name || "").toLowerCase();
+  const target = lower.replace(/-/g, "_");
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") {
+      return text(headers.get(name) || headers.get(lower) || headers.get(target), 80);
+    }
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => (
+    String(candidate).toLowerCase().replace(/-/g, "_") === target
+  ));
+  return key ? text(headers[key], 80) : "";
+}
+
 function configuredMaster(app) {
   const masters = records(
     app,
@@ -63,9 +84,12 @@ function configuredMaster(app) {
   return null;
 }
 
-function supportContactSnapshot(app, actor) {
-  if (!activeStoreActor(actor)) throw new Error("unauthorized");
-  const storeId = relationId(actor, "store");
+function supportContactSnapshot(app, actor, supportStoreId) {
+  const isStoreActor = activeStoreActor(actor);
+  const isMasterActor = activeMasterActor(actor);
+  if (!isStoreActor && !isMasterActor) throw new Error("unauthorized");
+  const storeId = isMasterActor ? text(supportStoreId, 15) : relationId(actor, "store");
+  if (!RECORD_ID_PATTERN.test(storeId)) throw new Error("unauthorized");
   const store = findRecord(app, "stores", storeId);
   if (!store || recordString(store, "status", 40).toLowerCase() !== "active") {
     throw new Error("unauthorized");
@@ -108,7 +132,8 @@ function handleSupportContact(e) {
     const info = e.requestInfo();
     const actorId = text(info && info.auth && info.auth.id, 15);
     const actor = RECORD_ID_PATTERN.test(actorId) ? findRecord($app, "users", actorId) : null;
-    const contact = supportContactSnapshot($app, actor);
+    const supportStoreId = activeMasterActor(actor) ? requestHeader(info, "X-PZ-Support-Store") : "";
+    const contact = supportContactSnapshot($app, actor, supportStoreId);
     return e.json(200, { ok: true, contact });
   } catch (error) {
     if (text(error && error.message, 80) === "unauthorized") {
@@ -119,6 +144,7 @@ function handleSupportContact(e) {
 }
 
 module.exports = {
+  activeMasterActor,
   activeStoreActor,
   configuredMaster,
   handleSupportContact,

@@ -393,6 +393,39 @@ const isContent = scope === 'content';
       return controls;
     }
 
+    function updateSectionOrderControls() {
+      const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-section-key]'));
+      cards.forEach((card, index) => {
+        const up = card.querySelector<HTMLButtonElement>('[data-cms-section-move="up"]');
+        const down = card.querySelector<HTMLButtonElement>('[data-cms-section-move="down"]');
+        if (up) up.hidden = index === 0 || cards[index - 1]?.dataset.cmsSectionType === 'hero';
+        if (down) down.hidden = index === cards.length - 1 || cards[index + 1]?.dataset.cmsSectionType === 'footer';
+      });
+    }
+
+    function sectionActionButtons(card: HTMLElement, label: string, sectionType: string) {
+      if (sectionType === 'hero' || sectionType === 'footer') return null;
+      const controls = element('div', 'pz-promo-cms__order-controls');
+      const addMoveButton = (direction: -1 | 1, text: string) => {
+        const button = element('button', '', text);
+        button.type = 'button';
+        button.dataset.cmsSectionMove = direction < 0 ? 'up' : 'down';
+        button.setAttribute('aria-label', text + ' ' + label);
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const sibling = direction < 0 ? card.previousElementSibling : card.nextElementSibling;
+          const fixedType = sibling instanceof HTMLElement ? sibling.dataset.cmsSectionType : '';
+          if (fixedType === 'hero' || fixedType === 'footer') return;
+          moveCard(card, direction);
+          updateSectionOrderControls();
+        });
+        controls.append(button);
+      };
+      addMoveButton(-1, 'Subir');
+      addMoveButton(1, 'Bajar');
+      return controls;
+    }
     function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '') {
       const card = element('details', 'pz-promo-cms__service-item pz-promo-cms__accordion') as HTMLDetailsElement;
       card.dataset.cmsServiceItem = item.key;
@@ -438,8 +471,10 @@ const isContent = scope === 'content';
       const title = element('h4', '', localized.navigation?.[section.key] || labelText);
       title.tabIndex = -1;
       titleGroup.append(title);
-      const controls = actionButtons(card, `sección ${labelText}`);
-      header.append(titleGroup, controls, element('span', 'pz-promo-cms__accordion-chevron', '⌄'));
+      const controls = sectionActionButtons(card, `sección ${labelText}`, section.type);
+      header.append(titleGroup);
+      if (controls) header.append(controls);
+      header.append(element('span', 'pz-promo-cms__accordion-chevron', '⌄'));
 
       const visible = element('label', 'pz-promo-cms__switch compact');
       const visibleInput = element('input');
@@ -641,6 +676,7 @@ const isContent = scope === 'content';
         section.type !== 'gallery' || section.key === PROMO_CMS_WORK_GALLERY_KEY
       ));
       list.replaceChildren(...organizationSections.map((section: CmsDocument) => createSectionCard(section, localized)));
+      updateSectionOrderControls();
       updateServiceQuota();
     }
 
