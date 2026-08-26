@@ -164,6 +164,7 @@ test('contrato vivo v2 migra v1 sin snapshots y añade slogan, QR y enlaces de g
   const live = contract.upgradePromoDocument(emptyDraft());
   assert.equal(live.contract, 'promo.site.v2');
   assert.equal(live.contact.qr_media_use_key, '');
+  assert.equal(live.contact.logo_media_use_key, '');
   assert.deepEqual(contract.validatePromoDocument(live), live);
   assert.equal(contract.LIVE_READ_CONTRACT, 'promo.live.read.v1');
   assert.equal(contract.LIVE_UPDATE_CONTRACT, 'promo.live.update.v1');
@@ -200,8 +201,10 @@ test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y
     'gallery-cover': { asset_id: 'a'.repeat(15), purpose: 'gallery' },
     'gallery-wool': { asset_id: 'b'.repeat(15), purpose: 'gallery' },
     contact_qr: { asset_id: 'c'.repeat(15), purpose: 'qr' },
+    business_logo: { asset_id: 'd'.repeat(15), purpose: 'logo' },
   };
   live.contact.qr_media_use_key = 'contact_qr';
+  live.contact.logo_media_use_key = 'business_logo';
   live.content_by_locale.es.identity.slogan = 'Restauramos historias';
   live.content_by_locale.es.navigation = {
     'hero-main': 'Inicio', 'services-main': 'Servicios', 'featured-main': 'Destacados',
@@ -227,6 +230,7 @@ test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y
     'gallery-cover': { alt: 'Alfombra de seda restaurada', decorative: false },
     'gallery-wool': { alt: 'Alfombra de lana limpia', decorative: false },
     contact_qr: { alt: 'Código QR de contacto', decorative: false },
+    business_logo: { alt: "Logo de Aladdin's Carpet", decorative: false },
   };
 
   assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
@@ -368,6 +372,16 @@ test('acciones derivadas preservan permisos granulares para tema, traducciones, 
   const actions = contract.changedActionKeys(next, withAdapters, []);
   assert.ok(actions.includes('promo.reviews.manage'));
   assert.ok(actions.includes('promo.landing_qr.bridge.manage'));
+});
+
+test('la validación multidioma no depende del orden de claves devuelto por JSON', () => {
+  const document = publishedDocument();
+  document.locales.published = ['en', 'es'];
+  document.content_by_locale = {
+    es: document.content_by_locale.es,
+    en: structuredClone(document.content_by_locale.es),
+  };
+  assert.doesNotThrow(() => contract.validatePromoDocument(document, { publicRevision: true }));
 });
 
 test('errores privados mantienen códigos saneados y no reflejan inputs desconocidos', () => {

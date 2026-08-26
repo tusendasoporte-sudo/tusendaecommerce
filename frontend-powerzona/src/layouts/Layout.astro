@@ -10,6 +10,7 @@ const {
 	isBazar = false,
 	isMaster = false,
 	hideStoreFloatingUi: hideStoreFloatingUiProp = false,
+	htmlLang = 'es',
 	preloadImage = '',
 	seo = {},
 } = Astro.props;
@@ -36,10 +37,11 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 const contentContainerClass = isMaster
 	? 'w-full min-w-0'
 	: 'w-full max-w-7xl mx-auto p-4 sm:p-6';
+const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htmlLang) : 'es';
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={documentLanguage}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />

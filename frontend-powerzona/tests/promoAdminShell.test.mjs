@@ -175,7 +175,10 @@ test('shell es separado, responsive y no monta navegación Commerce', () => {
   assert.match(shell, /aria-controls="pz-promo-admin-nav"/);
   assert.match(shell, /event\.key === 'Escape'/);
   assert.match(shell, /event\.key !== 'Tab'/);
-  assert.match(shell, /<Layout isMaster=\{true\}>/);
+  assert.match(shell, /<Layout isMaster=\{true\} htmlLang=\{adminLocale\}>/);
+  assert.match(shell, /data-promo-admin-locale-select/);
+  assert.match(shell, /PROMO_ADMIN_LOCALE_COOKIE/);
+  assert.match(shell, /observePromoAdminTranslations/);
   assert.match(shell, /Contactar a Tu Senda 84/);
   assert.match(shell, /¿Necesitas ayuda con tu página\?/);
   assert.match(shell, /Escribir por WhatsApp/);

@@ -37,7 +37,7 @@ const SECTION_TYPES = Object.freeze([
   "hero", "services", "featured_work", "gallery", "owner", "store_rating", "contact", "footer",
 ]);
 const MEDIA_PURPOSES = Object.freeze([
-  "hero", "service", "gallery", "owner", "footer", "social", "video_poster", "qr",
+  "hero", "service", "gallery", "owner", "footer", "social", "video_poster", "qr", "logo",
 ]);
 const CONTACT_TYPES = Object.freeze([
   "whatsapp", "phone", "email", "internal_form", "approved_live_chat",
@@ -424,11 +424,14 @@ function validateContactConfig(action) {
 
 function validateContact(value, liveDocument) {
   const contact = exactKeys(value, liveDocument
-    ? ["enabled", "primary_action_key", "secondary_action_keys", "actions", "qr_media_use_key"]
+    ? ["enabled", "primary_action_key", "secondary_action_keys", "actions", "logo_media_use_key", "qr_media_use_key"]
     : ["enabled", "primary_action_key", "secondary_action_keys", "actions"]);
   assertBoolean(contact.enabled);
   assertKey(contact.primary_action_key, KEY_PATTERN, true);
-  if (liveDocument) assertKey(contact.qr_media_use_key, USE_KEY_PATTERN, true);
+  if (liveDocument) {
+    assertKey(contact.logo_media_use_key, USE_KEY_PATTERN, true);
+    assertKey(contact.qr_media_use_key, USE_KEY_PATTERN, true);
+  }
   assertStringArray(contact.secondary_action_keys, {
     max: data.HARD_LIMITS.max_contact_actions, pattern: KEY_PATTERN,
   });
@@ -502,8 +505,9 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
   const localeKeys = Object.keys(byLocale);
   if (localeKeys.length > data.HARD_LIMITS.max_locales) fail("invalid_promo_document", 400);
   localeKeys.forEach(assertCanonicalLocale);
-  if (publicRevision && (localeKeys.length !== document.locales.published.length
-    || localeKeys.some((locale, index) => locale !== document.locales.published[index]))) {
+  const canonicalLocaleKeys = localeKeys.slice().sort();
+  if (publicRevision && (canonicalLocaleKeys.length !== document.locales.published.length
+    || canonicalLocaleKeys.some((locale, index) => locale !== document.locales.published[index]))) {
     fail("incomplete_promo_locale", 400, "locale_set");
   }
   const sectionMap = new Map(document.sections.map((section) => [section.key, section]));
@@ -617,7 +621,7 @@ function upgradePromoDocument(input) {
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
   next.contract = LIVE_DOCUMENT_CONTRACT;
-  next.contact = { ...next.contact, qr_media_use_key: "" };
+  next.contact = { ...next.contact, logo_media_use_key: "", qr_media_use_key: "" };
 
   const sectionKeys = new Set(next.sections.map((section) => section.key));
   const gallerySections = next.sections.filter((section) => section.type === "gallery");
@@ -766,6 +770,11 @@ function validatePromoDocument(input, options) {
     if (!qrRef || qrRef.purpose !== "qr") fail("invalid_promo_media_reference", 400);
     used.media.add(document.contact.qr_media_use_key);
   }
+  if (liveDocument && document.contact.logo_media_use_key) {
+    const logoRef = document.media_refs[document.contact.logo_media_use_key];
+    if (!logoRef || logoRef.purpose !== "logo") fail("invalid_promo_media_reference", 400);
+    used.media.add(document.contact.logo_media_use_key);
+  }
   used.media.forEach((key) => {
     if (!Object.prototype.hasOwnProperty.call(document.media_refs, key)) fail("invalid_promo_media_reference", 400);
   });
@@ -898,7 +907,10 @@ function projectPublicDocument(document, siteSlug, media) {
       secondary_action_keys: document.contact.enabled ? document.contact.secondary_action_keys.slice() : [],
       actions: enabledActions.map((action) => ({ key: action.key, type: action.type, enabled: true })),
       ...(document.contract === LIVE_DOCUMENT_CONTRACT
-        ? { qr_media_use_key: document.contact.qr_media_use_key }
+        ? {
+          logo_media_use_key: document.contact.logo_media_use_key,
+          qr_media_use_key: document.contact.qr_media_use_key,
+        }
         : {}),
     },
     content_by_locale: resultContent,

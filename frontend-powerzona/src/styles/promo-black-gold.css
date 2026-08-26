@@ -113,6 +113,23 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 .promo-shell-brand__mark::after { inset: 11px; background: var(--promo-accent); }
 .promo-shell-brand__mark span { inset: -5px 14px; border-block: 0; }
 
+.promo-shell-brand__logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: max(.35rem, var(--promo-radius));
+  background: rgb(255 255 255 / 92%);
+}
+
+.promo-shell-brand__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .promo-shell-brand__name {
   overflow: hidden;
   font-family: var(--promo-heading-font);
@@ -121,6 +138,21 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.promo-contact__logo {
+  width: clamp(5.5rem, 12vw, 8rem);
+  margin-bottom: 1rem;
+}
+
+.promo-contact__logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--promo-radius);
+  object-fit: contain;
+  background: rgb(255 255 255 / 94%);
 }
 
 .promo-shell-navigation ul,

@@ -48,6 +48,8 @@ const ACTION_CATALOG = Object.freeze({
   "promo.localization.update": definition("localization", "important", ["promo_draft_document", "promo_live_document"], "Cambió locales o traducciones Promo"),
   "promo.contact.update": definition("contact", "critical", ["promo_draft_document"], "Cambió la configuración de contacto Promo"),
   "promo.reviews.moderate": definition("reviews", "important", ["promo_store_review"], "Moderó una reseña de tienda en Promo"),
+  "promo.reviews.request.create": definition("reviews", "important", ["promo_review_request"], "Creó una solicitud privada de reseña"),
+  "promo.reviews.request.revoke": definition("reviews", "important", ["promo_review_request"], "Revocó una solicitud privada de reseña"),
   "promo.publication.publish": definition("publication", "critical", ["promo_publication_slot"], "Publicó una revisión Promo"),
   "promo.publication.rollback": definition("publication", "critical", ["promo_publication_slot"], "Revirtió la publicación Promo"),
   "promo.publication.unpublish": definition("publication", "critical", ["promo_publication_slot"], "Despublicó la Tienda Promo"),
@@ -78,6 +80,7 @@ const RESOURCE_SAFE_FIELDS = Object.freeze({
   promo_publication_slot: Object.freeze(["state", "generation", "canonical_mode", "revision_digest", "binding_state", "reason_code"]),
   promo_domain_binding: Object.freeze(["role", "status", "is_current", "state_version", "verification_method"]),
   promo_store_review: Object.freeze(["status", "featured", "approved"]),
+  promo_review_request: Object.freeze(["status", "locale", "photo_count", "expires"]),
   promo_security_event: Object.freeze(["class", "result", "reason_code"]),
 });
 
@@ -99,6 +102,7 @@ const RESOURCE_PATH_PREFIXES = Object.freeze({
   promo_publication_slot: Object.freeze(["/state", "/generation", "/canonical_mode", "/revision_digest", "/binding_state", "/reason_code"]),
   promo_domain_binding: Object.freeze(["/role", "/status", "/is_current", "/state_version", "/verification_method"]),
   promo_store_review: Object.freeze(["/status", "/featured", "/approved"]),
+  promo_review_request: Object.freeze(["/status", "/locale", "/photo_count", "/expires_at"]),
   promo_security_event: Object.freeze(["/class", "/result", "/reason_code"]),
 });
 

@@ -60,7 +60,10 @@ function publicDocument(tokens = {}) {
       config: { media_use_key: '', action_key: '' }, media_use_keys: [],
     }],
     media_refs: {},
-    contact: { enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [], qr_media_use_key: '' },
+    contact: {
+      enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [],
+      logo_media_use_key: '', qr_media_use_key: '',
+    },
     content_by_locale: {
       es: {
         identity: { name: "Aladdin's Carpet", slogan: '' },

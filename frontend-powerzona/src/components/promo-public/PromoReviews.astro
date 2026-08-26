@@ -15,6 +15,54 @@ const { profile, section, localized, heading, navigationLabel, primaryHeading } 
 const sectionId = `promo-section-${section.key}`;
 const rating = profile.store_rating;
 const messages = profile.system.messages;
+const spanish = profile.locale.effective.toLowerCase().startsWith('es');
+const copy = spanish ? {
+  leave: 'Dejar una reseña',
+  first: 'Aún no hay reseñas. Sé la primera persona en compartir tu experiencia.',
+  all: 'Ver todas las reseñas',
+  previous: 'Reseñas anteriores',
+  next: 'Reseñas siguientes',
+  pause: 'Pausar rotación',
+  play: 'Reanudar rotación',
+  close: 'Cerrar',
+  formTitle: 'Comparte tu experiencia',
+  formIntro: 'Tu reseña se enviará para moderación antes de aparecer públicamente.',
+  name: 'Nombre público',
+  rating: 'Calificación',
+  comment: 'Cuéntanos tu experiencia',
+  consent: 'Autorizo mostrar estas fotos del trabajo junto a mi reseña si es aprobada.',
+  submit: 'Enviar reseña',
+  sending: 'Enviando…',
+  success: 'Gracias. Tu reseña quedó pendiente de aprobación.',
+  verified: 'Trabajo verificado',
+  photos: 'Fotos del trabajo',
+  requestLoading: 'Cargando la solicitud y sus fotos…',
+  allTitle: 'Todas las reseñas',
+  page: 'Página',
+} : {
+  leave: 'Leave a review',
+  first: 'There are no reviews yet. Be the first to share your experience.',
+  all: 'View all reviews',
+  previous: 'Previous reviews',
+  next: 'Next reviews',
+  pause: 'Pause rotation',
+  play: 'Resume rotation',
+  close: 'Close',
+  formTitle: 'Share your experience',
+  formIntro: 'Your review will be moderated before it appears publicly.',
+  name: 'Public name',
+  rating: 'Rating',
+  comment: 'Tell us about your experience',
+  consent: 'I authorize these work photos to appear with my review if it is approved.',
+  submit: 'Submit review',
+  sending: 'Sending…',
+  success: 'Thank you. Your review is pending approval.',
+  verified: 'Verified service',
+  photos: 'Work photos',
+  requestLoading: 'Loading the request and its photos…',
+  allTitle: 'All reviews',
+  page: 'Page',
+};
 
 function message(key: string, values: Record<string, string | number> = {}) {
   return String(messages[key] || '').replace(/\{([a-z_]+)\}/g, (_, name) => String(values[name] ?? ''));
@@ -38,10 +86,14 @@ const countCopy = rating.summary.count === 1
   id={sectionId}
   class="promo-shell-section promo-reviews"
   aria-labelledby={`${sectionId}-heading`}
+  data-promo-public-reviews
   data-section-type="store_rating"
   data-section-variant={section.variant}
+  data-public-slug={profile.site.public_slug}
+  data-locale={profile.locale.effective}
   data-review-count={String(rating.summary.count)}
   data-visible-review-count={String(rating.reviews.length)}
+  data-copy={JSON.stringify(copy)}
 >
   <div class="promo-shell-section__inner promo-reviews__inner">
     <div class="promo-reviews__heading">
@@ -68,37 +120,328 @@ const countCopy = rating.summary.count === 1
 
     {!rating.enabled ? (
       <p class="promo-reviews__state" role="status">{message('reviews.unavailable')}</p>
-    ) : rating.reviews.length === 0 ? (
-      <p class="promo-reviews__state" role="status">{message('reviews.empty')}</p>
     ) : (
-      <div
-        class="promo-reviews__viewport"
-        tabindex="0"
-        role="region"
-        aria-label={message('reviews.list')}
-      >
-        <ol class="promo-reviews__list">
-          {rating.reviews.map((review) => {
-            const date = reviewDate(review.date);
-            const ratingLabel = message('reviews.rating', { rating: review.rating });
-            return (
-              <li>
-                <article class="promo-reviews__card">
-                  <span class="promo-reviews__quote" aria-hidden="true">“</span>
-                  <div class="promo-reviews__stars" role="img" aria-label={ratingLabel}>
-                    <span aria-hidden="true">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
-                  </div>
-                  {review.comment && <blockquote><p>{review.comment}</p></blockquote>}
-                  <footer>
-                    <strong>{review.name}</strong>
-                    {date && <time datetime={review.date}>{date}</time>}
-                  </footer>
-                </article>
-              </li>
-            );
-          })}
-        </ol>
+      <div class="promo-reviews__experience">
+        <div class="promo-reviews__carousel" data-review-carousel>
+          <div class="promo-reviews__viewport" tabindex="0" role="region" aria-label={message('reviews.list')}>
+            <ol class="promo-reviews__list" data-review-list>
+              {rating.reviews.slice(0, 3).map((review) => {
+                const date = reviewDate(review.date);
+                const ratingLabel = message('reviews.rating', { rating: review.rating });
+                return (
+                  <li>
+                    <article class="promo-reviews__card">
+                      <span class="promo-reviews__quote" aria-hidden="true">“</span>
+                      <div class="promo-reviews__stars" role="img" aria-label={ratingLabel}>
+                        <span aria-hidden="true">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+                      </div>
+                      {review.comment && <blockquote><p>{review.comment}</p></blockquote>}
+                      <footer><strong>{review.name}</strong>{date && <time datetime={review.date}>{date}</time>}</footer>
+                    </article>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+          <p class="promo-reviews__state" data-review-empty role="status" hidden={rating.reviews.length > 0}>{copy.first}</p>
+          <div class="promo-reviews__controls" data-review-controls hidden>
+            <button type="button" data-review-previous aria-label={copy.previous}>←</button>
+            <span data-review-group-status aria-live="polite"></span>
+            <button type="button" data-review-next aria-label={copy.next}>→</button>
+            <button type="button" data-review-pause>{copy.pause}</button>
+          </div>
+        </div>
+
+        <div class="promo-reviews__primary-actions">
+          <button type="button" class="promo-reviews__action" data-review-open-form>{copy.leave}</button>
+          <button type="button" class="promo-reviews__action is-secondary" data-review-open-all hidden>{copy.all}</button>
+        </div>
+        <div class="promo-reviews__notice" data-review-notice role="status" aria-live="polite" hidden></div>
       </div>
     )}
   </div>
+
+  <dialog class="promo-reviews__dialog" data-review-form-dialog aria-labelledby={`${sectionId}-form-title`}>
+    <form method="dialog" class="promo-reviews__dialog-close"><button value="close" aria-label={copy.close}>×</button></form>
+    <div class="promo-reviews__dialog-body">
+      <header><p class="promo-shell-section__eyebrow">{navigationLabel}</p><h3 id={`${sectionId}-form-title`}>{copy.formTitle}</h3><p>{copy.formIntro}</p></header>
+      <p data-review-request-status role="status" hidden></p>
+      <div class="promo-reviews__request-photos" data-review-request-photos hidden aria-label={copy.photos}></div>
+      <form class="promo-reviews__form" data-review-form novalidate>
+        <label><span>{copy.name}</span><input type="text" name="name" minlength="2" maxlength="80" autocomplete="name" required /></label>
+        <fieldset>
+          <legend>{copy.rating}</legend>
+          <div class="promo-reviews__rating-input">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <label><input type="radio" name="rating" value={String(value)} required /><span aria-hidden="true">★</span><span class="promo-visually-hidden">{value}</span></label>
+            ))}
+          </div>
+        </fieldset>
+        <label><span>{copy.comment}</span><textarea name="comment" minlength="10" maxlength="1000" rows="6" required></textarea></label>
+        <label class="promo-reviews__honeypot" aria-hidden="true"><span>Website</span><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+        <label class="promo-reviews__consent" data-review-photo-consent hidden><input type="checkbox" name="photo_consent" /><span>{copy.consent}</span></label>
+        <button type="submit" data-review-submit>{copy.submit}</button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog class="promo-reviews__dialog promo-reviews__dialog--all" data-review-all-dialog aria-labelledby={`${sectionId}-all-title`}>
+    <form method="dialog" class="promo-reviews__dialog-close"><button value="close" aria-label={copy.close}>×</button></form>
+    <div class="promo-reviews__dialog-body">
+      <header><p class="promo-shell-section__eyebrow">{navigationLabel}</p><h3 id={`${sectionId}-all-title`}>{copy.allTitle}</h3></header>
+      <div class="promo-reviews__all-grid" data-review-all-grid></div>
+      <nav class="promo-reviews__all-pagination" aria-label={copy.allTitle}>
+        <button type="button" data-review-all-previous>{copy.previous}</button>
+        <span data-review-all-page></span>
+        <button type="button" data-review-all-next>{copy.next}</button>
+      </nav>
+      <button type="button" class="promo-reviews__action" data-review-all-leave>{copy.leave}</button>
+    </div>
+  </dialog>
 </section>
+
+<script>
+  import {
+    normalizePromoPublicRequestContext,
+    normalizePromoPublicReviewsPage,
+    normalizePromoPublicReviewSubmission,
+    promoPublicReviewsPath,
+    promoReviewRequestsErrorMessage,
+  } from '../../lib/promoReviewRequests';
+
+  type Review = ReturnType<typeof normalizePromoPublicReviewsPage>['reviews'][number];
+
+  document.querySelectorAll<HTMLElement>('[data-promo-public-reviews]').forEach((root) => {
+    const slug = root.dataset.publicSlug || '';
+    const locale = root.dataset.locale || 'es';
+    const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>;
+    const list = root.querySelector<HTMLOListElement>('[data-review-list]');
+    const empty = root.querySelector<HTMLElement>('[data-review-empty]');
+    const controls = root.querySelector<HTMLElement>('[data-review-controls]');
+    const groupStatus = root.querySelector<HTMLElement>('[data-review-group-status]');
+    const pauseButton = root.querySelector<HTMLButtonElement>('[data-review-pause]');
+    const openAll = root.querySelector<HTMLButtonElement>('[data-review-open-all]');
+    const formDialog = root.querySelector<HTMLDialogElement>('[data-review-form-dialog]');
+    const allDialog = root.querySelector<HTMLDialogElement>('[data-review-all-dialog]');
+    const form = root.querySelector<HTMLFormElement>('[data-review-form]');
+    const submit = root.querySelector<HTMLButtonElement>('[data-review-submit]');
+    const notice = root.querySelector<HTMLElement>('[data-review-notice]');
+    const requestStatus = root.querySelector<HTMLElement>('[data-review-request-status]');
+    const requestPhotos = root.querySelector<HTMLElement>('[data-review-request-photos]');
+    const consent = root.querySelector<HTMLElement>('[data-review-photo-consent]');
+    const allGrid = root.querySelector<HTMLElement>('[data-review-all-grid]');
+    const allPage = root.querySelector<HTMLElement>('[data-review-all-page]');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mobile = window.matchMedia('(max-width: 720px)');
+    const tablet = window.matchMedia('(max-width: 1000px)');
+    let reviews: Review[] = [];
+    let groups: Review[][] = [];
+    let groupIndex = 0;
+    let paused = reducedMotion.matches;
+    let timer = 0;
+    let requestToken = '';
+    let renderedAt = Date.now();
+    let allCurrentPage = 1;
+    let allTotalPages = 1;
+    const objectUrls: string[] = [];
+
+    function show(message: string, tone: 'success' | 'error' = 'success') {
+      if (!notice) return;
+      notice.hidden = !message;
+      notice.textContent = message;
+      notice.dataset.tone = tone;
+    }
+
+    async function responseJson(response: Response) {
+      const value = await response.json().catch(() => null);
+      if (!response.ok || value?.ok !== true) {
+        const error = new Error(String(value?.error || 'promo_reviews_unavailable')) as Error & { code?: string };
+        error.code = String(value?.error || 'promo_reviews_unavailable');
+        throw error;
+      }
+      return value;
+    }
+
+    function shuffle<T>(values: readonly T[]) {
+      const result = [...values];
+      for (let index = result.length - 1; index > 0; index -= 1) {
+        const random = crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+        const target = Math.floor(random * (index + 1));
+        [result[index], result[target]] = [result[target], result[index]];
+      }
+      return result;
+    }
+
+    function groupSize() { return mobile.matches ? 1 : (tablet.matches ? 2 : 3); }
+
+    function regroup() {
+      const featured = reviews.filter((review) => review.featured);
+      const ordinary = shuffle(reviews.filter((review) => !review.featured));
+      const ordered = [...featured, ...ordinary];
+      const size = groupSize();
+      groups = [];
+      for (let index = 0; index < ordered.length; index += size) groups.push(ordered.slice(index, index + size));
+      groupIndex = Math.min(groupIndex, Math.max(0, groups.length - 1));
+      renderGroup();
+    }
+
+    function formattedDate(value: string) {
+      if (!value) return '';
+      try { return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`)); }
+      catch (_) { return ''; }
+    }
+
+    function card(review: Review) {
+      const article = document.createElement('article');
+      article.className = 'promo-reviews__card';
+      if (review.photos[0]) {
+        const image = document.createElement('img');
+        image.className = 'promo-reviews__card-photo';
+        image.src = review.photos[0].url;
+        image.width = review.photos[0].width;
+        image.height = review.photos[0].height;
+        image.alt = copy.photos || '';
+        image.loading = 'lazy';
+        article.append(image);
+      }
+      const quote = document.createElement('span'); quote.className = 'promo-reviews__quote'; quote.ariaHidden = 'true'; quote.textContent = '“';
+      const stars = document.createElement('div'); stars.className = 'promo-reviews__stars'; stars.setAttribute('role', 'img');
+      stars.setAttribute('aria-label', `${review.rating} / 5`);
+      const starText = document.createElement('span'); starText.ariaHidden = 'true'; starText.textContent = `${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}`; stars.append(starText);
+      article.append(quote, stars);
+      if (review.serviceVerified) {
+        const verified = document.createElement('span'); verified.className = 'promo-reviews__verified'; verified.textContent = copy.verified; article.append(verified);
+      }
+      if (review.comment) {
+        const blockquote = document.createElement('blockquote'); const paragraph = document.createElement('p'); paragraph.textContent = review.comment; blockquote.append(paragraph); article.append(blockquote);
+      }
+      const footer = document.createElement('footer'); const name = document.createElement('strong'); name.textContent = review.name; footer.append(name);
+      const date = formattedDate(review.date); if (date) { const time = document.createElement('time'); time.dateTime = review.date; time.textContent = date; footer.append(time); }
+      article.append(footer);
+      return article;
+    }
+
+    function renderGroup() {
+      if (!list) return;
+      list.replaceChildren();
+      const current = groups[groupIndex] || [];
+      current.forEach((review) => { const item = document.createElement('li'); item.append(card(review)); list.append(item); });
+      if (empty) empty.hidden = current.length > 0;
+      if (controls) controls.hidden = groups.length <= 1;
+      if (groupStatus) groupStatus.textContent = groups.length ? `${groupIndex + 1} / ${groups.length}` : '';
+      if (pauseButton) { pauseButton.textContent = paused ? copy.play : copy.pause; pauseButton.hidden = groups.length <= 1 || reducedMotion.matches; }
+      root.dataset.visibleReviewCount = String(current.length);
+      restartTimer();
+    }
+
+    function restartTimer() {
+      window.clearInterval(timer);
+      if (paused || reducedMotion.matches || groups.length <= 1) return;
+      timer = window.setInterval(() => { groupIndex = (groupIndex + 1) % groups.length; renderGroup(); }, 8000);
+    }
+
+    async function loadPage(page: number) {
+      const url = new URL(promoPublicReviewsPath(slug), window.location.origin);
+      url.searchParams.set('locale', locale); url.searchParams.set('page', String(page));
+      return normalizePromoPublicReviewsPage(await responseJson(await fetch(url, { cache: 'no-store' })));
+    }
+
+    async function loadInitial() {
+      const page = await loadPage(1);
+      reviews = [...page.reviews];
+      root.dataset.reviewCount = String(page.totalItems);
+      if (openAll) { openAll.hidden = page.totalItems <= 3; openAll.textContent = `${copy.all} (${page.totalItems})`; }
+      regroup();
+    }
+
+    async function loadAllPage(page: number) {
+      const result = await loadPage(page);
+      allCurrentPage = result.page; allTotalPages = result.totalPages;
+      if (allGrid) { allGrid.replaceChildren(); result.reviews.forEach((review) => allGrid.append(card(review))); }
+      if (allPage) allPage.textContent = `${copy.page} ${allCurrentPage} / ${allTotalPages}`;
+      const previous = root.querySelector<HTMLButtonElement>('[data-review-all-previous]');
+      const next = root.querySelector<HTMLButtonElement>('[data-review-all-next]');
+      if (previous) previous.disabled = allCurrentPage <= 1;
+      if (next) next.disabled = allCurrentPage >= allTotalPages;
+    }
+
+    function openReviewForm() {
+      renderedAt = Date.now();
+      if (formDialog && !formDialog.open) formDialog.showModal();
+    }
+
+    async function loadRequest(token: string) {
+      requestToken = token;
+      openReviewForm();
+      if (requestStatus) { requestStatus.hidden = false; requestStatus.textContent = copy.requestLoading; }
+      const context = normalizePromoPublicRequestContext(await responseJson(await fetch(promoPublicReviewsPath(slug, 'request'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      })));
+      const name = form?.elements.namedItem('name');
+      if (name instanceof HTMLInputElement && context.customerLabel) name.value = context.customerLabel;
+      if (requestStatus) { requestStatus.hidden = !context.workLabel; requestStatus.textContent = context.workLabel; }
+      if (requestPhotos) {
+        requestPhotos.replaceChildren();
+        for (const photo of context.photos) {
+          const response = await fetch(promoPublicReviewsPath(slug, 'request-photo'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, index: photo.index }),
+          });
+          if (!response.ok) throw new Error('review_photo_not_found');
+          const url = URL.createObjectURL(await response.blob()); objectUrls.push(url);
+          const image = document.createElement('img'); image.src = url; image.alt = copy.photos; image.width = photo.width; image.height = photo.height; requestPhotos.append(image);
+        }
+        requestPhotos.hidden = context.photos.length === 0;
+        if (consent) consent.hidden = context.photos.length === 0;
+      }
+    }
+
+    root.querySelector('[data-review-previous]')?.addEventListener('click', () => { if (groups.length) { groupIndex = (groupIndex - 1 + groups.length) % groups.length; renderGroup(); } });
+    root.querySelector('[data-review-next]')?.addEventListener('click', () => { if (groups.length) { groupIndex = (groupIndex + 1) % groups.length; renderGroup(); } });
+    pauseButton?.addEventListener('click', () => { paused = !paused; renderGroup(); });
+    root.querySelector('[data-review-carousel]')?.addEventListener('mouseenter', () => { window.clearInterval(timer); });
+    root.querySelector('[data-review-carousel]')?.addEventListener('mouseleave', restartTimer);
+    root.querySelector('[data-review-carousel]')?.addEventListener('focusin', () => { window.clearInterval(timer); });
+    root.querySelector('[data-review-carousel]')?.addEventListener('focusout', restartTimer);
+    root.querySelectorAll('[data-review-open-form]').forEach((button) => button.addEventListener('click', openReviewForm));
+    root.querySelector('[data-review-all-leave]')?.addEventListener('click', () => { allDialog?.close(); openReviewForm(); });
+    openAll?.addEventListener('click', () => { allDialog?.showModal(); void loadAllPage(1).catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error')); });
+    root.querySelector('[data-review-all-previous]')?.addEventListener('click', () => { if (allCurrentPage > 1) void loadAllPage(allCurrentPage - 1); });
+    root.querySelector('[data-review-all-next]')?.addEventListener('click', () => { if (allCurrentPage < allTotalPages) void loadAllPage(allCurrentPage + 1); });
+
+    [mobile, tablet].forEach((query) => query.addEventListener('change', regroup));
+    reducedMotion.addEventListener('change', () => { paused = reducedMotion.matches; renderGroup(); });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity() || !submit) return;
+      submit.disabled = true; submit.textContent = copy.sending;
+      try {
+        const data = new FormData(form);
+        const result = normalizePromoPublicReviewSubmission(await responseJson(await fetch(promoPublicReviewsPath(slug), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: String(data.get('name') || ''), rating: Number(data.get('rating')),
+            comment: String(data.get('comment') || ''), honeypot: String(data.get('website') || ''),
+            rendered_at: renderedAt, request_token: requestToken,
+            photo_consent: requestToken ? data.get('photo_consent') === 'on' : false,
+          }),
+        })));
+        form.reset(); requestToken = ''; formDialog?.close(); show(copy.success, 'success');
+        if (result.status === 'pending') await loadInitial();
+      } catch (error) {
+        const candidate = error as { code?: string; message?: string };
+        show(promoReviewRequestsErrorMessage(candidate.code || candidate.message), 'error');
+      } finally { submit.disabled = false; submit.textContent = copy.submit; }
+    });
+
+    const hash = window.location.hash.match(/^#review-request=([A-Za-z0-9_-]{43,96})$/);
+    if (hash) {
+      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      void loadRequest(hash[1]).catch((error) => {
+        if (requestStatus) { requestStatus.hidden = false; requestStatus.textContent = promoReviewRequestsErrorMessage(error?.code || error?.message); }
+      });
+    }
+    void loadInitial().catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error'));
+    window.addEventListener('pagehide', () => { objectUrls.forEach((url) => URL.revokeObjectURL(url)); window.clearInterval(timer); }, { once: true });
+  });
+</script>

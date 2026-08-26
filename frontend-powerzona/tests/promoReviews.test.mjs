@@ -86,29 +86,37 @@ test('renderer público valida rating dinámico como extensión del snapshot pub
   assert.equal(typeof normalizePromoPublicShellResponse, 'function');
 });
 
-test('sección pública es lista accesible SSR, localized y sin acciones comerciales', () => {
+test('sección pública conserva SSR y añade formulario moderado, carrusel y vista completa accesibles', () => {
   const component = read('../src/components/promo-public/PromoReviews.astro');
   const styles = read('../src/styles/promo-reviews.css');
   assert.match(component, /role="region"/);
-  assert.match(component, /<ol class="promo-reviews__list">/);
+  assert.match(component, /<ol class="promo-reviews__list" data-review-list>/);
   assert.match(component, /aria-label=\{ratingLabel\}/);
   assert.match(component, /Intl\.DateTimeFormat\(profile\.locale\.effective/);
-  assert.match(component, /reviews\.empty/);
+  assert.match(component, /data-review-form/);
+  assert.match(component, /data-review-open-all/);
+  assert.match(component, /photo_consent/);
+  assert.match(component, /prefers-reduced-motion/);
+  assert.match(component, /textContent = review\.comment/);
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /@media \(max-width: 720px\)/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(`${component}\n${styles}`, /href=|<form|<script|\bcart\b|\bcheckout\b|\bprice\b|\border\b|\banalytics\b|url\(|@import/i);
+  assert.doesNotMatch(`${component}\n${styles}`, /\bcart\b|\bcheckout\b|\bprice\b|\border_id\b|innerHTML|@import/i);
 });
 
 test('Admin usa módulo Promo dedicado, permisos granulares y DOM seguro', () => {
   const component = read('../src/components/admin/promo/PromoReviewsEditor.astro');
   const shell = read('../src/components/admin/promo/PromoAdminShell.astro');
   const proxy = read('../src/pages/api/admin/promo-reviews.ts');
+  const requestProxy = read('../src/pages/api/admin/promo-review-requests.ts');
   assert.match(shell, /section === 'reviews'[\s\S]*?<PromoReviewsEditor/);
   assert.match(shell, /promo\.reviews\.manage/);
   assert.match(component, /textContent = review\.comment/);
   assert.match(component, /data-review-action/);
   assert.match(proxy, /promo\.reviews\.list\.v1/);
   assert.match(proxy, /promoCmsSameOriginMutation/);
-  assert.doesNotMatch(`${component}\n${proxy}`, /\/orders|\/products|checkout|cart|innerHTML/);
+  assert.match(component, /purpose', 'review'/);
+  assert.match(component, /incoming\.length > 3/);
+  assert.match(requestProxy, /promo\.review-requests\.create\.v1/);
+  assert.doesNotMatch(`${component}\n${proxy}\n${requestProxy}`, /\/orders|\/products|checkout|cart|innerHTML/);
 });

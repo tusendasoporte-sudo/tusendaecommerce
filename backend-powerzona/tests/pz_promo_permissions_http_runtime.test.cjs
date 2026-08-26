@@ -23,6 +23,8 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787520650_promo_theme_catalog.js',
   '1787520660_promo_qr_media.js',
   '1787520700_promo_live_content.js',
+  '1787698800_promo_review_requests.js',
+  '1787698900_promo_brand_logo.js',
 ];
 
 function runtimeEnvironment() {
@@ -163,8 +165,8 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
         emptyRollbackDirectory,
         "SELECT COUNT(*) AS count FROM `_collections` WHERE `name` LIKE 'promo_%'",
       ).count,
-      13,
-      'up vacío contiene DATA',
+      14,
+      'up vacío contiene DATA y solicitudes de reseña',
     );
     const emptyPermissionDown = runPocketBase(
       ['migrate', 'down', String(POST_PERMISSION_MIGRATIONS.length + 1)],

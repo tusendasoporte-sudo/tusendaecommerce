@@ -90,6 +90,25 @@ test('Open Graph usa únicamente media pública aprobada y omite decorativos', (
   assert.equal(decorative.twitter.image, '');
 });
 
+test('Open Graph prioriza el logo de negocio sobre social y hero para compartir la página', () => {
+  const localized = localizedFixture('es');
+  localized.media = [
+    {
+      key: 'hero-main', purpose: 'hero', kind: 'image', width: 1200, height: 630,
+      delivery: { src: `/api/pz/promo/public/v1/sites/demo-promo/media/hero-main/${'a'.repeat(64)}/original.webp` },
+      accessibility: { alt: 'Portada', decorative: false },
+    },
+    {
+      key: 'business-logo', purpose: 'logo', kind: 'image', width: 512, height: 512,
+      delivery: { src: `/api/pz/promo/public/v1/sites/demo-promo/media/business-logo/${'b'.repeat(64)}/original.webp` },
+      accessibility: { alt: 'Logo del negocio', decorative: false },
+    },
+  ];
+  const page = seo.pageSeo(localized, { source: 'platform' });
+  assert.match(page.open_graph.image.url, /business-logo/);
+  assert.equal(page.open_graph.image.alt, 'Logo del negocio');
+});
+
 test('SEO limita sitemap a locales publicados y redirige recursos de aliases al primary', () => {
   const projection = {
     site: { public_slug: 'demo-promo' },

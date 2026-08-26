@@ -84,7 +84,8 @@ function shellEnvelope(source = 'platform') {
       }],
       media: [],
       contact: {
-        enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [], qr_media_use_key: '',
+        enabled: false, primary_action_key: '', secondary_action_keys: [], actions: [],
+        logo_media_use_key: '', qr_media_use_key: '',
       },
       contact_action: { contract: 'promo.contact.action.v1', available: false, action: null },
       footer: { contract: 'promo.footer.v1', sections: [] },
@@ -164,6 +165,7 @@ function imageDelivery({
     owner: { widths: [320, 640, 960], sizes: '(min-width: 900px) 40vw, 100vw' },
     video_poster: { widths: [480, 960, 1440], sizes: '100vw' },
     qr: { widths: [512], sizes: 'min(18rem, 80vw)' },
+    logo: { widths: [256, 512, 1024], sizes: 'min(10rem, 40vw)' },
   };
   const policy = policies[purpose];
   assert.ok(policy, `purpose MEDIA sin fixture: ${purpose}`);
@@ -298,6 +300,7 @@ function shellEnvelopeWithHeroMedia({ videoFirst = false } = {}) {
     primary_action_key: 'estimate',
     secondary_action_keys: [],
     actions: [{ key: 'estimate', type: 'phone', enabled: true }],
+    logo_media_use_key: '',
     qr_media_use_key: '',
   };
   envelope.profile.content.contact = {
@@ -529,6 +532,29 @@ test('CONTACT acepta un QR propio únicamente como imagen normalizada 512 por 51
   assert.throws(() => normalizePromoPublicShellResponse(wrongDimensions), PromoPublicShellError);
 });
 
+test('BRAND acepta un logo normalizado y lo reutiliza en cabecera, contacto y metadatos sociales', () => {
+  const envelope = shellEnvelope();
+  envelope.profile.contact.logo_media_use_key = 'business-logo';
+  envelope.profile.media.push({
+    key: 'business-logo', purpose: 'logo', kind: 'image', width: 512, height: 512, duration_ms: 0,
+    delivery: imageDelivery({
+      key: 'business-logo', purpose: 'logo', width: 512, height: 512,
+      priority: false, sha: 'e'.repeat(64),
+    }),
+    accessibility: { alt: 'Logo de Negocio demo', decorative: false },
+  });
+  envelope.profile.content.media_alt['business-logo'] = {
+    alt: 'Logo de Negocio demo', decorative: false,
+  };
+  const normalized = normalizePromoPublicShellResponse(envelope);
+  assert.equal(normalized.profile.contact.logo_media_use_key, 'business-logo');
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const contact = read('../src/components/promo-public/PromoContact.astro');
+  assert.match(theme, /profile\.contact\.logo_media_use_key/);
+  assert.match(theme, /<PromoSectionMedia media=\{logoMedia\}/);
+  assert.match(contact, /media\.purpose === 'logo'/);
+});
+
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithSections());
   assert.deepEqual(normalized.profile.section_order, [
@@ -704,6 +730,7 @@ test('renderer ALADDIN aplica la release negra/dorada y delega contacto y QR a r
   assert.match(theme, /<PromoLandingQrLink/);
   assert.match(contact, /data-contact-available/);
   assert.match(contact, /profile\.contact\.qr_media_use_key/);
+  assert.match(contact, /profile\.contact\.logo_media_use_key/);
   assert.match(contact, /<PromoSectionMedia/);
   assert.match(theme, /promo-shell-section__ornament/);
   assert.match(layout, /data-promo-token-accent=\{themeTokens\.accent\}/);

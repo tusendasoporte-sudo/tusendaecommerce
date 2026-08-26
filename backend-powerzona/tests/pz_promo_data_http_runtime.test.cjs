@@ -32,6 +32,8 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787520650_promo_theme_catalog.js',
   '1787520660_promo_qr_media.js',
   '1787520700_promo_live_content.js',
+  '1787698800_promo_review_requests.js',
+  '1787698900_promo_brand_logo.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -44,6 +46,7 @@ const PROMO_COLLECTIONS = [
   'promo_revision_media_refs',
   'promo_publication_slots',
   'promo_publication_events',
+  'promo_review_requests',
   'promo_audit_events',
   'promo_analytics_events',
   'promo_analytics_daily',
@@ -91,6 +94,11 @@ const EXPECTED_INDEXES = [
   'ix_promo_analytics_expiry',
   'ux_promo_analytics_daily_bucket',
   'ix_promo_analytics_daily_site_day',
+  'ux_promo_review_request_token',
+  'ix_promo_review_request_site_status',
+  'ix_promo_review_request_store_status',
+  'ux_promo_review_request_review',
+  'ix_promo_review_request_expiry',
 ];
 const WEBP = Buffer.from(
   'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEALmk0mk0iIiIiIgBoSygABc6zbAAA',
@@ -304,8 +312,8 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
         dataDirectory,
         "SELECT COUNT(*) AS count FROM `_collections` WHERE `name` LIKE 'promo_%'",
       ).count,
-      13,
-      'el primer migrate up crea las 13 colecciones Promo',
+      14,
+      'el primer migrate up crea las 14 colecciones Promo',
     );
     const secondUp = runPocketBase(['migrate', 'up'], dataDirectory, environment);
     assertCommand(secondUp, 'segundo migrate up efimero');

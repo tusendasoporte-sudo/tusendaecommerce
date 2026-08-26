@@ -578,7 +578,14 @@ function emptyDraftDocument() {
     section_order: [],
     sections: [],
     media_refs: {},
-    contact: { enabled: false, primary_action_key: "", secondary_action_keys: [], actions: [], qr_media_use_key: "" },
+    contact: {
+      enabled: false,
+      primary_action_key: "",
+      secondary_action_keys: [],
+      actions: [],
+      logo_media_use_key: "",
+      qr_media_use_key: "",
+    },
     content_by_locale: {},
     adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
   };

@@ -231,6 +231,7 @@ test('contacto actualiza canales tipados sin alterar las otras facetas del tenan
       { key: 'call-main', type: 'whatsapp', enabled: true, config: { phone_e164: '+13055550184' } },
       { key: 'mail-main', type: 'email', enabled: true, config: { email_address: 'contacto@example.com' } },
     ],
+    logo_media_use_key: '',
     qr_media_use_key: '',
   });
   assert.equal(updated.content_by_locale.es.contact['call-main'].message, 'Deseo solicitar un estimado.');
@@ -300,7 +301,8 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /reportValidity\(\)/);
-  assert.equal((editor.match(/data-cms-contact-panel=/g) || []).length, 3);
+  assert.equal((editor.match(/data-cms-contact-panel=/g) || []).length, 4);
+  assert.match(editor, /data-cms-logo-file[\s\S]*?purpose', 'logo'/);
   assert.match(editor, /<summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">/);
   assert.match(editor, /pz-promo-cms__qr-upload[\s\S]*?data-cms-upload-qr[\s\S]*?data-cms-remove-qr/);
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);

@@ -23,7 +23,7 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const MEDIA_KINDS = new Set(['image', 'video']);
-const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr']);
+const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr', 'review', 'logo']);
 const MEDIA_STATUSES = new Set(['uploaded', 'processing', 'ready', 'retired', 'rejected', 'quarantined']);
 const MIME_TYPES = new Set(['image/webp', 'video/mp4', 'video/webm']);
 const LOCALIZED_KEYS = Object.freeze(['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
@@ -462,6 +462,7 @@ export function buildPromoGalleryDocument(
     if (['hero', 'owner'].includes(section.type) && section.config.media_use_key) usedUseKeys.add(section.config.media_use_key);
   });
   if (document.contact.qr_media_use_key) usedUseKeys.add(document.contact.qr_media_use_key);
+  if (document.contact.logo_media_use_key) usedUseKeys.add(document.contact.logo_media_use_key);
   previousManagedUseKeys.forEach((useKey) => {
     if (usedUseKeys.has(useKey)) return;
     delete document.media_refs[useKey];

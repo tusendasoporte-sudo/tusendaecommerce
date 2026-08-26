@@ -95,6 +95,7 @@ export type PromoCmsContentPatch = Readonly<{
 
 export type PromoCmsContactPatch = Readonly<{
   enabled: boolean;
+  logoMediaUseKey?: string;
   qrMediaUseKey?: string;
   primaryActionKey: string;
   secondaryActionKeys: readonly string[];
@@ -245,7 +246,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
     || !isRecord(next.contact) || !isRecord(next.content_by_locale)) fail('invalid_payload');
 
   next.contract = PROMO_CMS_DOCUMENT_CONTRACT;
-  next.contact = { ...next.contact, qr_media_use_key: '' };
+  next.contact = { ...next.contact, logo_media_use_key: '', qr_media_use_key: '' };
   const localizedEntries = Object.values(next.content_by_locale);
   localizedEntries.forEach((localized) => {
     if (!isRecord(localized) || !isRecord(localized.identity) || !isRecord(localized.sections)) {
@@ -750,6 +751,7 @@ export function buildPromoCmsContactDocument(value: unknown, patch: PromoCmsCont
     primary_action_key: primaryActionKey,
     secondary_action_keys: secondaryActionKeys,
     actions,
+    logo_media_use_key: key(patch.logoMediaUseKey ?? document.contact.logo_media_use_key ?? '', true),
     qr_media_use_key: key(patch.qrMediaUseKey ?? document.contact.qr_media_use_key ?? '', true),
   };
   contactSection.config.action_keys = actions.filter((action: JsonRecord) => action.enabled)

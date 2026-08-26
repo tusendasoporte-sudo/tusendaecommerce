@@ -116,11 +116,13 @@ function identityFromProjection(projection, settings) {
 function approvedSocialImage(localized, slug) {
   const media = Array.isArray(localized && localized.media) ? localized.media : [];
   const ranked = [...media].sort((left, right) => {
-    const rank = (item) => item && item.purpose === "social" ? 0 : item && item.purpose === "hero" ? 1 : 2;
+    const rank = (item) => item && item.purpose === "logo" ? 0
+      : item && item.purpose === "social" ? 1
+        : item && item.purpose === "hero" ? 2 : 3;
     return rank(left) - rank(right);
   });
   for (const item of ranked) {
-    if (!item || !["social", "hero"].includes(item.purpose)) continue;
+    if (!item || !["logo", "social", "hero"].includes(item.purpose)) continue;
     const delivery = item.kind === "video" ? item.delivery && item.delivery.poster : item.delivery;
     const path = delivery && String(delivery.src || "");
     const expectedPrefix = `/api/pz/promo/public/v1/sites/${slug}/media/`;

@@ -55,7 +55,7 @@ const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
   linkedin: { label: 'LinkedIn', handle: /^(?:[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?)$/, href: (handle) => `https://www.linkedin.com/company/${handle}/` },
   youtube: { label: 'YouTube', handle: /^(?:[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?)$/, href: (handle) => `https://www.youtube.com/@${handle}` },
 });
-const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr']);
+const MEDIA_PURPOSES = new Set(['hero', 'service', 'gallery', 'owner', 'footer', 'social', 'video_poster', 'qr', 'logo']);
 const MEDIA_DELIVERY_CONTRACT = 'promo.media.delivery.v1';
 const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
   minWidth: number;
@@ -73,6 +73,7 @@ const MEDIA_PURPOSE_POLICIES: Readonly<Record<string, Readonly<{
   social: { minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630, widths: [600, 1200], sizes: '100vw' },
   video_poster: { minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900, widths: [480, 960, 1440], sizes: '100vw' },
   qr: { minWidth: 512, minHeight: 512, maxWidth: 512, maxHeight: 512, widths: [512], sizes: 'min(18rem, 80vw)' },
+  logo: { minWidth: 256, minHeight: 256, maxWidth: 1024, maxHeight: 1024, widths: [256, 512, 1024], sizes: 'min(10rem, 40vw)' },
 });
 const SECTION_MEDIA_PURPOSES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   hero: ['hero'], services: ['service'], featured_work: ['gallery'], gallery: ['gallery'],
@@ -956,7 +957,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const mediaKeys = media.map((item) => item.key);
   if (new Set(mediaKeys).size !== mediaKeys.length) fail();
   const contact = exactRecord(profile.contact, [
-    'enabled', 'primary_action_key', 'secondary_action_keys', 'actions', 'qr_media_use_key',
+    'enabled', 'primary_action_key', 'secondary_action_keys', 'actions', 'logo_media_use_key', 'qr_media_use_key',
   ]);
   if (typeof contact.enabled !== 'boolean' || !Array.isArray(contact.actions) || contact.actions.length > 32
     || !Array.isArray(contact.secondary_action_keys)) fail();
@@ -972,6 +973,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     primary_action_key: contact.primary_action_key === '' ? '' : safePattern(contact.primary_action_key, KEY_PATTERN),
     secondary_action_keys: contact.secondary_action_keys.map((item: unknown) => safePattern(item, KEY_PATTERN)),
     actions,
+    logo_media_use_key: contact.logo_media_use_key === '' ? '' : safePattern(contact.logo_media_use_key, KEY_PATTERN),
     qr_media_use_key: contact.qr_media_use_key === '' ? '' : safePattern(contact.qr_media_use_key, KEY_PATTERN),
   };
   if (new Set(normalizedContact.secondary_action_keys).size !== normalizedContact.secondary_action_keys.length
@@ -998,6 +1000,10 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   if (normalizedContact.qr_media_use_key) {
     const qrMedia = media.find((item) => item.key === normalizedContact.qr_media_use_key);
     if (!qrMedia || qrMedia.kind !== 'image' || qrMedia.purpose !== 'qr') fail();
+  }
+  if (normalizedContact.logo_media_use_key) {
+    const logoMedia = media.find((item) => item.key === normalizedContact.logo_media_use_key);
+    if (!logoMedia || logoMedia.kind !== 'image' || logoMedia.purpose !== 'logo') fail();
   }
   const sectionsByKey = new Map(sections.map((section) => [section.key, section]));
   for (const section of sections.filter((item) => item.type === 'services')) {

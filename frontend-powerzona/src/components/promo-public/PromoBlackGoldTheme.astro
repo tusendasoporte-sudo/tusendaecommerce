@@ -7,6 +7,7 @@ import PromoContact from './PromoContact.astro';
 import PromoFooter from './PromoFooter.astro';
 import PromoLandingQrLink from './PromoLandingQrLink.astro';
 import PromoReviews from './PromoReviews.astro';
+import PromoSectionMedia from './PromoSectionMedia.astro';
 import PromoSections from './PromoSections.astro';
 import type { PromoPublicProfile, PromoPublicSection, PromoPublicSeo } from '../../lib/promoPublicShell';
 
@@ -29,6 +30,10 @@ const sectionId = (key: string) => `promo-section-${key}`;
 const localizedSection = (section: PromoPublicSection) => content.sections[section.key] || {};
 const title = String(content.seo.title || identity.name);
 const description = String(content.seo.description || identity.summary || '');
+const logoMediaKey = String(profile.contact.logo_media_use_key || '');
+const logoMedia = profile.media.find((media) => (
+  media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
+));
 ---
 
 <PromoPublicLayout
@@ -47,7 +52,9 @@ const description = String(content.seo.description || identity.summary || '');
   <div class="promo-public-shell promo-black-gold promo-theme">
     <header class="promo-shell-header">
       <a class="promo-shell-brand" href={locale.canonical_path} aria-label={identity.name}>
-        <span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span>
+        {logoMedia?.kind === 'image' ? (
+          <span class="promo-shell-brand__logo"><PromoSectionMedia media={logoMedia} accessibleLabel={identity.name} /></span>
+        ) : <span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span>}
         <span class="promo-shell-brand__name">{identity.name}</span>
       </a>
 

@@ -609,6 +609,7 @@ module.exports = {
   mediaSnapshot,
   parsedDeliveryFile,
   posterHasDependentVideo,
+  serveFile,
   sendError,
   usage,
 };

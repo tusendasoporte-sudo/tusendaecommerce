@@ -44,7 +44,8 @@ test('RESP aplica reflujo aprobado a Hero, secciones, reseñas y footer', () => 
   assert.match(sectionStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-sections__service-card \{ grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)[\s\S]*?grid-column: 1 \/ -1/);
   assert.match(sectionStyles, /\.promo-sections__owner-media[\s\S]*?overflow: visible/);
-  assert.match(reviewStyles, /@media \(max-width: 420px\)[\s\S]*?grid-auto-columns: minmax\(15rem, 86vw\)/);
+  assert.match(reviewStyles, /@media \(max-width: 720px\)[\s\S]*?\.promo-reviews__all-grid \{ grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(reviewStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-reviews__card \{ padding: 1\.25rem/);
   assert.match(footerStyles, /@media \(max-width: 640px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(footerStyles, /@media \(max-width: 360px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 });

@@ -37,7 +37,7 @@ const isContent = scope === 'content';
       <p>
         {isContent
           ? 'Organiza identidad, portada, servicios, propietario y pie del sitio. Guardar actualiza la página automáticamente.'
-          : 'Configura canales, QR y el método principal. Guardar actualiza la página automáticamente.'}
+          : 'Configura el logo, canales, QR y el método principal. Guardar actualiza la página automáticamente.'}
       </p>
     </div>
     <div class="pz-promo-cms__draft-meta" aria-label="Estado de la página">
@@ -116,7 +116,7 @@ const isContent = scope === 'content';
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
               <h3 id="cms-contact-section-title">Presentación de contacto</h3>
-              <p>Controla la visibilidad, textos y QR que aparecen en la página pública.</p>
+              <p>Controla la visibilidad y los textos que aparecen en la página pública.</p>
             </div>
             <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
           </summary>
@@ -140,9 +140,34 @@ const isContent = scope === 'content';
           </div>
         </details>
 
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="qr">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="logo">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">02</span>
+            <div>
+              <h3 id="cms-contact-logo-title">Logo del negocio</h3>
+              <p>Se reutiliza en la cabecera pública y como imagen de vista previa al compartir por WhatsApp.</p>
+            </div>
+            <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="pz-promo-cms__qr-grid">
+            <div class="pz-promo-cms__qr-preview" data-cms-logo-preview><span>Sin logo</span></div>
+            <div class="pz-promo-cms__qr-upload">
+              <label class="pz-promo-cms__field">
+                <span>Imagen del logo</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-logo-file disabled={!canManageMedia} />
+                <small>Recomendado: imagen cuadrada de al menos 256×256. Se optimiza a WebP.</small>
+              </label>
+              <div class="pz-promo-cms__qr-actions">
+                <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-logo disabled={!canManageMedia}>Procesar logo</button>
+                <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-logo disabled={!canSave}>Quitar logo</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="qr">
+          <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
+            <span class="pz-promo-cms__step" aria-hidden="true">03</span>
             <div>
               <h3 id="cms-contact-qr-title">Código QR propio</h3>
               <p>Sube una imagen de QR; se convertirá a WebP 512×512 con fondo blanco y sin recorte.</p>
@@ -167,7 +192,7 @@ const isContent = scope === 'content';
 
         <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="methods">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
-            <span class="pz-promo-cms__step" aria-hidden="true">03</span>
+            <span class="pz-promo-cms__step" aria-hidden="true">04</span>
             <div>
               <h3 id="cms-contact-actions-title">Métodos permitidos</h3>
               <p>WhatsApp y teléfono exigen E.164; correo exige una dirección válida. No se aceptan URLs.</p>
@@ -251,6 +276,7 @@ const isContent = scope === 'content';
     let locale = '';
     let dirty = false;
     let busy = false;
+    let logoUseKey = '';
     let qrUseKey = '';
 
     function element<K extends keyof HTMLElementTagNameMap>(
@@ -302,6 +328,10 @@ const isContent = scope === 'content';
       if (!next) {
         updateServiceQuota();
         root.querySelectorAll<HTMLElement>('[data-cms-contact-action]').forEach(setContactControlState);
+        const logoFile = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
+        const logoUpload = root.querySelector<HTMLButtonElement>('[data-cms-upload-logo]');
+        if (logoFile) logoFile.disabled = !canManageMedia;
+        if (logoUpload) logoUpload.disabled = !canManageMedia;
         const qrFile = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
         const qrUpload = root.querySelector<HTMLButtonElement>('[data-cms-upload-qr]');
         if (qrFile) qrFile.disabled = !canManageMedia;
@@ -675,6 +705,78 @@ const isContent = scope === 'content';
       preview.append(image);
     }
 
+    function renderLogoPreview() {
+      const preview = root.querySelector<HTMLElement>('[data-cms-logo-preview]');
+      if (!preview || !documentValue) return;
+      preview.replaceChildren();
+      const assetId = documentValue.media_refs?.[logoUseKey]?.asset_id || '';
+      if (!logoUseKey || !/^[a-z0-9]{15}$/.test(assetId)) {
+        preview.append(element('span', '', 'Sin logo'));
+        return;
+      }
+      const image = element('img');
+      image.src = `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
+      image.alt = 'Vista previa del logo del negocio';
+      image.width = 192;
+      image.height = 192;
+      preview.append(image);
+    }
+
+    async function uploadLogo() {
+      const file = root.querySelector<HTMLInputElement>('[data-cms-logo-file]')?.files?.[0];
+      if (!documentValue || !file || !canManageMedia || busy) return;
+      clearError();
+      setBusy(true, 'Procesando logo…');
+      try {
+        const payload = new FormData();
+        payload.append('file', file);
+        payload.append('purpose', 'logo');
+        payload.append('poster_asset_id', '');
+        const response = await fetch(mediaEndpoint, {
+          method: 'POST', body: payload, headers: { Accept: 'application/json' }, credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => null);
+        const assetId = String(result?.asset?.asset_id || '');
+        if (!response.ok || result?.ok !== true || !/^[a-z0-9]{15}$/.test(assetId)
+          || result.asset?.purpose !== 'logo' || Number(result.asset?.width) < 256 || Number(result.asset?.height) < 256) {
+          throw Object.assign(new Error('promo_media_upload_failed'), { code: result?.error });
+        }
+        if (!logoUseKey) {
+          logoUseKey = 'logo-business';
+          if (documentValue.media_refs[logoUseKey]) {
+            const random = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+            logoUseKey = `logo-business-${random}`.slice(0, 120);
+          }
+        }
+        documentValue.media_refs[logoUseKey] = { asset_id: assetId, purpose: 'logo' };
+        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+          const businessName = String(content?.identity?.name || '').trim();
+          content.media_alt[logoUseKey] = { alt: businessName ? `Logo de ${businessName}` : 'Logo del negocio', decorative: false };
+        });
+        documentValue.contact.logo_media_use_key = logoUseKey;
+        renderLogoPreview();
+        setDirty();
+        if (status) {
+          status.hidden = false;
+          status.querySelector('span:last-child')!.textContent = 'Logo procesado. Guarda los cambios para actualizar la página y su vista previa social.';
+        }
+      } catch (error) {
+        showError((error as { code?: string })?.code || 'promo_media_upload_failed');
+      } finally {
+        setBusy(false, '');
+      }
+    }
+
+    function removeLogo() {
+      if (!documentValue || !logoUseKey || !canSave) return;
+      delete documentValue.media_refs[logoUseKey];
+      Object.values(documentValue.content_by_locale).forEach((content: any) => delete content.media_alt[logoUseKey]);
+      documentValue.contact.logo_media_use_key = '';
+      logoUseKey = '';
+      renderLogoPreview();
+      setDirty();
+    }
+
     async function uploadQr() {
       const file = root.querySelector<HTMLInputElement>('[data-cms-qr-file]')?.files?.[0];
       if (!documentValue || !file || !canManageMedia || busy) return;
@@ -744,6 +846,8 @@ const isContent = scope === 'content';
       if (heading) heading.value = sectionContent.heading || '';
       if (summary) summary.value = sectionContent.summary || '';
       if (enabled) enabled.checked = documentValue.contact.enabled === true;
+      logoUseKey = documentValue.contact.logo_media_use_key || '';
+      renderLogoPreview();
       qrUseKey = documentValue.contact.qr_media_use_key || '';
       renderQrPreview();
       const list = root.querySelector<HTMLElement>('[data-cms-contact-actions]');
@@ -804,6 +908,7 @@ const isContent = scope === 'content';
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-contact-action]'));
       return {
         enabled: root.querySelector<HTMLInputElement>('[data-cms-contact-enabled]')?.checked === true,
+        logoMediaUseKey: logoUseKey,
         qrMediaUseKey: qrUseKey,
         primaryActionKey: root.querySelector<HTMLInputElement>('[data-cms-primary]:checked')?.value || '',
         secondaryActionKeys: Array.from(root.querySelectorAll<HTMLInputElement>('[data-cms-secondary]:checked')).map((input) => input.value),
@@ -877,6 +982,8 @@ const isContent = scope === 'content';
     }
 
     root.querySelector('[data-cms-reload]')?.addEventListener('click', loadDraft);
+    root.querySelector('[data-cms-upload-logo]')?.addEventListener('click', uploadLogo);
+    root.querySelector('[data-cms-remove-logo]')?.addEventListener('click', removeLogo);
     root.querySelector('[data-cms-upload-qr]')?.addEventListener('click', uploadQr);
     root.querySelector('[data-cms-remove-qr]')?.addEventListener('click', removeQr);
     root.querySelector('[data-cms-add-contact]')?.addEventListener('click', () => {

@@ -19,6 +19,10 @@ const primaryCopy = primaryKey ? profile.content.contact[primaryKey] : undefined
 const fallbackLabel = String(primaryCopy?.label || profile.system.messages['contact.request_estimate']);
 const actionKeys = Array.isArray(section.config.action_keys) ? section.config.action_keys : [];
 const contactEnabled = Boolean(primaryKey && actionKeys.includes(primaryKey));
+const logoMediaKey = String(profile.contact.logo_media_use_key || '');
+const logoMedia = profile.media.find((media): media is PromoPublicMedia => (
+  media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
+));
 const qrMediaKey = String(profile.contact.qr_media_use_key || '');
 const qrMedia = profile.media.find((media): media is PromoPublicMedia => (
   media.key === qrMediaKey && media.kind === 'image' && media.purpose === 'qr'
@@ -36,6 +40,11 @@ const qrHeading = profile.locale.lang.startsWith('es') ? 'Escanea para contactar
 >
   <div class="promo-shell-section__inner promo-contact__inner">
     <div class="promo-shell-section__copy promo-contact__copy">
+      {logoMedia && (
+        <div class="promo-contact__logo">
+          <PromoSectionMedia media={logoMedia} accessibleLabel={String(profile.content.identity.name || heading)} />
+        </div>
+      )}
       <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
       {primaryHeading
         ? <h1 id={`${sectionId}-heading`}>{heading}</h1>
