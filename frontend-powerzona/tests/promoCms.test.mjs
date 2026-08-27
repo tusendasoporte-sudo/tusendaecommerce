@@ -420,7 +420,11 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.equal((editor.match(/data-cms-contact-panel=/g) || []).length, 4);
   assert.match(editor, /data-cms-logo-file[\s\S]*?purpose', 'logo'/);
   assert.match(editor, /<summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">/);
-  assert.match(editor, /pz-promo-cms__qr-upload[\s\S]*?data-cms-upload-qr[\s\S]*?data-cms-remove-qr/);
+  assert.match(editor, /data-cms-logo-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-logo[\s\S]*?data-cms-remove-logo/);
+  assert.match(editor, /data-cms-qr-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-qr[\s\S]*?data-cms-remove-qr/);
+  assert.match(editor, /bindContactMediaDrop\('\[data-cms-logo-slot\]'[\s\S]*?bindContactMediaDrop\('\[data-cms-qr-slot\]'/);
+  assert.match(editor, /data-cms-logo-count[\s\S]*?ideal 512×512 px · mínimo 256×256 px/);
+  assert.match(editor, /data-cms-qr-count[\s\S]*?ideal 512×512 px · mínimo 128×128 px/);
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);
   assert.match(editor, /Bajar/);
@@ -428,8 +432,8 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /data-cms-section-move/);
   assert.match(styles, /@media \(max-width: 760px\)/);
   assert.match(styles, /\.pz-promo-cms__accordion:not\(\[open\]\)/);
-  assert.match(styles, /\.pz-promo-cms__qr-grid[\s\S]*?grid-template-columns: 192px minmax\(240px, 1fr\)/);
-  assert.match(styles, /\.pz-promo-cms__qr-actions[\s\S]*?justify-content: flex-start/);
+  assert.match(styles, /\.pz-promo-cms__media-slots[\s\S]*?padding: 20px 22px/);
+  assert.match(styles, /\.pz-promo-cms__media-slot \.pz-promo-gallery__item-preview img[\s\S]*?object-fit: contain/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(shell, /section === 'content' \|\| section === 'contact'/);
   assert.match(shell, /<PromoCmsEditor/);

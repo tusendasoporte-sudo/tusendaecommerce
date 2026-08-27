@@ -1,5 +1,6 @@
 ---
 import type { PromoCmsScope } from '../../../lib/promoCms';
+import '../../../styles/promo-gallery.css';
 import '../../../styles/promo-cms.css';
 
 interface Props {
@@ -142,19 +143,31 @@ const isContent = scope === 'content';
             </div>
             <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
           </summary>
-          <div class="pz-promo-cms__qr-grid">
-            <div class="pz-promo-cms__qr-preview" data-cms-logo-preview><span>Sin logo</span></div>
-            <div class="pz-promo-cms__qr-upload">
-              <label class="pz-promo-cms__field">
-                <span>Imagen del logo</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-logo-file disabled={!canManageMedia} />
-                <small>Recomendado: imagen cuadrada de al menos 256×256. Se optimiza a WebP.</small>
-              </label>
-              <div class="pz-promo-cms__qr-actions">
-                <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-logo disabled={!canManageMedia}>Procesar logo</button>
-                <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-logo disabled={!canSave}>Quitar logo</button>
+          <div class="pz-promo-gallery pz-promo-cms__media-slots">
+            <section class="pz-promo-media-slots">
+              <header class="pz-promo-media-slots__header">
+                <strong>Imagen del logo</strong>
+                <span data-cms-logo-count>0 de 1 utilizados</span>
+              </header>
+              <div class="pz-promo-media-slots__grid">
+                <article class="pz-promo-media-slot pz-promo-cms__media-slot is-empty" data-cms-logo-slot>
+                  <div class="pz-promo-media-slot__heading">
+                    <strong>Espacio 1</strong>
+                    <span data-cms-logo-state>Disponible</span>
+                  </div>
+                  <div class="pz-promo-media-slot__empty" data-cms-logo-preview>
+                    <strong>Arrastra una imagen aquí</strong>
+                    <span>o selecciónala desde tu dispositivo</span>
+                  </div>
+                  <div class="pz-promo-media-slot__actions">
+                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-logo disabled={!canManageMedia}>Elegir imagen</button>
+                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-logo-file disabled={!canManageMedia} />
+                    <button class="is-danger" type="button" data-cms-remove-logo disabled={!canSave}>Quitar</button>
+                  </div>
+                  <small class="pz-promo-media-slot__guidance">JPG, PNG, WebP o AVIF · cuadrada 1:1 · ideal 512×512 px · mínimo 256×256 px</small>
+                </article>
               </div>
-            </div>
+            </section>
           </div>
         </details>
 
@@ -167,19 +180,31 @@ const isContent = scope === 'content';
             </div>
             <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
           </summary>
-          <div class="pz-promo-cms__qr-grid">
-            <div class="pz-promo-cms__qr-preview" data-cms-qr-preview><span>Sin QR</span></div>
-            <div class="pz-promo-cms__qr-upload">
-              <label class="pz-promo-cms__field">
-                <span>Imagen del QR</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
-                <small>La carga queda asociada al guardar los cambios.</small>
-              </label>
-              <div class="pz-promo-cms__qr-actions">
-                <button class="pz-promo-cms__secondary-button" type="button" data-cms-upload-qr disabled={!canManageMedia}>Procesar QR</button>
-                <button class="pz-promo-cms__secondary-button" type="button" data-cms-remove-qr disabled={!canSave}>Quitar QR</button>
+          <div class="pz-promo-gallery pz-promo-cms__media-slots">
+            <section class="pz-promo-media-slots">
+              <header class="pz-promo-media-slots__header">
+                <strong>Imagen del QR</strong>
+                <span data-cms-qr-count>0 de 1 utilizados</span>
+              </header>
+              <div class="pz-promo-media-slots__grid">
+                <article class="pz-promo-media-slot pz-promo-cms__media-slot is-empty" data-cms-qr-slot>
+                  <div class="pz-promo-media-slot__heading">
+                    <strong>Espacio 1</strong>
+                    <span data-cms-qr-state>Disponible</span>
+                  </div>
+                  <div class="pz-promo-media-slot__empty" data-cms-qr-preview>
+                    <strong>Arrastra una imagen aquí</strong>
+                    <span>o selecciónala desde tu dispositivo</span>
+                  </div>
+                  <div class="pz-promo-media-slot__actions">
+                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-qr disabled={!canManageMedia}>Elegir imagen</button>
+                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
+                    <button class="is-danger" type="button" data-cms-remove-qr disabled={!canSave}>Quitar</button>
+                  </div>
+                  <small class="pz-promo-media-slot__guidance">JPG, PNG, WebP o AVIF · cuadrada 1:1 · ideal 512×512 px · mínimo 128×128 px · se adapta sin recorte</small>
+                </article>
               </div>
-            </div>
+            </section>
           </div>
         </details>
 
@@ -330,13 +355,13 @@ const isContent = scope === 'content';
         updateServiceQuota();
         root.querySelectorAll<HTMLElement>('[data-cms-contact-action]').forEach(setContactControlState);
         const logoFile = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
-        const logoUpload = root.querySelector<HTMLButtonElement>('[data-cms-upload-logo]');
         if (logoFile) logoFile.disabled = !canManageMedia;
-        if (logoUpload) logoUpload.disabled = !canManageMedia;
+        const logoChoose = root.querySelector<HTMLButtonElement>('[data-cms-choose-logo]');
+        if (logoChoose) logoChoose.disabled = !canManageMedia;
         const qrFile = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
-        const qrUpload = root.querySelector<HTMLButtonElement>('[data-cms-upload-qr]');
         if (qrFile) qrFile.disabled = !canManageMedia;
-        if (qrUpload) qrUpload.disabled = !canManageMedia;
+        const qrChoose = root.querySelector<HTMLButtonElement>('[data-cms-choose-qr]');
+        if (qrChoose) qrChoose.disabled = !canManageMedia;
       }
     }
 
@@ -796,11 +821,25 @@ const isContent = scope === 'content';
 
     function renderQrPreview() {
       const preview = root.querySelector<HTMLElement>('[data-cms-qr-preview]');
+      const slot = root.querySelector<HTMLElement>('[data-cms-qr-slot]');
+      const state = root.querySelector<HTMLElement>('[data-cms-qr-state]');
+      const count = root.querySelector<HTMLElement>('[data-cms-qr-count]');
+      const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-qr]');
       if (!preview || !documentValue) return;
       preview.replaceChildren();
       const assetId = documentValue.media_refs?.[qrUseKey]?.asset_id || '';
-      if (!qrUseKey || !/^[a-z0-9]{15}$/.test(assetId)) {
-        preview.append(element('span', '', 'Sin QR'));
+      const filled = Boolean(qrUseKey && /^[a-z0-9]{15}$/.test(assetId));
+      slot?.classList.toggle('is-filled', filled);
+      slot?.classList.toggle('is-empty', !filled);
+      preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
+      if (state) state.textContent = filled ? 'Imagen' : 'Disponible';
+      if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
+      if (remove) remove.disabled = !canSave || !filled || busy;
+      if (!filled) {
+        preview.append(
+          element('strong', '', 'Arrastra una imagen aquí'),
+          element('span', '', 'o selecciónala desde tu dispositivo'),
+        );
         return;
       }
       const image = element('img');
@@ -813,11 +852,25 @@ const isContent = scope === 'content';
 
     function renderLogoPreview() {
       const preview = root.querySelector<HTMLElement>('[data-cms-logo-preview]');
+      const slot = root.querySelector<HTMLElement>('[data-cms-logo-slot]');
+      const state = root.querySelector<HTMLElement>('[data-cms-logo-state]');
+      const count = root.querySelector<HTMLElement>('[data-cms-logo-count]');
+      const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-logo]');
       if (!preview || !documentValue) return;
       preview.replaceChildren();
       const assetId = documentValue.media_refs?.[logoUseKey]?.asset_id || '';
-      if (!logoUseKey || !/^[a-z0-9]{15}$/.test(assetId)) {
-        preview.append(element('span', '', 'Sin logo'));
+      const filled = Boolean(logoUseKey && /^[a-z0-9]{15}$/.test(assetId));
+      slot?.classList.toggle('is-filled', filled);
+      slot?.classList.toggle('is-empty', !filled);
+      preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
+      if (state) state.textContent = filled ? 'Imagen' : 'Disponible';
+      if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
+      if (remove) remove.disabled = !canSave || !filled || busy;
+      if (!filled) {
+        preview.append(
+          element('strong', '', 'Arrastra una imagen aquí'),
+          element('span', '', 'o selecciónala desde tu dispositivo'),
+        );
         return;
       }
       const image = element('img');
@@ -828,8 +881,8 @@ const isContent = scope === 'content';
       preview.append(image);
     }
 
-    async function uploadLogo() {
-      const file = root.querySelector<HTMLInputElement>('[data-cms-logo-file]')?.files?.[0];
+    async function uploadLogo(selectedFile?: File) {
+      const file = selectedFile || root.querySelector<HTMLInputElement>('[data-cms-logo-file]')?.files?.[0];
       if (!documentValue || !file || !canManageMedia || busy) return;
       clearError();
       setBusy(true, 'Procesando logo…');
@@ -883,8 +936,8 @@ const isContent = scope === 'content';
       setDirty();
     }
 
-    async function uploadQr() {
-      const file = root.querySelector<HTMLInputElement>('[data-cms-qr-file]')?.files?.[0];
+    async function uploadQr(selectedFile?: File) {
+      const file = selectedFile || root.querySelector<HTMLInputElement>('[data-cms-qr-file]')?.files?.[0];
       if (!documentValue || !file || !canManageMedia || busy) return;
       clearError();
       setBusy(true, 'Procesando QR…');
@@ -1117,10 +1170,38 @@ const isContent = scope === 'content';
     }
 
     root.querySelector('[data-cms-reload]')?.addEventListener('click', loadDraft);
-    root.querySelector('[data-cms-upload-logo]')?.addEventListener('click', uploadLogo);
+    const logoFileInput = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
+    root.querySelector('[data-cms-choose-logo]')?.addEventListener('click', () => logoFileInput?.click());
+    logoFileInput?.addEventListener('change', () => uploadLogo(logoFileInput.files?.[0]));
     root.querySelector('[data-cms-remove-logo]')?.addEventListener('click', removeLogo);
-    root.querySelector('[data-cms-upload-qr]')?.addEventListener('click', uploadQr);
+    const qrFileInput = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
+    root.querySelector('[data-cms-choose-qr]')?.addEventListener('click', () => qrFileInput?.click());
+    qrFileInput?.addEventListener('change', () => uploadQr(qrFileInput.files?.[0]));
     root.querySelector('[data-cms-remove-qr]')?.addEventListener('click', removeQr);
+
+    function bindContactMediaDrop(
+      selector: string,
+      upload: (file?: File) => Promise<void>,
+    ) {
+      const slot = root.querySelector<HTMLElement>(selector);
+      if (!slot) return;
+      slot.addEventListener('dragover', (event) => {
+        if (!canManageMedia || busy || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+        event.preventDefault();
+        slot.classList.add('is-dragover');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('is-dragover'));
+      slot.addEventListener('drop', (event) => {
+        slot.classList.remove('is-dragover');
+        const file = event.dataTransfer?.files?.[0];
+        if (!file || !canManageMedia || busy) return;
+        event.preventDefault();
+        upload(file);
+      });
+    }
+
+    bindContactMediaDrop('[data-cms-logo-slot]', uploadLogo);
+    bindContactMediaDrop('[data-cms-qr-slot]', uploadQr);
     root.querySelector('[data-cms-add-contact]')?.addEventListener('click', () => {
       const list = root.querySelector<HTMLElement>('[data-cms-contact-actions]');
       if (!list || list.children.length >= 32) return;
