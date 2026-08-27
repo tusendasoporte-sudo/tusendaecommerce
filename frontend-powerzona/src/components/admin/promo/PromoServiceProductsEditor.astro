@@ -947,9 +947,10 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
 
     function galleryPatch(gallery: GalleryModel, forceVisible?: boolean) {
       const complete = Boolean(gallery.cover) && gallery.items.every((item) => !item.visible || item.media.length > 0);
+      const requestedVisible = forceVisible === undefined ? gallery.visible : forceVisible;
       const common = {
         key: gallery.key,
-        visible: forceVisible === undefined ? gallery.visible : (forceVisible && complete),
+        visible: requestedVisible && complete,
         navigationLabel: gallery.navigationLabel || gallery.heading || 'Productos',
         heading: gallery.heading || gallery.navigationLabel || 'Productos',
         summary: gallery.summary,
@@ -1018,7 +1019,9 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
           || serviceSection.config.item_keys.some((key: string, index: number) => key !== services[index].serviceKey)) {
           throw Object.assign(new Error('promo_conflict'), { code: 'promo_conflict' });
         }
-        serviceSection.config.gallery_keys = services.map((service) => service.key);
+        serviceSection.config.gallery_keys = services.map((service, index) => (
+          linkedGalleries[index]?.visible ? service.key : ''
+        ));
         const internalProductSectionKeys = new Set(services.map((service) => service.key));
         nextDocument.sections.filter((section: any) => section.type === 'footer').forEach((section: any) => {
           section.config.navigation_section_keys = (section.config.navigation_section_keys || [])

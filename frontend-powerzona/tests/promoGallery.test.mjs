@@ -498,6 +498,8 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /Trabajos destacados/);
   assert.match(productsEditor, /function renderMediaSlots/);
   assert.match(productsEditor, /function saveMediaChanges\(\)[\s\S]*?form\?\.requestSubmit\(\)/);
+  assert.match(productsEditor, /visible: requestedVisible && complete/);
+  assert.match(productsEditor, /linkedGalleries\[index\]\?\.visible \? service\.key : ''/);
   assert.match(productsEditor, /let shouldSave = false;[\s\S]*?if \(shouldSave\) saveMediaChanges\(\)/);
   assert.match(productsEditor, /text\/x-promo-media-index/);
   assert.match(productsEditor, /createImageBitmap/);
