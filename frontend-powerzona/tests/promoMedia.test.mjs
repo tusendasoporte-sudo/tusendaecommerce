@@ -102,6 +102,48 @@ test('AVIF detectado por contenido se normaliza a WebP sin metadata heredada', a
   assert.equal(metadata.icc, undefined);
 });
 
+test('logo y QR pequeños se amplían a 512x512 sin recorte ni rechazo por dimensiones', async () => {
+  const logo = await sharp({
+    create: { width: 96, height: 48, channels: 4, background: { r: 196, g: 154, b: 62, alpha: 1 } },
+  }).png().toBuffer();
+  const normalizedLogo = await optimizePromoImage(fileLike(logo, 'logo-pequeno.png', 'image/png'), 'logo');
+  const logoMetadata = await sharp(normalizedLogo.buffer).metadata();
+  assert.equal(normalizedLogo.width, 512);
+  assert.equal(normalizedLogo.height, 512);
+  assert.equal(logoMetadata.hasAlpha, true);
+  assert.equal(normalizedLogo.bytes <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);
+
+  const qr = await sharp({
+    create: { width: 64, height: 48, channels: 3, background: '#ffffff' },
+  }).png().toBuffer();
+  const normalizedQr = await optimizePromoImage(fileLike(qr, 'qr-pequeno.png', 'image/png'), 'qr');
+  assert.equal(normalizedQr.width, 512);
+  assert.equal(normalizedQr.height, 512);
+  assert.equal(normalizedQr.bytes <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);
+});
+
+test('foto compleja de QR usa compresión progresiva cuando la variante lossless supera 100 KiB', async () => {
+  const width = 1400;
+  const height = 900;
+  const pixels = Buffer.alloc(width * height * 3);
+  let state = 0x12345678;
+  for (let index = 0; index < pixels.length; index += 1) {
+    state = ((state * 1664525) + 1013904223) >>> 0;
+    pixels[index] = state >>> 24;
+  }
+  const photo = await sharp(pixels, { raw: { width, height, channels: 3 } }).png().toBuffer();
+  const lossless = await sharp(photo)
+    .resize({ width: 512, height: 512, fit: 'contain', background: '#ffffff' })
+    .webp({ lossless: true, effort: 6 })
+    .toBuffer();
+  assert.equal(lossless.byteLength > PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);
+
+  const normalized = await optimizePromoImage(fileLike(photo, 'foto-del-qr.png', 'image/png'), 'qr');
+  assert.equal(normalized.width, 512);
+  assert.equal(normalized.height, 512);
+  assert.equal(normalized.bytes <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);
+});
+
 test('imagen rechaza SVG disfrazado, MIME/extensión cruzados y dimensiones insuficientes', async () => {
   await assert.rejects(
     optimizePromoImage(fileLike(Buffer.from('<svg><script>alert(1)</script></svg>'), 'hero.png', 'image/png'), 'hero'),

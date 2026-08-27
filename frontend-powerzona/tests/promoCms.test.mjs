@@ -218,6 +218,21 @@ test('Trabajos realizados explica sus medios obligatorios antes de intentar publ
   assert.match(editor, /showError\('promo_work_gallery_incomplete'\)/);
 });
 
+test('Contacto informa la causa exacta cuando una imagen no puede procesarse', () => {
+  assert.equal(
+    promoCmsErrorMessage('promo_media_duplicate'),
+    'Esta imagen ya está guardada en la tienda. Usa el medio existente o selecciona un archivo diferente.',
+  );
+  assert.equal(
+    promoCmsErrorMessage('promo_media_dimensions_invalid'),
+    'La imagen no cumple las dimensiones indicadas para este espacio.',
+  );
+  assert.equal(
+    promoCmsErrorMessage('promo_media_type_invalid'),
+    'El formato de la imagen no está permitido. Usa JPG, PNG, WebP o AVIF.',
+  );
+});
+
 test('normalización acepta documentos vivos anteriores al campo aditivo del logo', () => {
   const previousLive = backendContract.upgradePromoDocument(completeDocument());
   delete previousLive.contact.logo_media_use_key;
@@ -435,8 +450,8 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /data-cms-logo-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-logo[\s\S]*?data-cms-remove-logo/);
   assert.match(editor, /data-cms-qr-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-qr[\s\S]*?data-cms-remove-qr/);
   assert.match(editor, /bindContactMediaDrop\('\[data-cms-logo-slot\]'[\s\S]*?bindContactMediaDrop\('\[data-cms-qr-slot\]'/);
-  assert.match(editor, /data-cms-logo-count[\s\S]*?ideal 512×512 px · mínimo 256×256 px/);
-  assert.match(editor, /data-cms-qr-count[\s\S]*?ideal 512×512 px · mínimo 128×128 px/);
+  assert.match(editor, /data-cms-logo-count[\s\S]*?se adapta automáticamente a 512×512 px · sin recorte/);
+  assert.match(editor, /data-cms-qr-count[\s\S]*?se adapta automáticamente a 512×512 px · fondo blanco y sin recorte/);
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);
   assert.match(editor, /Bajar/);

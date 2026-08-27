@@ -8,6 +8,7 @@ export const PROMO_MEDIA_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
 export const PROMO_MEDIA_VIDEO_MAX_DURATION_MS = 30 * 60 * 1000;
 export const PROMO_MEDIA_VIDEO_MAX_BITRATE_BPS = 8 * 1000 * 1000;
 export const PROMO_MEDIA_MULTIPART_MAX_BYTES = PROMO_MEDIA_VIDEO_MAX_BYTES + (512 * 1024);
+const PROMO_CONTACT_IMAGE_SIZE = 512;
 
 export const PROMO_MEDIA_PURPOSE_POLICIES = Object.freeze({
   hero: Object.freeze({ minWidth: 640, minHeight: 320, maxWidth: 1920, maxHeight: 1080 }),
@@ -104,7 +105,8 @@ function assertPurpose(value: unknown): PromoMediaPurpose {
 
 function assertDimensions(purpose: PromoMediaPurpose, width: number, height: number) {
   const policy = PROMO_MEDIA_PURPOSE_POLICIES[purpose];
-  if (purpose === 'qr' && (width !== 512 || height !== 512)) {
+  if ((purpose === 'qr' || purpose === 'logo')
+    && (width !== PROMO_CONTACT_IMAGE_SIZE || height !== PROMO_CONTACT_IMAGE_SIZE)) {
     throw new PromoMediaError('promo_media_dimensions_invalid');
   }
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
@@ -164,12 +166,15 @@ export async function optimizePromoImage(
   if (!oriented.width || !oriented.height || oriented.width > 6000 || oriented.height > 6000
     || oriented.width * oriented.height > 36_000_000) throw new PromoMediaError('promo_media_dimensions_invalid');
   const policy = PROMO_MEDIA_PURPOSE_POLICIES[purpose];
-  if (oriented.width < policy.minWidth || oriented.height < policy.minHeight) {
+  const normalizesContactImage = purpose === 'qr' || purpose === 'logo';
+  if (!normalizesContactImage && (oriented.width < policy.minWidth || oriented.height < policy.minHeight)) {
     throw new PromoMediaError('promo_media_dimensions_invalid');
   }
 
-  const scales = purpose === 'qr' ? [1] : [1, 0.85, 0.7, 0.55, 0.42];
-  const qualities = purpose === 'qr' ? [100] : [84, 76, 68, 60, 52, 44, 36, 28, 22];
+  const scales = normalizesContactImage ? [1] : [1, 0.85, 0.7, 0.55, 0.42];
+  const qualities = purpose === 'qr'
+    ? [100, 96, 92, 88, 84, 80, 72, 64, 56]
+    : [84, 76, 68, 60, 52, 44, 36, 28, 22];
   let output: Buffer | null = null;
   for (const scale of scales) {
     const width = Math.max(policy.minWidth, Math.round(policy.maxWidth * scale));
@@ -179,10 +184,29 @@ export async function optimizePromoImage(
         const pipeline = sharp(source, { failOn: 'error', limitInputPixels: 36_000_000, sequentialRead: true })
           .rotate()
           .resize(purpose === 'qr'
-            ? { width: 512, height: 512, fit: 'contain', background: '#ffffff', withoutEnlargement: false, kernel: 'nearest' }
-            : { width, height, fit: 'inside', withoutEnlargement: true });
+            ? {
+              width: PROMO_CONTACT_IMAGE_SIZE,
+              height: PROMO_CONTACT_IMAGE_SIZE,
+              fit: 'contain',
+              background: '#ffffff',
+              withoutEnlargement: false,
+              kernel: oriented.width < PROMO_CONTACT_IMAGE_SIZE || oriented.height < PROMO_CONTACT_IMAGE_SIZE
+                ? sharp.kernel.nearest
+                : sharp.kernel.lanczos3,
+            }
+            : (purpose === 'logo'
+              ? {
+                width: PROMO_CONTACT_IMAGE_SIZE,
+                height: PROMO_CONTACT_IMAGE_SIZE,
+                fit: 'contain',
+                background: { r: 0, g: 0, b: 0, alpha: 0 },
+                withoutEnlargement: false,
+              }
+              : { width, height, fit: 'inside', withoutEnlargement: true }));
         const candidate = await (purpose === 'qr'
-          ? pipeline.webp({ lossless: true, effort: 6 })
+          ? (quality === 100
+            ? pipeline.webp({ lossless: true, effort: 6 })
+            : pipeline.webp({ quality, effort: 6, smartSubsample: true }))
           : pipeline.webp({ quality, effort: 4, smartSubsample: true }))
           .toBuffer();
         if (candidate.byteLength <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES) {
