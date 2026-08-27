@@ -91,12 +91,10 @@ test('A11Y mantiene teclado completo, foco visible y controles de video no ocult
   assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?inset: 0;[\s\S]*?pointer-events: none/);
   assert.doesNotMatch(heroStyles.match(/\.promo-hero__controls \{[\s\S]*?\}/)?.[0] || '', /inset-block-end/);
   assert.match(hero, /tabindex=\{heroMedia\.length > 1 \? '0'/);
-  assert.match(heroCarousel, /document\.createElement\('button'\)/);
-  assert.match(heroCarousel, /toggle\.setAttribute\('aria-label', label\)/);
   assert.match(heroCarousel, /previousControl\.addEventListener\('click'/);
   assert.match(heroCarousel, /nextControl\.addEventListener\('click'/);
-  assert.match(heroStyles, /\.promo-hero__toggle \{[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
-  assert.match(heroStyles, /\.promo-hero__toggle:focus-visible[\s\S]*?outline: 3px/);
+  assert.doesNotMatch(heroCarousel, /Pause carousel|Pausar carrusel|promo-hero__toggle/);
+  assert.doesNotMatch(heroStyles, /\.promo-hero__toggle/);
   assert.match(reviews, /tabindex="0"[\s\S]*?role="region"[\s\S]*?aria-label=/);
 });
 
@@ -149,6 +147,7 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(heroCarousel, /dataset\.promoTokenMotion === 'reduced'/);
   assert.match(heroCarousel, /window\.setInterval\([\s\S]*?CAROUSEL_INTERVAL_MS/);
   assert.match(heroCarousel, /window\.clearInterval\(timer\)/);
+  assert.match(heroCarousel, /root\.addEventListener\('focusin', stopTimer\)/);
   assert.match(hero, /class="promo-hero__arrow promo-hero__arrow--previous"/);
   assert.match(hero, /type="button"/);
   assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);

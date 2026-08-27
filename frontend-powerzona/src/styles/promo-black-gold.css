@@ -45,7 +45,10 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 
 .promo-black-gold {
   position: relative;
+  width: 100%;
+  max-width: 1920px;
   min-height: 100vh;
+  margin-inline: auto;
   overflow-x: clip;
   overflow-y: visible;
   background:
@@ -458,6 +461,10 @@ body[data-promo-theme-renderer="promo.vibrant"] .promo-hero__brand img {
     radial-gradient(circle at 78% 48%, rgb(200 164 90 / 14%), transparent 17rem),
     linear-gradient(105deg, transparent 0 62%, rgb(200 164 90 / 4%) 62.1% 62.3%, transparent 62.4%),
     linear-gradient(180deg, rgb(255 255 255 / 2%), transparent 45%);
+}
+
+.promo-shell-section--hero::after {
+  display: none;
 }
 
 .promo-shell-section--hero .promo-shell-section__copy { max-width: 64rem; }

@@ -164,44 +164,6 @@
   outline: 3px solid var(--promo-focus);
   outline-offset: 3px;
 }
-.promo-hero__toggle {
-  position: absolute;
-  display: grid;
-  inset-block-start: 1.1rem;
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
-  pointer-events: auto;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  place-items: center;
-  border: 1px solid rgb(246 241 231 / 22%);
-  border-radius: 50%;
-  background: rgb(11 11 11 / 78%);
-  color: var(--promo-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: .8rem;
-  font-weight: 900;
-  line-height: 1;
-  touch-action: manipulation;
-  backdrop-filter: blur(8px);
-}
-
-.promo-hero__toggle:hover {
-  border-color: var(--promo-accent);
-  color: var(--promo-accent-bright);
-}
-
-.promo-hero__toggle:focus-visible {
-  outline: 3px solid var(--promo-focus);
-  outline-offset: 3px;
-}
-
-.promo-hero__toggle[hidden] {
-  display: none;
-}
-
 @media (max-width: 1000px) {
   .promo-hero__inner {
     grid-template-columns: minmax(0, .92fr) minmax(19rem, 1.08fr);
@@ -265,9 +227,6 @@
     inset-inline-end: .7rem;
   }
 
-  .promo-hero__toggle {
-    inset-block-start: .7rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -350,7 +309,7 @@ body[data-promo-token-motion="reduced"] .promo-hero__slides {
 .promo-hero--layout-centered.promo-hero--with-media .promo-hero__inner {
   position: relative;
   display: grid !important;
-  min-height: clamp(34rem, 72vh, 52rem);
+  min-height: clamp(32rem, 65svh, 45rem);
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-areas: "hero" !important;
   padding: 0 !important;
@@ -461,14 +420,23 @@ body[data-promo-token-motion="reduced"] .promo-hero__slides {
 }
 
 @media (min-width: 721px) {
-  .promo-shell-section.promo-hero--layout-immersive.promo-hero--with-media {
-    padding-inline: 0;
+  .promo-shell-section.promo-hero--layout-immersive.promo-hero--with-media,
+  .promo-shell-section.promo-hero--layout-centered.promo-hero--with-media {
+    min-height: 0 !important;
+    padding: 0 !important;
   }
 
-  .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__inner {
+  .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__inner,
+  .promo-hero--layout-centered.promo-hero--with-media .promo-hero__inner {
     width: 100%;
     max-width: none;
+    min-height: clamp(32rem, 65svh, 45rem) !important;
     margin-inline: 0;
+  }
+
+  .promo-hero--layout-immersive .promo-hero__slides,
+  .promo-hero--layout-centered .promo-hero__slides {
+    min-height: 0 !important;
   }
 
   .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__copy {

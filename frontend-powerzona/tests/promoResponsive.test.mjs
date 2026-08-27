@@ -23,7 +23,7 @@ test('RESP fija targets táctiles 44×44 y CTA de 54 px en todos los cortes móv
   assert.match(themeStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-shell-locales a \{ min-width: 44px; min-height: 44px;/);
   assert.match(qrStyles, /\.promo-landing-qr-link[\s\S]*?min-height: 44px;/);
   assert.match(heroStyles, /\.promo-hero__arrow[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
-  assert.match(heroStyles, /\.promo-hero__toggle \{[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
+  assert.doesNotMatch(heroStyles, /\.promo-hero__toggle/);
   assert.doesNotMatch(heroStyles, /min-(?:width|height): 36px/);
   assert.doesNotMatch(themeStyles, /min-(?:width|height): 42px/);
   assert.match(contactStyles, /\.promo-contact-action[\s\S]*?min-height: 54px;/);
@@ -42,8 +42,12 @@ test('RESP conserva cabecera de tres filas, QR icon-only estrecho y navegación 
 
 test('RESP aplica reflujo aprobado a Hero, secciones, reseñas y footer', () => {
   assert.match(themeStyles, /\.promo-black-gold \{[\s\S]*?overflow-x: clip;[\s\S]*?overflow-y: visible;/);
-  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-shell-section\.promo-hero--layout-immersive\.promo-hero--with-media \{[\s\S]*?padding-inline: 0/);
-  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__inner \{[\s\S]*?width: 100%;[\s\S]*?max-width: none/);
+  assert.match(themeStyles, /\.promo-black-gold \{[\s\S]*?max-width: 1920px;[\s\S]*?margin-inline: auto/);
+  assert.match(themeStyles, /\.promo-shell-section--hero::after \{[\s\S]*?display: none/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-shell-section\.promo-hero--layout-immersive\.promo-hero--with-media[\s\S]*?min-height: 0 !important;[\s\S]*?padding: 0 !important/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__inner,[\s\S]*?\.promo-hero--layout-centered\.promo-hero--with-media \.promo-hero__inner \{[\s\S]*?width: 100%;[\s\S]*?max-width: none/);
+  assert.match(heroStyles, /min-height: clamp\(32rem, 65svh, 45rem\) !important/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive \.promo-hero__slides,[\s\S]*?min-height: 0 !important/);
   assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__copy \{[\s\S]*?margin-inline: clamp\(1\.25rem, 6vw, 8rem\)/);
   assert.match(heroStyles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)[\s\S]*?aspect-ratio: 4 \/ 3/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-sections__service-card \{ grid-template-columns: minmax\(0, 1fr\)/);
