@@ -100,6 +100,8 @@ export type PromoCmsContentPatch = Readonly<{
     navigationLabel: string;
     heading?: string;
     summary?: string;
+    consultationHeading?: string;
+    qrHeading?: string;
     intro?: string;
     heroLayout?: string;
     highlights?: readonly string[];
@@ -237,7 +239,7 @@ function localizedSectionDefinition(type: string) {
     hero: { heading: '', intro: '', summary: '', highlights: [], button_labels: [''] },
     services: { heading: '', summary: '', items: [] },
     owner: { heading: '', name: '', bio: '' },
-    contact: { heading: '', summary: '' },
+    contact: { heading: '', consultation_heading: '', summary: '', qr_heading: '' },
     footer: { heading: '', summary: '', text: '' },
   };
   return clone(definitions[type] || {});
@@ -863,6 +865,17 @@ export function buildPromoCmsContentDocument(
         heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
         name: safeText(sectionPatch.name || '', PROMO_CMS_TEXT_LIMITS.businessName),
         bio: safeText(sectionPatch.bio || '', PROMO_CMS_TEXT_LIMITS.body),
+      };
+    } else if (section.type === 'contact') {
+      localized.sections[sectionKey] = {
+        ...current,
+        heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
+        consultation_heading: safeText(
+          sectionPatch.consultationHeading || '',
+          PROMO_CMS_TEXT_LIMITS.heading,
+        ),
+        summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
+        qr_heading: safeText(sectionPatch.qrHeading || '', PROMO_CMS_TEXT_LIMITS.heading),
       };
     } else if (section.type === 'footer') {
       const navigationSectionKeys = Array.isArray(sectionPatch.navigationSectionKeys)

@@ -123,6 +123,12 @@ function contentPatch(document) {
         ],
       } : {}),
       ...(section.type === 'owner' ? { heading: 'Nuestra historia', name: 'Ada', bio: 'Biografía nueva' } : {}),
+      ...(section.type === 'contact' ? {
+        heading: 'Hagamos realidad tu visión',
+        consultationHeading: 'Consulta sin compromiso',
+        summary: 'Solicita tu estimado hoy.',
+        qrHeading: 'Escanea para conversar por WhatsApp',
+      } : {}),
       ...(section.type === 'footer' ? {
         heading: 'Conecta con nosotros',
         summary: 'Enlaces oficiales del negocio',
@@ -260,6 +266,12 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
     ],
   });
   assert.equal(updated.content_by_locale.es.sections['footer-main'].heading, 'Conecta con nosotros');
+  assert.deepEqual(updated.content_by_locale.es.sections['contact-main'], {
+    heading: 'Hagamos realidad tu visión',
+    consultation_heading: 'Consulta sin compromiso',
+    summary: 'Solicita tu estimado hoy.',
+    qr_heading: 'Escanea para conversar por WhatsApp',
+  });
   assert.deepEqual({
     theme: updated.theme,
     media_refs: updated.media_refs,

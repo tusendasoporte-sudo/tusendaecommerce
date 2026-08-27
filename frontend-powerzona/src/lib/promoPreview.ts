@@ -55,7 +55,7 @@ const LOCALIZED_SECTION_KEYS: Record<string, readonly string[]> = Object.freeze(
   gallery: Object.freeze(['heading', 'summary', 'items']),
   owner: Object.freeze(['heading', 'name', 'bio']),
   store_rating: Object.freeze(['heading']),
-  contact: Object.freeze(['heading', 'summary']),
+  contact: Object.freeze(['heading', 'consultation_heading', 'summary', 'qr_heading']),
   footer: Object.freeze(['heading', 'summary', 'text']),
 });
 
@@ -450,9 +450,18 @@ function normalizeContent(value: unknown, sections: JsonRecord[], media: JsonRec
     if (!section) fail('invalid_payload');
     const localized = subsetRecord(localizedSections[sectionKey], LOCALIZED_SECTION_KEYS[section.type] || []);
     const normalized: JsonRecord = {};
-    for (const field of ['heading', 'intro', 'summary', 'name', 'bio', 'text']) {
+    for (const field of ['heading', 'consultation_heading', 'intro', 'summary', 'qr_heading', 'name', 'bio', 'text']) {
       if (Object.prototype.hasOwnProperty.call(localized, field)) {
-        normalized[field] = safeText(localized[field], ({ heading: 160, intro: 120, summary: 600, name: 140, bio: 4000, text: 4000 } as JsonRecord)[field]);
+        normalized[field] = safeText(localized[field], ({
+          heading: 160,
+          consultation_heading: 160,
+          intro: 120,
+          summary: 600,
+          qr_heading: 160,
+          name: 140,
+          bio: 4000,
+          text: 4000,
+        } as JsonRecord)[field]);
       }
     }
     if (section.type === 'hero') {

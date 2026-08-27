@@ -96,7 +96,7 @@ const LIVE_LOCALIZED_SECTION_KEYS = Object.freeze({
   gallery: ["heading", "summary", "items"],
   owner: ["heading", "name", "bio"],
   store_rating: ["heading"],
-  contact: ["heading", "summary"],
+  contact: ["heading", "consultation_heading", "summary", "qr_heading"],
   footer: ["heading", "summary", "text"],
 });
 
@@ -525,7 +525,15 @@ function validateLocalizedItems(items, type, publicRevision, configuredKeys, liv
 
 function validateLocalizedSection(value, section, publicRevision, liveDocument) {
   const localized = onlyKeys(value, (liveDocument ? LIVE_LOCALIZED_SECTION_KEYS : LOCALIZED_SECTION_KEYS)[section.type]);
-  const textLimits = { heading: 160, summary: 600, name: 140, bio: 4000, text: 4000 };
+  const textLimits = {
+    heading: 160,
+    consultation_heading: 160,
+    summary: 600,
+    qr_heading: 160,
+    name: 140,
+    bio: 4000,
+    text: 4000,
+  };
   Object.keys(textLimits).forEach((key) => {
     if (Object.prototype.hasOwnProperty.call(localized, key)) {
       assertSafeText(localized[key], textLimits[key], { empty: !publicRevision || key !== "heading" });

@@ -817,14 +817,23 @@ function normalizeContent(value: unknown, sections: readonly PromoPublicSection[
       hero: ['heading', 'intro', 'summary', 'highlights', 'button_labels'], services: ['heading', 'summary', 'items'],
       featured_work: ['heading', 'summary'], gallery: ['heading', 'summary', 'items'],
       owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
-      contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
+      contact: ['heading', 'consultation_heading', 'summary', 'qr_heading'], footer: ['heading', 'summary', 'text'],
     };
     const fields = fieldsByType[section.type] || [];
     const localized = subsetRecord(localizedSections[section.key], fields);
     const result = optionalTextMap(
       Object.fromEntries(Object.entries(localized).filter(([key]) => !['items', 'highlights', 'button_labels'].includes(key))),
       fields.filter((field) => !['items', 'highlights', 'button_labels'].includes(field)),
-      { heading: 160, intro: 120, summary: 600, name: 140, bio: 4000, text: 4000 },
+      {
+        heading: 160,
+        consultation_heading: 160,
+        intro: 120,
+        summary: 600,
+        qr_heading: 160,
+        name: 140,
+        bio: 4000,
+        text: 4000,
+      },
     );
     if (section.type === 'hero') {
       const heroHighlights = localized.highlights === undefined ? [] : localized.highlights;

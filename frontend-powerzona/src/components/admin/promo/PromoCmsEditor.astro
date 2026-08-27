@@ -269,7 +269,7 @@ const isContent = scope === 'content';
     gallery: 'Galería',
     owner: 'Propietario',
     store_rating: 'Reseñas de tienda',
-    contact: 'Contacto',
+    contact: 'Contacto y QR',
     footer: 'Pie del sitio',
   };
   const contactLabels: Record<string, string> = {
@@ -642,6 +642,14 @@ const isContent = scope === 'content';
           inputField('Nombre público', sectionContent.name || '', { max: 140, data: 'name' }).label,
           inputField('Biografía', sectionContent.bio || '', { textarea: true, max: 4000, data: 'bio' }).label,
         );
+      } else if (section.type === 'contact') {
+        fields.append(
+          inputField('Texto sobre el número', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
+          inputField('Título de consulta', sectionContent.consultation_heading || '', { max: 160, data: 'consultationHeading' }).label,
+          inputField('Texto de apoyo de la consulta', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+          inputField('Texto junto al QR', sectionContent.qr_heading || '', { max: 160, data: 'qrHeading' }).label,
+          element('p', 'pz-promo-cms__scope-note', 'El número, el enlace y la imagen QR se reutilizan desde Contacto. Los iconos de teléfono, consulta y WhatsApp permanecen fijos.'),
+        );
       } else if (section.type === 'footer') {
         fields.append(
           inputField('Título del pie', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
@@ -686,9 +694,7 @@ const isContent = scope === 'content';
         return card;
       } else {
         const note = element('p', 'pz-promo-cms__scope-note');
-        note.textContent = section.type === 'contact'
-          ? 'Los textos y métodos se editan en el módulo Contacto.'
-          : 'CMS solo controla aquí el orden, la visibilidad y la etiqueta. Su contenido pertenece a un módulo posterior.';
+        note.textContent = 'CMS solo controla aquí el orden, la visibilidad y la etiqueta. Su contenido pertenece a un módulo posterior.';
         fields.append(note);
       }
       card.append(header, visible, fields);
@@ -1043,6 +1049,12 @@ const isContent = scope === 'content';
         });
         if (type === 'gallery') Object.assign(result, { heading: field('heading'), summary: field('summary') });
         if (type === 'owner') Object.assign(result, { heading: field('heading'), name: field('name'), bio: field('bio') });
+        if (type === 'contact') Object.assign(result, {
+          heading: field('heading'),
+          consultationHeading: field('consultationHeading'),
+          summary: field('summary'),
+          qrHeading: field('qrHeading'),
+        });
         if (type === 'footer') Object.assign(result, {
           heading: field('heading'),
           summary: field('summary'),

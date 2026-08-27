@@ -424,12 +424,26 @@ test('HERO consume exclusivamente delivery MEDIA público, content-addressed y p
 });
 
 test('CONTACT acepta solo la acción principal compilada, allowlisted y localized', () => {
-  const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithHeroMedia());
+  const envelope = shellEnvelopeWithHeroMedia();
+  envelope.profile.section_order.push('contact-main');
+  envelope.profile.sections.push({
+    key: 'contact-main', type: 'contact', variant: 'default',
+    config: { action_keys: ['estimate'] }, media_use_keys: [],
+  });
+  envelope.profile.content.navigation['contact-main'] = 'Contacto';
+  envelope.profile.content.sections['contact-main'] = {
+    heading: 'Hagamos realidad tu visión',
+    consultation_heading: 'Consulta sin compromiso',
+    summary: 'Solicita tu estimado hoy.',
+    qr_heading: 'Escanea para conversar por WhatsApp',
+  };
+  const normalized = normalizePromoPublicShellResponse(envelope);
   assert.equal(normalized.profile.contact_action.available, true);
   assert.deepEqual(normalized.profile.contact_action.action, {
     key: 'estimate', type: 'phone', label: 'Solicitar estimado',
     aria_label: 'Solicitar un estimado', href: 'tel:+5351234567',
   });
+  assert.deepEqual(normalized.profile.content.sections['contact-main'], envelope.profile.content.sections['contact-main']);
 
   const external = shellEnvelopeWithHeroMedia();
   external.profile.contact_action.action.href = 'https://tenant.example/contact';
@@ -532,7 +546,7 @@ test('CONTACT acepta un QR propio únicamente como imagen normalizada 512 por 51
   assert.throws(() => normalizePromoPublicShellResponse(wrongDimensions), PromoPublicShellError);
 });
 
-test('BRAND acepta un logo normalizado y lo reutiliza en cabecera, contacto y metadatos sociales', () => {
+test('BRAND acepta un logo normalizado y lo reutiliza en cabecera y metadatos sociales', () => {
   const envelope = shellEnvelope();
   envelope.profile.contact.logo_media_use_key = 'business-logo';
   envelope.profile.media.push({
@@ -549,10 +563,8 @@ test('BRAND acepta un logo normalizado y lo reutiliza en cabecera, contacto y me
   const normalized = normalizePromoPublicShellResponse(envelope);
   assert.equal(normalized.profile.contact.logo_media_use_key, 'business-logo');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
-  const contact = read('../src/components/promo-public/PromoContact.astro');
   assert.match(theme, /profile\.contact\.logo_media_use_key/);
   assert.match(theme, /<PromoSectionMedia media=\{logoMedia\}/);
-  assert.match(contact, /media\.purpose === 'logo'/);
 });
 
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
@@ -730,7 +742,9 @@ test('renderer ALADDIN aplica la release negra/dorada y delega contacto y QR a r
   assert.match(theme, /<PromoLandingQrLink/);
   assert.match(contact, /data-contact-available/);
   assert.match(contact, /profile\.contact\.qr_media_use_key/);
-  assert.match(contact, /profile\.contact\.logo_media_use_key/);
+  assert.match(contact, /localized\.consultation_heading/);
+  assert.match(contact, /localized\.qr_heading/);
+  assert.match(contact, /data-contact-surface="number"/);
   assert.match(contact, /<PromoSectionMedia/);
   assert.match(theme, /promo-shell-section__ornament/);
   assert.match(layout, /data-promo-token-accent=\{themeTokens\.accent\}/);

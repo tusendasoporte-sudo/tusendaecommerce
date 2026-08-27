@@ -1,6 +1,5 @@
 ---
 import type { PromoPublicMedia, PromoPublicProfile, PromoPublicSection } from '../../lib/promoPublicShell';
-import PromoContactAction from './PromoContactAction.astro';
 import PromoSectionMedia from './PromoSectionMedia.astro';
 
 interface Props {
@@ -16,18 +15,50 @@ const { profile, section, localized, heading, navigationLabel, primaryHeading } 
 const sectionId = `promo-section-${section.key}`;
 const primaryKey = String(profile.contact.primary_action_key || '');
 const primaryCopy = primaryKey ? profile.content.contact[primaryKey] : undefined;
-const fallbackLabel = String(primaryCopy?.label || profile.system.messages['contact.request_estimate']);
 const actionKeys = Array.isArray(section.config.action_keys) ? section.config.action_keys : [];
 const contactEnabled = Boolean(primaryKey && actionKeys.includes(primaryKey));
-const logoMediaKey = String(profile.contact.logo_media_use_key || '');
-const logoMedia = profile.media.find((media): media is PromoPublicMedia => (
-  media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
-));
+const action = contactEnabled && profile.contact_action.available ? profile.contact_action.action : null;
 const qrMediaKey = String(profile.contact.qr_media_use_key || '');
 const qrMedia = profile.media.find((media): media is PromoPublicMedia => (
   media.key === qrMediaKey && media.kind === 'image' && media.purpose === 'qr'
 ));
-const qrHeading = profile.locale.lang.startsWith('es') ? 'Escanea para contactar' : 'Scan to contact';
+const isSpanish = profile.locale.lang.startsWith('es');
+const phoneHeading = String(localized.heading || heading || (
+  isSpanish ? 'Hagamos realidad tu visión' : 'Let us bring your vision to life'
+));
+const consultationHeading = String(localized.consultation_heading || primaryCopy?.label || (
+  isSpanish ? 'Consulta sin compromiso' : 'Free consultation'
+));
+const consultationSummary = String(localized.summary || (
+  isSpanish ? 'Solicita tu estimado hoy.' : 'Request your estimate today.'
+));
+const qrHeading = String(localized.qr_heading || (
+  isSpanish ? 'Escanea para conversar por WhatsApp' : 'Scan to chat on WhatsApp'
+));
+const unavailable = String(profile.system.messages['contact.unavailable'] || '');
+
+function contactDestination() {
+  if (!action) return unavailable;
+  if (action.type === 'phone') return action.href.slice(4);
+  if (action.type === 'whatsapp') {
+    const match = action.href.match(/^https:\/\/wa\.me\/([1-9][0-9]{7,14})/);
+    return match ? `+${match[1]}` : action.label;
+  }
+  const match = action.href.match(/^mailto:([^?]+)/);
+  if (!match) return action.label;
+  try { return decodeURIComponent(match[1]); } catch (_) { return action.label; }
+}
+
+function displayDestination(value: string) {
+  const digits = value.replace(/\D/g, '');
+  if (value.startsWith('+') && digits.length === 11 && digits.startsWith('1')) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return value;
+}
+
+const destination = displayDestination(contactDestination());
+const actionRel = action?.type === 'whatsapp' ? 'noopener noreferrer' : undefined;
 ---
 
 <section
@@ -36,37 +67,87 @@ const qrHeading = profile.locale.lang.startsWith('es') ? 'Escanea para contactar
   aria-labelledby={`${sectionId}-heading`}
   data-section-type="contact"
   data-section-variant={section.variant}
-  data-contact-available={profile.contact_action.available ? 'true' : 'false'}
+  data-contact-available={action ? 'true' : 'false'}
+  data-contact-has-qr={qrMedia ? 'true' : 'false'}
 >
   <div class="promo-shell-section__inner promo-contact__inner">
-    <div class="promo-shell-section__copy promo-contact__copy">
-      {logoMedia && (
-        <div class="promo-contact__logo">
-          <PromoSectionMedia media={logoMedia} accessibleLabel={String(profile.content.identity.name || heading)} />
-        </div>
-      )}
-      <p class="promo-shell-section__eyebrow">{navigationLabel}</p>
+    <div class="promo-contact__semantic-heading">
       {primaryHeading
-        ? <h1 id={`${sectionId}-heading`}>{heading}</h1>
-        : <h2 id={`${sectionId}-heading`}>{heading}</h2>}
-      {localized.summary && <p class="promo-shell-section__summary">{localized.summary}</p>}
-      <PromoContactAction
-        profile={profile}
-        className="promo-contact__action"
-        fallbackLabel={fallbackLabel}
-        enabled={contactEnabled}
-      />
+        ? <h1 id={`${sectionId}-heading`}>{navigationLabel}</h1>
+        : <h2 id={`${sectionId}-heading`}>{navigationLabel}</h2>}
     </div>
 
-    {qrMedia ? (
-      <figure class="promo-contact__qr">
-        <PromoSectionMedia media={qrMedia} accessibleLabel={qrHeading} />
-        <figcaption>{qrHeading}</figcaption>
-      </figure>
+    {action ? (
+      <a
+        class="promo-contact__panel promo-contact__panel--phone"
+        href={action.href}
+        aria-label={action.aria_label}
+        rel={actionRel}
+        data-contact-action="primary"
+        data-contact-type={action.type}
+        data-contact-surface="number"
+      >
+        <span class="promo-contact__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6.6 2.8 9.4 6a1.6 1.6 0 0 1 .2 1.8L8.3 9.9a15.4 15.4 0 0 0 5.8 5.8l2.1-1.3a1.6 1.6 0 0 1 1.8.2l3.2 2.8a1.6 1.6 0 0 1 .4 1.8c-.7 1.8-2.5 2.9-4.4 2.7C9.4 21 3 14.6 2.1 6.8 1.9 4.9 3 3.1 4.8 2.4a1.6 1.6 0 0 1 1.8.4Z" /></svg>
+        </span>
+        <span class="promo-contact__copy">
+          <span class="promo-contact__eyebrow">{phoneHeading}</span>
+          <strong class="promo-contact__destination">{destination}</strong>
+        </span>
+      </a>
     ) : (
-      <div class="promo-contact__ornament" aria-hidden="true">
-        <span></span><span></span><span></span>
+      <div class="promo-contact__panel promo-contact__panel--phone is-disabled">
+        <span class="promo-contact__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6.6 2.8 9.4 6a1.6 1.6 0 0 1 .2 1.8L8.3 9.9a15.4 15.4 0 0 0 5.8 5.8l2.1-1.3a1.6 1.6 0 0 1 1.8.2l3.2 2.8a1.6 1.6 0 0 1 .4 1.8c-.7 1.8-2.5 2.9-4.4 2.7C9.4 21 3 14.6 2.1 6.8 1.9 4.9 3 3.1 4.8 2.4a1.6 1.6 0 0 1 1.8.4Z" /></svg>
+        </span>
+        <span class="promo-contact__copy">
+          <span class="promo-contact__eyebrow">{phoneHeading}</span>
+          <strong class="promo-contact__destination">{destination}</strong>
+        </span>
       </div>
     )}
+
+    {action ? (
+      <a
+        class="promo-contact__panel promo-contact__panel--consultation"
+        href={action.href}
+        aria-label={action.aria_label}
+        rel={actionRel}
+        data-contact-action="primary"
+        data-contact-type={action.type}
+        data-contact-surface="consultation"
+      >
+        <span class="promo-contact__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M8 3h8v3h3v15H5V6h3V3Zm2 3h4V5h-4v1Zm-2 4v2h8v-2H8Zm0 4v2h5v-2H8Z" /></svg>
+        </span>
+        <span class="promo-contact__copy">
+          <strong class="promo-contact__title">{consultationHeading}</strong>
+          <span class="promo-contact__summary">{consultationSummary}</span>
+        </span>
+      </a>
+    ) : (
+      <div class="promo-contact__panel promo-contact__panel--consultation is-disabled">
+        <span class="promo-contact__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M8 3h8v3h3v15H5V6h3V3Zm2 3h4V5h-4v1Zm-2 4v2h8v-2H8Zm0 4v2h5v-2H8Z" /></svg>
+        </span>
+        <span class="promo-contact__copy">
+          <strong class="promo-contact__title">{consultationHeading}</strong>
+          <span class="promo-contact__summary">{consultationSummary}</span>
+        </span>
+      </div>
+    )}
+
+    <div class="promo-contact__panel promo-contact__panel--qr">
+      {qrMedia && (
+        <figure class="promo-contact__qr">
+          <PromoSectionMedia media={qrMedia} accessibleLabel={qrHeading} />
+        </figure>
+      )}
+      <span class="promo-contact__icon promo-contact__icon--chat" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M12 2a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l5.3-1.3A9.5 9.5 0 1 0 12 2Zm0 2a7.5 7.5 0 0 1 0 15 7.4 7.4 0 0 1-3.8-1l-.4-.2-2.5.6.6-2.4-.2-.4A7.5 7.5 0 0 1 12 4Zm-3 3.6c-.3 0-.6.1-.8.4-.3.4-1 1-.9 2.4.1 1.4 1.1 2.8 1.3 3 .2.2 2 3.2 5 4.2 2.5.8 3 .6 3.6.5.6 0 1.8-.7 2.1-1.5.3-.7.3-1.3.2-1.5-.1-.1-.4-.2-.9-.5l-2-.9c-.3-.1-.6-.2-.8.2l-.9 1.1c-.2.3-.5.3-.8.1a8.2 8.2 0 0 1-2.4-1.5 9 9 0 0 1-1.7-2.1c-.2-.4 0-.6.1-.8l.6-.7c.2-.2.2-.4.3-.6.1-.2 0-.5 0-.7L10 8c-.2-.4-.5-.4-.8-.4Z" /></svg>
+      </span>
+      <strong class="promo-contact__qr-heading">{qrHeading}</strong>
+    </div>
+
   </div>
 </section>

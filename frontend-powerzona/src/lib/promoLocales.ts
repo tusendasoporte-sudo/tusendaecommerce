@@ -42,7 +42,7 @@ const SECTION_TEXT_KEYS = Object.freeze({
   gallery: ['heading', 'summary', 'items'],
   owner: ['heading', 'name', 'bio'],
   store_rating: ['heading'],
-  contact: ['heading', 'summary'],
+  contact: ['heading', 'consultation_heading', 'summary', 'qr_heading'],
   footer: ['heading', 'summary', 'text'],
 } as const);
 const SECTION_REQUIRED_TEXT = Object.freeze({
@@ -232,8 +232,8 @@ function normalizeLocalizedContent(document: JsonRecord, value: unknown) {
           safeText(value, PROMO_LOCALES_TEXT_LIMITS.heroButton)
         ));
       } else {
-        const max = field === 'heading' || field === 'name'
-          ? (field === 'heading' ? PROMO_LOCALES_TEXT_LIMITS.heading : PROMO_LOCALES_TEXT_LIMITS.businessName)
+        const max = field === 'heading' || field === 'consultation_heading' || field === 'qr_heading' || field === 'name'
+          ? (field === 'name' ? PROMO_LOCALES_TEXT_LIMITS.businessName : PROMO_LOCALES_TEXT_LIMITS.heading)
           : field === 'intro'
             ? PROMO_LOCALES_TEXT_LIMITS.heroIntro
           : field === 'summary'

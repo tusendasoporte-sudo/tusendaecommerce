@@ -129,14 +129,16 @@ const canSave = canManageContent && canManageTranslations;
     featured_work: 'Trabajo destacado',
     owner: 'Propietario',
     store_rating: 'Reseñas de tienda',
-    contact: 'Contacto',
+    contact: 'Contacto y QR',
     footer: 'Pie del sitio',
     gallery: 'Trabajos realizados',
   };
   const fieldLabels: Record<string, string> = {
     heading: 'Título',
+    consultation_heading: 'Título de consulta',
     intro: 'Introducción de portada',
     summary: 'Resumen',
+    qr_heading: 'Texto junto al QR',
     name: 'Nombre',
     bio: 'Biografía',
     text: 'Texto',
@@ -372,10 +374,11 @@ const canSave = canManageContent && canManageTranslations;
           hero: ['intro', 'heading', 'summary'], services: ['heading', 'summary'], featured_work: ['heading', 'summary'],
           gallery: ['heading', 'summary'],
           owner: ['heading', 'name', 'bio'], store_rating: ['heading'],
-          contact: ['heading', 'summary'], footer: ['heading', 'summary', 'text'],
+          contact: ['heading', 'consultation_heading', 'summary', 'qr_heading'], footer: ['heading', 'summary', 'text'],
         };
         (keys[section.type] || []).forEach((name) => {
-          const max = name === 'heading' ? 160 : name === 'intro' ? 120 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
+          const max = ['heading', 'consultation_heading', 'qr_heading'].includes(name)
+            ? 160 : name === 'intro' ? 120 : name === 'summary' ? 600 : name === 'name' ? 140 : 4000;
           const entry = field(fieldLabels[name] || name, sectionContent[name] || '', {
             max,
             required: section.visible === true && ['heading', 'name', 'bio', 'text'].includes(name),
