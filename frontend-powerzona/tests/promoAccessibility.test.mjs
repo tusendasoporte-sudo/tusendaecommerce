@@ -75,7 +75,8 @@ test('A11Y materializa nombres, estados y alternativas de media sin semántica A
   assert.match(hero, /controls=\{media\.delivery\.controls_required\}/);
   assert.match(hero, /poster=\{media\.delivery\.poster\.src\}/);
   assert.match(hero, /aria-label=\{mediaLabel\(media, index\)\}/);
-  assert.match(hero, /mediaControlLabel[\s\S]*?index \+ 1\}\/\$\{heroMedia\.length\}/);
+  assert.match(hero, /aria-label=\{carouselControlLabels\.previous\}/);
+  assert.match(hero, /aria-label=\{carouselControlLabels\.next\}/);
   assert.doesNotMatch([hero, sectionMedia].join('\n'), /autoplay=/);
 });
 
@@ -87,12 +88,13 @@ test('A11Y mantiene teclado completo, foco visible y controles de video no ocult
   assert.match(heroStyles, /video:focus-visible[\s\S]*?box-shadow: inset 0 0 0 8px/);
   assert.match(sectionStyles, /video:focus-visible[\s\S]*?box-shadow: inset 0 0 0 8px/);
   assert.match(themeStyles, /@media \(forced-colors: active\)[\s\S]*?outline: 3px solid Highlight/);
-  assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?inset-block-start:/);
+  assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?inset: 0;[\s\S]*?pointer-events: none/);
   assert.doesNotMatch(heroStyles.match(/\.promo-hero__controls \{[\s\S]*?\}/)?.[0] || '', /inset-block-end/);
   assert.match(hero, /tabindex=\{heroMedia\.length > 1 \? '0'/);
   assert.match(heroCarousel, /document\.createElement\('button'\)/);
   assert.match(heroCarousel, /toggle\.setAttribute\('aria-label', label\)/);
-  assert.match(heroCarousel, /control\.setAttribute\('aria-current', 'true'\)/);
+  assert.match(heroCarousel, /previousControl\.addEventListener\('click'/);
+  assert.match(heroCarousel, /nextControl\.addEventListener\('click'/);
   assert.match(heroStyles, /\.promo-hero__toggle \{[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
   assert.match(heroStyles, /\.promo-hero__toggle:focus-visible[\s\S]*?outline: 3px/);
   assert.match(reviews, /tabindex="0"[\s\S]*?role="region"[\s\S]*?aria-label=/);
@@ -121,7 +123,7 @@ test('A11Y verifica contraste Theme AA y estados disponibles/no disponibles', ()
 test('A11Y preserva targets táctiles, reflow, zoom de texto, RTL y strings largos', () => {
   assert.match(shellStyles, /text-size-adjust: 100%/);
   assert.match(themeStyles, /min-width: 44px;[\s\S]*?min-height: 44px/);
-  assert.match(heroStyles, /\.promo-hero__control[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
+  assert.match(heroStyles, /\.promo-hero__arrow[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
   assert.match(contactStyles, /\.promo-contact-action[\s\S]*?min-height: 54px/);
   assert.match(footerStyles, /min-height: 44px/);
   assert.match(qrStyles, /min-height: 44px/);
@@ -147,13 +149,14 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(heroCarousel, /dataset\.promoTokenMotion === 'reduced'/);
   assert.match(heroCarousel, /window\.setInterval\([\s\S]*?CAROUSEL_INTERVAL_MS/);
   assert.match(heroCarousel, /window\.clearInterval\(timer\)/);
-  assert.match(hero, /class="promo-hero__control"/);
+  assert.match(hero, /class="promo-hero__arrow promo-hero__arrow--previous"/);
   assert.match(hero, /type="button"/);
   assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
   assert.doesNotMatch(hero, /id=\{`\$\{sectionId\}-media-/);
   assert.match(heroCarousel, /legacyMediaHash/);
   assert.match(heroCarousel, /window\.history\.replaceState\(null, '', cleanUrl\)/);
-  assert.match(heroCarousel, /track\.addEventListener\('wheel'[\s\S]*?window\.scrollBy[\s\S]*?passive: false/);
+  assert.match(heroCarousel, /const CAROUSEL_INTERVAL_MS = 5000/);
+  assert.doesNotMatch(heroCarousel, /addEventListener\('wheel'|event\.preventDefault\(\)|window\.scrollBy/);
 });
 
 test('A11Y conserva alternativa y marco estable cuando una imagen pública falla', () => {

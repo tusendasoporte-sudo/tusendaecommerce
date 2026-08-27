@@ -22,7 +22,7 @@ test('RESP fija targets táctiles 44×44 y CTA de 54 px en todos los cortes móv
   assert.match(themeStyles, /\.promo-shell-navigation a,[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.match(themeStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-shell-locales a \{ min-width: 44px; min-height: 44px;/);
   assert.match(qrStyles, /\.promo-landing-qr-link[\s\S]*?min-height: 44px;/);
-  assert.match(heroStyles, /\.promo-hero__control[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
+  assert.match(heroStyles, /\.promo-hero__arrow[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.match(heroStyles, /\.promo-hero__toggle \{[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.doesNotMatch(heroStyles, /min-(?:width|height): 36px/);
   assert.doesNotMatch(themeStyles, /min-(?:width|height): 42px/);

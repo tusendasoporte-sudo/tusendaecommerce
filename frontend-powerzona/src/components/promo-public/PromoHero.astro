@@ -74,9 +74,9 @@ const srcset = (media: PromoPublicMedia) => media.kind === 'image'
 const mediaLabel = (media: PromoPublicMedia, index: number) => (
   media.accessibility.alt || `${navigationLabel} ${index + 1}`
 );
-const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
-  `${mediaLabel(media, index)} - ${index + 1}/${heroMedia.length}`
-);
+const carouselControlLabels = profile.locale.lang.toLowerCase().startsWith('en')
+  ? { previous: 'Previous cover image', next: 'Next cover image' }
+  : { previous: 'Imagen anterior de portada', next: 'Imagen siguiente de portada' };
 ---
 
 <section
@@ -172,20 +172,22 @@ const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
 
         {heroMedia.length > 1 && (
           <div class="promo-hero__controls" role="group" aria-label={navigationLabel}>
-            <ol>
-              {heroMedia.map((media, index) => (
-                <li>
-                  <button
-                    type="button"
-                    class="promo-hero__control"
-                    data-promo-hero-index={String(index)}
-                    aria-label={mediaControlLabel(media, index)}
-                  >
-                    {String(index + 1).padStart(2, '0')}
-                  </button>
-                </li>
-              ))}
-            </ol>
+            <button
+              type="button"
+              class="promo-hero__arrow promo-hero__arrow--previous"
+              data-promo-hero-direction="previous"
+              aria-label={carouselControlLabels.previous}
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+            <button
+              type="button"
+              class="promo-hero__arrow promo-hero__arrow--next"
+              data-promo-hero-direction="next"
+              aria-label={carouselControlLabels.next}
+            >
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         )}
       </div>

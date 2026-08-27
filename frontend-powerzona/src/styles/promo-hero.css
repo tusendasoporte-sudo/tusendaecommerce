@@ -117,61 +117,60 @@
 .promo-hero__controls {
   position: absolute;
   z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  inset-block-start: 1.1rem;
-  inset-inline-start: 1.15rem;
+  inset: 0;
+  pointer-events: none;
 }
 
-.promo-hero__controls ol {
-  display: flex;
-  gap: .4rem;
-  padding: .35rem;
-  margin: 0;
-  border: 1px solid rgb(246 241 231 / 22%);
-  border-radius: 999px;
-  background: rgb(11 11 11 / 78%);
-  list-style: none;
-  backdrop-filter: blur(8px);
-}
-
-.promo-hero__control {
+.promo-hero__arrow {
+  position: absolute;
   display: grid;
+  width: 48px;
+  height: 48px;
   min-width: 44px;
   min-height: 44px;
   padding: 0;
   place-items: center;
-  border: 1px solid transparent;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  border: 1px solid rgb(246 241 231 / 32%);
   border-radius: 50%;
-  background: transparent;
+  background: rgb(11 11 11 / 78%);
   color: var(--promo-text);
   cursor: pointer;
+  pointer-events: auto;
   font: inherit;
-  font-size: .7rem;
-  font-weight: 800;
-  letter-spacing: .08em;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1;
   touch-action: manipulation;
+  backdrop-filter: blur(8px);
 }
 
-.promo-hero__control:hover {
-  border-color: var(--promo-border);
-  color: var(--promo-accent-bright);
+.promo-hero__arrow--previous {
+  inset-inline-start: clamp(.7rem, 2.5vw, 1.5rem);
 }
 
-.promo-hero__control[aria-current="true"] {
+.promo-hero__arrow--next {
+  inset-inline-end: clamp(.7rem, 2.5vw, 1.5rem);
+}
+
+.promo-hero__arrow:hover {
   border-color: var(--promo-accent);
   background: var(--promo-accent);
   color: var(--promo-surface);
 }
 
-.promo-hero__control:focus-visible {
+.promo-hero__arrow:focus-visible {
   outline: 3px solid var(--promo-focus);
   outline-offset: 3px;
 }
-
 .promo-hero__toggle {
+  position: absolute;
   display: grid;
+  inset-block-start: 1.1rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  pointer-events: auto;
   min-width: 44px;
   min-height: 44px;
   padding: 0;
@@ -253,14 +252,21 @@
     width: 100%;
   }
 
-  .promo-hero__controls {
-    inset-block-start: .7rem;
+  .promo-hero__arrow {
+    width: 44px;
+    height: 44px;
+  }
+
+  .promo-hero__arrow--previous {
     inset-inline-start: .7rem;
   }
 
-  .promo-hero__control {
-    min-width: 44px;
-    min-height: 44px;
+  .promo-hero__arrow--next {
+    inset-inline-end: .7rem;
+  }
+
+  .promo-hero__toggle {
+    inset-block-start: .7rem;
   }
 }
 

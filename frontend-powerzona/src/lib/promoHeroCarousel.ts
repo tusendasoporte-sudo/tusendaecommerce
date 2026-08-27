@@ -1,4 +1,4 @@
-const CAROUSEL_INTERVAL_MS = 4000;
+const CAROUSEL_INTERVAL_MS = 5000;
 
 function carouselCopy() {
   return document.documentElement.lang.toLowerCase().startsWith('en')
@@ -13,9 +13,10 @@ export function initializePromoHeroCarousels() {
 
     const track = root.querySelector<HTMLOListElement>('.promo-hero__slides');
     const slides = Array.from(root.querySelectorAll<HTMLElement>('.promo-hero__slide'));
-    const controls = Array.from(root.querySelectorAll<HTMLButtonElement>('.promo-hero__control'));
+    const previousControl = root.querySelector<HTMLButtonElement>('[data-promo-hero-direction="previous"]');
+    const nextControl = root.querySelector<HTMLButtonElement>('[data-promo-hero-direction="next"]');
 
-    if (!track || slides.length <= 1 || controls.length !== slides.length) return;
+    if (!track || slides.length <= 1 || !previousControl || !nextControl) return;
 
     const copy = carouselCopy();
     const toggle = document.createElement('button');
@@ -45,12 +46,6 @@ export function initializePromoHeroCarousels() {
     const tokenReducesMotion = () => document.body.dataset.promoTokenMotion === 'reduced';
     const motionIsReduced = () => reducedMotion.matches || tokenReducesMotion();
 
-    const syncControls = () => {
-      controls.forEach((control, index) => {
-        if (index === currentIndex) control.setAttribute('aria-current', 'true');
-        else control.removeAttribute('aria-current');
-      });
-    };
 
     const syncToggle = () => {
       const motionReduced = motionIsReduced();
@@ -73,7 +68,6 @@ export function initializePromoHeroCarousels() {
         left: slides[currentIndex]?.offsetLeft || currentIndex * track.clientWidth,
         behavior: motionIsReduced() ? 'auto' : behavior,
       });
-      syncControls();
     };
 
     const restartTimer = () => {
@@ -83,11 +77,13 @@ export function initializePromoHeroCarousels() {
       timer = window.setInterval(() => goTo(currentIndex + 1), CAROUSEL_INTERVAL_MS);
     };
 
-    controls.forEach((control, index) => {
-      control.addEventListener('click', () => {
-        goTo(index);
-        restartTimer();
-      });
+    previousControl.addEventListener('click', () => {
+      goTo(currentIndex - 1);
+      restartTimer();
+    });
+    nextControl.addEventListener('click', () => {
+      goTo(currentIndex + 1);
+      restartTimer();
     });
 
     toggle.addEventListener('click', () => {
@@ -102,18 +98,8 @@ export function initializePromoHeroCarousels() {
           Math.abs(slide.offsetLeft - track.scrollLeft)
             < Math.abs(slides[closest].offsetLeft - track.scrollLeft) ? index : closest
         ), 0);
-        syncControls();
       });
     }, { passive: true });
-
-    track.addEventListener('wheel', (event) => {
-      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      const multiplier = event.deltaMode === WheelEvent.DOM_DELTA_LINE
-        ? 16
-        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? window.innerHeight : 1;
-      event.preventDefault();
-      window.scrollBy({ top: event.deltaY * multiplier, left: 0, behavior: 'auto' });
-    }, { passive: false });
 
     track.addEventListener('pointerdown', stopTimer);
     track.addEventListener('pointerup', restartTimer);

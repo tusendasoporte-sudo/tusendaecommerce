@@ -816,7 +816,7 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
   assert.match(action, /role="status"/);
   assert.doesNotMatch(`${hero}\n${action}`, /<form|target=|onclick|addEventListener|<script/i);
   assert.doesNotMatch(heroStyles, /url\(|@import|https?:/i);
-  assert.match(hero, /class="promo-hero__control"/);
+  assert.match(hero, /class="promo-hero__arrow promo-hero__arrow--previous"/);
   assert.match(hero, /type="button"/);
   assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
   assert.doesNotMatch(hero, /id=\{`\$\{sectionId\}-media-/);
