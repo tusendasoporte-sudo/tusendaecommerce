@@ -16,6 +16,7 @@ const MAX_VIDEO_BITRATE_BPS = 8 * 1000 * 1000;
 const MAX_STORED_IMAGES = 150;
 const MAX_STORED_VIDEOS = 3;
 const MAX_STORAGE_BYTES = 250 * 1024 * 1024;
+const MAX_DERIVED_WIDTH_RATIO = 0.5;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -541,7 +542,11 @@ function validateUploadedFile(file, payload) {
 function variantManifest(purpose, width, height) {
   const policy = PURPOSE_POLICIES[purpose];
   if (!policy) throw new Error("promo_media_purpose_invalid");
-  const variants = policy.widths.filter((candidate) => candidate < width).map((candidate) => ({
+  // PocketBase re-encodes thumbs with a fixed quality. Near-original thumbs can
+  // become larger than the already-normalized original, so only derive variants
+  // that materially reduce both dimensions and remain inside the 100 KiB contract.
+  const maxDerivedWidth = Math.floor(width * MAX_DERIVED_WIDTH_RATIO);
+  const variants = policy.widths.filter((candidate) => candidate <= maxDerivedWidth).map((candidate) => ({
     key: `w${candidate}`,
     thumb: `${candidate}x0`,
     width: candidate,

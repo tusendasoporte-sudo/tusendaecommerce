@@ -199,7 +199,12 @@ test('descriptores públicos son content-addressed, responsivos y accesibles por
     width: 1200, height: 630, duration_ms: 0,
   }, 'promo-a');
   assert.equal(image.delivery.src.includes('/promo-a/media/hero_main/'), true);
-  assert.deepEqual(image.delivery.srcset.map((item) => item.width), [480, 768, 1200]);
+  assert.deepEqual(image.delivery.srcset.map((item) => item.width), [480, 1200]);
+  assert.deepEqual(
+    media.variantManifest('hero', 1920, 1080).map((item) => item.width),
+    [480, 768, 1920],
+    'solo deriva miniaturas de hasta la mitad del ancho original',
+  );
   assert.equal(image.delivery.loading, 'eager');
   assert.equal(JSON.stringify(image).includes('asset_id'), false);
   const secondaryHero = media.publicAssetDescriptor({
