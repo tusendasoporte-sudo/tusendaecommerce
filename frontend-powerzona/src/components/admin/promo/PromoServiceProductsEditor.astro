@@ -106,6 +106,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     purpose: ImagePurpose;
     label: string;
     allowVideo?: boolean;
+    decorativeBackground?: boolean;
     onChange?: () => void;
   };
   type ProductModel = {
@@ -238,7 +239,10 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     function modelFromDocument(documentValue: any) {
       const localized = documentValue.content_by_locale?.[locale] || {};
       const hero = documentValue.sections.find((section: any) => section.type === 'hero');
-      heroMedia = (hero?.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, useKey)).filter(Boolean);
+      heroMedia = (hero?.media_use_keys || [])
+        .map((useKey: string) => mediaFromDocument(documentValue, useKey))
+        .filter(Boolean)
+        .map((media: MediaModel) => ({ ...media, alt: '', decorative: true }));
       const owner = documentValue.sections.find((section: any) => section.type === 'owner');
       ownerMedia = owner?.config?.media_use_key
         ? mediaFromDocument(documentValue, owner.config.media_use_key)
@@ -464,7 +468,12 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         await validateImageSource(file, options.purpose);
         const preparedFile = await prepareImageUpload(file, options.purpose);
         const assetId = await uploadAsset(preparedFile, options.purpose);
-        const media = { useKey: newKey(`${options.purpose}-media`, 120), assetId, alt: '', decorative: false };
+        const media = {
+          useKey: newKey(`${options.purpose}-media`, 120),
+          assetId,
+          alt: '',
+          decorative: options.decorativeBackground === true,
+        };
         if (index < target.length) target[index] = media;
         else target.push(media);
         options.onChange?.();
@@ -510,6 +519,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     }
 
     function renderMediaSlots(target: MediaModel[], options: MediaSlotOptions) {
+      const decorativeBackground = options.decorativeBackground === true;
       const wrapper = element('section', 'pz-promo-media-slots');
       const header = element('header', 'pz-promo-media-slots__header');
       header.append(
@@ -524,7 +534,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         const slot = element('article', `pz-promo-media-slot${media ? ' is-filled' : ' is-empty'}`);
         slot.dataset.purpose = options.purpose;
         slot.dataset.mediaSlot = String(index);
-        slot.draggable = Boolean(media && canSave && !busy);
+        slot.draggable = Boolean(media && canSave && !busy && !decorativeBackground);
 
         const slotHeading = element('div', 'pz-promo-media-slot__heading');
         slotHeading.append(
@@ -543,24 +553,26 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
 
         if (media) {
           slot.append(preview(media));
-          const accessibility = element('div', 'pz-promo-media-slot__accessibility');
-          const altLabel = element('label', 'pz-promo-gallery__field', asset?.kind === 'video' ? 'Descripción accesible del video' : 'Texto alternativo');
-          const alt = document.createElement('input');
-          alt.type = 'text'; alt.maxLength = 300; alt.value = media.alt; alt.required = !media.decorative; alt.disabled = !canSave;
-          alt.addEventListener('input', () => { media.alt = alt.value; markDirty(); });
-          altLabel.append(alt);
-          const decorative = document.createElement('input');
-          decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
-          decorative.addEventListener('change', () => {
-            media.decorative = decorative.checked;
-            if (media.decorative) { media.alt = ''; alt.value = ''; }
-            alt.required = !media.decorative;
-            markDirty();
-          });
-          const decorativeLabel = element('label', 'pz-promo-gallery__check');
-          decorativeLabel.append(decorative, element('span', '', 'Medio decorativo'));
-          accessibility.append(altLabel, decorativeLabel);
-          slot.append(accessibility);
+          if (!decorativeBackground) {
+            const accessibility = element('div', 'pz-promo-media-slot__accessibility');
+            const altLabel = element('label', 'pz-promo-gallery__field', asset?.kind === 'video' ? 'Descripción accesible del video' : 'Texto alternativo');
+            const alt = document.createElement('input');
+            alt.type = 'text'; alt.maxLength = 300; alt.value = media.alt; alt.required = !media.decorative; alt.disabled = !canSave;
+            alt.addEventListener('input', () => { media.alt = alt.value; markDirty(); });
+            altLabel.append(alt);
+            const decorative = document.createElement('input');
+            decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
+            decorative.addEventListener('change', () => {
+              media.decorative = decorative.checked;
+              if (media.decorative) { media.alt = ''; alt.value = ''; }
+              alt.required = !media.decorative;
+              markDirty();
+            });
+            const decorativeLabel = element('label', 'pz-promo-gallery__check');
+            decorativeLabel.append(decorative, element('span', '', 'Medio decorativo'));
+            accessibility.append(altLabel, decorativeLabel);
+            slot.append(accessibility);
+          }
         } else {
           const empty = element('div', 'pz-promo-media-slot__empty');
           empty.append(
@@ -577,25 +589,28 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         actions.append(choose, imageInput);
 
         if (media) {
-          const up = element('button', 'pz-promo-gallery__secondary', '↑');
-          up.type = 'button'; up.disabled = !canSave || busy || index === 0; up.ariaLabel = `Mover ${options.label} a la izquierda`;
-          up.addEventListener('click', () => {
-            [target[index - 1], target[index]] = [target[index], target[index - 1]];
-            slotChanged(options, 'Orden actualizado.');
-          });
-          const down = element('button', 'pz-promo-gallery__secondary', '↓');
-          down.type = 'button'; down.disabled = !canSave || busy || index === target.length - 1; down.ariaLabel = `Mover ${options.label} a la derecha`;
-          down.addEventListener('click', () => {
-            [target[index + 1], target[index]] = [target[index], target[index + 1]];
-            slotChanged(options, 'Orden actualizado.');
-          });
+          if (!decorativeBackground) {
+            const up = element('button', 'pz-promo-gallery__secondary', '↑');
+            up.type = 'button'; up.disabled = !canSave || busy || index === 0; up.ariaLabel = `Mover ${options.label} a la izquierda`;
+            up.addEventListener('click', () => {
+              [target[index - 1], target[index]] = [target[index], target[index - 1]];
+              slotChanged(options, 'Orden actualizado.');
+            });
+            const down = element('button', 'pz-promo-gallery__secondary', '↓');
+            down.type = 'button'; down.disabled = !canSave || busy || index === target.length - 1; down.ariaLabel = `Mover ${options.label} a la derecha`;
+            down.addEventListener('click', () => {
+              [target[index + 1], target[index]] = [target[index], target[index + 1]];
+              slotChanged(options, 'Orden actualizado.');
+            });
+            actions.append(up, down);
+          }
           const remove = element('button', 'is-danger', 'Quitar');
           remove.type = 'button'; remove.disabled = !canSave || busy;
           remove.addEventListener('click', () => {
             target.splice(index, 1);
             slotChanged(options);
           });
-          actions.append(up, down, remove);
+          actions.append(remove);
         }
         slot.append(actions);
 
@@ -627,14 +642,14 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         slot.append(element('small', 'pz-promo-media-slot__guidance', IMAGE_GUIDANCE[options.purpose]));
 
         slot.addEventListener('dragstart', (event) => {
-          if (!media || !event.dataTransfer) return;
+          if (decorativeBackground || !media || !event.dataTransfer) return;
           event.dataTransfer.effectAllowed = 'move';
           event.dataTransfer.setData(SLOT_REORDER_TYPE, String(index));
         });
         slot.addEventListener('dragover', (event) => {
           if (busy || (!canManageMedia && !canSave)) return;
           const types = Array.from(event.dataTransfer?.types || []);
-          if (!types.includes('Files') && !types.includes(SLOT_REORDER_TYPE)) return;
+          if (!types.includes('Files') && (decorativeBackground || !types.includes(SLOT_REORDER_TYPE))) return;
           event.preventDefault();
           slot.classList.add('is-dragover');
         });
@@ -645,6 +660,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
           const source = event.dataTransfer.getData(SLOT_REORDER_TYPE);
           if (source !== '') {
             event.preventDefault();
+            if (decorativeBackground) return;
             const from = Number(source);
             if (!canSave || !Number.isInteger(from) || from < 0 || from >= target.length || from === index) return;
             if (index < target.length) [target[from], target[index]] = [target[index], target[from]];
@@ -898,6 +914,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
           maximum: PROMO_HERO_MAX_MEDIA,
           purpose: 'hero',
           label: 'Imágenes de portada',
+          decorativeBackground: true,
         }));
       }
       if (ownerElement) ownerElement.replaceChildren(renderOwnerSection());

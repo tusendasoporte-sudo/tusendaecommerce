@@ -312,6 +312,9 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
   assert.deepEqual(gallery.media_use_keys, ['gallery-item-media-2']);
   assert.deepEqual(updated.sections.find((section) => section.type === 'featured_work').config.item_keys, []);
   assert.deepEqual(updated.media_refs['hero-media-1'], { asset_id: 'asseth000000001', purpose: 'hero' });
+  assert.deepEqual(updated.content_by_locale.es.media_alt['hero-media-1'], {
+    alt: '', decorative: true,
+  });
   assert.deepEqual(updated.media_refs['gallery-item-media-2'], { asset_id: 'assetv000000001', purpose: 'gallery' });
   assert.deepEqual(updated.content_by_locale.es.media_alt['gallery-item-media-2'], {
     alt: 'Recorrido del proyecto', decorative: false,

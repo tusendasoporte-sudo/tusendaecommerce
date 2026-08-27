@@ -295,11 +295,12 @@ function validateMediaPatch(
   if (allUseKeys.has(useKey) || !asset || asset.status !== 'ready' || asset.purpose !== purpose
     || !allowedKinds.includes(asset.kind)) fail('invalid_promo_media_reference');
   allUseKeys.add(useKey);
+  const decorative = purpose === 'hero' ? true : item.decorative;
   return {
     useKey,
     assetId,
-    alt: safeText(item.decorative ? '' : item.alt, PROMO_GALLERY_TEXT_LIMITS.alt, !item.decorative),
-    decorative: item.decorative,
+    alt: safeText(decorative ? '' : item.alt, PROMO_GALLERY_TEXT_LIMITS.alt, !decorative),
+    decorative,
   };
 }
 
