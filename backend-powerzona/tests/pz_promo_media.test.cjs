@@ -265,6 +265,26 @@ test('cuotas se calculan por tenant y fallan cerradas al superar entitlement', (
   );
 });
 
+test('subida idempotente reutiliza solo el asset ready con contrato idéntico', () => {
+  const existing = record('asseth000000001', {
+    site: 'site00000000001', kind: 'image', purpose: 'hero', status: 'ready',
+    mime_detected: 'image/webp', bytes: 60000, width: 1280, height: 720,
+    duration_ms: 0, poster_asset: '',
+  });
+  const payload = {
+    kind: 'image', purpose: 'hero', mime: 'image/webp', bytes: 60000,
+    width: 1280, height: 720, durationMs: 0, posterAssetId: '',
+  };
+  assert.equal(api.reusableAsset(existing, payload), existing);
+  assert.equal(api.reusableAsset(existing, { ...payload, purpose: 'gallery' }), null);
+  const retired = record('asseth000000002', {
+    site: 'site00000000001', kind: 'image', purpose: 'hero', status: 'retired',
+    mime_detected: 'image/webp', bytes: 60000, width: 1280, height: 720,
+    duration_ms: 0, poster_asset: '',
+  });
+  assert.equal(api.reusableAsset(retired, payload), null);
+});
+
 test('video exige poster ready del mismo tenant y propósito exacto', () => {
   const poster = record('poster000000001', {
     site: 'site00000000001', kind: 'image', purpose: 'video_poster', status: 'ready',

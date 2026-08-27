@@ -450,10 +450,17 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       }
     }
 
+    function saveMediaChanges() {
+      queueMicrotask(() => {
+        if (!busy && dirty && canSave) form?.requestSubmit();
+      });
+    }
+
     function slotChanged(options: MediaSlotOptions, message = 'Medios actualizados.') {
       options.onChange?.();
       markDirty(message);
       render();
+      saveMediaChanges();
     }
 
     async function setImageAt(
@@ -464,6 +471,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     ) {
       if (!file || !canManageMedia || busy || index > target.length || index >= options.maximum) return;
       clearError(); busy = true; render(); setStatus('Validando y subiendo imagen…');
+      let shouldSave = false;
       try {
         await validateImageSource(file, options.purpose);
         const preparedFile = await prepareImageUpload(file, options.purpose);
@@ -478,6 +486,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         else target.push(media);
         options.onChange?.();
         markDirty('Imagen lista.');
+        shouldSave = true;
       } catch (error) {
         showError(error);
         setStatus('No se pudo subir la imagen. Revisa formato y dimensiones.');
@@ -485,6 +494,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         busy = false;
         render();
       }
+      if (shouldSave) saveMediaChanges();
     }
 
     async function setVideoAt(
@@ -499,6 +509,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       if (!['video/mp4', 'video/webm'].includes(video.type)) return showError({ code: 'promo_media_type_invalid' });
       if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
       clearError(); busy = true; render(); setStatus('Validando poster y subiendo video…');
+      let shouldSave = false;
       try {
         await validateImageSource(poster, 'gallery');
         const preparedPoster = await prepareImageUpload(poster, 'video_poster');
@@ -509,6 +520,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         else target.push(media);
         options.onChange?.();
         markDirty('Video listo.');
+        shouldSave = true;
       } catch (error) {
         showError(error);
         setStatus('No se pudo subir el video. Revisa el archivo y su poster.');
@@ -516,6 +528,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         busy = false;
         render();
       }
+      if (shouldSave) saveMediaChanges();
     }
 
     function renderMediaSlots(target: MediaModel[], options: MediaSlotOptions) {

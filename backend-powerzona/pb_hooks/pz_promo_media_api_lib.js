@@ -159,6 +159,23 @@ function duplicateAsset(app, ownerSiteId, sha256) {
   return rows.length ? rows[0] : null;
 }
 
+function reusableAsset(record, payload) {
+  if (!record || !payload) return null;
+  const snapshot = mediaSnapshot(record);
+  if (snapshot.status !== "ready"
+    || snapshot.kind !== payload.kind
+    || snapshot.purpose !== payload.purpose
+    || snapshot.mime_detected !== payload.mime
+    || snapshot.bytes !== payload.bytes
+    || snapshot.width !== payload.width
+    || snapshot.height !== payload.height
+    || snapshot.duration_ms !== payload.durationMs
+    || media.relationId(record, "poster_asset") !== payload.posterAssetId) {
+    return null;
+  }
+  return record;
+}
+
 function mediaSnapshot(record) {
   return {
     kind: media.recordString(record, "kind", 20),
@@ -308,18 +325,34 @@ function handleUpload(e) {
     catch (error) { throw codedError(String(error && error.message || "promo_media_unavailable"), 400); }
 
     let created = null;
+    let reused = false;
     let projectedUsage = null;
     e.app.runInTransaction((app) => {
       const decision = promo.requirePromoAction(app, e.auth, action, {
         requestedStoreId: headerValue(context.info, "X-PZ-Promo-Store"),
       });
       const ownerSiteId = siteId(decision);
-      if (duplicateAsset(app, ownerSiteId, payload.sha256)) throw codedError("promo_media_duplicate", 409);
+      const duplicate = duplicateAsset(app, ownerSiteId, payload.sha256);
+      if (duplicate) {
+        created = reusableAsset(duplicate, payload);
+        if (!created) throw codedError("promo_media_duplicate", 409);
+        projectedUsage = usage(app, ownerSiteId);
+        reused = true;
+        return;
+      }
       projectedUsage = assertQuota(decision, usage(app, ownerSiteId), payload);
       const poster = assertPoster(app, ownerSiteId, payload);
       created = createRecord(app, decision, files[0], payload, poster);
     });
     try {
+      if (reused) {
+        return e.json(201, {
+          ok: true,
+          contract: media.MEDIA_RESPONSE_CONTRACT,
+          asset: media.privateAssetDescriptor(created),
+          usage: projectedUsage,
+        });
+      }
       generateImageVariants(e.app, created);
       e.app.runInTransaction((app) => {
         const decision = promo.requirePromoAction(app, e.auth, action, {
@@ -609,6 +642,7 @@ module.exports = {
   mediaSnapshot,
   parsedDeliveryFile,
   posterHasDependentVideo,
+  reusableAsset,
   serveFile,
   sendError,
   usage,
