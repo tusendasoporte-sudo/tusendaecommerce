@@ -9,6 +9,7 @@ import {
   normalizePromoGalleryCatalog,
   promoGalleryPreviewPath,
   PROMO_GALLERY_HARD_MAX_VIDEOS,
+  PROMO_HERO_MAX_MEDIA,
   PROMO_PRODUCT_MAX_MEDIA,
 } from '../src/lib/promoGallery.ts';
 import { PROMO_CMS_VIDEO_GALLERY_KEY, PromoCmsError } from '../src/lib/promoCms.ts';
@@ -403,6 +404,16 @@ test('cuota, portada y metadata accesible fallan cerradas', () => {
     () => buildPromoGalleryDocument(original, update, 24, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_media_reference',
   );
+  assert.equal(PROMO_HERO_MAX_MEDIA, 3);
+  const tooManyHeroImages = patch(original);
+  tooManyHeroImages.heroMedia = Array.from({ length: 4 }, (_, index) => ({
+    useKey: `hero-limit-media-${index + 1}`,
+    assetId: 'asseth000000001', alt: `Portada ${index + 1}`, decorative: false,
+  }));
+  assert.throws(
+    () => buildPromoGalleryDocument(original, tooManyHeroImages, 24, assets),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_payload',
+  );
   const heroVideo = patch(original);
   heroVideo.heroMedia = [{
     useKey: 'hero-video-1', assetId: 'assethv00000001', alt: 'Video de portada', decorative: false,
@@ -456,6 +467,7 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
   const productsEditor = readFileSync(new URL('../src/components/admin/promo/PromoServiceProductsEditor.astro', import.meta.url), 'utf8');
+  const galleryStyles = readFileSync(new URL('../src/styles/promo-gallery.css', import.meta.url), 'utf8');
   const moduleRoute = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promo/[section].astro', import.meta.url), 'utf8');
   const mediaApi = readFileSync(new URL('../src/pages/api/admin/promo-media.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(shell, /PromoGalleryEditor/);
@@ -481,6 +493,14 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
   assert.match(productsEditor, /function renderFeaturedSection/);
   assert.match(productsEditor, /Trabajos destacados/);
+  assert.match(productsEditor, /function renderMediaSlots/);
+  assert.match(productsEditor, /text\/x-promo-media-index/);
+  assert.match(productsEditor, /createImageBitmap/);
+  assert.match(productsEditor, /1920×1080/);
+  assert.match(productsEditor, /1200×900/);
+  assert.match(productsEditor, /800×1000/);
+  assert.match(galleryStyles, /pz-promo-media-slot\.is-dragover/);
+  assert.match(galleryStyles, /data-maximum='1'/);
   assert.doesNotMatch(productsEditor, /data-products-add-hero-video|data-products-hero-video|data-products-hero-poster/);
   assert.doesNotMatch(productsEditor, /element\('span', '', 'Destacado'\)/);
   assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);

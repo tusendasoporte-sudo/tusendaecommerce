@@ -10,6 +10,7 @@ export const PROMO_GALLERY_MEDIA_API_PATH = '/api/admin/promo-media';
 export const PROMO_GALLERY_DRAFT_API_PATH = '/api/admin/promo-cms';
 export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['gallery'] as const);
 export const PROMO_GALLERY_HARD_MAX_VISIBLE = 150;
+export const PROMO_HERO_MAX_MEDIA = 3;
 export const PROMO_PRODUCT_MAX_MEDIA = 3;
 export const PROMO_GALLERY_HARD_MAX_VIDEOS = 3;
 
@@ -316,6 +317,7 @@ function setMediaReference(document: JsonRecord, locale: string, item: ReturnTyp
 function galleryPatches(patch: PromoGalleryPatch) {
   if (!isRecord(patch)
     || !Array.isArray(patch.heroMedia)
+    || patch.heroMedia.length > PROMO_HERO_MAX_MEDIA
     || (patch.ownerMedia !== undefined && !isRecord(patch.ownerMedia) && patch.ownerMedia !== null)
     || !Array.isArray(patch.galleries)) fail();
   const keys = new Set<string>();
