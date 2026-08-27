@@ -8,7 +8,9 @@ export const PROMO_MEDIA_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
 export const PROMO_MEDIA_VIDEO_MAX_DURATION_MS = 30 * 60 * 1000;
 export const PROMO_MEDIA_VIDEO_MAX_BITRATE_BPS = 8 * 1000 * 1000;
 export const PROMO_MEDIA_MULTIPART_MAX_BYTES = PROMO_MEDIA_VIDEO_MAX_BYTES + (512 * 1024);
-const PROMO_CONTACT_IMAGE_SIZE = 512;
+const PROMO_QR_IMAGE_SIZE = 512;
+const PROMO_LOGO_IMAGE_WIDTH = 1024;
+const PROMO_LOGO_IMAGE_HEIGHT = 512;
 
 export const PROMO_MEDIA_PURPOSE_POLICIES = Object.freeze({
   hero: Object.freeze({ minWidth: 640, minHeight: 320, maxWidth: 1920, maxHeight: 1080 }),
@@ -105,8 +107,10 @@ function assertPurpose(value: unknown): PromoMediaPurpose {
 
 function assertDimensions(purpose: PromoMediaPurpose, width: number, height: number) {
   const policy = PROMO_MEDIA_PURPOSE_POLICIES[purpose];
-  if ((purpose === 'qr' || purpose === 'logo')
-    && (width !== PROMO_CONTACT_IMAGE_SIZE || height !== PROMO_CONTACT_IMAGE_SIZE)) {
+  if (purpose === 'qr' && (width !== PROMO_QR_IMAGE_SIZE || height !== PROMO_QR_IMAGE_SIZE)) {
+    throw new PromoMediaError('promo_media_dimensions_invalid');
+  }
+  if (purpose === 'logo' && (width !== PROMO_LOGO_IMAGE_WIDTH || height !== PROMO_LOGO_IMAGE_HEIGHT)) {
     throw new PromoMediaError('promo_media_dimensions_invalid');
   }
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
@@ -185,19 +189,19 @@ export async function optimizePromoImage(
           .rotate()
           .resize(purpose === 'qr'
             ? {
-              width: PROMO_CONTACT_IMAGE_SIZE,
-              height: PROMO_CONTACT_IMAGE_SIZE,
+              width: PROMO_QR_IMAGE_SIZE,
+              height: PROMO_QR_IMAGE_SIZE,
               fit: 'contain',
               background: '#ffffff',
               withoutEnlargement: false,
-              kernel: oriented.width < PROMO_CONTACT_IMAGE_SIZE || oriented.height < PROMO_CONTACT_IMAGE_SIZE
+              kernel: oriented.width < PROMO_QR_IMAGE_SIZE || oriented.height < PROMO_QR_IMAGE_SIZE
                 ? sharp.kernel.nearest
                 : sharp.kernel.lanczos3,
             }
             : (purpose === 'logo'
               ? {
-                width: PROMO_CONTACT_IMAGE_SIZE,
-                height: PROMO_CONTACT_IMAGE_SIZE,
+                width: PROMO_LOGO_IMAGE_WIDTH,
+                height: PROMO_LOGO_IMAGE_HEIGHT,
                 fit: 'contain',
                 background: { r: 0, g: 0, b: 0, alpha: 0 },
                 withoutEnlargement: false,

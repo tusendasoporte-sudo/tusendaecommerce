@@ -115,12 +115,12 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 
 .promo-shell-brand__logo {
   display: block;
-  width: 44px;
-  height: 44px;
+  width: clamp(8.5rem, 13vw, 11rem);
+  height: clamp(3.75rem, 6vw, 4.75rem);
   flex: 0 0 auto;
   overflow: hidden;
-  border-radius: max(.35rem, var(--promo-radius));
-  background: rgb(255 255 255 / 92%);
+  border-radius: min(.5rem, var(--promo-radius));
+  background: transparent;
 }
 
 .promo-shell-brand__logo img {
@@ -128,6 +128,54 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
+}
+
+.promo-shell-header[data-logo-placement="integrated"] {
+  min-height: 108px;
+  grid-template-columns: minmax(15rem, .8fr) minmax(0, 1.8fr) auto;
+}
+
+.promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand__logo {
+  width: clamp(11rem, 18vw, 15rem);
+  height: clamp(5.5rem, 9vw, 7.5rem);
+  margin-block-end: -2.4rem;
+  transform: translateY(.55rem);
+}
+
+.promo-shell-header[data-logo-placement="centered"] .promo-shell-brand__logo,
+.promo-shell-header[data-logo-placement="lateral"] .promo-shell-brand__logo {
+  width: clamp(7.5rem, 11vw, 9.5rem);
+  height: clamp(3.25rem, 5vw, 4rem);
+}
+
+.promo-hero__brand {
+  display: block;
+  width: clamp(11rem, 22vw, 17rem);
+  height: clamp(5.5rem, 11vw, 8.5rem);
+  overflow: hidden;
+  margin-block-end: clamp(1.25rem, 3vw, 2rem);
+  border-radius: min(.5rem, var(--promo-radius));
+  color: inherit;
+}
+
+.promo-hero__brand img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.promo-hero__brand--centered { margin-inline: auto; }
+
+body[data-promo-theme-renderer="promo.black-gold"] .promo-shell-brand__logo img,
+body[data-promo-theme-renderer="promo.black-gold"] .promo-hero__brand img,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-shell-brand__logo img,
+body[data-promo-theme-renderer="promo.portfolio"] .promo-hero__brand img,
+body[data-promo-theme-renderer="promo.vibrant"] .promo-shell-brand__logo img,
+body[data-promo-theme-renderer="promo.vibrant"] .promo-hero__brand img {
+  mix-blend-mode: screen;
 }
 
 .promo-shell-brand__name {
@@ -532,6 +580,10 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
     gap: .55rem 1.25rem;
   }
 
+  .promo-shell-header[data-logo-placement="integrated"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .promo-shell-navigation {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -559,6 +611,20 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 
   .promo-shell-brand__mark { width: 28px; height: 28px; }
   .promo-shell-brand__name { font-size: 1rem; }
+  .promo-shell-brand__logo { width: 8rem; height: 3.5rem; }
+
+  .promo-shell-header[data-logo-placement="integrated"] {
+    min-height: 88px;
+  }
+
+  .promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand__logo {
+    width: 9rem;
+    height: 4.5rem;
+    margin-block-end: -1.2rem;
+    transform: translateY(.25rem);
+  }
+
+  .promo-hero__brand { width: min(12rem, 58vw); height: min(6rem, 29vw); }
 
   .promo-shell-locales__label {
     position: absolute;

@@ -102,13 +102,13 @@ test('AVIF detectado por contenido se normaliza a WebP sin metadata heredada', a
   assert.equal(metadata.icc, undefined);
 });
 
-test('logo y QR pequeños se amplían a 512x512 sin recorte ni rechazo por dimensiones', async () => {
+test('logo y QR pequeños se normalizan sin recorte ni rechazo por dimensiones', async () => {
   const logo = await sharp({
-    create: { width: 96, height: 48, channels: 4, background: { r: 196, g: 154, b: 62, alpha: 1 } },
+    create: { width: 96, height: 48, channels: 4, background: { r: 196, g: 154, b: 62, alpha: 0.5 } },
   }).png().toBuffer();
   const normalizedLogo = await optimizePromoImage(fileLike(logo, 'logo-pequeno.png', 'image/png'), 'logo');
   const logoMetadata = await sharp(normalizedLogo.buffer).metadata();
-  assert.equal(normalizedLogo.width, 512);
+  assert.equal(normalizedLogo.width, 1024);
   assert.equal(normalizedLogo.height, 512);
   assert.equal(logoMetadata.hasAlpha, true);
   assert.equal(normalizedLogo.bytes <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);

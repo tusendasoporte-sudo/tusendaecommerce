@@ -450,7 +450,7 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /data-cms-logo-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-logo[\s\S]*?data-cms-remove-logo/);
   assert.match(editor, /data-cms-qr-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-qr[\s\S]*?data-cms-remove-qr/);
   assert.match(editor, /bindContactMediaDrop\('\[data-cms-logo-slot\]'[\s\S]*?bindContactMediaDrop\('\[data-cms-qr-slot\]'/);
-  assert.match(editor, /data-cms-logo-count[\s\S]*?se adapta automáticamente a 512×512 px · sin recorte/);
+  assert.match(editor, /data-cms-logo-count[\s\S]*?se adapta automáticamente a 1024×512 px · formato horizontal y sin recorte/);
   assert.match(editor, /data-cms-qr-count[\s\S]*?se adapta automáticamente a 512×512 px · fondo blanco y sin recorte/);
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);

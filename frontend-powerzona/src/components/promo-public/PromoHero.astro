@@ -6,6 +6,7 @@ import type {
   PromoPublicSection,
 } from '../../lib/promoPublicShell';
 import PromoContactAction from './PromoContactAction.astro';
+import PromoSectionMedia from './PromoSectionMedia.astro';
 
 interface Props {
   profile: PromoPublicProfile;
@@ -40,6 +41,13 @@ const contactEnabled = Boolean(primaryActionKey && requestedActionKey === primar
 const heroLayout = ['immersive', 'split', 'centered', 'editorial'].includes(String(section.config.layout))
   ? String(section.config.layout)
   : 'immersive';
+const logoMediaKey = String(profile.contact.logo_media_use_key || '');
+const logoMedia = profile.media.find((media) => (
+  media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
+));
+const heroBrandPlacement = heroLayout === 'centered' ? 'centered'
+  : heroLayout === 'editorial' ? 'lateral'
+    : '';
 const highlights = Array.isArray(localized.highlights) ? localized.highlights.slice(0, 4) : [];
 const buttonTargets = Array.isArray(section.config.button_targets) ? section.config.button_targets.slice(0, 2) : [];
 const buttonLabels = Array.isArray(localized.button_labels) ? localized.button_labels.slice(0, 2) : [];
@@ -82,6 +90,11 @@ const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
   <div class="promo-shell-section__inner promo-hero__inner">
     <div class="promo-shell-section__copy promo-hero__copy">
       <p class="promo-shell-section__eyebrow">{localized.intro || navigationLabel}</p>
+      {logoMedia?.kind === 'image' && heroBrandPlacement && (
+        <a class:list={['promo-hero__brand', `promo-hero__brand--${heroBrandPlacement}`]} href={profile.locale.canonical_path} aria-label={profile.content.identity.name}>
+          <PromoSectionMedia media={logoMedia} accessibleLabel={profile.content.identity.name} />
+        </a>
+      )}
       {profile.content.identity.slogan && <p class="promo-hero__slogan">{profile.content.identity.slogan}</p>}
       {primaryHeading
         ? <h1 id={`${sectionId}-heading`}>{heading}</h1>

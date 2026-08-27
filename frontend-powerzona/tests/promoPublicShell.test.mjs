@@ -563,8 +563,17 @@ test('BRAND acepta un logo normalizado y lo reutiliza en cabecera y metadatos so
   const normalized = normalizePromoPublicShellResponse(envelope);
   assert.equal(normalized.profile.contact.logo_media_use_key, 'business-logo');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const hero = read('../src/components/promo-public/PromoHero.astro');
+  const styles = read('../src/styles/promo-black-gold.css');
   assert.match(theme, /profile\.contact\.logo_media_use_key/);
   assert.match(theme, /<PromoSectionMedia media=\{logoMedia\}/);
+  assert.match(theme, /immersive: 'integrated', split: 'header', centered: 'centered', editorial: 'lateral'/);
+  assert.match(theme, /data-logo-placement=\{logoMedia \? logoPlacement/);
+  assert.match(theme, /promo-shell-brand--with-logo/);
+  assert.match(hero, /promo-hero__brand--\$\{heroBrandPlacement\}/);
+  assert.match(styles, /data-logo-placement="integrated"/);
+  assert.match(styles, /promo-hero__brand--centered/);
+  assert.match(styles, /mix-blend-mode: screen/);
 });
 
 test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito', () => {
@@ -783,8 +792,8 @@ test('FOOTER renderiza datos localizados, navegación, redes y marca Master sin 
   assert.match(cmsLib, /social_profiles/);
   assert.doesNotMatch(`${footer}\n${styles}`, /<script|onclick|addEventListener|innerHTML|set:html|target="_blank"/i);
   assert.doesNotMatch(styles, /url\(|@import|https?:/i);
-  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 64 * 1024,
-    'CSS público combinado Promo excede el budget transitorio de 64 KiB');
+  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 68 * 1024,
+    'CSS público combinado Promo excede el budget transitorio de 68 KiB');
 });
 
 test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () => {

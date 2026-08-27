@@ -35,6 +35,13 @@ const logoMediaKey = String(profile.contact.logo_media_use_key || '');
 const logoMedia = profile.media.find((media) => (
   media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
 ));
+const heroSection = mainSections.find((section) => section.type === 'hero');
+const heroLayout = ['immersive', 'split', 'centered', 'editorial'].includes(String(heroSection?.config.layout))
+  ? String(heroSection?.config.layout)
+  : 'immersive';
+const logoPlacement = ({
+  immersive: 'integrated', split: 'header', centered: 'centered', editorial: 'lateral',
+} as const)[heroLayout as 'immersive' | 'split' | 'centered' | 'editorial'];
 ---
 
 <PromoPublicLayout
@@ -51,12 +58,13 @@ const logoMedia = profile.media.find((media) => (
   <a class="promo-skip-link" href="#promo-main">{system.messages['a11y.skip_to_content']}</a>
 
   <div class="promo-public-shell promo-black-gold promo-theme">
-    <header class="promo-shell-header">
-      <a class="promo-shell-brand" href={locale.canonical_path} aria-label={identity.name}>
+    <header class:list={['promo-shell-header', { 'promo-shell-header--with-logo': Boolean(logoMedia) }]} data-logo-placement={logoMedia ? logoPlacement : undefined}>
+      <a class:list={['promo-shell-brand', { 'promo-shell-brand--with-logo': Boolean(logoMedia) }]} href={locale.canonical_path} aria-label={identity.name}>
         {logoMedia?.kind === 'image' ? (
           <span class="promo-shell-brand__logo"><PromoSectionMedia media={logoMedia} accessibleLabel={identity.name} /></span>
-        ) : <span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span>}
-        <span class="promo-shell-brand__name">{identity.name}</span>
+        ) : (
+          <><span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span><span class="promo-shell-brand__name">{identity.name}</span></>
+        )}
       </a>
 
       <nav class="promo-shell-navigation" aria-label={system.messages['a11y.main_navigation']}>
