@@ -496,6 +496,9 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /function renderMediaSlots/);
   assert.match(productsEditor, /text\/x-promo-media-index/);
   assert.match(productsEditor, /createImageBitmap/);
+  assert.match(productsEditor, /optimizePromoUploadImageFile/);
+  assert.match(productsEditor, /prepareImageUpload\(file, options\.purpose\)[\s\S]*?uploadAsset\(preparedFile, options\.purpose\)/);
+  assert.match(productsEditor, /prepareImageUpload\(poster, 'video_poster'\)[\s\S]*?uploadAsset\(preparedPoster, 'video_poster'\)/);
   assert.match(productsEditor, /1920×1080/);
   assert.match(productsEditor, /1200×900/);
   assert.match(productsEditor, /800×1000/);

@@ -95,6 +95,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     PROMO_HERO_MAX_MEDIA,
   } from '../../../lib/promoGallery.ts';
   import { PROMO_CMS_WORK_GALLERY_KEY } from '../../../lib/promoCms.ts';
+  import { optimizePromoUploadImageFile } from '../../../lib/promoImageOptimizationCore.js';
 
   type Catalog = ReturnType<typeof normalizePromoGalleryCatalog>;
   type Draft = ReturnType<typeof normalizePromoGalleryDraft>;
@@ -352,13 +353,19 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       return assetId;
     }
 
+    async function prepareImageUpload(file: File, purpose: 'hero' | 'gallery' | 'owner' | 'video_poster') {
+      return optimizePromoUploadImageFile(file, purpose) as Promise<File>;
+    }
+
     async function addImages(files: FileList | null, target: MediaModel[], purpose: 'hero' | 'gallery' | 'owner', maximum = 150) {
       if (!files?.length || !canManageMedia || busy) return;
       clearError(); busy = true; render(); setStatus('Procesando y subiendo imágenes…');
       try {
         const room = Math.max(0, maximum - target.length);
         for (const file of Array.from(files).slice(0, room)) {
-          const assetId = await uploadAsset(file, purpose);
+          await validateImageSource(file, purpose);
+          const preparedFile = await prepareImageUpload(file, purpose);
+          const assetId = await uploadAsset(preparedFile, purpose);
           target.push({ useKey: newKey(`${purpose}-media`, 120), assetId, alt: '', decorative: false });
         }
         markDirty('Imágenes listas.');
@@ -371,7 +378,9 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
       clearError(); busy = true; render(); setStatus('Procesando poster y video…');
       try {
-        const posterId = await uploadAsset(poster, 'video_poster');
+        await validateImageSource(poster, 'gallery');
+        const preparedPoster = await prepareImageUpload(poster, 'video_poster');
+        const posterId = await uploadAsset(preparedPoster, 'video_poster');
         const assetId = await uploadAsset(video, purpose, posterId);
         target.push({ useKey: newKey(`${purpose}-video`, 120), assetId, alt: '', decorative: false });
         markDirty('Video listo.');
@@ -453,7 +462,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       clearError(); busy = true; render(); setStatus('Validando y subiendo imagen…');
       try {
         await validateImageSource(file, options.purpose);
-        const assetId = await uploadAsset(file, options.purpose);
+        const preparedFile = await prepareImageUpload(file, options.purpose);
+        const assetId = await uploadAsset(preparedFile, options.purpose);
         const media = { useKey: newKey(`${options.purpose}-media`, 120), assetId, alt: '', decorative: false };
         if (index < target.length) target[index] = media;
         else target.push(media);
@@ -482,7 +492,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       clearError(); busy = true; render(); setStatus('Validando poster y subiendo video…');
       try {
         await validateImageSource(poster, 'gallery');
-        const posterId = await uploadAsset(poster, 'video_poster');
+        const preparedPoster = await prepareImageUpload(poster, 'video_poster');
+        const posterId = await uploadAsset(preparedPoster, 'video_poster');
         const assetId = await uploadAsset(video, 'gallery', posterId);
         const media = { useKey: newKey('gallery-video', 120), assetId, alt: '', decorative: false };
         if (index < target.length) target[index] = media;
