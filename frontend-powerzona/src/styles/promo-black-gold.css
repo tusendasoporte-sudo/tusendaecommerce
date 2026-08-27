@@ -90,6 +90,27 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
   text-decoration: none;
 }
 
+.promo-shell-brand--with-logo {
+  width: fit-content;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+}
+
+.promo-shell-brand--with-logo::after {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--promo-text);
+  content: attr(aria-label);
+  font-family: var(--promo-heading-font);
+  font-size: clamp(.82rem, 1.15vw, 1rem);
+  letter-spacing: .08em;
+  line-height: 1.1;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .promo-shell-brand__mark {
   position: relative;
   display: grid;
@@ -137,8 +158,11 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 }
 
 .promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand__logo {
-  width: clamp(11rem, 18vw, 15rem);
-  height: clamp(5.5rem, 9vw, 7.5rem);
+  width: clamp(12rem, 19vw, 17rem);
+  height: clamp(6rem, 9.5vw, 8.5rem);
+}
+
+.promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand--with-logo {
   margin-block-end: -2.4rem;
   transform: translateY(.55rem);
 }
@@ -620,8 +644,16 @@ body[data-promo-theme-renderer="promo.vibrant"] .promo-hero__brand img {
   .promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand__logo {
     width: 9rem;
     height: 4.5rem;
+  }
+
+  .promo-shell-header[data-logo-placement="integrated"] .promo-shell-brand--with-logo {
     margin-block-end: -1.2rem;
     transform: translateY(.25rem);
+  }
+
+  .promo-shell-brand--with-logo::after {
+    max-width: 9rem;
+    font-size: .78rem;
   }
 
   .promo-hero__brand { width: min(12rem, 58vw); height: min(6rem, 29vw); }

@@ -574,6 +574,10 @@ test('BRAND acepta un logo normalizado y lo reutiliza en cabecera y metadatos so
   assert.match(theme, /promo-shell-brand--with-logo/);
   assert.match(hero, /promo-hero__brand--\$\{heroBrandPlacement\}/);
   assert.match(styles, /data-logo-placement="integrated"/);
+  assert.match(styles, /width: clamp\(12rem, 19vw, 17rem\)/);
+  assert.match(styles, /height: clamp\(6rem, 9\.5vw, 8\.5rem\)/);
+  assert.match(styles, /promo-shell-brand--with-logo::after/);
+  assert.match(styles, /content: attr\(aria-label\)/);
   assert.match(styles, /promo-hero__brand--centered/);
   assert.match(styles, /mix-blend-mode: screen/);
 });
