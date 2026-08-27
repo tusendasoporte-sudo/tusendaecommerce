@@ -572,7 +572,7 @@ function normalizeImageDelivery(value: unknown, input: {
     contract: MEDIA_DELIVERY_CONTRACT,
     mime: 'image/webp',
     src,
-    srcset,
+    srcset: input.purpose === 'logo' ? [original] : srcset,
     sizes: policy.sizes,
     loading: input.priority ? 'eager' : 'lazy',
     fetch_priority: input.priority ? 'high' : 'auto',

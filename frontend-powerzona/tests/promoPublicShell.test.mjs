@@ -562,6 +562,8 @@ test('BRAND acepta un logo normalizado y lo reutiliza en cabecera y metadatos so
   };
   const normalized = normalizePromoPublicShellResponse(envelope);
   assert.equal(normalized.profile.contact.logo_media_use_key, 'business-logo');
+  const normalizedLogo = normalized.profile.media.find((item) => item.key === 'business-logo');
+  assert.deepEqual(normalizedLogo.delivery.srcset.map((source) => source.key), ['original']);
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const hero = read('../src/components/promo-public/PromoHero.astro');
   const styles = read('../src/styles/promo-black-gold.css');
