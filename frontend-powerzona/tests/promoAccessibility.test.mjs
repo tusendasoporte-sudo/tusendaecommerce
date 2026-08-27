@@ -28,6 +28,7 @@ const reviews = read('../src/components/promo-public/PromoReviews.astro');
 const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
 const footer = read('../src/components/promo-public/PromoFooter.astro');
 const qr = read('../src/components/promo-public/PromoLandingQrLink.astro');
+const heroCarousel = read('../src/lib/promoHeroCarousel.ts');
 const shellStyles = read('../src/styles/promo-public-shell.css');
 const themeStyles = read('../src/styles/promo-black-gold.css');
 const heroStyles = read('../src/styles/promo-hero.css');
@@ -47,7 +48,7 @@ test('A11Y conserva documento adaptable, landmarks, skip link y jerarquía de en
   assert.match(layout, /width=device-width, initial-scale=1/);
   assert.doesNotMatch(layout, /maximum-scale|user-scalable\s*=\s*no/i);
   assert.match(theme, /class="promo-skip-link" href="#promo-main"/);
-  assert.match(theme, /<header class="promo-shell-header">/);
+  assert.match(theme, /<header class(?::list)?=[\s\S]*?promo-shell-header/);
   assert.match(theme, /<main id="promo-main"[\s\S]*?tabindex="-1"/);
   assert.match(footer, /<footer[\s\S]*?aria-label=/);
   assert.match(theme, /<nav class="promo-shell-navigation" aria-label=/);
@@ -89,6 +90,11 @@ test('A11Y mantiene teclado completo, foco visible y controles de video no ocult
   assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?inset-block-start:/);
   assert.doesNotMatch(heroStyles.match(/\.promo-hero__controls \{[\s\S]*?\}/)?.[0] || '', /inset-block-end/);
   assert.match(hero, /tabindex=\{heroMedia\.length > 1 \? '0'/);
+  assert.match(heroCarousel, /document\.createElement\('button'\)/);
+  assert.match(heroCarousel, /toggle\.setAttribute\('aria-label', label\)/);
+  assert.match(heroCarousel, /control\.setAttribute\('aria-current', 'true'\)/);
+  assert.match(heroStyles, /\.promo-hero__toggle \{[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
+  assert.match(heroStyles, /\.promo-hero__toggle:focus-visible[\s\S]*?outline: 3px/);
   assert.match(reviews, /tabindex="0"[\s\S]*?role="region"[\s\S]*?aria-label=/);
 });
 
@@ -137,6 +143,10 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(layout, /requestIdleCallback/);
   assert.match(layout, /landing_qr_open/);
   assert.match(layout, /credentials: 'omit'/);
+  assert.match(heroCarousel, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
+  assert.match(heroCarousel, /dataset\.promoTokenMotion === 'reduced'/);
+  assert.match(heroCarousel, /window\.setInterval\([\s\S]*?CAROUSEL_INTERVAL_MS/);
+  assert.match(heroCarousel, /window\.clearInterval\(timer\)/);
 });
 
 test('A11Y conserva alternativa y marco estable cuando una imagen pública falla', () => {

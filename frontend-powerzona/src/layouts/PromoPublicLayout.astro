@@ -80,6 +80,10 @@ const {
   >
     <slot />
     <script>
+      import { initializePromoHeroCarousels } from '../lib/promoHeroCarousel';
+
+      initializePromoHeroCarousels();
+
       const canonicalLink = document.querySelector('link[rel="canonical"]');
       const canonicalUrl = canonicalLink instanceof HTMLLinkElement ? new URL(canonicalLink.href) : null;
       const platformMatch = canonicalUrl?.hostname === 'tusenda84.com'
