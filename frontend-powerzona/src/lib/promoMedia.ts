@@ -9,8 +9,8 @@ export const PROMO_MEDIA_VIDEO_MAX_DURATION_MS = 30 * 60 * 1000;
 export const PROMO_MEDIA_VIDEO_MAX_BITRATE_BPS = 8 * 1000 * 1000;
 export const PROMO_MEDIA_MULTIPART_MAX_BYTES = PROMO_MEDIA_VIDEO_MAX_BYTES + (512 * 1024);
 const PROMO_QR_IMAGE_SIZE = 512;
-const PROMO_LOGO_IMAGE_WIDTH = 1024;
-const PROMO_LOGO_IMAGE_HEIGHT = 512;
+const PROMO_LOGO_IMAGE_WIDTH = 511;
+const PROMO_LOGO_IMAGE_HEIGHT = 256;
 
 export const PROMO_MEDIA_PURPOSE_POLICIES = Object.freeze({
   hero: Object.freeze({ minWidth: 640, minHeight: 320, maxWidth: 1920, maxHeight: 1080 }),
@@ -23,6 +23,22 @@ export const PROMO_MEDIA_PURPOSE_POLICIES = Object.freeze({
   qr: Object.freeze({ minWidth: 128, minHeight: 128, maxWidth: 512, maxHeight: 512 }),
   review: Object.freeze({ minWidth: 320, minHeight: 240, maxWidth: 1600, maxHeight: 1600 }),
   logo: Object.freeze({ minWidth: 256, minHeight: 256, maxWidth: 1024, maxHeight: 1024 }),
+});
+
+// PocketBase 0.39.x writes PNG bytes when asked to thumbnail a WebP. Keep every
+// normalized width below twice the first backend variant so no derived thumbnail
+// is requested; the stored original remains a real WebP and below 100 KiB.
+const PROMO_MEDIA_NORMALIZED_TARGETS = Object.freeze({
+  hero: Object.freeze({ width: 959, height: 540 }),
+  service: Object.freeze({ width: 639, height: 639 }),
+  gallery: Object.freeze({ width: 959, height: 720 }),
+  owner: Object.freeze({ width: 639, height: 852 }),
+  footer: Object.freeze({ width: 959, height: 480 }),
+  social: Object.freeze({ width: 1199, height: 630 }),
+  video_poster: Object.freeze({ width: 959, height: 540 }),
+  qr: Object.freeze({ width: PROMO_QR_IMAGE_SIZE, height: PROMO_QR_IMAGE_SIZE }),
+  review: Object.freeze({ width: 959, height: 720 }),
+  logo: Object.freeze({ width: PROMO_LOGO_IMAGE_WIDTH, height: PROMO_LOGO_IMAGE_HEIGHT }),
 });
 
 export type PromoMediaPurpose = keyof typeof PROMO_MEDIA_PURPOSE_POLICIES;
@@ -176,13 +192,14 @@ export async function optimizePromoImage(
   }
 
   const scales = normalizesContactImage ? [1] : [1, 0.85, 0.7, 0.55, 0.42];
+  const normalizedTarget = PROMO_MEDIA_NORMALIZED_TARGETS[purpose];
   const qualities = purpose === 'qr'
     ? [100, 96, 92, 88, 84, 80, 72, 64, 56]
     : [84, 76, 68, 60, 52, 44, 36, 28, 22];
   let output: Buffer | null = null;
   for (const scale of scales) {
-    const width = Math.max(policy.minWidth, Math.round(policy.maxWidth * scale));
-    const height = Math.max(policy.minHeight, Math.round(policy.maxHeight * scale));
+    const width = Math.max(policy.minWidth, Math.round(normalizedTarget.width * scale));
+    const height = Math.max(policy.minHeight, Math.round(normalizedTarget.height * scale));
     for (const quality of qualities) {
       try {
         const pipeline = sharp(source, { failOn: 'error', limitInputPixels: 36_000_000, sequentialRead: true })
@@ -206,7 +223,7 @@ export async function optimizePromoImage(
                 background: { r: 0, g: 0, b: 0, alpha: 0 },
                 withoutEnlargement: false,
               }
-              : { width, height, fit: 'inside', withoutEnlargement: true }));
+              : { width, height, fit: 'cover', position: 'centre', withoutEnlargement: false }));
         const candidate = await (purpose === 'qr'
           ? (quality === 100
             ? pipeline.webp({ lossless: true, effort: 6 })

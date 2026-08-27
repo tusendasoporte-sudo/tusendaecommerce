@@ -72,21 +72,27 @@ test('Hero JPEG se normaliza a WebP <=100 KiB, sin EXIF ni nombre original', asy
   assert.equal(metadata.format, 'webp');
   assert.equal(metadata.exif, undefined);
   assert.equal(metadata.orientation, undefined);
-  assert.equal(result.width <= 1920 && result.height <= 1080, true);
+  assert.deepEqual([result.width, result.height], [959, 540]);
+  assert.equal(Math.floor(result.width / 2) < 480, true, 'PocketBase no debe derivar w480');
 });
 
-test('perfiles de servicio, galería, propietario y poster respetan dimensiones', async () => {
+test('perfiles visuales respetan dimensiones y evitan miniaturas PNG de PocketBase', async () => {
   const cases = [
-    ['service', 1200, 1200],
-    ['gallery', 1600, 1200],
-    ['owner', 900, 1400],
-    ['video_poster', 1600, 900],
+    ['service', 1200, 1200, 639, 639, 320],
+    ['gallery', 1600, 1200, 959, 720, 480],
+    ['owner', 900, 1400, 639, 852, 320],
+    ['footer', 1600, 800, 959, 480, 480],
+    ['social', 1200, 630, 1199, 630, 600],
+    ['review', 1600, 1200, 959, 720, 480],
+    ['video_poster', 1600, 900, 959, 540, 480],
   ];
-  for (const [purpose, width, height] of cases) {
+  for (const [purpose, width, height, expectedWidth, expectedHeight, firstVariant] of cases) {
     const png = await sharp({ create: { width, height, channels: 3, background: '#202020' } }).png().toBuffer();
     const result = await optimizePromoImage(fileLike(png, `${purpose}.png`, 'image/png'), purpose);
     assert.equal(result.purpose, purpose);
     assert.equal(result.bytes <= 100 * 1024, true);
+    assert.deepEqual([result.width, result.height], [expectedWidth, expectedHeight]);
+    assert.equal(Math.floor(result.width / 2) < firstVariant, true);
   }
 });
 
@@ -108,8 +114,8 @@ test('logo y QR pequeños se normalizan sin recorte ni rechazo por dimensiones',
   }).png().toBuffer();
   const normalizedLogo = await optimizePromoImage(fileLike(logo, 'logo-pequeno.png', 'image/png'), 'logo');
   const logoMetadata = await sharp(normalizedLogo.buffer).metadata();
-  assert.equal(normalizedLogo.width, 1024);
-  assert.equal(normalizedLogo.height, 512);
+  assert.equal(normalizedLogo.width, 511);
+  assert.equal(normalizedLogo.height, 256);
   assert.equal(logoMetadata.hasAlpha, true);
   assert.equal(normalizedLogo.bytes <= PROMO_MEDIA_IMAGE_OUTPUT_MAX_BYTES, true);
 
