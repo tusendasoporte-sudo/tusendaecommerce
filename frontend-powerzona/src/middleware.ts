@@ -38,7 +38,7 @@ import {
   readPlatformPromoShell,
 } from './lib/promoPublicShell';
 import { servePromoPublicRepresentation } from './lib/promoPerformance';
-import { promoPublicLogoMediaPath, proxyPromoPublicMedia } from './lib/promoPublicMediaProxy';
+import { promoPublicMediaPath, proxyPromoPublicMedia } from './lib/promoPublicMediaProxy';
 import {
   customPromoSeoResource,
   promoSeoResourceResponse,
@@ -239,10 +239,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return promoSecurityUnavailable(error, pathname);
   }
 
-  const publicLogoMedia = promoPublicLogoMediaPath(pathname);
-  if (publicLogoMedia) {
+  const publicMedia = promoPublicMediaPath(pathname);
+  if (publicMedia) {
     if (!promoSecurityDecision.platform) return promoPublicUnavailable(404);
-    return applyPromoSecurityHeaders(await proxyPromoPublicMedia(context.request, publicLogoMedia));
+    return applyPromoSecurityHeaders(await proxyPromoPublicMedia(context.request, publicMedia));
   }
 
   if (!promoSecurityDecision.platform) {

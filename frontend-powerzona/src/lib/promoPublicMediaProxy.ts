@@ -1,9 +1,9 @@
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const LOGO_USE_KEY_PATTERN = /^logo-business(?:-[a-z0-9]{1,7})?$/;
+const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-const DELIVERY_FILE_PATTERN = /^(?:original|w[0-9]{2,4})\.webp$/;
+const DELIVERY_FILE_PATTERN = /^(?:poster-(?:original|w[0-9]{2,4})|original|w[0-9]{2,4})\.webp$/;
 const PUBLIC_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
 export type PromoPublicMediaParams = Readonly<{
@@ -13,7 +13,7 @@ export type PromoPublicMediaParams = Readonly<{
   filename?: string;
 }>;
 
-const PUBLIC_LOGO_PATH_PATTERN = /^\/api\/pz\/promo\/public\/v1\/sites\/([a-z0-9]+(?:-[a-z0-9]+)*)\/media\/(logo-business(?:-[a-z0-9]{1,7})?)\/([a-f0-9]{64})\/((?:original|w[0-9]{2,4})\.webp)$/;
+const PUBLIC_MEDIA_PATH_PATTERN = /^\/api\/pz\/promo\/public\/v1\/sites\/([a-z0-9]+(?:-[a-z0-9]+)*)\/media\/([a-z][a-z0-9_-]{0,119})\/([a-f0-9]{64})\/((?:poster-(?:original|w[0-9]{2,4})|original|w[0-9]{2,4})\.webp)$/;
 
 type ProxyOptions = Readonly<{
   baseUrl?: string;
@@ -53,7 +53,7 @@ export function resolvePromoPublicMedia(params: PromoPublicMediaParams): ValidPu
   const useKey = String(params.useKey || '');
   const digest = String(params.digest || '');
   const filename = String(params.filename || '');
-  if (!SLUG_PATTERN.test(publicSlug) || !LOGO_USE_KEY_PATTERN.test(useKey)
+  if (!SLUG_PATTERN.test(publicSlug) || !USE_KEY_PATTERN.test(useKey)
     || !SHA256_PATTERN.test(digest) || !DELIVERY_FILE_PATTERN.test(filename)) return null;
   return Object.freeze({
     path: `/api/pz/promo/public/v1/sites/${publicSlug}/media/${useKey}/${digest}/${filename}`,
@@ -61,8 +61,8 @@ export function resolvePromoPublicMedia(params: PromoPublicMediaParams): ValidPu
   });
 }
 
-export function promoPublicLogoMediaPath(pathname: unknown): PromoPublicMediaParams | null {
-  const match = String(pathname || '').match(PUBLIC_LOGO_PATH_PATTERN);
+export function promoPublicMediaPath(pathname: unknown): PromoPublicMediaParams | null {
+  const match = String(pathname || '').match(PUBLIC_MEDIA_PATH_PATTERN);
   return match ? Object.freeze({
     publicSlug: match[1],
     useKey: match[2],

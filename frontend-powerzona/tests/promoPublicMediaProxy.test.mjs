@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  promoPublicLogoMediaPath,
+  promoPublicMediaPath,
   proxyPromoPublicMedia,
   resolvePromoPublicMedia,
 } from '../src/lib/promoPublicMediaProxy.ts';
@@ -15,20 +15,39 @@ const params = Object.freeze({
   filename: 'w512.webp',
 });
 
-test('reconoce solamente la ruta pública reservada al logo WebP', () => {
+test('reconoce rutas públicas WebP de cualquier medio Promo validado', () => {
   const path = `/api/pz/promo/public/v1/sites/aladdins-carpet-stg/media/logo-business/${digest}/w512.webp`;
-  assert.deepEqual(promoPublicLogoMediaPath(path), params);
+  assert.deepEqual(promoPublicMediaPath(path), params);
   assert.deepEqual(resolvePromoPublicMedia(params), { path, mime: 'image/webp' });
   assert.ok(resolvePromoPublicMedia({ ...params, useKey: 'logo-business-1z141z3' }));
+  for (const useKey of ['hero-media-c45e587b92e9', 'owner_portrait', 'qr-contact']) {
+    const mediaPath = `/api/pz/promo/public/v1/sites/aladdins-carpet-stg/media/${useKey}/${digest}/original.webp`;
+    assert.deepEqual(promoPublicMediaPath(mediaPath), {
+      ...params,
+      useKey,
+      filename: 'original.webp',
+    });
+    assert.deepEqual(resolvePromoPublicMedia({ ...params, useKey, filename: 'original.webp' }), {
+      path: mediaPath,
+      mime: 'image/webp',
+    });
+  }
+  const posterPath = `/api/pz/promo/public/v1/sites/aladdins-carpet-stg/media/gallery-video/${digest}/poster-original.webp`;
+  assert.deepEqual(promoPublicMediaPath(posterPath), {
+    ...params,
+    useKey: 'gallery-video',
+    filename: 'poster-original.webp',
+  });
   for (const invalid of [
-    `/api/pz/promo/public/v1/sites/otra/media/hero-main/${digest}/w512.webp`,
-    `/api/pz/promo/public/v1/sites/otra/media/qr-contact/${digest}/w512.webp`,
+    `/api/pz/promo/public/v1/sites/otra/media/1hero-main/${digest}/w512.webp`,
+    `/api/pz/promo/public/v1/sites/otra/media/HERO-main/${digest}/w512.webp`,
+    `/api/pz/promo/public/v1/sites/otra/media/${'a'.repeat(121)}/${digest}/w512.webp`,
     `/api/pz/promo/public/v1/sites/otra/media/logo-business/${digest}/original.mp4`,
     `/api/pz/promo/public/v1/sites/../media/logo-business/${digest}/w512.webp`,
-  ]) assert.equal(promoPublicLogoMediaPath(invalid), null);
+  ]) assert.equal(promoPublicMediaPath(invalid), null);
 });
 
-test('reenvía el logo sin cookies ni credenciales y conserva solamente headers seguros', async () => {
+test('reenvía el medio sin cookies ni credenciales y conserva solamente headers seguros', async () => {
   let receivedUrl = '';
   let receivedInit;
   const resolved = resolvePromoPublicMedia(params);
@@ -90,7 +109,7 @@ test('falla cerrado ante rango, query, MIME inesperado o archivo inexistente', a
   }
 });
 
-test('HEAD valida el logo pero no devuelve cuerpo', async () => {
+test('HEAD valida el medio pero no devuelve cuerpo', async () => {
   const resolved = resolvePromoPublicMedia(params);
   assert.ok(resolved);
   const response = await proxyPromoPublicMedia(new Request(
