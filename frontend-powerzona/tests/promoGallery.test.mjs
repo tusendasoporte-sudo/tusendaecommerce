@@ -500,7 +500,8 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /1200×900/);
   assert.match(productsEditor, /800×1000/);
   assert.match(galleryStyles, /pz-promo-media-slot\.is-dragover/);
-  assert.match(galleryStyles, /data-maximum='1'/);
+  assert.doesNotMatch(galleryStyles, /data-maximum='1'/);
+  assert.match(galleryStyles, /pz-promo-media-slot__empty[\s\S]*?aspect-ratio: 16 \/ 9/);
   assert.doesNotMatch(productsEditor, /data-products-add-hero-video|data-products-hero-video|data-products-hero-poster/);
   assert.doesNotMatch(productsEditor, /element\('span', '', 'Destacado'\)/);
   assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);

@@ -500,7 +500,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
 
     function renderMediaSlots(target: MediaModel[], options: MediaSlotOptions) {
       const wrapper = element('section', 'pz-promo-media-slots');
-      wrapper.dataset.maximum = String(options.maximum);
       const header = element('header', 'pz-promo-media-slots__header');
       header.append(
         element('strong', '', `${options.label}`),
