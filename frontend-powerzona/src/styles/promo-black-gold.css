@@ -46,7 +46,8 @@ body[data-promo-theme-renderer="promo.black-gold"][data-promo-token-motion="redu
 .promo-black-gold {
   position: relative;
   min-height: 100vh;
-  overflow: clip;
+  overflow-x: clip;
+  overflow-y: visible;
   background:
     radial-gradient(circle at 88% 12%, rgb(200 164 90 / 10%), transparent 29rem),
     linear-gradient(180deg, #090909 0, var(--promo-surface) 34rem);

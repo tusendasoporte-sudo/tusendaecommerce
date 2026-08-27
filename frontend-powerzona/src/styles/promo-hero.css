@@ -445,3 +445,26 @@ body[data-promo-token-motion="reduced"] .promo-hero__slides {
   .promo-hero__actions,
   .promo-hero__actions > * { width: 100%; }
 }
+
+@media (min-width: 721px) {
+  .promo-shell-section.promo-hero--layout-immersive.promo-hero--with-media {
+    padding-inline: 0;
+  }
+
+  .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__inner {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__copy {
+    margin-block: clamp(1.25rem, 5vw, 4.5rem);
+    margin-inline: clamp(1.25rem, 6vw, 8rem);
+    padding: clamp(1.4rem, 4vw, 3.5rem) clamp(1rem, 2vw, 2rem);
+  }
+
+  .promo-hero--layout-immersive.promo-hero--with-media .promo-hero__media-region {
+    border-inline: 0;
+    border-radius: 0;
+  }
+}

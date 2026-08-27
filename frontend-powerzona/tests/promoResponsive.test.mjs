@@ -41,6 +41,10 @@ test('RESP conserva cabecera de tres filas, QR icon-only estrecho y navegación 
 });
 
 test('RESP aplica reflujo aprobado a Hero, secciones, reseñas y footer', () => {
+  assert.match(themeStyles, /\.promo-black-gold \{[\s\S]*?overflow-x: clip;[\s\S]*?overflow-y: visible;/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-shell-section\.promo-hero--layout-immersive\.promo-hero--with-media \{[\s\S]*?padding-inline: 0/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__inner \{[\s\S]*?width: 100%;[\s\S]*?max-width: none/);
+  assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__copy \{[\s\S]*?margin-inline: clamp\(1\.25rem, 6vw, 8rem\)/);
   assert.match(heroStyles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)[\s\S]*?aspect-ratio: 4 \/ 3/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-sections__service-card \{ grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)[\s\S]*?grid-column: 1 \/ -1/);
