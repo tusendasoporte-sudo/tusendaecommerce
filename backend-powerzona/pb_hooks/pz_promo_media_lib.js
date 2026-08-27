@@ -5,6 +5,8 @@
 const MEDIA_UPLOAD_CONTRACT = "promo.media.upload.v1";
 const MEDIA_LIST_CONTRACT = "promo.media.list.v1";
 const MEDIA_RETIRE_CONTRACT = "promo.media.retire.v1";
+const MEDIA_DELETE_CONTRACT = "promo.media.delete.v1";
+const MEDIA_DELETE_RESPONSE_CONTRACT = "promo.media.deleted.v1";
 const MEDIA_RESPONSE_CONTRACT = "promo.media.asset.v1";
 const MEDIA_CATALOG_CONTRACT = "promo.media.catalog.v1";
 const MEDIA_DELIVERY_CONTRACT = "promo.media.delivery.v1";
@@ -143,6 +145,15 @@ function parseListPayload(body) {
 function parseRetirePayload(body) {
   if (!exactObject(body, ["asset_id", "contract", "expected_status"])
     || bodyValue(body, "contract") !== MEDIA_RETIRE_CONTRACT) return null;
+  const assetId = safeText(bodyValue(body, "asset_id"), 15);
+  const expectedStatus = safeText(bodyValue(body, "expected_status"), 20);
+  return RECORD_ID_PATTERN.test(assetId) && expectedStatus === "ready"
+    ? Object.freeze({ assetId, expectedStatus }) : null;
+}
+
+function parseDeletePayload(body) {
+  if (!exactObject(body, ["asset_id", "contract", "expected_status"])
+    || bodyValue(body, "contract") !== MEDIA_DELETE_CONTRACT) return null;
   const assetId = safeText(bodyValue(body, "asset_id"), 15);
   const expectedStatus = safeText(bodyValue(body, "expected_status"), 20);
   return RECORD_ID_PATTERN.test(assetId) && expectedStatus === "ready"
@@ -718,6 +729,8 @@ module.exports = {
   MAX_VIDEO_BYTES,
   MAX_VIDEO_DURATION_MS,
   MEDIA_CATALOG_CONTRACT,
+  MEDIA_DELETE_CONTRACT,
+  MEDIA_DELETE_RESPONSE_CONTRACT,
   MEDIA_DELIVERY_CONTRACT,
   MEDIA_LIST_CONTRACT,
   MEDIA_RESPONSE_CONTRACT,
@@ -735,6 +748,7 @@ module.exports = {
   assertReadyAsset,
   derivedFilename,
   parseListPayload,
+  parseDeletePayload,
   parseRetirePayload,
   parseUploadPayload,
   privateAssetDescriptor,

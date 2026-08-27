@@ -537,6 +537,8 @@ export function promoGalleryErrorMessage(code: unknown) {
     promo_media_storage_exceeded: 'La tienda alcanzó su cuota de almacenamiento.',
     promo_media_in_use: 'El medio sigue asociado a la página.',
     promo_media_conflict: 'El estado del medio cambió. Actualiza la biblioteca.',
+    promo_media_not_found: 'El archivo ya no existe o pertenece a otra tienda.',
+    promo_media_delete_failed: 'No se pudo eliminar físicamente el archivo. Intenta nuevamente.',
     promo_media_poster_required: 'Selecciona primero un poster listo para el video.',
     promo_media_required: 'Selecciona un archivo para continuar.',
     promo_media_name_invalid: 'El nombre o extensión del archivo no es válido.',

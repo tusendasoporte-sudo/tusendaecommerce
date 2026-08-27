@@ -1,3 +1,5 @@
+import './promoDestructiveActions';
+
 export const PROMO_ADMIN_LOCALE_COOKIE = 'pz_promo_admin_locale';
 export const PROMO_ADMIN_LOCALES = Object.freeze(['es', 'en'] as const);
 
