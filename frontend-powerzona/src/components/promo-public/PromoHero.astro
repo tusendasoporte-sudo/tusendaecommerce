@@ -132,7 +132,6 @@ const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
         <ol class="promo-hero__slides" aria-label={navigationLabel} tabindex={heroMedia.length > 1 ? '0' : undefined}>
           {heroMedia.map((media, index) => (
             <li
-              id={`${sectionId}-media-${index + 1}`}
               class="promo-hero__slide"
               data-media-kind={media.kind}
               data-media-priority={media.key === primaryMediaKey ? 'primary' : 'secondary'}
@@ -172,20 +171,22 @@ const mediaControlLabel = (media: PromoPublicMedia, index: number) => (
         </ol>
 
         {heroMedia.length > 1 && (
-          <nav class="promo-hero__controls" aria-label={navigationLabel}>
+          <div class="promo-hero__controls" role="group" aria-label={navigationLabel}>
             <ol>
               {heroMedia.map((media, index) => (
                 <li>
-                  <a
-                    href={`#${sectionId}-media-${index + 1}`}
+                  <button
+                    type="button"
+                    class="promo-hero__control"
+                    data-promo-hero-index={String(index)}
                     aria-label={mediaControlLabel(media, index)}
                   >
                     {String(index + 1).padStart(2, '0')}
-                  </a>
+                  </button>
                 </li>
               ))}
             </ol>
-          </nav>
+          </div>
         )}
       </div>
     ) : (

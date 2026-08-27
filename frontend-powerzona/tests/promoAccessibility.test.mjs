@@ -121,7 +121,7 @@ test('A11Y verifica contraste Theme AA y estados disponibles/no disponibles', ()
 test('A11Y preserva targets táctiles, reflow, zoom de texto, RTL y strings largos', () => {
   assert.match(shellStyles, /text-size-adjust: 100%/);
   assert.match(themeStyles, /min-width: 44px;[\s\S]*?min-height: 44px/);
-  assert.match(heroStyles, /\.promo-hero__controls a[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
+  assert.match(heroStyles, /\.promo-hero__control[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
   assert.match(contactStyles, /\.promo-contact-action[\s\S]*?min-height: 54px/);
   assert.match(footerStyles, /min-height: 44px/);
   assert.match(qrStyles, /min-height: 44px/);
@@ -147,6 +147,13 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(heroCarousel, /dataset\.promoTokenMotion === 'reduced'/);
   assert.match(heroCarousel, /window\.setInterval\([\s\S]*?CAROUSEL_INTERVAL_MS/);
   assert.match(heroCarousel, /window\.clearInterval\(timer\)/);
+  assert.match(hero, /class="promo-hero__control"/);
+  assert.match(hero, /type="button"/);
+  assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
+  assert.doesNotMatch(hero, /id=\{`\$\{sectionId\}-media-/);
+  assert.match(heroCarousel, /legacyMediaHash/);
+  assert.match(heroCarousel, /window\.history\.replaceState\(null, '', cleanUrl\)/);
+  assert.match(heroCarousel, /track\.addEventListener\('wheel'[\s\S]*?window\.scrollBy[\s\S]*?passive: false/);
 });
 
 test('A11Y conserva alternativa y marco estable cuando una imagen pública falla', () => {

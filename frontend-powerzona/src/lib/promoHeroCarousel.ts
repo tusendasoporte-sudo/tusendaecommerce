@@ -13,7 +13,7 @@ export function initializePromoHeroCarousels() {
 
     const track = root.querySelector<HTMLOListElement>('.promo-hero__slides');
     const slides = Array.from(root.querySelectorAll<HTMLElement>('.promo-hero__slide'));
-    const controls = Array.from(root.querySelectorAll<HTMLAnchorElement>('.promo-hero__controls a'));
+    const controls = Array.from(root.querySelectorAll<HTMLButtonElement>('.promo-hero__control'));
 
     if (!track || slides.length <= 1 || controls.length !== slides.length) return;
 
@@ -22,10 +22,19 @@ export function initializePromoHeroCarousels() {
     const toggleIcon = document.createElement('span');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const controlsRegion = root.querySelector<HTMLElement>('.promo-hero__controls');
-    let currentIndex = Math.max(0, slides.findIndex((slide) => `#${slide.id}` === window.location.hash));
+    const legacyMediaHash = window.location.hash.match(/^#promo-section-[A-Za-z0-9_-]+-media-(\d+)$/);
+    let currentIndex = legacyMediaHash
+      ? Math.min(slides.length - 1, Math.max(0, Number(legacyMediaHash[1]) - 1))
+      : 0;
     let pausedByUser = false;
     let timer = 0;
     let scrollFrame = 0;
+
+    if (legacyMediaHash) {
+      const cleanUrl = `${window.location.pathname}${window.location.search}`;
+      window.history.replaceState(null, '', cleanUrl);
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    }
 
     toggle.type = 'button';
     toggle.className = 'promo-hero__toggle';
@@ -75,10 +84,8 @@ export function initializePromoHeroCarousels() {
     };
 
     controls.forEach((control, index) => {
-      control.addEventListener('click', (event) => {
-        event.preventDefault();
+      control.addEventListener('click', () => {
         goTo(index);
-        window.history.replaceState(null, '', control.hash);
         restartTimer();
       });
     });
@@ -98,6 +105,15 @@ export function initializePromoHeroCarousels() {
         syncControls();
       });
     }, { passive: true });
+
+    track.addEventListener('wheel', (event) => {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const multiplier = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? window.innerHeight : 1;
+      event.preventDefault();
+      window.scrollBy({ top: event.deltaY * multiplier, left: 0, behavior: 'auto' });
+    }, { passive: false });
 
     track.addEventListener('pointerdown', stopTimer);
     track.addEventListener('pointerup', restartTimer);

@@ -814,9 +814,12 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
   assert.match(action, /aria-label=\{action\.aria_label\}/);
   assert.match(action, /data-contact-action="primary"/);
   assert.match(action, /role="status"/);
-  assert.doesNotMatch(`${hero}\n${action}`, /<button|<form|target=|onclick|addEventListener|<script/i);
+  assert.doesNotMatch(`${hero}\n${action}`, /<form|target=|onclick|addEventListener|<script/i);
   assert.doesNotMatch(heroStyles, /url\(|@import|https?:/i);
-  assert.match(hero, /href=\{`#\$\{sectionId\}-media-/);
+  assert.match(hero, /class="promo-hero__control"/);
+  assert.match(hero, /type="button"/);
+  assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
+  assert.doesNotMatch(hero, /id=\{`\$\{sectionId\}-media-/);
   assert.doesNotMatch(contactStyles, /url\(|@import|https?:/i);
   assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}\n${contactStyles}`, 'utf8') <= 50 * 1024,
     'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
