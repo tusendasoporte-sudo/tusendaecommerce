@@ -145,7 +145,7 @@ function initials(value: string) {
       <div class="pz-promo-admin__brand">
         <span class="pz-promo-admin__brandmark" aria-hidden="true">{initials(storeName)}</span>
         <span class="pz-promo-admin__brandcopy">
-          <strong title={storeName}>{storeName}</strong>
+          <strong title={storeName} data-promo-admin-no-translate>{storeName}</strong>
           <small>Admin Promo</small>
         </span>
         <button class="pz-promo-admin__close" type="button" aria-label="Cerrar navegación Promo" data-promo-admin-menu-close>×</button>
@@ -254,7 +254,7 @@ function initials(value: string) {
         </section>
         <span class="pz-promo-admin__user">
           <span aria-hidden="true">{initials(userName)}</span>
-          <span><strong>{userName}</strong><small>{accessContext.user.role || 'Usuario Promo'}</small></span>
+          <span><strong data-promo-admin-no-translate>{userName}</strong><small>{accessContext.user.role || 'Usuario Promo'}</small></span>
         </span>
         {!isMasterSupport && <button type="button" data-promo-admin-logout>{t('Cerrar sesión')}</button>}
       </div>
@@ -376,9 +376,32 @@ function initials(value: string) {
     const root = document.querySelector('[data-promo-admin-root]');
     const adminLocale = normalizePromoAdminLocale(root instanceof HTMLElement ? root.dataset.promoAdminLocale : 'es');
     if (root instanceof HTMLElement) observePromoAdminTranslations(root, adminLocale);
+    const accordionHashPrefix = '#promo-admin-open=';
+    const savedAccordionKeys = window.location.hash.startsWith(accordionHashPrefix)
+      ? decodeURIComponent(window.location.hash.slice(accordionHashPrefix.length)).split(',').filter(Boolean)
+      : [];
+    const restoreAccordions = () => {
+      if (!(root instanceof HTMLElement) || !savedAccordionKeys.length) return;
+      savedAccordionKeys.forEach((key) => {
+        const candidate = Array.from(root.querySelectorAll<HTMLDetailsElement>('details[data-promo-accordion-key]'))
+          .find((details) => details.dataset.promoAccordionKey === key);
+        if (candidate) candidate.open = true;
+      });
+    };
+    restoreAccordions();
+    if (savedAccordionKeys.length && root instanceof HTMLElement) {
+      const restoreObserver = new MutationObserver(restoreAccordions);
+      restoreObserver.observe(root, { childList: true, subtree: true });
+      window.setTimeout(() => restoreObserver.disconnect(), 10_000);
+    }
     root?.querySelector<HTMLSelectElement>('[data-promo-admin-locale-select]')?.addEventListener('change', (event) => {
       const selected = normalizePromoAdminLocale(event.currentTarget instanceof HTMLSelectElement ? event.currentTarget.value : 'es');
       document.cookie = `${PROMO_ADMIN_LOCALE_COOKIE}=${selected}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      if (root instanceof HTMLElement) {
+        const openKeys = Array.from(root.querySelectorAll<HTMLDetailsElement>('details[data-promo-accordion-key][open]'))
+          .map((details) => details.dataset.promoAccordionKey || '').filter(Boolean);
+        if (openKeys.length) history.replaceState(null, '', `${window.location.pathname}${window.location.search}${accordionHashPrefix}${encodeURIComponent(openKeys.join(','))}`);
+      }
       window.location.reload();
     });
 

@@ -565,6 +565,21 @@
   border-top: 1px solid #d8cfbf;
 }
 
+.pz-promo-products__translations {
+  display: grid;
+  gap: .75rem;
+  padding: .9rem;
+  border: 1px solid #d8cfbf;
+  border-radius: .9rem;
+  background: #fbfaf7;
+}
+
+.pz-promo-products__translations > strong,
+.pz-promo-products__translations > p { margin: 0; }
+.pz-promo-products__translations > p { color: var(--pg-muted); font-size: .82rem; }
+.pz-promo-products__translations fieldset { margin: 0; padding: .85rem; border: 1px solid var(--pg-line); border-radius: .75rem; }
+.pz-promo-products__translations legend { padding-inline: .35rem; color: var(--pg-ink); font-weight: 850; }
+
 .pz-promo-products__item-chevron {
   display: inline-grid;
   place-items: center;

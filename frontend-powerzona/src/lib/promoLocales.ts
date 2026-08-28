@@ -352,6 +352,9 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
   const localized = isRecord(document.content_by_locale[locale])
     ? document.content_by_locale[locale]
     : emptyLocalizedContent();
+  const base = isRecord(document.content_by_locale[document.locales.default])
+    ? document.content_by_locale[document.locales.default]
+    : emptyLocalizedContent();
   const missing: string[] = [];
   let completed = 0;
   let total = 0;
@@ -363,6 +366,11 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
 
   check(document.system_catalog_version === PROMO_LOCALES_SYSTEM_CATALOG, 'Catálogo general del sistema');
   check(textPresent(localized.identity?.name), 'Identidad: nombre público');
+  if (locale !== document.locales.default) {
+    ['slogan', 'summary', 'owner_name', 'owner_bio'].forEach((field) => {
+      if (textPresent(base.identity?.[field])) check(textPresent(localized.identity?.[field]), `Identidad: ${field}`);
+    });
+  }
   document.sections.filter((section: JsonRecord) => section.visible === true).forEach((section: JsonRecord) => {
     const label = String(localized.navigation?.[section.key] || section.key);
     check(textPresent(localized.navigation?.[section.key]), `Navegación: ${section.key}`);
@@ -371,6 +379,27 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
     if (!isRecord(sectionContent)) return;
     const required = SECTION_REQUIRED_TEXT[section.type as keyof typeof SECTION_REQUIRED_TEXT] || [];
     required.forEach((field) => check(textPresent(sectionContent[field]), `${label}: ${field}`));
+    const baseSection = isRecord(base.sections?.[section.key]) ? base.sections[section.key] : {};
+    if (locale !== document.locales.default) {
+      const optionalFields = (SECTION_TEXT_KEYS[section.type as keyof typeof SECTION_TEXT_KEYS] || [])
+        .filter((field) => !['items', 'highlights', 'button_labels'].includes(field)
+          && !required.some((candidate) => candidate === field));
+      optionalFields.forEach((field) => {
+        if (textPresent(baseSection[field])) check(textPresent(sectionContent[field]), `${label}: ${field}`);
+      });
+      if (section.type === 'hero') {
+        const baseHighlights = Array.isArray(baseSection.highlights) ? baseSection.highlights : [];
+        const translatedHighlights = Array.isArray(sectionContent.highlights) ? sectionContent.highlights : [];
+        baseHighlights.forEach((highlight: unknown, index: number) => {
+          if (textPresent(highlight)) check(textPresent(translatedHighlights[index]), `${label}: highlight ${index + 1}`);
+        });
+        const baseButtons = Array.isArray(baseSection.button_labels) ? baseSection.button_labels : [];
+        const translatedButtons = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
+        baseButtons.forEach((button: unknown, index: number) => {
+          if (textPresent(button)) check(textPresent(translatedButtons[index]), `${label}: button ${index + 1}`);
+        });
+      }
+    }
     if (['services', 'gallery'].includes(section.type)) {
       const configured = Array.isArray(section.config?.item_keys) ? section.config.item_keys : [];
       const items = Array.isArray(sectionContent.items) ? sectionContent.items : [];
@@ -378,7 +407,16 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
       configured.forEach((itemKey: string) => {
         const item = byKey.get(itemKey);
         check(Boolean(item), `${label}: elemento ${itemKey}`);
-        if (item) check(textPresent(item.name), `${label}: nombre ${itemKey}`);
+        if (item) {
+          check(textPresent(item.name), `${label}: nombre ${itemKey}`);
+          if (locale !== document.locales.default) {
+            const baseItems = Array.isArray(baseSection.items) ? baseSection.items : [];
+            const baseItem = baseItems.find((candidate: JsonRecord) => candidate?.key === itemKey);
+            ['summary', 'caption'].forEach((field) => {
+              if (textPresent(baseItem?.[field])) check(textPresent(item[field]), `${label}: ${field} ${itemKey}`);
+            });
+          }
+        }
       });
     }
   });
@@ -386,6 +424,9 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
     [document.contact.primary_action_key, ...document.contact.secondary_action_keys].forEach((actionKey: string) => {
       check(textPresent(localized.contact?.[actionKey]?.label), `Contacto ${actionKey}: texto`);
       check(textPresent(localized.contact?.[actionKey]?.aria_label), `Contacto ${actionKey}: nombre accesible`);
+      if (locale !== document.locales.default && textPresent(base.contact?.[actionKey]?.message)) {
+        check(textPresent(localized.contact?.[actionKey]?.message), `Contacto ${actionKey}: mensaje`);
+      }
     });
   }
   Object.keys(document.media_refs).forEach((useKey) => {
@@ -394,6 +435,11 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
   });
   check(textPresent(localized.seo?.title), 'SEO: título');
   check(textPresent(localized.seo?.description), 'SEO: descripción');
+  if (locale !== document.locales.default) {
+    ['social_title', 'social_description'].forEach((field) => {
+      if (textPresent(base.seo?.[field])) check(textPresent(localized.seo?.[field]), `SEO: ${field}`);
+    });
+  }
   return Object.freeze({
     locale,
     complete: missing.length === 0,

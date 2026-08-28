@@ -3,6 +3,11 @@ import Layout from './Layout.astro';
 import type { AdminStoreContext } from '../lib/storeContext';
 import type { PromoAccessContext } from '../lib/promoAccess';
 import { getPromoAdminSectionPath } from '../lib/promoAdminShell';
+import {
+  normalizePromoAdminLocale,
+  PROMO_ADMIN_LOCALE_COOKIE,
+  promoAdminText,
+} from '../lib/promoAdminI18n';
 import '../styles/promo-analytics.css';
 
 interface Props {
@@ -15,47 +20,53 @@ const storeSlug = String(accessContext.store.slug || adminContext.store.slug || 
 const storeName = String(accessContext.store.name || adminContext.store.name || 'Tienda Promo').trim();
 const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
 const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeName}` : storeName;
+const adminLocale = normalizePromoAdminLocale(Astro.cookies.get(PROMO_ADMIN_LOCALE_COOKIE)?.value);
+const t = (value: unknown) => promoAdminText(adminLocale, value);
 ---
 
-<Layout isMaster={true}>
-  <main class="pz-promo-analytics-page" data-promo-analytics data-store-slug={storeSlug}>
-    <nav class="pz-promo-analytics-page__top" aria-label="Contexto Promo">
-      <a class="pz-promo-analytics-page__back" href={homePath}>← Volver al Admin Promo</a>
-      <span class="pz-promo-analytics-page__context">{contextLabel}</span>
+<Layout isMaster={true} htmlLang={adminLocale}>
+  <main class="pz-promo-analytics-page" data-promo-analytics data-store-slug={storeSlug} data-promo-admin-locale={adminLocale}>
+    <nav class="pz-promo-analytics-page__top" aria-label={t('Contexto Promo')}>
+      <a class="pz-promo-analytics-page__back" href={homePath}>{t('← Volver al Admin Promo')}</a>
+      <span class="pz-promo-analytics-page__context">{t(contextLabel)}</span>
     </nav>
     <section class="pz-promo-analytics" aria-labelledby="promo-analytics-title">
       <header class="pz-promo-analytics__header">
         <div>
-          <span>Conteos agregados</span>
-          <h1 id="promo-analytics-title">Rendimiento del sitio Promo</h1>
-          <p>Visitantes diarios e interacciones first-party, sin cookies analíticas ni identificación de personas.</p>
+          <span>{t('Conteos agregados')}</span>
+          <h1 id="promo-analytics-title">{t('Rendimiento del sitio Promo')}</h1>
+          <p>{t('Visitantes diarios e interacciones first-party, sin cookies analíticas ni identificación de personas.')}</p>
         </div>
         <div class="pz-promo-analytics__ranges" role="group" aria-label="Período de analíticas">
           {[7, 30, 90].map((days) => (
-            <button type="button" data-promo-analytics-range={days} aria-pressed={days === 30 ? 'true' : 'false'}>{days} días</button>
+            <button type="button" data-promo-analytics-range={days} aria-pressed={days === 30 ? 'true' : 'false'}>{t(`${days} días`)}</button>
           ))}
         </div>
       </header>
-      <div class="pz-promo-analytics__status" role="status" aria-live="polite" data-promo-analytics-status>Cargando analíticas…</div>
+      <div class="pz-promo-analytics__status" role="status" aria-live="polite" data-promo-analytics-status>{t('Cargando analíticas…')}</div>
       <div class="pz-promo-analytics__body" data-promo-analytics-body hidden>
         <div class="pz-promo-analytics__cards">
-          <article><span>Visitantes diarios</span><strong data-promo-metric="page_views">0</strong></article>
-          <article><span>Secciones vistas</span><strong data-promo-metric="section_views">0</strong></article>
-          <article><span>Contactos activados</span><strong data-promo-metric="contact_activations">0</strong></article>
+          <article><span>{t('Visitantes diarios')}</span><strong data-promo-metric="page_views">0</strong></article>
+          <article><span>{t('Secciones vistas')}</span><strong data-promo-metric="section_views">0</strong></article>
+          <article><span>{t('Contactos activados')}</span><strong data-promo-metric="contact_activations">0</strong></article>
         </div>
         <div class="pz-promo-analytics__details">
-          <section aria-labelledby="promo-analytics-sections"><h2 id="promo-analytics-sections">Secciones principales</h2><ol data-promo-analytics-list="sections"></ol></section>
-          <section aria-labelledby="promo-analytics-contact"><h2 id="promo-analytics-contact">Canales de contacto</h2><ol data-promo-analytics-list="contact_actions"></ol></section>
-          <section aria-labelledby="promo-analytics-locales"><h2 id="promo-analytics-locales">Idiomas</h2><ol data-promo-analytics-list="locales"></ol></section>
+          <section aria-labelledby="promo-analytics-sections"><h2 id="promo-analytics-sections">{t('Secciones principales')}</h2><ol data-promo-analytics-list="sections"></ol></section>
+          <section aria-labelledby="promo-analytics-contact"><h2 id="promo-analytics-contact">{t('Canales de contacto')}</h2><ol data-promo-analytics-list="contact_actions"></ol></section>
+          <section aria-labelledby="promo-analytics-locales"><h2 id="promo-analytics-locales">{t('Idiomas')}</h2><ol data-promo-analytics-list="locales"></ol></section>
         </div>
-        <p class="pz-promo-analytics__privacy">Cada navegador cuenta una vez por tienda y día. No se envían identificadores de navegador; los eventos crudos se conservan 7 días y este panel consume solo agregados diarios.</p>
+        <p class="pz-promo-analytics__privacy">{t('Cada navegador cuenta una vez por tienda y día. No se envían identificadores de navegador; los eventos crudos se conservan 7 días y este panel consume solo agregados diarios.')}</p>
       </div>
     </section>
   </main>
 
   <script>
+    import { normalizePromoAdminLocale, observePromoAdminTranslations } from '../lib/promoAdminI18n';
+
     const analyticsRoot = document.querySelector('[data-promo-analytics]');
     if (analyticsRoot instanceof HTMLElement) {
+      const adminLocale = normalizePromoAdminLocale(analyticsRoot.dataset.promoAdminLocale);
+      observePromoAdminTranslations(analyticsRoot, adminLocale);
       const status = analyticsRoot.querySelector('[data-promo-analytics-status]');
       const body = analyticsRoot.querySelector('[data-promo-analytics-body]');
       const store = analyticsRoot.dataset.storeSlug || '';
@@ -63,7 +74,7 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
         whatsapp: 'WhatsApp', phone: 'Teléfono', email: 'Correo',
         internal_form: 'Formulario', approved_live_chat: 'Chat aprobado',
       };
-      const formatter = new Intl.NumberFormat('es');
+      const formatter = new Intl.NumberFormat(adminLocale);
 
       function renderList(name: string, items: Array<{ key: string; count: number }>) {
         const list = analyticsRoot.querySelector(`[data-promo-analytics-list="${name}"]`);

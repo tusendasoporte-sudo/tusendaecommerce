@@ -116,6 +116,7 @@ const galleryPath = Astro.url.pathname;
     assetId: string;
     alt: string;
     decorative: boolean;
+    localizedAlt: Record<string, string>;
     pendingFile?: File;
     pendingPurpose?: ImagePurpose;
     previewUrl?: string;
@@ -128,16 +129,23 @@ const galleryPath = Astro.url.pathname;
     slotKey: string;
     decorativeBackground?: boolean;
     alternativeText?: (index: number) => string;
+    alternativeTextForLocale?: (locale: string, index: number) => string;
+    labelIsUserContent?: boolean;
     onChange?: () => void;
   };
   type ProductModel = {
-    key: string; featured: boolean; visible: boolean; name: string; summary: string; caption: string; media: MediaModel[];
+    key: string; featured: boolean; visible: boolean; name: string; summary: string; caption: string;
+    translations: Record<string, { name: string; summary: string; caption: string }>;
+    media: MediaModel[];
   };
   type GalleryModel = {
     key: string; visible: boolean; navigationLabel: string; heading: string; summary: string;
     cover: MediaModel | null; coverIndependent: boolean; items: ProductModel[];
   };
-  type ServiceModel = GalleryModel & { serviceKey: string; serviceName: string; serviceSummary: string };
+  type ServiceModel = GalleryModel & {
+    serviceKey: string; serviceName: string; serviceSummary: string;
+    translations: Record<string, { name: string; summary: string; caption: string }>;
+  };
 
   document.querySelectorAll<HTMLElement>('[data-promo-service-products]').forEach((root) => {
     const storeSlug = root.dataset.storeSlug || '';
@@ -159,6 +167,8 @@ const galleryPath = Astro.url.pathname;
     let draft: Draft | null = null;
     let catalog: Catalog | null = null;
     let locale = 'es';
+    let enabledLocales: string[] = ['es'];
+    let businessNames: Record<string, string> = {};
     let businessName = 'el negocio';
     let heroMedia: MediaModel[] = [];
     let ownerMedia: MediaModel | null = null;
@@ -292,7 +302,25 @@ const galleryPath = Astro.url.pathname;
       const ref = documentValue.media_refs?.[useKey];
       if (!ref?.asset_id) return null;
       const copy = documentValue.content_by_locale?.[locale]?.media_alt?.[useKey] || {};
-      return { useKey, assetId: text(ref.asset_id), alt: text(copy.alt), decorative: copy.decorative === true };
+      const localizedAlt = Object.fromEntries(enabledLocales.map((candidate) => [
+        candidate,
+        text(documentValue.content_by_locale?.[candidate]?.media_alt?.[useKey]?.alt),
+      ]));
+      return {
+        useKey,
+        assetId: text(ref.asset_id),
+        alt: text(copy.alt),
+        decorative: copy.decorative === true,
+        localizedAlt,
+      };
+    }
+
+    function localizedItemCopies(documentValue: any, sectionKey: string, itemKey: string) {
+      return Object.fromEntries(enabledLocales.filter((candidate) => candidate !== locale).map((candidate) => {
+        const items = documentValue.content_by_locale?.[candidate]?.sections?.[sectionKey]?.items || [];
+        const copy = items.find((item: any) => item?.key === itemKey) || {};
+        return [candidate, { name: text(copy.name), summary: text(copy.summary), caption: text(copy.caption) }];
+      }));
     }
 
     function galleryFromSection(documentValue: any, section: any): GalleryModel {
@@ -304,6 +332,7 @@ const galleryPath = Astro.url.pathname;
         return {
           key: text(item.key), featured: item.featured === true, visible: item.visible === true,
           name: text(copy.name), summary: text(copy.summary), caption: text(copy.caption),
+          translations: localizedItemCopies(documentValue, section.key, text(item.key)),
           media: (item.media_use_keys || []).map((useKey: string) => mediaFromDocument(documentValue, useKey)).filter(Boolean),
         } as ProductModel;
       });
@@ -320,8 +349,15 @@ const galleryPath = Astro.url.pathname;
     }
 
     function modelFromDocument(documentValue: any) {
+      enabledLocales = Object.keys(documentValue.content_by_locale || {}).sort((left, right) => (
+        left === locale ? -1 : right === locale ? 1 : left.localeCompare(right)
+      ));
       const localized = documentValue.content_by_locale?.[locale] || {};
       businessName = text(localized.identity?.name).trim() || 'el negocio';
+      businessNames = Object.fromEntries(enabledLocales.map((candidate) => [
+        candidate,
+        text(documentValue.content_by_locale?.[candidate]?.identity?.name).trim(),
+      ]));
       const hero = documentValue.sections.find((section: any) => section.type === 'hero');
       heroMedia = (hero?.media_use_keys || [])
         .map((useKey: string) => mediaFromDocument(documentValue, useKey))
@@ -371,6 +407,13 @@ const galleryPath = Astro.url.pathname;
           serviceKey: text(serviceKey),
           serviceName: text(copy.name || `Servicio ${index + 1}`),
           serviceSummary: text(copy.summary),
+          translations: Object.fromEntries(enabledLocales.filter((candidate) => candidate !== locale).map((candidate) => {
+            const candidateItems = documentValue.content_by_locale?.[candidate]?.sections?.[servicesSection?.key]?.items || [];
+            const candidateCopy = candidateItems.find((item: any) => item?.key === serviceKey) || {};
+            return [candidate, {
+              name: text(candidateCopy.name), summary: text(candidateCopy.summary), caption: text(candidateCopy.caption),
+            }];
+          })),
         } as ServiceModel;
       });
       preservedGalleries = gallerySections
@@ -488,6 +531,15 @@ const galleryPath = Astro.url.pathname;
             ? ''
             : (text(previous?.alt).trim() || options.alternativeText?.(index) || `Imagen de ${options.label}`),
           decorative: options.decorativeBackground === true,
+          localizedAlt: Object.fromEntries(enabledLocales.map((candidate) => [
+            candidate,
+            options.decorativeBackground === true
+              ? ''
+              : (text(previous?.localizedAlt?.[candidate]).trim()
+                || options.alternativeTextForLocale?.(candidate, index)
+                || (candidate === locale ? options.alternativeText?.(index) : '')
+                || ''),
+          ])),
           pendingFile: preparedFile,
           pendingPurpose: options.purpose,
           previewUrl: URL.createObjectURL(preparedFile),
@@ -514,8 +566,10 @@ const galleryPath = Astro.url.pathname;
       const decorativeBackground = options.decorativeBackground === true;
       const wrapper = element('section', 'pz-promo-media-slots');
       const header = element('header', 'pz-promo-media-slots__header');
+      const mediaHeading = element('strong', '', `${options.label}`);
+      if (options.labelIsUserContent) mediaHeading.dataset.promoAdminNoTranslate = '';
       header.append(
-        element('strong', '', `${options.label}`),
+        mediaHeading,
         element('span', '', `${Math.min(target.length, options.maximum)} de ${options.maximum} utilizados`),
       );
       const grid = element('div', 'pz-promo-media-slots__grid');
@@ -651,6 +705,7 @@ const galleryPath = Astro.url.pathname;
         : element('summary', 'pz-promo-products__item-summary');
       const fallbackName = standalone ? 'Nuevo producto' : `Producto ${index + 1}`;
       const heading = element('strong', '', product.name || fallbackName);
+      if (product.name) heading.dataset.promoAdminNoTranslate = '';
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible;
       visible.disabled = !canSave || (standalone && product.media.length === 0);
@@ -666,7 +721,13 @@ const galleryPath = Astro.url.pathname;
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = standalone || product.visible; name.disabled = !canSave;
       const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = product.summary; summary.disabled = !canSave;
       const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = product.caption; caption.disabled = !canSave;
-      name.addEventListener('input', () => { product.name = name.value; heading.textContent = name.value || fallbackName; markDirty(); });
+      name.addEventListener('input', () => {
+        product.name = name.value;
+        heading.textContent = name.value || fallbackName;
+        if (name.value) heading.dataset.promoAdminNoTranslate = '';
+        else delete heading.dataset.promoAdminNoTranslate;
+        markDirty();
+      });
       summary.addEventListener('input', () => { product.summary = summary.value; markDirty(); });
       caption.addEventListener('input', () => { product.caption = caption.value; markDirty(); });
       const field = (label: string, control: HTMLElement, wide = false) => {
@@ -674,12 +735,18 @@ const galleryPath = Astro.url.pathname;
       };
       fields.append(field('Nombre del producto o trabajo', name), field('Descripción', summary), field('Nota opcional', caption, true));
       body.append(fields);
+      body.append(renderLocalizedProductFields(product));
       body.append(renderMediaSlots(product.media, {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: product.name || fallbackName,
+        labelIsUserContent: Boolean(product.name),
         slotKey: `product-${service.key}-${product.key}`,
         alternativeText: (mediaIndex) => `${product.name || fallbackName} · imagen ${mediaIndex + 1}`,
+        alternativeTextForLocale: (candidate, mediaIndex) => {
+          const localizedName = candidate === locale ? product.name : product.translations[candidate]?.name;
+          return localizedName ? `${localizedName} · ${candidate === 'en' ? 'image' : 'imagen'} ${mediaIndex + 1}` : '';
+        },
         onChange: () => {
           if (!product.media.length) { product.visible = false; product.featured = false; }
           else if (standalone) product.visible = true;
@@ -701,6 +768,41 @@ const galleryPath = Astro.url.pathname;
       });
       actions.append(remove); body.append(actions); card.append(body);
       return card;
+    }
+
+    function renderLocalizedProductFields(product: ProductModel) {
+      const secondary = enabledLocales.filter((candidate) => candidate !== locale);
+      const wrapper = element('section', 'pz-promo-products__translations');
+      if (!secondary.length) return wrapper;
+      wrapper.append(
+        element('strong', '', 'Traducciones públicas'),
+        element('p', '', 'Completa cada idioma visible. El contenido del idioma base no se copia automáticamente.'),
+      );
+      secondary.forEach((candidate) => {
+        const copy = product.translations[candidate] ||= { name: '', summary: '', caption: '' };
+        const fieldset = document.createElement('fieldset');
+        fieldset.className = 'pz-promo-gallery__section-fields';
+        const legend = document.createElement('legend');
+        legend.textContent = candidate === 'en' ? 'English' : candidate.toUpperCase();
+        const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.required = true; name.value = copy.name; name.disabled = !canSave;
+        const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = copy.summary; summary.disabled = !canSave;
+        const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = copy.caption; caption.disabled = !canSave;
+        name.addEventListener('input', () => { copy.name = name.value; markDirty(); });
+        summary.addEventListener('input', () => { copy.summary = summary.value; markDirty(); });
+        caption.addEventListener('input', () => { copy.caption = caption.value; markDirty(); });
+        const field = (label: string, control: HTMLElement, wide = false) => {
+          const node = element('label', `pz-promo-gallery__field${wide ? ' is-wide' : ''}`, label);
+          node.append(control); return node;
+        };
+        fieldset.append(
+          legend,
+          field('Nombre traducido', name),
+          field('Descripción traducida', summary),
+          field('Nota traducida (opcional)', caption, true),
+        );
+        wrapper.append(fieldset);
+      });
+      return wrapper;
     }
 
     function renderOwnerSection() {
@@ -730,6 +832,7 @@ const galleryPath = Astro.url.pathname;
       configureAccordion(card, galleryItemAccordionGroup, `work:${workItem.key}`);
       const header = element('summary', 'pz-promo-products__item-summary');
       const heading = element('strong', '', workItem.name || `Trabajo ${index + 1}`);
+      if (workItem.name) heading.dataset.promoAdminNoTranslate = '';
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input');
       visible.type = 'checkbox'; visible.checked = workItem.visible; visible.disabled = !canSave || workItem.media.length === 0;
@@ -745,7 +848,13 @@ const galleryPath = Astro.url.pathname;
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = workItem.name; name.disabled = !canSave;
       const description = document.createElement('textarea'); description.maxLength = 600; description.rows = 3; description.value = workItem.summary; description.disabled = !canSave;
       const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = workItem.caption; caption.disabled = !canSave;
-      name.addEventListener('input', () => { workItem.name = name.value; heading.textContent = name.value || `Trabajo ${index + 1}`; markDirty(); });
+      name.addEventListener('input', () => {
+        workItem.name = name.value;
+        heading.textContent = name.value || `Trabajo ${index + 1}`;
+        if (name.value) heading.dataset.promoAdminNoTranslate = '';
+        else delete heading.dataset.promoAdminNoTranslate;
+        markDirty();
+      });
       description.addEventListener('input', () => { workItem.summary = description.value; markDirty(); });
       caption.addEventListener('input', () => { workItem.caption = caption.value; markDirty(); });
       const field = (label: string, control: HTMLElement, wide = false) => {
@@ -754,13 +863,19 @@ const galleryPath = Astro.url.pathname;
       };
       fields.append(field('Título del trabajo', name), field('Descripción', description), field('Nota opcional', caption, true));
       body.append(fields);
+      body.append(renderLocalizedProductFields(workItem));
 
       body.append(renderMediaSlots(workItem.media, {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: workItem.name || `Trabajo ${index + 1}`,
+        labelIsUserContent: Boolean(workItem.name),
         slotKey: `work-${workItem.key}`,
         alternativeText: (mediaIndex) => `${workItem.name || `Trabajo ${index + 1}`} · imagen ${mediaIndex + 1}`,
+        alternativeTextForLocale: (candidate, mediaIndex) => {
+          const localizedName = candidate === locale ? workItem.name : workItem.translations[candidate]?.name;
+          return localizedName ? `${localizedName} · ${candidate === 'en' ? 'image' : 'imagen'} ${mediaIndex + 1}` : '';
+        },
         onChange: () => {
           if (!workItem.media.length) { workItem.visible = false; workItem.featured = false; }
         },
@@ -792,7 +907,12 @@ const galleryPath = Astro.url.pathname;
       const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir trabajo');
       add.type = 'button'; add.disabled = !canSave || busy;
       add.addEventListener('click', () => {
-        const workItem = { key: newKey('work'), featured: false, visible: false, name: '', summary: '', caption: '', media: [] };
+        const workItem = {
+          key: newKey('work'), featured: false, visible: false, name: '', summary: '', caption: '',
+          translations: Object.fromEntries(enabledLocales.filter((candidate) => candidate !== locale)
+            .map((candidate) => [candidate, { name: '', summary: '', caption: '' }])),
+          media: [],
+        };
         workGallery.items.push(workItem);
         activeGallerySectionKey = 'work';
         activeGalleryItemKey = `work:${workItem.key}`;
@@ -858,7 +978,9 @@ const galleryPath = Astro.url.pathname;
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
       configureAccordion(details, gallerySectionAccordionGroup, `service:${service.key}`);
       const summary = element('summary');
-      const title = element('span'); title.append(element('span', 'pz-promo-gallery__eyebrow', `Servicio ${index + 1}`), element('strong', '', service.serviceName));
+      const serviceHeading = element('strong', '', service.serviceName);
+      serviceHeading.dataset.promoAdminNoTranslate = '';
+      const title = element('span'); title.append(element('span', 'pz-promo-gallery__eyebrow', `Servicio ${index + 1}`), serviceHeading);
       summary.append(title, element('span', '', '⌄')); details.append(summary);
       const body = element('div', 'pz-promo-products__body');
       if (service.serviceSummary) body.append(element('p', '', service.serviceSummary));
@@ -869,8 +991,14 @@ const galleryPath = Astro.url.pathname;
         maximum: 1,
         purpose: 'gallery',
         label: `Portada de ${service.serviceName}`,
+        labelIsUserContent: true,
         slotKey: `service-${service.serviceKey}`,
         alternativeText: () => `Portada del servicio ${service.serviceName}`,
+        alternativeTextForLocale: (candidate) => {
+          const localizedName = candidate === locale ? service.serviceName : service.translations[candidate]?.name;
+          if (!localizedName) return '';
+          return candidate === 'en' ? `Cover for ${localizedName}` : `Portada del servicio ${localizedName}`;
+        },
         onChange: () => {
           service.cover = holder[0] || null;
           service.coverIndependent = Boolean(service.cover);
@@ -908,9 +1036,11 @@ const galleryPath = Astro.url.pathname;
           const product = service && productIndex >= 0 ? service.items[productIndex] : null;
           if (service && product) {
             const context = element('section', 'pz-promo-products__editor-context');
+            const serviceName = element('h3', '', service.serviceName);
+            serviceName.dataset.promoAdminNoTranslate = '';
             context.append(
               element('span', 'pz-promo-gallery__eyebrow', 'Servicio'),
-              element('h3', '', service.serviceName),
+              serviceName,
               element('p', '', 'El producto todavía no se ha guardado.'),
             );
             productEditorElement.replaceChildren(context, renderProduct(service, product, productIndex, true));
@@ -956,6 +1086,8 @@ const galleryPath = Astro.url.pathname;
         name: '',
         summary: '',
         caption: '',
+        translations: Object.fromEntries(enabledLocales.filter((candidate) => candidate !== locale)
+          .map((candidate) => [candidate, { name: '', summary: '', caption: '' }])),
         media: [],
       };
       service.items.push(product);
@@ -964,14 +1096,46 @@ const galleryPath = Astro.url.pathname;
       activeGalleryItemKey = `product:${service.key}:${product.key}`;
     }
 
-    function mediaPatch(media: MediaModel, alternativeText = '', decorative = false) {
+    function mediaPatch(
+      media: MediaModel,
+      alternativeText = '',
+      decorative = false,
+      localizedAlternativeText: Record<string, string> = {},
+    ) {
       const storedAlternative = text(media.alt).trim();
       return {
         useKey: media.useKey,
         assetId: media.assetId,
         alt: decorative ? '' : ((media.pendingFile || media.decorative) ? alternativeText : (storedAlternative || alternativeText)),
         decorative,
+        localizedAlt: Object.fromEntries(enabledLocales.map((candidate) => [
+          candidate,
+          decorative ? '' : (localizedAlternativeText[candidate] || text(media.localizedAlt?.[candidate]).trim() || ''),
+        ])),
       };
+    }
+
+    function validateLocalizedGalleryCopy() {
+      if (enabledLocales.length <= 1) return;
+      const galleries = [workGallery, ...services];
+      for (const gallery of galleries) {
+        if (!gallery.items.length) continue;
+        for (const item of gallery.items) {
+          for (const candidate of enabledLocales) {
+            if (candidate === locale) continue;
+            const copy = item.translations[candidate];
+            if (!text(copy?.name).trim()
+              || (text(item.summary).trim() && !text(copy?.summary).trim())
+              || (text(item.caption).trim() && !text(copy?.caption).trim())) {
+              activeGallerySectionKey = gallery.key === workGallery.key ? 'work' : `service:${gallery.key}`;
+              activeGalleryItemKey = gallery.key === workGallery.key
+                ? `work:${item.key}`
+                : `product:${gallery.key}:${item.key}`;
+              throw Object.assign(new Error('incomplete_promo_locale'), { code: 'incomplete_promo_locale' });
+            }
+          }
+        }
+      }
     }
 
     function galleryPatch(gallery: GalleryModel, forceVisible?: boolean) {
@@ -991,14 +1155,36 @@ const galleryPath = Astro.url.pathname;
           name: item.name,
           summary: item.summary,
           caption: item.caption,
+          translations: item.translations,
           media: item.media.map((media, index) => mediaPatch(
             media,
             `${item.name || 'Producto o trabajo'} · imagen ${index + 1}`,
+            false,
+            Object.fromEntries(enabledLocales.map((candidate) => {
+              const localizedName = candidate === locale ? item.name : item.translations[candidate]?.name;
+              return [candidate, localizedName
+                ? `${localizedName} · ${candidate === 'en' ? 'image' : 'imagen'} ${index + 1}`
+                : ''];
+            })),
           )),
         })),
       };
       return gallery.cover?.useKey && gallery.coverIndependent
-        ? { ...common, coverMedia: mediaPatch(gallery.cover, `Portada de ${gallery.heading || gallery.navigationLabel || 'la sección'}`) }
+        ? { ...common, coverMedia: mediaPatch(
+          gallery.cover,
+          `Portada de ${gallery.heading || gallery.navigationLabel || 'la sección'}`,
+          false,
+          gallery.items.length
+            ? Object.fromEntries(enabledLocales.map((candidate) => {
+              const localizedName = candidate === locale
+                ? gallery.items[0]?.name
+                : gallery.items[0]?.translations[candidate]?.name;
+              return [candidate, localizedName
+                ? (candidate === 'en' ? `Cover for ${localizedName}` : `Portada de ${localizedName}`)
+                : ''];
+            }))
+            : {},
+        ) }
         : common;
     }
 
@@ -1064,6 +1250,7 @@ const galleryPath = Astro.url.pathname;
         createdAssetIds: new Set<string>(),
       };
       try {
+        validateLocalizedGalleryCopy();
         await uploadPendingImages(pendingUpload);
         const linkedGalleries = services.map((service) => galleryPatch({
           ...service,
@@ -1086,7 +1273,17 @@ const galleryPath = Astro.url.pathname;
           draft.document,
           {
             heroMedia: heroMedia.map((media) => mediaPatch(media, '', true)),
-            ownerMedia: ownerMedia ? mediaPatch(ownerMedia, `Retrato del propietario de ${businessName}`) : null,
+            ownerMedia: ownerMedia ? mediaPatch(
+              ownerMedia,
+              `Retrato del propietario de ${businessName}`,
+              false,
+              Object.fromEntries(enabledLocales.map((candidate) => [
+                candidate,
+                candidate === 'en'
+                  ? `Portrait of the owner of ${businessNames[candidate] || 'the business'}`
+                  : `Retrato del propietario de ${businessNames[candidate] || 'el negocio'}`,
+              ])),
+            ) : null,
             galleries: [...linkedGalleries, work, ...preserved],
           },
           catalog.assets,

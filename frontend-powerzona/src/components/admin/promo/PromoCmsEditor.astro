@@ -1262,18 +1262,26 @@ const isContent = scope === 'content';
         const assetId = await uploadContactMedia(pendingLogoFile, 'logo');
         if (!known.has(assetId)) created.add(assetId);
         documentValue.media_refs[logoUseKey] = { asset_id: assetId, purpose: 'logo' };
-        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+        Object.entries(documentValue.content_by_locale).forEach(([candidate, content]: [string, any]) => {
           const name = String(content?.identity?.name || '').trim();
-          content.media_alt[logoUseKey] = { alt: `Logo de ${name || 'el negocio'}`, decorative: false };
+          content.media_alt[logoUseKey] = {
+            alt: candidate === 'en' ? `Logo of ${name || 'the business'}` : `Logo de ${name || 'el negocio'}`,
+            decorative: false,
+          };
         });
       }
       if (pendingQrFile) {
         const assetId = await uploadContactMedia(pendingQrFile, 'qr');
         if (!known.has(assetId)) created.add(assetId);
         documentValue.media_refs[qrUseKey] = { asset_id: assetId, purpose: 'qr' };
-        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+        Object.entries(documentValue.content_by_locale).forEach(([candidate, content]: [string, any]) => {
           const name = String(content?.identity?.name || '').trim();
-          content.media_alt[qrUseKey] = { alt: `Código QR de contacto de ${name || 'el negocio'}`, decorative: false };
+          content.media_alt[qrUseKey] = {
+            alt: candidate === 'en'
+              ? `Contact QR code for ${name || 'the business'}`
+              : `Código QR de contacto de ${name || 'el negocio'}`,
+            decorative: false,
+          };
         });
       }
     }

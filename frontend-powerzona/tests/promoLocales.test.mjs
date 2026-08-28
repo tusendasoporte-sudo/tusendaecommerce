@@ -179,6 +179,14 @@ test('completitud excluye el fallback editorial y bloquea incluir un locale inv√
     },
   }, 2);
   assert.equal(diagnosePromoLocale(translated, 'en').complete, true);
+  const missingIdentitySummary = structuredClone(translated);
+  missingIdentitySummary.content_by_locale.en.identity.summary = '';
+  assert.equal(diagnosePromoLocale(missingIdentitySummary, 'en').complete, false);
+  assert.ok(diagnosePromoLocale(missingIdentitySummary, 'en').missing.includes('Identidad: summary'));
+  const missingHeroSummary = structuredClone(translated);
+  missingHeroSummary.content_by_locale.en.sections['hero-main'].summary = '';
+  assert.equal(diagnosePromoLocale(missingHeroSummary, 'en').complete, false);
+  assert.ok(diagnosePromoLocale(missingHeroSummary, 'en').missing.includes('Home: summary'));
   const published = setPromoLocalePublished(translated, 'en', true);
   assert.deepEqual(published.locales.published, ['en', 'es']);
   assert.equal(diagnosePromoLocalesPublication(published).ready, true);

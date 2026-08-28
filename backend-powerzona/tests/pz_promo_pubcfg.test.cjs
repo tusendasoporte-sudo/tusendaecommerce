@@ -384,6 +384,43 @@ test('payloads privados versionados rechazan tenant, revisión, filters y campos
   }
 });
 
+test('la publicación multilenguaje exige paridad del contenido editorial opcional', () => {
+  const live = contract.upgradePromoDocument(publishedDocument());
+  live.locales.published = ['en', 'es'];
+  live.content_by_locale.en = structuredClone(live.content_by_locale.es);
+  live.content_by_locale.en.identity.name = "Aladdin's Carpet";
+  live.content_by_locale.en.identity.summary = 'Artisan restoration';
+  live.content_by_locale.en.navigation['hero-main'] = 'Home';
+  live.content_by_locale.en.navigation['contact-main'] = 'Contact';
+  live.content_by_locale.en.sections['hero-main'].heading = 'Rugs with history';
+  live.content_by_locale.en.sections['hero-main'].summary = 'Specialized care';
+  live.content_by_locale.en.sections['contact-main'].heading = 'Let us talk';
+  live.content_by_locale.en.sections['contact-main'].summary = 'Request an estimate';
+  live.content_by_locale.en.contact['call-main'] = {
+    label: 'Call', aria_label: 'Call the store', message: '',
+  };
+  live.content_by_locale.en.seo = {
+    title: "Aladdin's Carpet", description: 'Professional rug restoration',
+  };
+  live.content_by_locale.es.identity.slogan = 'Restauramos historias';
+  live.content_by_locale.en.identity.slogan = 'We restore stories';
+  assert.doesNotThrow(() => contract.validatePromoDocument(live, { publicRevision: true }));
+
+  const missingSlogan = structuredClone(live);
+  missingSlogan.content_by_locale.en.identity.slogan = '';
+  assert.throws(
+    () => contract.validatePromoDocument(missingSlogan, { publicRevision: true }),
+    /incomplete_promo_locale/,
+  );
+
+  const missingHeroSummary = structuredClone(live);
+  missingHeroSummary.content_by_locale.en.sections['hero-main'].summary = '';
+  assert.throws(
+    () => contract.validatePromoDocument(missingHeroSummary, { publicRevision: true }),
+    /incomplete_promo_locale/,
+  );
+});
+
 test('el límite legado de galería no restringe el documento Promo', () => {
   const document = publishedDocument();
   document.sections.push({

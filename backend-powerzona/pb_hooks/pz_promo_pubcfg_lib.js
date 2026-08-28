@@ -574,6 +574,85 @@ function validateLocalizedSection(value, section, publicRevision, liveDocument) 
   }
 }
 
+function hasLocalizedText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function requireLocalizedParity(document, locale, localized, liveDocument) {
+  if (locale === document.locales.default) return;
+  const base = plainObject(document.content_by_locale[document.locales.default]);
+  const baseIdentity = plainObject(base.identity);
+  const identity = plainObject(localized.identity);
+  ["slogan", "summary", "owner_name", "owner_bio"].forEach((field) => {
+    if (hasLocalizedText(baseIdentity[field]) && !hasLocalizedText(identity[field])) {
+      fail("incomplete_promo_locale", 400, `identity_${field}`);
+    }
+  });
+
+  const baseSections = plainObject(base.sections);
+  const targetSections = plainObject(localized.sections);
+  document.sections.filter((section) => section.visible).forEach((section) => {
+    const source = plainObject(baseSections[section.key]);
+    const target = plainObject(targetSections[section.key]);
+    const textFields = liveDocument
+      ? (LIVE_LOCALIZED_SECTION_KEYS[section.type] || [])
+      : (LOCALIZED_SECTION_KEYS[section.type] || []);
+    textFields.filter((field) => !["items", "highlights", "button_labels"].includes(field)).forEach((field) => {
+      if (hasLocalizedText(source[field]) && !hasLocalizedText(target[field])) {
+        fail("incomplete_promo_locale", 400, `localized_${section.type}_${field}`);
+      }
+    });
+    if (liveDocument && section.type === "hero") {
+      const sourceHighlights = Array.isArray(source.highlights) ? source.highlights : [];
+      const targetHighlights = Array.isArray(target.highlights) ? target.highlights : [];
+      sourceHighlights.forEach((value, index) => {
+        if (hasLocalizedText(value) && !hasLocalizedText(targetHighlights[index])) {
+          fail("incomplete_promo_locale", 400, "localized_hero_highlights");
+        }
+      });
+      const sourceButtons = Array.isArray(source.button_labels) ? source.button_labels : [];
+      const targetButtons = Array.isArray(target.button_labels) ? target.button_labels : [];
+      sourceButtons.forEach((value, index) => {
+        if (hasLocalizedText(value) && !hasLocalizedText(targetButtons[index])) {
+          fail("incomplete_promo_locale", 400, "localized_hero_buttons");
+        }
+      });
+    }
+    if (["services", "gallery"].includes(section.type)) {
+      const sourceItems = new Map((Array.isArray(source.items) ? source.items : [])
+        .map((item) => [String(item && item.key || ""), item]));
+      const targetItems = new Map((Array.isArray(target.items) ? target.items : [])
+        .map((item) => [String(item && item.key || ""), item]));
+      (section.config.item_keys || []).forEach((itemKey) => {
+        const sourceItem = plainObject(sourceItems.get(itemKey));
+        const targetItem = plainObject(targetItems.get(itemKey));
+        ["summary", "caption"].forEach((field) => {
+          if (hasLocalizedText(sourceItem[field]) && !hasLocalizedText(targetItem[field])) {
+            fail("incomplete_promo_locale", 400, `localized_item_${field}`);
+          }
+        });
+      });
+    }
+  });
+
+  const baseContact = plainObject(base.contact);
+  const contact = plainObject(localized.contact);
+  Object.keys(baseContact).forEach((key) => {
+    const source = plainObject(baseContact[key]);
+    const target = plainObject(contact[key]);
+    if (hasLocalizedText(source.message) && !hasLocalizedText(target.message)) {
+      fail("incomplete_promo_locale", 400, "localized_contact_message");
+    }
+  });
+  const baseSeo = plainObject(base.seo);
+  const seo = plainObject(localized.seo);
+  ["social_title", "social_description"].forEach((field) => {
+    if (hasLocalizedText(baseSeo[field]) && !hasLocalizedText(seo[field])) {
+      fail("incomplete_promo_locale", 400, `localized_seo_${field}`);
+    }
+  });
+}
+
 function validateLocalizedContent(document, publicRevision, liveDocument) {
   const byLocale = plainObject(document.content_by_locale);
   const localeKeys = Object.keys(byLocale);
@@ -660,6 +739,7 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
     if (publicRevision && (!seo.title || !seo.description)) {
       fail("incomplete_promo_locale", 400, "seo");
     }
+    if (publicRevision) requireLocalizedParity(document, locale, localized, liveDocument);
   }
 }
 

@@ -279,9 +279,13 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
   update.galleries[0].items = [{
     key: 'rug-video', featured: true, visible: true,
     name: 'Proceso audiovisual', summary: 'Resumen', caption: 'Video final',
+    translations: {
+      en: { name: 'Audiovisual process', summary: 'Summary', caption: 'Final video' },
+    },
     media: [{
       useKey: 'gallery-item-media-2', assetId: 'assetv000000001',
       alt: 'Recorrido del proyecto', decorative: false,
+      localizedAlt: { en: 'Project walkthrough' },
     }],
   }];
   update.galleries[0].coverUseKey = 'gallery-item-media-2';
@@ -322,7 +326,12 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
   });
   assert.equal(updated.sections.find((section) => section.type === 'footer')
     .config.navigation_section_keys.includes('gallery-rugs'), false);
-  assert.equal(updated.content_by_locale.en.sections['gallery-rugs'].items[0].name, 'Proceso audiovisual');
+  assert.deepEqual(updated.content_by_locale.en.sections['gallery-rugs'].items[0], {
+    key: 'rug-video', name: 'Audiovisual process', summary: 'Summary', caption: 'Final video',
+  });
+  assert.deepEqual(updated.content_by_locale.en.media_alt['gallery-item-media-2'], {
+    alt: 'Project walkthrough', decorative: false,
+  });
   assert.deepEqual(
     new Set(backendContract.changedActionKeys(original, updated, assets)),
     new Set([
@@ -464,6 +473,29 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
   assert.equal(promoGalleryErrorMessage('invalid_payload'), 'No se pudo preparar el guardado. Intenta nuevamente.');
 });
 
+test('un producto nuevo no copia el idioma base en los locales secundarios', () => {
+  const original = completeDocument();
+  const update = patch(original);
+  update.galleries[0].items = [{
+    key: 'new-rug', featured: false, visible: true,
+    name: 'Lavado artesanal', summary: 'Proceso delicado', caption: 'Resultado final',
+    media: [{
+      useKey: 'gallery-new-rug', assetId: 'assetg000000001',
+      alt: 'Lavado artesanal · imagen 1', decorative: false,
+    }],
+  }];
+  update.galleries[0].coverUseKey = 'gallery-new-rug';
+  const updated = buildPromoGalleryDocument(original, update, assets);
+  assert.deepEqual(updated.content_by_locale.en.sections['gallery-rugs'].items[0], {
+    key: 'new-rug', name: '', summary: '', caption: '',
+  });
+  assert.equal(Object.hasOwn(updated.content_by_locale.en.media_alt, 'gallery-new-rug'), false);
+  assert.throws(
+    () => backendContract.validatePromoDocument(updated, { publicRevision: true }),
+    /(incomplete_promo_locale|invalid_promo_document)/,
+  );
+});
+
 test('shell separa Galería y productos sin biblioteca privada y conserva el proxy central', () => {
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
@@ -507,10 +539,10 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /optimizePromoUploadImageFile/);
   assert.match(productsEditor, /async function uploadPendingImages[\s\S]*?uploadAsset\(media\.pendingFile!, media\.pendingPurpose!\)/);
   assert.match(productsEditor, /const pendingUpload = \{[\s\S]*?createdAssetIds: new Set<string>\(\)[\s\S]*?await uploadPendingImages\(pendingUpload\)/);
-  assert.match(productsEditor, /function mediaPatch\(media: MediaModel, alternativeText = '', decorative = false\)[\s\S]*?alt: decorative \? ''[\s\S]*?decorative/);
-  assert.match(productsEditor, /heroMedia: heroMedia\.map\(\(media\) => mediaPatch\(media, '', true\)\)[\s\S]*?ownerMedia: ownerMedia \? mediaPatch\(ownerMedia, `Retrato del propietario de \$\{businessName\}`\) : null/);
+  assert.match(productsEditor, /function mediaPatch\([\s\S]*?localizedAlternativeText: Record<string, string>[\s\S]*?localizedAlt: Object\.fromEntries/);
+  assert.match(productsEditor, /heroMedia: heroMedia\.map\(\(media\) => mediaPatch\(media, '', true\)\)[\s\S]*?ownerMedia: ownerMedia \? mediaPatch\([\s\S]*?Portrait of the owner/);
   assert.match(productsEditor, /items: gallery\.items\.map[\s\S]*?media: item\.media\.map\(\(media, index\) => mediaPatch[\s\S]*?imagen \$\{index \+ 1\}/);
-  assert.match(productsEditor, /coverMedia: mediaPatch\(gallery\.cover, `Portada de \$\{gallery\.heading/);
+  assert.match(productsEditor, /coverMedia: mediaPatch\([\s\S]*?gallery\.cover,[\s\S]*?`Portada de \$\{gallery\.heading/);
   assert.match(productsEditor, /if \(pendingUpload\.pending\.length\)[\s\S]*?deleteUnreferencedAssets\(pendingUpload\.createdAssetIds\)/);
   assert.match(productsEditor, /expected_version: draft\.version[\s\S]*?deleteUnreferencedAssets\(replacedAssetIds\)/);
   assert.match(productsEditor, /window\.addEventListener\('beforeunload'[\s\S]*?if \(!dirty\) return/);
@@ -531,6 +563,7 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /data-product-editor-mode=\{productEditorMode \? 'new' : ''\}/);
   assert.match(productsEditor, /target\.searchParams\.set\('newProduct', service\.serviceKey\)[\s\S]*?window\.location\.assign\(`\$\{target\.pathname\}\$\{target\.search\}`\)/);
   assert.match(productsEditor, /function prepareNewProductEditor\(\)[\s\S]*?visible: false[\s\S]*?service\.items\.push\(product\)/);
+  assert.match(productsEditor, /function validateLocalizedGalleryCopy\(\)[\s\S]*?incomplete_promo_locale[\s\S]*?validateLocalizedGalleryCopy\(\);[\s\S]*?await uploadPendingImages/);
   assert.match(productsEditor, /name\.required = standalone \|\| product\.visible/);
   assert.match(productsEditor, /productEditorMode[\s\S]*?window\.location\.assign\(galleryPath\)/);
   assert.match(productsEditor, /Producto nuevo preparado\. Guardar lo añadirá al servicio\./);

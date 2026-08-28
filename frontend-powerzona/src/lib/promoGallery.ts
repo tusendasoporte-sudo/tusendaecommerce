@@ -66,6 +66,13 @@ export type PromoGalleryMediaPatch = Readonly<{
   assetId: string;
   alt: string;
   decorative: boolean;
+  localizedAlt?: Readonly<Record<string, string>>;
+}>;
+
+export type PromoGalleryLocalizedItemPatch = Readonly<{
+  name: string;
+  summary: string;
+  caption: string;
 }>;
 
 export type PromoGalleryPatch = Readonly<{
@@ -86,6 +93,7 @@ export type PromoGalleryPatch = Readonly<{
       name: string;
       summary: string;
       caption: string;
+      translations?: Readonly<Record<string, PromoGalleryLocalizedItemPatch>>;
       media: readonly PromoGalleryMediaPatch[];
     }>[];
   }>[];
@@ -285,7 +293,9 @@ function validateMediaPatch(
   availableAssets: Map<string, PromoGalleryAsset>,
   allUseKeys: Set<string>,
 ) {
-  const item = exactKeys(raw, ['useKey', 'assetId', 'alt', 'decorative']);
+  const item = exactKeys(raw, isRecord(raw) && Object.prototype.hasOwnProperty.call(raw, 'localizedAlt')
+    ? ['useKey', 'assetId', 'alt', 'decorative', 'localizedAlt']
+    : ['useKey', 'assetId', 'alt', 'decorative']);
   if (typeof item.decorative !== 'boolean') fail();
   const useKey = checkedKey(item.useKey, USE_KEY_PATTERN);
   const assetId = String(item.assetId || '');
@@ -295,11 +305,20 @@ function validateMediaPatch(
     || !allowedKinds.includes(asset.kind)) fail('invalid_promo_media_reference');
   allUseKeys.add(useKey);
   const decorative = purpose === 'hero' ? true : item.decorative;
+  const localizedAlt: Record<string, string> = {};
+  if (item.localizedAlt !== undefined) {
+    if (!isRecord(item.localizedAlt)) fail('invalid_promo_document');
+    Object.entries(item.localizedAlt).forEach(([candidate, value]) => {
+      if (!/^[a-z]{2}$/.test(candidate)) fail('invalid_promo_document');
+      localizedAlt[candidate] = safeText(decorative ? '' : value, PROMO_GALLERY_TEXT_LIMITS.alt);
+    });
+  }
   return {
     useKey,
     assetId,
     alt: safeText(decorative ? '' : item.alt, PROMO_GALLERY_TEXT_LIMITS.alt, !decorative),
     decorative,
+    localizedAlt,
   };
 }
 
@@ -308,8 +327,15 @@ function setMediaReference(document: JsonRecord, locale: string, item: ReturnTyp
   for (const [candidate, rawContent] of Object.entries(document.content_by_locale)) {
     const content = rawContent as JsonRecord;
     if (!isRecord(content.media_alt)) content.media_alt = {};
-    if (candidate === locale || !isRecord(content.media_alt[item.useKey])) {
+    if (candidate === locale) {
       content.media_alt[item.useKey] = { alt: item.alt, decorative: item.decorative };
+    } else if (Object.prototype.hasOwnProperty.call(item.localizedAlt, candidate)) {
+      content.media_alt[item.useKey] = {
+        alt: item.decorative ? '' : item.localizedAlt[candidate],
+        decorative: item.decorative,
+      };
+    } else if (item.decorative && !isRecord(content.media_alt[item.useKey])) {
+      content.media_alt[item.useKey] = { alt: '', decorative: true };
     }
   }
 }
@@ -332,19 +358,33 @@ function galleryPatches(patch: PromoGalleryPatch) {
   });
 }
 
-function localizedGalleryItems(content: JsonRecord, sectionKey: string, defaults: JsonRecord[], isDefault: boolean) {
+function localizedGalleryItems(
+  content: JsonRecord,
+  sectionKey: string,
+  defaults: JsonRecord[],
+  isDefault: boolean,
+  locale: string,
+) {
   const sectionContent = isRecord(content.sections[sectionKey]) ? content.sections[sectionKey] : {};
   const existing = new Map((Array.isArray(sectionContent.items) ? sectionContent.items : []).map(
     (item: JsonRecord) => [String(item.key || ''), item],
   ));
   return defaults.map((item) => {
     const previous = existing.get(item.key) as JsonRecord | undefined;
-    return isDefault || !previous ? clone(item) : {
+    const translated = isRecord(item.translations?.[locale]) ? item.translations[locale] : null;
+    if (isDefault) return clone({ key: item.key, name: item.name, summary: item.summary, caption: item.caption });
+    if (translated) return {
       key: item.key,
-      name: String(previous.name || item.name),
+      name: safeText(translated.name, PROMO_GALLERY_TEXT_LIMITS.name),
+      summary: safeText(translated.summary, PROMO_GALLERY_TEXT_LIMITS.summary),
+      caption: safeText(translated.caption, PROMO_GALLERY_TEXT_LIMITS.caption),
+    };
+    return previous ? {
+      key: item.key,
+      name: String(previous.name || ''),
       summary: String(previous.summary || ''),
       caption: String(previous.caption || ''),
-    };
+    } : { key: item.key, name: '', summary: '', caption: '' };
   });
 }
 
@@ -394,7 +434,9 @@ export function buildPromoGalleryDocument(
     const itemDefinitions: JsonRecord[] = [];
     const localizedItems: JsonRecord[] = [];
     raw.items.forEach((rawItem: unknown) => {
-      const item = exactKeys(rawItem, ['key', 'featured', 'visible', 'name', 'summary', 'caption', 'media']);
+      const item = exactKeys(rawItem, isRecord(rawItem) && Object.prototype.hasOwnProperty.call(rawItem, 'translations')
+        ? ['key', 'featured', 'visible', 'name', 'summary', 'caption', 'translations', 'media']
+        : ['key', 'featured', 'visible', 'name', 'summary', 'caption', 'media']);
       const itemKey = checkedKey(item.key);
       if (itemKeys.has(itemKey) || typeof item.featured !== 'boolean'
         || typeof item.visible !== 'boolean' || !Array.isArray(item.media)
@@ -416,6 +458,7 @@ export function buildPromoGalleryDocument(
         name: safeText(item.name, PROMO_GALLERY_TEXT_LIMITS.name),
         summary: safeText(item.summary, PROMO_GALLERY_TEXT_LIMITS.summary),
         caption: safeText(item.caption, PROMO_GALLERY_TEXT_LIMITS.caption),
+        translations: isRecord(item.translations) ? clone(item.translations) : {},
       });
     });
     const coverMedia = raw.coverMedia
@@ -440,7 +483,7 @@ export function buildPromoGalleryDocument(
       localized.sections[sectionKey] = {
         heading: isDefault ? safeText(raw.heading, PROMO_GALLERY_TEXT_LIMITS.heading) : String(previous.heading || raw.heading),
         summary: isDefault ? safeText(raw.summary, PROMO_GALLERY_TEXT_LIMITS.summary) : String(previous.summary || raw.summary),
-        items: localizedGalleryItems(localized, sectionKey, localizedItems, isDefault),
+        items: localizedGalleryItems(localized, sectionKey, localizedItems, isDefault, candidate),
       };
     }
     return {
@@ -522,6 +565,7 @@ export function promoGalleryErrorMessage(code: unknown) {
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
     invalid_promo_document: 'Revisa las galerías, portadas, trabajos y metadatos accesibles.',
+    incomplete_promo_locale: 'Completa las traducciones de cada producto, trabajo y descripción accesible antes de guardar.',
     invalid_promo_media_reference: 'Selecciona un medio listo y del tipo correcto para esta ubicación.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',
     promo_media_duplicate: 'Este archivo ya existe en la biblioteca de la tienda.',

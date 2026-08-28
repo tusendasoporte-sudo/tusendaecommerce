@@ -157,6 +157,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
   document.querySelectorAll<HTMLElement>('[data-promo-reviews-editor]').forEach((root) => {
     const storeSlug = String(root.dataset.storeSlug || '');
     const storeName = String(root.dataset.storeName || 'esta tienda');
+    const adminLocale = root.closest<HTMLElement>('[data-promo-admin-locale]')?.dataset.promoAdminLocale === 'en' ? 'en' : 'es';
     const publicSlug = String(root.dataset.publicSlug || '');
     const canModerate = root.dataset.canModerate === 'true';
     const canConfigure = root.dataset.canConfigure === 'true';
@@ -374,12 +375,18 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       const article = document.createElement('article'); article.className = 'pz-promo-reviews-admin__request-card';
       const header = document.createElement('header');
       const title = document.createElement('strong'); title.textContent = item.customerLabel || item.workLabel || 'Solicitud de reseña';
+      if (item.customerLabel || item.workLabel) title.dataset.promoAdminNoTranslate = '';
       const badge = document.createElement('span'); badge.dataset.status = item.status; badge.textContent = requestStatusLabel(item.status); header.append(title, badge);
       const info = document.createElement('p');
-      const expiry = new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(new Date(item.expiresAt));
+      const expiry = new Intl.DateTimeFormat(adminLocale, { dateStyle: 'medium' }).format(new Date(item.expiresAt));
       info.textContent = `${item.locale.toUpperCase()} · ${item.photoAssetIds.length} foto${item.photoAssetIds.length === 1 ? '' : 's'} · vence ${expiry}`;
       article.append(header, info);
-      if (item.workLabel && item.workLabel !== title.textContent) { const work = document.createElement('p'); work.textContent = item.workLabel; article.append(work); }
+      if (item.workLabel && item.workLabel !== title.textContent) {
+        const work = document.createElement('p');
+        work.textContent = item.workLabel;
+        work.dataset.promoAdminNoTranslate = '';
+        article.append(work);
+      }
       if (item.photoAssetIds.length) {
         const photos = document.createElement('div');
         photos.className = 'pz-promo-reviews-admin__request-thumbnails';
@@ -506,6 +513,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       const identity = document.createElement('div');
       const name = document.createElement('h4');
       name.textContent = review.name;
+      name.dataset.promoAdminNoTranslate = '';
       const meta = document.createElement('p');
       meta.textContent = `${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)} · ${statusLabel(review.status)}`;
       meta.setAttribute('aria-label', `${review.rating} de 5 estrellas. Estado: ${statusLabel(review.status)}`);
@@ -527,11 +535,12 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
         const comment = document.createElement('p');
         comment.className = 'pz-promo-reviews-admin__comment';
         comment.textContent = review.comment;
+        comment.dataset.promoAdminNoTranslate = '';
         article.append(comment);
       }
       const footer = document.createElement('footer');
       const date = document.createElement('time');
-      date.textContent = review.created ? new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(new Date(review.created)) : 'Sin fecha';
+      date.textContent = review.created ? new Intl.DateTimeFormat(adminLocale, { dateStyle: 'medium' }).format(new Date(review.created)) : 'Sin fecha';
       const actions = document.createElement('div');
       actions.className = 'pz-promo-reviews-admin__actions';
       if (review.status !== 'approved') actions.append(actionButton('Aprobar', 'approve', review));
