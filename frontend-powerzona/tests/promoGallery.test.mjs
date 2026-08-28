@@ -527,6 +527,14 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /visibleLabel\.addEventListener\('click', \(event\) => event\.stopPropagation\(\)\)/);
   assert.match(productsEditor, /gallerySectionAccordionGroup = 'promo-gallery-sections'/);
   assert.match(productsEditor, /galleryItemAccordionGroup = 'promo-gallery-items'/);
+  assert.match(productsEditor, /Astro\.url\.searchParams\.get\('newProduct'\)/);
+  assert.match(productsEditor, /data-product-editor-mode=\{productEditorMode \? 'new' : ''\}/);
+  assert.match(productsEditor, /target\.searchParams\.set\('newProduct', service\.serviceKey\)[\s\S]*?window\.location\.assign\(`\$\{target\.pathname\}\$\{target\.search\}`\)/);
+  assert.match(productsEditor, /function prepareNewProductEditor\(\)[\s\S]*?visible: false[\s\S]*?service\.items\.push\(product\)/);
+  assert.match(productsEditor, /name\.required = standalone \|\| product\.visible/);
+  assert.match(productsEditor, /productEditorMode[\s\S]*?window\.location\.assign\(galleryPath\)/);
+  assert.match(productsEditor, /Producto nuevo preparado\. Guardar lo añadirá al servicio\./);
+  assert.doesNotMatch(productsEditor, /add\.addEventListener\('click',[\s\S]{0,350}?service\.items\.push/);
   assert.match(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '←'\)/);
   assert.match(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '→'\)/);
   assert.doesNotMatch(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '[↑↓]'\)/);
@@ -537,6 +545,8 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(localesEditor, /promo-locales-panels/);
   assert.match(galleryStyles, /pz-promo-products__item-summary/);
   assert.match(galleryStyles, /pz-promo-products__item-body/);
+  assert.match(galleryStyles, /data-product-editor-mode='new'/);
+  assert.match(galleryStyles, /pz-promo-products__editor-context/);
   assert.doesNotMatch(productsEditor, /Texto alternativo|Imagen decorativa|pz-promo-media-slot__accessibility/);
   assert.match(galleryStyles, /pz-promo-media-slot\.is-dragover/);
   assert.doesNotMatch(galleryStyles, /pz-promo-media-slot__accessibility/);

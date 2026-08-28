@@ -12,6 +12,9 @@ const {
   canSave,
   canManageMedia,
 } = Astro.props;
+const requestedNewProductService = String(Astro.url.searchParams.get('newProduct') || '').trim();
+const productEditorMode = /^[a-z0-9][a-z0-9_-]{0,63}$/.test(requestedNewProductService);
+const galleryPath = Astro.url.pathname;
 ---
 
 <section
@@ -20,20 +23,31 @@ const {
   data-store-slug={storeSlug}
   data-can-save={canSave ? 'true' : 'false'}
   data-can-manage-media={canManageMedia ? 'true' : 'false'}
+  data-product-editor-mode={productEditorMode ? 'new' : ''}
+  data-product-editor-service={productEditorMode ? requestedNewProductService : ''}
+  data-gallery-path={galleryPath}
   aria-labelledby="promo-products-title"
 >
   <header class="pz-promo-gallery__intro">
     <div>
       <span class="pz-promo-gallery__eyebrow">Contenido visual</span>
-      <h2 id="promo-products-title">Galería y productos</h2>
-      <p>Administra el carrusel, la foto del propietario, cada servicio, sus productos y los trabajos realizados.</p>
+      <h2 id="promo-products-title">{productEditorMode ? 'Nuevo producto' : 'Galería y productos'}</h2>
+      <p>{productEditorMode
+        ? 'Completa la información y guarda para añadirlo al servicio.'
+        : 'Administra el carrusel, la foto del propietario, cada servicio, sus productos y los trabajos realizados.'}</p>
     </div>
-    <span class="pz-promo-gallery__draft-badge">Cambios pendientes · guardado explícito</span>
+    {productEditorMode ? (
+      <a class="pz-promo-products__back" href={galleryPath}>← Volver a Galería y productos</a>
+    ) : (
+      <span class="pz-promo-gallery__draft-badge">Cambios pendientes · guardado explícito</span>
+    )}
   </header>
 
-  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de imágenes">
-    <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
-  </div>
+  {!productEditorMode && (
+    <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de imágenes">
+      <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
+    </div>
+  )}
 
   {!canSave && (
     <aside class="pz-promo-gallery__permission" role="note">
@@ -46,26 +60,32 @@ const {
   <p class="pz-promo-gallery__status" data-products-status role="status" aria-live="polite">Cargando contenido y medios…</p>
 
   <form class="pz-promo-gallery__form" data-products-form hidden novalidate>
-    <details
-      class="pz-promo-gallery__section pz-promo-products__accordion"
-      data-promo-accordion-group="promo-gallery-sections"
-      data-promo-accordion-key="hero"
-      open
-    >
-      <summary>
-        <span><span class="pz-promo-gallery__eyebrow">Portada</span><strong>Imagen principal o carrusel</strong></span>
-        <span aria-hidden="true">⌄</span>
-      </summary>
-      <div class="pz-promo-products__body">
-        <p>Usa hasta 3 imágenes: una crea una portada fija y dos o tres crean un carrusel accesible.</p>
-        <div class="pz-promo-gallery__items" data-products-hero-media></div>
-      </div>
-    </details>
+    {productEditorMode ? (
+      <div class="pz-promo-products__editor" data-products-product-editor></div>
+    ) : (
+      <>
+        <details
+          class="pz-promo-gallery__section pz-promo-products__accordion"
+          data-promo-accordion-group="promo-gallery-sections"
+          data-promo-accordion-key="hero"
+          open
+        >
+          <summary>
+            <span><span class="pz-promo-gallery__eyebrow">Portada</span><strong>Imagen principal o carrusel</strong></span>
+            <span aria-hidden="true">⌄</span>
+          </summary>
+          <div class="pz-promo-products__body">
+            <p>Usa hasta 3 imágenes: una crea una portada fija y dos o tres crean un carrusel accesible.</p>
+            <div class="pz-promo-gallery__items" data-products-hero-media></div>
+          </div>
+        </details>
 
-    <div data-products-owner></div>
-    <div data-products-work></div>
-    <div data-products-featured></div>
-    <div class="pz-promo-gallery__section-list" data-products-services></div>
+        <div data-products-owner></div>
+        <div data-products-work></div>
+        <div data-products-featured></div>
+        <div class="pz-promo-gallery__section-list" data-products-services></div>
+      </>
+    )}
 
     <footer class="pz-promo-gallery__savebar">
       <button type="submit" data-products-save disabled>Guardar cambios</button>
@@ -123,7 +143,11 @@ const {
     const storeSlug = root.dataset.storeSlug || '';
     const canSave = root.dataset.canSave === 'true';
     const canManageMedia = root.dataset.canManageMedia === 'true';
+    const productEditorMode = root.dataset.productEditorMode === 'new';
+    const productEditorServiceKey = root.dataset.productEditorService || '';
+    const galleryPath = root.dataset.galleryPath || window.location.pathname;
     const form = root.querySelector<HTMLFormElement>('[data-products-form]');
+    const productEditorElement = root.querySelector<HTMLElement>('[data-products-product-editor]');
     const servicesElement = root.querySelector<HTMLElement>('[data-products-services]');
     const ownerElement = root.querySelector<HTMLElement>('[data-products-owner]');
     const workElement = root.querySelector<HTMLElement>('[data-products-work]');
@@ -152,6 +176,7 @@ const {
     let preservedGalleries: GalleryModel[] = [];
     let dirty = false;
     let busy = false;
+    let newProductKey = '';
     const gallerySectionAccordionGroup = 'promo-gallery-sections';
     const galleryItemAccordionGroup = 'promo-gallery-items';
     let activeGallerySectionKey = 'hero';
@@ -616,24 +641,32 @@ const {
       wrapper.append(header, grid);
       return wrapper;
     }
-    function renderProduct(service: ServiceModel, product: ProductModel, index: number) {
-      const card = element('details', 'pz-promo-gallery__work pz-promo-products__product') as HTMLDetailsElement;
-      configureAccordion(card, galleryItemAccordionGroup, `product:${service.key}:${product.key}`);
-      const header = element('summary', 'pz-promo-products__item-summary');
-      const heading = element('strong', '', product.name || `Producto ${index + 1}`);
+    function renderProduct(service: ServiceModel, product: ProductModel, index: number, standalone = false) {
+      const card = standalone
+        ? element('section', 'pz-promo-gallery__work pz-promo-products__product is-standalone')
+        : element('details', 'pz-promo-gallery__work pz-promo-products__product');
+      if (!standalone) configureAccordion(card as HTMLDetailsElement, galleryItemAccordionGroup, `product:${service.key}:${product.key}`);
+      const header = standalone
+        ? element('header', 'pz-promo-products__item-summary')
+        : element('summary', 'pz-promo-products__item-summary');
+      const fallbackName = standalone ? 'Nuevo producto' : `Producto ${index + 1}`;
+      const heading = element('strong', '', product.name || fallbackName);
       const flags = element('div', 'pz-promo-gallery__flags');
-      const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible; visible.disabled = !canSave;
+      const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible;
+      visible.disabled = !canSave || (standalone && product.media.length === 0);
       const visibleLabel = element('label', 'pz-promo-gallery__check'); visibleLabel.append(visible, element('span', '', 'Visible'));
       visibleLabel.addEventListener('click', (event) => event.stopPropagation());
       visible.addEventListener('change', () => { product.visible = visible.checked; if (!product.visible) product.featured = false; markDirty(); render(); });
-      flags.append(visibleLabel, element('span', 'pz-promo-products__item-chevron', '⌄'));
+      flags.append(visibleLabel);
+      if (standalone && !product.media.length) flags.append(element('small', 'pz-promo-products__visibility-note', 'Añade una foto para activar Visible.'));
+      if (!standalone) flags.append(element('span', 'pz-promo-products__item-chevron', '⌄'));
       header.append(heading, flags); card.append(header);
       const body = element('div', 'pz-promo-products__item-body');
       const fields = element('div', 'pz-promo-gallery__section-fields');
-      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = product.visible; name.disabled = !canSave;
+      const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = standalone || product.visible; name.disabled = !canSave;
       const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = product.summary; summary.disabled = !canSave;
       const caption = document.createElement('input'); caption.type = 'text'; caption.maxLength = 500; caption.value = product.caption; caption.disabled = !canSave;
-      name.addEventListener('input', () => { product.name = name.value; heading.textContent = name.value || `Producto ${index + 1}`; markDirty(); });
+      name.addEventListener('input', () => { product.name = name.value; heading.textContent = name.value || fallbackName; markDirty(); });
       summary.addEventListener('input', () => { product.summary = summary.value; markDirty(); });
       caption.addEventListener('input', () => { product.caption = caption.value; markDirty(); });
       const field = (label: string, control: HTMLElement, wide = false) => {
@@ -644,19 +677,25 @@ const {
       body.append(renderMediaSlots(product.media, {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
-        label: product.name || `Producto ${index + 1}`,
+        label: product.name || fallbackName,
         slotKey: `product-${service.key}-${product.key}`,
-        alternativeText: (mediaIndex) => `${product.name || `Producto ${index + 1}`} · imagen ${mediaIndex + 1}`,
+        alternativeText: (mediaIndex) => `${product.name || fallbackName} · imagen ${mediaIndex + 1}`,
         onChange: () => {
           if (!product.media.length) { product.visible = false; product.featured = false; }
+          else if (standalone) product.visible = true;
         },
       }));
       const actions = element('div', 'pz-promo-gallery__work-actions');
       actions.append(element('span', 'pz-promo-products__quote-note', 'El botón «Cotizar» se añade automáticamente con el contacto principal.'));
-      const remove = element('button', 'is-danger', 'Eliminar producto'); remove.type = 'button'; remove.disabled = !canSave;
+      const remove = element('button', 'is-danger', standalone ? 'Cancelar nuevo producto' : 'Eliminar producto'); remove.type = 'button'; remove.disabled = !canSave;
       remove.addEventListener('click', () => {
         product.media.forEach(revokePreview);
         service.items.splice(index, 1);
+        if (standalone) {
+          dirty = false;
+          window.location.assign(galleryPath);
+          return;
+        }
         markDirty();
         render();
       });
@@ -842,11 +881,9 @@ const {
       productsHeader.append(element('div', '', ''), element('strong', '', `Productos o trabajos (${service.items.length})`));
       const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir producto'); add.type = 'button'; add.disabled = !canSave;
       add.addEventListener('click', () => {
-        const product = { key: newKey('product'), featured: false, visible: true, name: '', summary: '', caption: '', media: [] };
-        service.items.push(product);
-        activeGallerySectionKey = `service:${service.key}`;
-        activeGalleryItemKey = `product:${service.key}:${product.key}`;
-        markDirty(); render();
+        const target = new URL(galleryPath, window.location.origin);
+        target.searchParams.set('newProduct', service.serviceKey);
+        window.location.assign(`${target.pathname}${target.search}`);
       });
       productsHeader.append(add); body.append(productsHeader);
       const products = element('div', 'pz-promo-gallery__works');
@@ -864,6 +901,27 @@ const {
     }
 
     function render() {
+      if (productEditorMode) {
+        if (productEditorElement) {
+          const service = services.find((candidate) => candidate.serviceKey === productEditorServiceKey);
+          const productIndex = service?.items.findIndex((candidate) => candidate.key === newProductKey) ?? -1;
+          const product = service && productIndex >= 0 ? service.items[productIndex] : null;
+          if (service && product) {
+            const context = element('section', 'pz-promo-products__editor-context');
+            context.append(
+              element('span', 'pz-promo-gallery__eyebrow', 'Servicio'),
+              element('h3', '', service.serviceName),
+              element('p', '', 'El producto todavía no se ha guardado.'),
+            );
+            productEditorElement.replaceChildren(context, renderProduct(service, product, productIndex, true));
+          } else {
+            productEditorElement.replaceChildren(element('p', 'pz-promo-gallery__empty', 'Cargando el nuevo producto…'));
+          }
+        }
+        if (saveButton) saveButton.disabled = busy || !canSave || !dirty;
+        root.setAttribute('aria-busy', busy ? 'true' : 'false');
+        return;
+      }
       if (heroElement) {
         heroElement.replaceChildren(renderMediaSlots(heroMedia, {
           maximum: PROMO_HERO_MAX_MEDIA,
@@ -884,6 +942,26 @@ const {
       renderMetrics();
       if (saveButton) saveButton.disabled = busy || !canSave || !dirty;
       root.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+
+    function prepareNewProductEditor() {
+      if (!productEditorMode) return;
+      const service = services.find((candidate) => candidate.serviceKey === productEditorServiceKey);
+      if (!service) throw Object.assign(new Error('promo_conflict'), { code: 'promo_conflict' });
+      if (newProductKey && service.items.some((item) => item.key === newProductKey)) return;
+      const product: ProductModel = {
+        key: newKey('product'),
+        featured: false,
+        visible: false,
+        name: '',
+        summary: '',
+        caption: '',
+        media: [],
+      };
+      service.items.push(product);
+      newProductKey = product.key;
+      activeGallerySectionKey = `service:${service.key}`;
+      activeGalleryItemKey = `product:${service.key}:${product.key}`;
     }
 
     function mediaPatch(media: MediaModel, alternativeText = '', decorative = false) {
@@ -965,9 +1043,12 @@ const {
         locale = workspace.locale;
         revokePendingPreviews();
         modelFromDocument(workspace.document);
-        dirty = false;
+        prepareNewProductEditor();
+        dirty = productEditorMode;
         if (form) form.hidden = false;
-        setStatus('Contenido visual cargado. Los cambios se aplicarán al guardar.');
+        setStatus(productEditorMode
+          ? 'Producto nuevo preparado. Guardar lo añadirá al servicio.'
+          : 'Contenido visual cargado. Los cambios se aplicarán al guardar.');
       } catch (error) { showError(error); setStatus('No se pudo cargar el contenido visual.'); }
       finally { busy = false; render(); }
     }
@@ -1042,6 +1123,7 @@ const {
           ? `Contenido visual actualizado. ${cleanupFailures} archivo(s) reemplazado(s) quedaron protegidos porque aún no pudieron eliminarse.`
           : 'Contenido visual actualizado.');
         window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'products' } }));
+        if (productEditorMode) window.location.assign(galleryPath);
       } catch (error) {
         if (pendingUpload.pending.length) {
           pendingUpload.pending.forEach((media) => { media.assetId = ''; });
