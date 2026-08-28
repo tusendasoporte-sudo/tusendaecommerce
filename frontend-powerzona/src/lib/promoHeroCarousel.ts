@@ -70,8 +70,6 @@ export function initializePromoHeroCarousels() {
     track.addEventListener('pointerdown', stopTimer);
     track.addEventListener('pointerup', restartTimer);
     track.addEventListener('pointercancel', restartTimer);
-    root.addEventListener('mouseenter', stopTimer);
-    root.addEventListener('mouseleave', restartTimer);
     root.addEventListener('focusin', stopTimer);
     root.addEventListener('focusout', restartTimer);
     track.querySelectorAll<HTMLVideoElement>('video').forEach((video) => {

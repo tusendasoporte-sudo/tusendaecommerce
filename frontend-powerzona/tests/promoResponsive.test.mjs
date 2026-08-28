@@ -46,7 +46,9 @@ test('RESP aplica reflujo aprobado a Hero, secciones, reseñas y footer', () => 
   assert.match(themeStyles, /\.promo-shell-section--hero::after \{[\s\S]*?display: none/);
   assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-shell-section\.promo-hero--layout-immersive\.promo-hero--with-media[\s\S]*?min-height: 0 !important;[\s\S]*?padding: 0 !important/);
   assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__inner,[\s\S]*?\.promo-hero--layout-centered\.promo-hero--with-media \.promo-hero__inner \{[\s\S]*?width: 100%;[\s\S]*?max-width: none/);
-  assert.match(heroStyles, /min-height: clamp\(32rem, 65svh, 45rem\) !important/);
+  assert.match(heroStyles, /min-height: clamp\(30rem, 56svh, 38rem\) !important/);
+  assert.match(heroStyles, /\.promo-hero__copy \{[\s\S]*?max-width: 54rem !important/);
+  assert.match(themeStyles, /font-size: clamp\(2\.75rem, 6vw, 5\.2rem\)/);
   assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive \.promo-hero__slides,[\s\S]*?min-height: 0 !important/);
   assert.match(heroStyles, /@media \(min-width: 721px\)[\s\S]*?\.promo-hero--layout-immersive\.promo-hero--with-media \.promo-hero__copy \{[\s\S]*?margin-inline: clamp\(1\.25rem, 6vw, 8rem\)/);
   assert.match(heroStyles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)[\s\S]*?aspect-ratio: 4 \/ 3/);

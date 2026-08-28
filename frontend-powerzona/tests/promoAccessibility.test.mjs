@@ -148,6 +148,7 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(heroCarousel, /window\.setInterval\([\s\S]*?CAROUSEL_INTERVAL_MS/);
   assert.match(heroCarousel, /window\.clearInterval\(timer\)/);
   assert.match(heroCarousel, /root\.addEventListener\('focusin', stopTimer\)/);
+  assert.doesNotMatch(heroCarousel, /root\.addEventListener\('mouseenter'|root\.addEventListener\('mouseleave'/);
   assert.match(hero, /class="promo-hero__arrow promo-hero__arrow--previous"/);
   assert.match(hero, /type="button"/);
   assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
