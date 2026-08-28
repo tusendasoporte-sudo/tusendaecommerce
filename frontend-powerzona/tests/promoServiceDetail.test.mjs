@@ -122,7 +122,7 @@ test('SERVICIO deriva canonical y hreflang localizados sin modificar el contrato
 test('SERVICIO renderiza navegación inmersiva en la misma pestaña, galerías y cotización accesible', () => {
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const detail = read('../src/components/promo-public/PromoServiceDetail.astro');
-  const internalRoute = read('../src/pages/__pz/promo-service.astro');
+  const internalRoute = read('../src/pages/promo-service-internal.astro');
   const middleware = read('../src/middleware.ts');
   const styles = read('../src/styles/promo-service-detail.css');
   const combined = `${sections}\n${detail}\n${internalRoute}\n${middleware}\n${styles}`;

@@ -717,7 +717,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
     'promo.vibrant', 'promo.professional', 'promo.portfolio',
   ]) assert.match(`${themeStyles}\n${variantStyles}`, new RegExp(`data-promo-theme-renderer="${renderer.replace('.', '\\.')}"`));
   assert.equal(PROMO_PUBLIC_INTERNAL_PATH, '/promo-shell-internal');
-  assert.equal(PROMO_PUBLIC_SERVICE_INTERNAL_PATH, '/__pz/promo-service');
+  assert.equal(PROMO_PUBLIC_SERVICE_INTERNAL_PATH, '/promo-service-internal');
   assert.match(internal, /Astro\.locals\.promoPublicProfile/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);

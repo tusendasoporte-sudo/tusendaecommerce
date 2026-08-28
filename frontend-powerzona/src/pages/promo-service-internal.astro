@@ -1,7 +1,7 @@
 ---
-import PromoServiceDetail from '../../components/promo-public/PromoServiceDetail.astro';
-import { findPromoService, promoServiceSeo } from '../../lib/promoServiceCatalog';
-import { promoPublicUnavailable } from '../../lib/promoPublicShell';
+import PromoServiceDetail from '../components/promo-public/PromoServiceDetail.astro';
+import { findPromoService, promoServiceSeo } from '../lib/promoServiceCatalog';
+import { promoPublicUnavailable } from '../lib/promoPublicShell';
 
 const profile = Astro.locals.promoPublicProfile;
 const baseSeo = Astro.locals.promoPublicSeo;
