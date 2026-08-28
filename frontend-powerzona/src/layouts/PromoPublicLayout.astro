@@ -81,8 +81,10 @@ const {
     <slot />
     <script>
       import { initializePromoHeroCarousels } from '../lib/promoHeroCarousel';
+      import { initializePromoServiceGalleries } from '../lib/promoServiceGallery';
 
       initializePromoHeroCarousels();
+      initializePromoServiceGalleries();
 
       const canonicalLink = document.querySelector('link[rel="canonical"]');
       const canonicalUrl = canonicalLink instanceof HTMLLinkElement ? new URL(canonicalLink.href) : null;
@@ -112,7 +114,7 @@ const {
         }
       }
 
-      function sendPromoEvent(eventType, sectionKey) {
+      function sendPromoEvent(eventType, sectionKey, actionType) {
         if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
         const body = {
           contract: 'promo.analytics.collect.v1',
@@ -120,6 +122,7 @@ const {
           event_type: eventType,
           locale: analyticsLocale,
           ...(sectionKey ? { section_key: sectionKey } : {}),
+          ...(actionType ? { action_type: actionType } : {}),
         };
         void fetch(analyticsEndpoint, {
           method: 'POST',
@@ -162,7 +165,11 @@ const {
       document.addEventListener('click', (event) => {
         const target = event.target instanceof Element ? event.target : null;
         if (privacySignal || !canGenerateEventId || !canonicalUrl) return;
-        if (target?.closest('[data-contact-action="primary"]')) sendPromoEvent('contact_activate');
+        const contactAction = target?.closest<HTMLElement>('[data-contact-action="primary"], [data-contact-action="quote"]');
+        const actionType = contactAction?.dataset.contactType || '';
+        if (['whatsapp', 'phone', 'email'].includes(actionType)) {
+          sendPromoEvent('contact_activate', '', actionType);
+        }
       }, { capture: true });
 
       function startPassiveAnalytics() {

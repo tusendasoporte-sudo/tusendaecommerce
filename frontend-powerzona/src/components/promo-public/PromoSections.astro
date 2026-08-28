@@ -221,6 +221,7 @@ const itemCount = section.type === 'featured_work'
                       context={profile.locale.lang.startsWith('es')
                         ? `Quiero cotizar: ${String(item.name || '')}`
                         : `Quote request: ${String(item.name || '')}`}
+                      purpose="quote"
                     />
                   )}
                 </div>
@@ -262,7 +263,15 @@ const itemCount = section.type === 'featured_work'
                   <h3>{work.name}</h3>
                   {work.summary && <p>{work.summary}</p>}
                   {work.caption && <p class="promo-sections__caption">{work.caption}</p>}
-                  <PromoContactAction profile={profile} className="promo-sections__estimate" fallbackLabel={estimateLabel} />
+                  <PromoContactAction
+                    profile={profile}
+                    className="promo-sections__estimate"
+                    fallbackLabel={estimateLabel}
+                    purpose="quote"
+                    context={profile.locale.lang.startsWith('es')
+                      ? `Quiero cotizar: ${work.galleryHeading} · ${work.name}`
+                      : `Quote request: ${work.galleryHeading} · ${work.name}`}
+                  />
                 </div>
               </article>
             </li>
@@ -301,7 +310,15 @@ const itemCount = section.type === 'featured_work'
                   <h3>{work.name}</h3>
                   {work.summary && <p>{work.summary}</p>}
                   {work.caption && <p class="promo-sections__caption">{work.caption}</p>}
-                  <PromoContactAction profile={profile} className="promo-sections__estimate" fallbackLabel={estimateLabel} />
+                  <PromoContactAction
+                    profile={profile}
+                    className="promo-sections__estimate"
+                    fallbackLabel={estimateLabel}
+                    purpose="quote"
+                    context={profile.locale.lang.startsWith('es')
+                      ? `Quiero cotizar: ${work.galleryHeading} · ${work.name}`
+                      : `Quote request: ${work.galleryHeading} · ${work.name}`}
+                  />
                 </div>
               </article>
             </li>

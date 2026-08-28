@@ -27,20 +27,23 @@ function profile() {
     locale: { effective: 'es' },
     theme: { theme_id: 'promo.black-gold', version: '1.0.0' },
     sections: [{ key: 'hero' }, { key: 'contacto' }],
-    contact_action: { available: true, action: { type: 'whatsapp' } },
+    contact_action: { available: true, action: { type: 'phone' } },
+    quote_action: { available: true, action: { type: 'whatsapp' } },
     landing_qr_link: { enabled: true, link: { href: 'https://tusenda84.com/t/demo/links' } },
   };
 }
 
 test('collector acepta solo cuatro familias y payload exacto sin PII', () => {
-  for (const type of ['page_view', 'contact_activate', 'landing_qr_open']) {
+  for (const type of ['page_view', 'landing_qr_open']) {
     assert.equal(analytics.parseCollect(event(type)).eventType, type);
   }
+  assert.equal(analytics.parseCollect(event('contact_activate', { action_type: 'whatsapp' })).eventType, 'contact_activate');
   assert.equal(analytics.parseCollect(event('section_view', { section_key: 'hero' })).sectionKey, 'hero');
   for (const poisoned of [
     { ...event('page_view'), url: 'https://example.test/path?secret=1' },
     { ...event('page_view'), referrer: 'https://search.example' },
-    { ...event('contact_activate'), action_type: 'whatsapp' },
+    { ...event('contact_activate') },
+    { ...event('page_view'), action_type: 'whatsapp' },
     { ...event('page_view'), visitor_id: 'visitor' },
     { ...event('section_view'), section_key: 'hero', query: 'utm_source=qr' },
   ]) assert.throws(() => analytics.parseCollect(poisoned), /invalid_payload/);
@@ -58,9 +61,20 @@ test('dimensiones se derivan del contenido vivo y Landing QR falla cerrado', () 
     'hero',
   );
   assert.equal(
-    analytics.validateAgainstProfile(analytics.parseCollect(event('contact_activate')), current).actionType,
+    analytics.validateAgainstProfile(
+      analytics.parseCollect(event('contact_activate', { action_type: 'whatsapp' })), current,
+    ).actionType,
     'whatsapp',
   );
+  assert.equal(
+    analytics.validateAgainstProfile(
+      analytics.parseCollect(event('contact_activate', { action_type: 'phone' })), current,
+    ).actionType,
+    'phone',
+  );
+  assert.throws(() => analytics.validateAgainstProfile(
+    analytics.parseCollect(event('contact_activate', { action_type: 'email' })), current,
+  ), /promo_analytics_unavailable/);
   assert.equal(
     analytics.validateAgainstProfile(analytics.parseCollect(event('landing_qr_open')), current).dimensionKey,
     '',

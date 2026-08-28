@@ -753,7 +753,7 @@ const galleryPath = Astro.url.pathname;
         },
       }));
       const actions = element('div', 'pz-promo-gallery__work-actions');
-      actions.append(element('span', 'pz-promo-products__quote-note', 'El botón «Cotizar» se añade automáticamente con el contacto principal.'));
+      actions.append(element('span', 'pz-promo-products__quote-note', 'El botón «Cotizar» usa el WhatsApp configurado en Contacto.'));
       const remove = element('button', 'is-danger', standalone ? 'Cancelar nuevo producto' : 'Eliminar producto'); remove.type = 'button'; remove.disabled = !canSave;
       remove.addEventListener('click', () => {
         product.media.forEach(revokePreview);

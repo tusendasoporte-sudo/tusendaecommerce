@@ -208,7 +208,7 @@ const ENGLISH_COPY: Readonly<Record<string, string>> = Object.freeze({
   'Este servicio todavía no tiene productos o trabajos.': 'This service does not have products or projects yet.',
   'Nombre del producto o trabajo': 'Product or project name',
   'Añade al menos una foto para mostrar este producto.': 'Add at least one photo to display this product.',
-  'El botón «Cotizar» se añade automáticamente con el contacto principal.': 'The “Get a quote” button is added automatically using the primary contact.',
+  'El botón «Cotizar» usa el WhatsApp configurado en Contacto.': 'The “Get a quote” button uses the WhatsApp number configured under Contact.',
   'Eliminar producto': 'Delete product',
   'Primero crea y guarda un servicio en la sección superior de Contenido.': 'First create and save a service in the Content section above.',
   'Aún no hay medios en la portada.': 'There is no cover media yet.',

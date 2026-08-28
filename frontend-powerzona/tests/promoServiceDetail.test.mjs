@@ -125,8 +125,11 @@ test('SERVICIO renderiza navegación inmersiva en la misma pestaña, galerías y
   const internalRoute = read('../src/pages/promo-service-internal.astro');
   const middleware = read('../src/middleware.ts');
   const styles = read('../src/styles/promo-service-detail.css');
-  const combined = `${sections}\n${detail}\n${internalRoute}\n${middleware}\n${styles}`;
-  const promoOnly = `${sections}\n${detail}\n${internalRoute}\n${styles}`;
+  const layout = read('../src/layouts/PromoPublicLayout.astro');
+  const gallery = read('../src/lib/promoServiceGallery.ts');
+  const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
+  const combined = `${sections}\n${detail}\n${internalRoute}\n${middleware}\n${styles}\n${layout}\n${gallery}`;
+  const promoOnly = `${sections}\n${detail}\n${internalRoute}\n${styles}\n${layout}\n${gallery}\n${contactAction}`;
 
   assert.match(sections, /href=\{promoServicePath\(profile/);
   assert.match(sections, /viewOptionsLabel/);
@@ -143,7 +146,15 @@ test('SERVICIO renderiza navegación inmersiva en la misma pestaña, galerías y
   assert.match(detail, /promo-service-detail__indicators/);
   assert.match(detail, /data-promo-gallery-previous/);
   assert.match(detail, /data-promo-gallery-next/);
-  assert.match(detail, /IntersectionObserver/);
+  assert.match(detail, /data-promo-gallery-index/);
+  assert.match(detail, /aria-current=\{indicatorIndex === 0/);
+  assert.match(layout, /initializePromoServiceGalleries/);
+  assert.match(gallery, /track\.scrollTo/);
+  assert.match(gallery, /indicator\.addEventListener\('click'/);
+  assert.match(gallery, /event\.key === 'ArrowLeft'/);
+  assert.match(detail, /purpose="quote"/);
+  assert.match(contactAction, /profile\.quote_action/);
+  assert.match(contactAction, /promoQuoteHref\(action\.href, quoteContext\)/);
   assert.doesNotMatch(detail, />\s*\{mediaIndex \+ 1\}\s*<\/a>/);
   assert.match(internalRoute, /findPromoService/);
   assert.match(middleware, /!findPromoService\(resolved\.profile/);

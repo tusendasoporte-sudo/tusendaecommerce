@@ -1,6 +1,6 @@
 ---
 import '../../styles/promo-contact.css';
-import type { PromoPublicProfile } from '../../lib/promoPublicShell';
+import { promoQuoteHref, type PromoPublicProfile } from '../../lib/promoPublicShell';
 
 interface Props {
   profile: PromoPublicProfile;
@@ -9,21 +9,29 @@ interface Props {
   enabled?: boolean;
   labelOverride?: string;
   context?: string;
+  purpose?: 'primary' | 'quote';
 }
 
-const { profile, className = '', fallbackLabel, enabled = true, labelOverride = '', context = '' } = Astro.props;
-const action = enabled && profile.contact_action.available ? profile.contact_action.action : null;
+const {
+  profile, className = '', fallbackLabel, enabled = true, labelOverride = '', context = '', purpose = 'primary',
+} = Astro.props;
+const compiled = purpose === 'quote' ? profile.quote_action : profile.contact_action;
+const action = enabled && compiled.available ? compiled.action : null;
 const unavailable = profile.system.messages['contact.unavailable'];
 const actionLabel = labelOverride.trim() || action?.label || fallbackLabel;
+const quoteContext = context.trim();
+const actionHref = action && purpose === 'quote' && quoteContext
+  ? promoQuoteHref(action.href, quoteContext)
+  : action?.href;
 ---
 
 {action ? (
   <a
     class:list={['promo-contact-action', className]}
-    href={action.href}
+    href={actionHref}
     aria-label={action.aria_label}
     rel={action.type === 'whatsapp' ? 'noopener noreferrer' : undefined}
-    data-contact-action="primary"
+    data-contact-action={purpose}
     data-contact-type={action.type}
     data-quote-context={context.trim() || undefined}
   >

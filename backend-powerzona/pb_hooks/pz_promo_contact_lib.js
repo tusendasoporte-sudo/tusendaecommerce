@@ -3,6 +3,7 @@
 "use strict";
 
 const CONTACT_ACTION_CONTRACT = "promo.contact.action.v1";
+const QUOTE_ACTION_CONTRACT = "promo.quote.action.v1";
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ACTION_TYPES = Object.freeze(["whatsapp", "phone", "email"]);
@@ -10,6 +11,10 @@ const WHATSAPP_ORIGIN = "https://wa.me";
 
 function unavailableAction() {
   return Object.freeze({ contract: CONTACT_ACTION_CONTRACT, available: false, action: null });
+}
+
+function unavailableQuoteAction() {
+  return Object.freeze({ contract: QUOTE_ACTION_CONTRACT, available: false, action: null });
 }
 
 function safeText(value, max, required) {
@@ -101,22 +106,63 @@ function compilePrimaryAction(document, locale) {
   }
 }
 
+function compileQuoteAction(document, locale) {
+  try {
+    const contact = document && document.contact;
+    const byLocale = document && document.content_by_locale;
+    if (!contact || contact.enabled !== true || !Array.isArray(contact.actions)
+      || typeof contact.primary_action_key !== "string" || !contact.primary_action_key
+      || !Array.isArray(contact.secondary_action_keys)
+      || !byLocale || typeof byLocale !== "object" || Array.isArray(byLocale)
+      || typeof locale !== "string" || !locale) return unavailableQuoteAction();
+    const allowedKeys = [contact.primary_action_key].concat(contact.secondary_action_keys);
+    const matching = contact.actions.filter((candidate) => (
+      candidate && allowedKeys.includes(candidate.key)
+      && candidate.enabled === true && candidate.type === "whatsapp"
+    ));
+    if (matching.length < 1) return unavailableQuoteAction();
+    const selected = matching[0];
+    const localized = byLocale[locale];
+    const copy = localized && localized.contact && localized.contact[selected.key];
+    if (!copy || typeof copy !== "object" || Array.isArray(copy)) return unavailableQuoteAction();
+    const label = safeText(copy.label, 80, true);
+    const ariaLabel = safeText(copy.aria_label, 160, true);
+    return Object.freeze({
+      contract: QUOTE_ACTION_CONTRACT,
+      available: true,
+      action: Object.freeze({
+        key: selected.key,
+        type: "whatsapp",
+        label,
+        aria_label: ariaLabel,
+        href: actionHref(selected, ""),
+      }),
+    });
+  } catch (_) {
+    return unavailableQuoteAction();
+  }
+}
+
 function attachPublicContact(localized, context) {
   const effectiveLocale = localized && localized.locale && localized.locale.effective;
   return {
     ...localized,
     contact_action: compilePrimaryAction(context && context.document, effectiveLocale),
+    quote_action: compileQuoteAction(context && context.document, effectiveLocale),
   };
 }
 
 module.exports = {
   ACTION_TYPES,
   CONTACT_ACTION_CONTRACT,
+  QUOTE_ACTION_CONTRACT,
   E164_PATTERN,
   WHATSAPP_ORIGIN,
   actionHref,
   attachPublicContact,
   compilePrimaryAction,
+  compileQuoteAction,
   primarySurfaceVisible,
   unavailableAction,
+  unavailableQuoteAction,
 };

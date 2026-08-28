@@ -44,7 +44,11 @@ function canonicalLocale(value: unknown) {
 export function normalizePromoAnalyticsEvent(value: unknown) {
   if (!isRecord(value)) fail('invalid_payload', 400);
   const eventType = String(value.event_type || '') as PromoAnalyticsEventType;
-  const expected = ['contract', 'event_id', 'event_type', 'locale', ...(eventType === 'section_view' ? ['section_key'] : [])].sort();
+  const expected = [
+    'contract', 'event_id', 'event_type', 'locale',
+    ...(eventType === 'section_view' ? ['section_key'] : []),
+    ...(eventType === 'contact_activate' ? ['action_type'] : []),
+  ].sort();
   const actual = Object.keys(value).sort();
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])
     || value.contract !== PROMO_ANALYTICS_COLLECT_CONTRACT
@@ -55,13 +59,18 @@ export function normalizePromoAnalyticsEvent(value: unknown) {
   }
   const locale = canonicalLocale(value.locale);
   const sectionKey = eventType === 'section_view' ? String(value.section_key || '') : '';
+  const actionType = eventType === 'contact_activate' ? String(value.action_type || '') : '';
   if (eventType === 'section_view' && !/^[a-z][a-z0-9_-]{0,63}$/.test(sectionKey)) fail('invalid_payload', 400);
+  if (eventType === 'contact_activate' && !['whatsapp', 'phone', 'email'].includes(actionType)) {
+    fail('invalid_payload', 400);
+  }
   return Object.freeze({
     contract: PROMO_ANALYTICS_COLLECT_CONTRACT,
     event_id: value.event_id,
     event_type: eventType,
     locale,
     ...(sectionKey ? { section_key: sectionKey } : {}),
+    ...(actionType ? { action_type: actionType } : {}),
   });
 }
 

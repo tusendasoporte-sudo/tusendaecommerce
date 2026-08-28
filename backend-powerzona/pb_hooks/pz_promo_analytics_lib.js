@@ -64,7 +64,8 @@ function parseCollect(value) {
   const body = plainObject(value);
   const type = String(body.event_type || "");
   const keys = ["contract", "event_id", "event_type", "locale"]
-    .concat(type === "section_view" ? ["section_key"] : []);
+    .concat(type === "section_view" ? ["section_key"] : [])
+    .concat(type === "contact_activate" ? ["action_type"] : []);
   exactKeys(body, keys);
   if (body.contract !== COLLECT_CONTRACT || !EVENT_TYPES.includes(type)
     || typeof body.event_id !== "string" || !EVENT_ID_PATTERN.test(body.event_id)) {
@@ -72,8 +73,10 @@ function parseCollect(value) {
   }
   const locale = canonicalLocale(body.locale);
   const sectionKey = type === "section_view" ? String(body.section_key || "") : "";
+  const actionType = type === "contact_activate" ? String(body.action_type || "") : "";
   if (type === "section_view" && !SECTION_KEY_PATTERN.test(sectionKey)) fail("invalid_payload", 400);
-  return Object.freeze({ eventId: body.event_id, eventType: type, locale, sectionKey });
+  if (type === "contact_activate" && !CONTACT_TYPES.includes(actionType)) fail("invalid_payload", 400);
+  return Object.freeze({ eventId: body.event_id, eventType: type, locale, sectionKey, actionType });
 }
 
 function parseSummary(value) {
@@ -124,10 +127,13 @@ function validateAgainstProfile(parsed, profile) {
     }
     dimensionKey = parsed.sectionKey;
   } else if (parsed.eventType === "contact_activate") {
-    const action = profile.contact_action && profile.contact_action.available
-      ? profile.contact_action.action : null;
-    actionType = String(action && action.type || "");
-    if (!CONTACT_TYPES.includes(actionType)) fail("promo_analytics_unavailable", 404);
+    const allowedTypes = [profile.contact_action, profile.quote_action]
+      .filter((compiled) => compiled && compiled.available && compiled.action)
+      .map((compiled) => String(compiled.action.type || ""));
+    actionType = String(parsed.actionType || "");
+    if (!CONTACT_TYPES.includes(actionType) || !allowedTypes.includes(actionType)) {
+      fail("promo_analytics_unavailable", 404);
+    }
     dimensionKey = actionType;
   } else if (parsed.eventType === "landing_qr_open") {
     if (!profile.landing_qr_link || profile.landing_qr_link.enabled !== true

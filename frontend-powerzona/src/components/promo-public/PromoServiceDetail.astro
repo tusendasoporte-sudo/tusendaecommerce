@@ -123,6 +123,7 @@ const quoteContext = spanish
             fallbackLabel={system.messages['contact.request_estimate']}
             labelOverride={labels.quoteService}
             context={quoteContext}
+            purpose="quote"
           />
         </div>
         {service.cover && (
@@ -174,9 +175,16 @@ const quoteContext = spanish
                           >
                             <span aria-hidden="true">←</span>
                           </button>
-                          <span class="promo-service-detail__indicators" aria-hidden="true">
+                          <span class="promo-service-detail__indicators">
                             {product.media.map((_, indicatorIndex) => (
-                              <span class:list={{ 'is-active': indicatorIndex === 0 }} data-promo-gallery-indicator></span>
+                              <button
+                                class:list={{ 'is-active': indicatorIndex === 0 }}
+                                type="button"
+                                aria-label={`${labels.gallery} ${product.name}: ${indicatorIndex + 1}/${product.media.length}`}
+                                aria-current={indicatorIndex === 0 ? 'true' : undefined}
+                                data-promo-gallery-indicator
+                                data-promo-gallery-index={indicatorIndex}
+                              ></button>
                             ))}
                           </span>
                           <span class="promo-shell-visually-hidden" aria-live="polite" data-promo-gallery-status>
@@ -206,6 +214,7 @@ const quoteContext = spanish
                       fallbackLabel={system.messages['contact.request_estimate']}
                       labelOverride={labels.quote}
                       context={productQuoteContext}
+                      purpose="quote"
                     />
                   </div>
                 </article>
@@ -226,50 +235,3 @@ const quoteContext = spanish
     ))}
   </div>
 </PromoPublicLayout>
-
-<script>
-  document.querySelectorAll<HTMLElement>('[data-promo-gallery-controls]').forEach((controls) => {
-    const root = controls.closest<HTMLElement>('.promo-service-detail__product-media');
-    const track = root?.querySelector<HTMLElement>('[data-promo-gallery-track]');
-    const slides = Array.from(track?.children || []).filter((slide): slide is HTMLElement => slide instanceof HTMLElement);
-    const indicators = Array.from(controls.querySelectorAll<HTMLElement>('[data-promo-gallery-indicator]'));
-    const status = controls.querySelector<HTMLElement>('[data-promo-gallery-status]');
-    const previous = controls.querySelector<HTMLButtonElement>('[data-promo-gallery-previous]');
-    const next = controls.querySelector<HTMLButtonElement>('[data-promo-gallery-next]');
-    if (!track || slides.length < 2 || !previous || !next) return;
-
-    let activeIndex = 0;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const setActive = (index: number) => {
-      activeIndex = (index + slides.length) % slides.length;
-      indicators.forEach((indicator, indicatorIndex) => {
-        indicator.classList.toggle('is-active', indicatorIndex === activeIndex);
-      });
-      if (status) status.textContent = `${activeIndex + 1}/${slides.length}`;
-    };
-    const show = (index: number) => {
-      const normalizedIndex = (index + slides.length) % slides.length;
-      setActive(normalizedIndex);
-      slides[normalizedIndex]?.scrollIntoView({
-        behavior: reducedMotion ? 'auto' : 'smooth',
-        block: 'nearest',
-        inline: 'start',
-      });
-    };
-
-    previous.addEventListener('click', () => show(activeIndex - 1));
-    next.addEventListener('click', () => show(activeIndex + 1));
-
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-        if (!visible) return;
-        const index = slides.indexOf(visible.target as HTMLElement);
-        if (index >= 0) setActive(index);
-      }, { root: track, threshold: [.6] });
-      slides.forEach((slide) => observer.observe(slide));
-    }
-  });
-</script>

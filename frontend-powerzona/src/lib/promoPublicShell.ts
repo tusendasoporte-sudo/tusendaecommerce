@@ -43,6 +43,7 @@ const EXECUTABLE_CONTACT_TYPES = new Set(['whatsapp', 'phone', 'email']);
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_ACTION_CONTRACT = 'promo.contact.action.v1';
+const QUOTE_ACTION_CONTRACT = 'promo.quote.action.v1';
 const FOOTER_CONTRACT = 'promo.footer.v1';
 const LANDING_QR_LINK_CONTRACT = 'promo.landing-qr-link.v1';
 const RESERVED_FOOTER_BRAND = 'Tu Senda 84';
@@ -214,6 +215,18 @@ export type PromoPublicContactAction = Readonly<{
   }> | null;
 }>;
 
+export type PromoPublicQuoteAction = Readonly<{
+  contract: typeof QUOTE_ACTION_CONTRACT;
+  available: boolean;
+  action: Readonly<{
+    key: string;
+    type: 'whatsapp';
+    label: string;
+    aria_label: string;
+    href: string;
+  }> | null;
+}>;
+
 export type PromoPublicFooterSection = Readonly<{
   key: string;
   navigation_label: string;
@@ -298,6 +311,7 @@ export type PromoPublicProfile = Readonly<{
   media: readonly PromoPublicMedia[];
   contact: Readonly<JsonRecord>;
   contact_action: PromoPublicContactAction;
+  quote_action: PromoPublicQuoteAction;
   footer: PromoPublicFooter;
   content: Readonly<JsonRecord>;
   adapters: Readonly<JsonRecord>;
@@ -476,6 +490,37 @@ function normalizeLandingQrLink(
   if (compiled.contract !== LANDING_QR_LINK_CONTRACT || typeof compiled.enabled !== 'boolean') fail();
   if (compiled.enabled !== false || compiled.link !== null) fail();
   return { contract: LANDING_QR_LINK_CONTRACT, enabled: false, link: null };
+}
+
+export function promoQuoteHref(baseHref: string, context: string) {
+  const href = safeContactHref('whatsapp', baseHref);
+  const message = safeText(context, 1000, true);
+  if (href.includes('?')) fail();
+  return `${href}?text=${encodeURIComponent(message)}`;
+}
+
+function normalizeQuoteAction(value: unknown): PromoPublicQuoteAction {
+  const compiled = exactRecord(value, ['contract', 'available', 'action']);
+  if (compiled.contract !== QUOTE_ACTION_CONTRACT || typeof compiled.available !== 'boolean') fail();
+  if (!compiled.available) {
+    if (compiled.action !== null) fail();
+    return { contract: QUOTE_ACTION_CONTRACT, available: false, action: null };
+  }
+  const action = exactRecord(compiled.action, ['key', 'type', 'label', 'aria_label', 'href']);
+  if (action.type !== 'whatsapp') fail();
+  const href = safeContactHref('whatsapp', action.href);
+  if (href.includes('?')) fail();
+  return {
+    contract: QUOTE_ACTION_CONTRACT,
+    available: true,
+    action: {
+      key: safePattern(action.key, KEY_PATTERN),
+      type: 'whatsapp',
+      label: safeText(action.label, 80, true),
+      aria_label: safeText(action.aria_label, 160, true),
+      href,
+    },
+  };
 }
 
 function safePublicMediaPath(value: unknown, input: {
@@ -908,7 +953,7 @@ function normalizeStoreRating(value: unknown, adapterEnabled: boolean, sectionAv
 function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoPublicProfile {
   const profile = exactRecord(value, [
     'ok', 'contract', 'site', 'system', 'locale', 'selector', 'theme', 'section_order', 'sections',
-    'media', 'contact', 'contact_action', 'footer', 'content', 'adapters', 'store_rating',
+    'media', 'contact', 'contact_action', 'quote_action', 'footer', 'content', 'adapters', 'store_rating',
     'landing_qr_link',
   ]);
   if (profile.ok !== true || profile.contract !== PROMO_PUBLIC_LOCALIZED_CONTRACT) fail();
@@ -1029,12 +1074,22 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   }
   const normalizedContent = normalizeContent(profile.content, sections, mediaKeys, actionKeys);
   const contactAction = normalizeContactAction(profile.contact_action);
+  const quoteAction = normalizeQuoteAction(profile.quote_action);
   if (contactAction.available) {
     const action = contactAction.action;
     const sourceAction = actions.find((candidate) => candidate.key === action?.key);
     const sourceCopy = action ? normalizedContent.contact[action.key] : null;
     if (!action || !normalizedContact.enabled || action.key !== normalizedContact.primary_action_key
       || !sourceAction || sourceAction.type !== action.type || !sourceCopy
+      || sourceCopy.label !== action.label || sourceCopy.aria_label !== action.aria_label) fail();
+  }
+  if (quoteAction.available) {
+    const action = quoteAction.action;
+    const sourceAction = actions.find((candidate) => candidate.key === action?.key);
+    const sourceCopy = action ? normalizedContent.contact[action.key] : null;
+    const allowedQuoteKeys = [normalizedContact.primary_action_key, ...normalizedContact.secondary_action_keys];
+    if (!action || !normalizedContact.enabled || !allowedQuoteKeys.includes(action.key)
+      || !sourceAction || sourceAction.type !== 'whatsapp' || !sourceCopy
       || sourceCopy.label !== action.label || sourceCopy.aria_label !== action.aria_label) fail();
   }
   for (const section of sections.filter((item) => ['services', 'gallery'].includes(item.type))) {
@@ -1085,6 +1140,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
     media,
     contact: normalizedContact,
     contact_action: contactAction,
+    quote_action: quoteAction,
     footer,
     content: normalizedContent,
     adapters: { store_rating: { enabled: rating.enabled }, landing_qr_link: { enabled: landing.enabled } },

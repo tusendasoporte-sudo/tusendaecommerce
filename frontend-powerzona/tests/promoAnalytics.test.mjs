@@ -41,10 +41,16 @@ function summary() {
 test('cliente público conserva payload exacto y rechaza atribución o PII', () => {
   assert.equal(normalizePromoAnalyticsEvent(event('landing_qr_open')).event_type, 'landing_qr_open');
   assert.equal(normalizePromoAnalyticsEvent(event('section_view', { section_key: 'hero' })).section_key, 'hero');
+  assert.equal(
+    normalizePromoAnalyticsEvent(event('contact_activate', { action_type: 'whatsapp' })).action_type,
+    'whatsapp',
+  );
   for (const poison of [
     { url: 'https://custom.test/es?utm_source=qr' }, { referrer: 'https://search.test' },
     { visitor_id: 'abc' }, { action_type: 'whatsapp' }, { store: 'other' },
   ]) assert.throws(() => normalizePromoAnalyticsEvent({ ...event('page_view'), ...poison }));
+  assert.throws(() => normalizePromoAnalyticsEvent(event('contact_activate')));
+  assert.throws(() => normalizePromoAnalyticsEvent(event('contact_activate', { action_type: 'sms' })));
 });
 
 test('endpoint depende del canonical servido y el dominio propio usa same-origin', () => {
@@ -81,6 +87,7 @@ test('instrumentación cuenta una visita diaria local sin identificar el navegad
   assert.match(layout, /navigator\.globalPrivacyControl === true/);
   assert.match(layout, /credentials: 'omit'/);
   assert.match(layout, /referrerPolicy: 'no-referrer'/);
+  assert.match(layout, /sendPromoEvent\('contact_activate', '', actionType\)/);
   assert.doesNotMatch(layout, /sendPromoEvent\('landing_qr_open'\)/);
   assert.match(layout, /dailyVisitStoragePrefix = 'pz_promo_daily_visit_v1:'/);
   assert.match(layout, /new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/);

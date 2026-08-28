@@ -76,6 +76,28 @@ test('CONTACT compila teléfono y correo sin concatenación insegura', () => {
   );
 });
 
+test('CONTACT compila WhatsApp de cotización separado del canal principal', () => {
+  const document = documentFixture('phone');
+  document.contact.actions[1] = {
+    key: 'secondary-contact', type: 'whatsapp', enabled: true, config: { phone_e164: '+15551234567' },
+  };
+  document.content_by_locale.es.contact['secondary-contact'] = {
+    label: 'Escribir por WhatsApp', aria_label: 'Escribir por WhatsApp', message: 'Mensaje general',
+  };
+  const compiled = contact.compileQuoteAction(document, 'es');
+  assert.deepEqual(compiled, {
+    contract: 'promo.quote.action.v1', available: true,
+    action: {
+      key: 'secondary-contact', type: 'whatsapp', label: 'Escribir por WhatsApp',
+      aria_label: 'Escribir por WhatsApp', href: 'https://wa.me/15551234567',
+    },
+  });
+  assert.doesNotMatch(compiled.action.href, /Mensaje|text=/);
+
+  document.contact.secondary_action_keys = [];
+  assert.deepEqual(contact.compileQuoteAction(document, 'es'), contact.unavailableQuoteAction());
+});
+
 test('CONTACT falla cerrado ante canal, destino, locale o copy no aprobados', () => {
   const disabled = documentFixture();
   disabled.contact.enabled = false;
@@ -104,6 +126,8 @@ test('CONTACT se adjunta al perfil localized sin exponer config ni habilitar ana
   const localized = { locale: { effective: 'es' }, content: { identity: { name: 'Demo' } } };
   const attached = contact.attachPublicContact(localized, { document: documentFixture() });
   assert.equal(attached.contact_action.available, true);
+  assert.equal(attached.quote_action.available, true);
+  assert.equal(attached.quote_action.action.type, 'whatsapp');
   assert.deepEqual(attached.content, localized.content);
   assert.doesNotMatch(JSON.stringify(attached.contact_action), /phone_e164|email_address|secondary-contact/);
 

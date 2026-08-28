@@ -7,6 +7,7 @@ import {
   customPromoPublicPath,
   isPromoPlatformRequest,
   normalizePromoPublicShellResponse,
+  promoQuoteHref,
   PROMO_PUBLIC_INTERNAL_PATH,
   PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
@@ -90,6 +91,7 @@ function shellEnvelope(source = 'platform') {
         logo_media_use_key: '', qr_media_use_key: '',
       },
       contact_action: { contract: 'promo.contact.action.v1', available: false, action: null },
+      quote_action: { contract: 'promo.quote.action.v1', available: false, action: null },
       footer: { contract: 'promo.footer.v1', sections: [] },
       content: {
         identity: { name: 'Negocio demo', slogan: 'Oficio que perdura', summary: 'Presentación pública' },
@@ -493,6 +495,7 @@ test('Landing QR Promo conserva solo el contrato legado deshabilitado', () => {
   assert.deepEqual(normalized.profile.landing_qr_link, {
     contract: 'promo.landing-qr-link.v1', enabled: false, link: null,
   });
+  assert.equal(normalized.profile.quote_action.available, false);
   assert.equal(normalized.profile.contact_action.available, false);
 
   const legacyEnabled = structuredClone(envelope);
@@ -505,6 +508,37 @@ test('Landing QR Promo conserva solo el contrato legado deshabilitado', () => {
   const hiddenLink = structuredClone(envelope);
   hiddenLink.profile.landing_qr_link.link = { href: 'https://tusenda84.com/t/aladdins-carpet/links' };
   assert.throws(() => normalizePromoPublicShellResponse(hiddenLink), PromoPublicShellError);
+});
+
+test('COTIZAR acepta solo WhatsApp configurado, allowlisted y sin mensaje precompilado', () => {
+  const envelope = shellEnvelopeWithHeroMedia();
+  envelope.profile.contact.secondary_action_keys = ['quote-whatsapp'];
+  envelope.profile.contact.actions.push({ key: 'quote-whatsapp', type: 'whatsapp', enabled: true });
+  envelope.profile.content.contact['quote-whatsapp'] = {
+    label: 'Escribir por WhatsApp', aria_label: 'Escribir por WhatsApp', message: '',
+  };
+  envelope.profile.quote_action = {
+    contract: 'promo.quote.action.v1', available: true,
+    action: {
+      key: 'quote-whatsapp', type: 'whatsapp', label: 'Escribir por WhatsApp',
+      aria_label: 'Escribir por WhatsApp', href: 'https://wa.me/15551234567',
+    },
+  };
+  const normalized = normalizePromoPublicShellResponse(envelope);
+  assert.equal(normalized.profile.quote_action.action.href, 'https://wa.me/15551234567');
+  assert.equal(
+    promoQuoteHref(normalized.profile.quote_action.action.href, 'Quiero cotizar: Alfombras · Limpieza profunda'),
+    'https://wa.me/15551234567?text=Quiero%20cotizar%3A%20Alfombras%20%C2%B7%20Limpieza%20profunda',
+  );
+  assert.throws(() => promoQuoteHref('tel:+15551234567', 'Cotizar'), PromoPublicShellError);
+
+  const unsafe = structuredClone(envelope);
+  unsafe.profile.quote_action.action.href += '?text=Mensaje%20inyectado';
+  assert.throws(() => normalizePromoPublicShellResponse(unsafe), PromoPublicShellError);
+
+  const wrongType = structuredClone(envelope);
+  wrongType.profile.quote_action.action.type = 'phone';
+  assert.throws(() => normalizePromoPublicShellResponse(wrongType), PromoPublicShellError);
 });
 
 test('CONTACT acepta un QR propio únicamente como imagen normalizada 512 por 512', () => {
@@ -733,7 +767,9 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   assert.match(hero, /promo-hero__controls/);
   assert.match(hero, /contact\.request_estimate/);
   assert.match(contactAction, /contact\.unavailable/);
-  assert.match(contactAction, /href=\{action\.href\}/);
+  assert.match(contactAction, /href=\{actionHref\}/);
+  assert.match(contactAction, /profile\.quote_action/);
+  assert.match(contactAction, /promoQuoteHref\(action\.href, quoteContext\)/);
   assert.match(heroStyles, /scroll-snap-type: inline mandatory/);
   assert.match(theme, /specializedSectionTypes/);
   assert.match(theme, /<PromoSections/);
@@ -821,9 +857,10 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
   assert.match(hero, /<PromoContactAction/);
   assert.match(hero, /profile\.contact\.primary_action_key/);
   assert.match(hero, /requestedActionKey === primaryActionKey/);
-  assert.match(action, /href=\{action\.href\}/);
+  assert.match(action, /href=\{actionHref\}/);
   assert.match(action, /aria-label=\{action\.aria_label\}/);
-  assert.match(action, /data-contact-action="primary"/);
+  assert.match(action, /purpose = 'primary'/);
+  assert.match(action, /data-contact-action=\{purpose\}/);
   assert.match(action, /role="status"/);
   assert.doesNotMatch(`${hero}\n${action}`, /<form|target=|onclick|addEventListener|<script/i);
   assert.doesNotMatch(heroStyles, /url\(|@import|https?:/i);

@@ -61,7 +61,7 @@ test('A11Y conserva documento adaptable, landmarks, skip link y jerarquía de en
 
 test('A11Y materializa nombres, estados y alternativas de media sin semántica ARIA huérfana', () => {
   assert.match(theme, /aria-current=\{option\.active \? 'page'/);
-  assert.match(contactAction, /href=\{action\.href\}[\s\S]*?aria-label=\{action\.aria_label\}/);
+  assert.match(contactAction, /href=\{actionHref\}[\s\S]*?aria-label=\{action\.aria_label\}/);
   assert.match(contactAction, /role="status"/);
   assert.match(footer, /aria-label=\{footer\.navigation_label\}/);
   assert.match(footer, /aria-label=\{footer\.social_label\}/);
