@@ -4,21 +4,16 @@ import '../../../styles/promo-gallery.css';
 interface Props {
   storeSlug: string;
   maxPageMedia: number;
-  maxVideos: number;
   canSave: boolean;
   canManageMedia: boolean;
-  canManageVideo: boolean;
 }
 
 const {
   storeSlug,
   maxPageMedia,
-  maxVideos,
   canSave,
   canManageMedia,
-  canManageVideo,
 } = Astro.props;
-const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.max(0, maxVideos)) : 0;
 ---
 
 <section
@@ -26,10 +21,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
   data-promo-service-products
   data-store-slug={storeSlug}
   data-max-page-media={maxPageMedia}
-  data-max-videos={effectiveMaxVideos}
   data-can-save={canSave ? 'true' : 'false'}
   data-can-manage-media={canManageMedia ? 'true' : 'false'}
-  data-can-manage-video={canManageVideo ? 'true' : 'false'}
   aria-labelledby="promo-products-title"
 >
   <header class="pz-promo-gallery__intro">
@@ -41,10 +34,9 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     <span class="pz-promo-gallery__draft-badge">Guardado directo · página pública</span>
   </header>
 
-  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de medios">
+  <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de imágenes">
     <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
-    <article><strong data-products-video-count>—</strong><span>Videos almacenados</span><small data-products-video-limit>de {effectiveMaxVideos}</small></article>
-    <article><strong data-products-page-count>—</strong><span>Medios usados en la página</span><small>de {maxPageMedia}</small></article>
+    <article><strong data-products-page-count>—</strong><span>Imágenes usadas en la página</span><small>de {maxPageMedia}</small></article>
   </div>
 
   {!canSave && (
@@ -105,7 +97,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     maximum: number;
     purpose: ImagePurpose;
     label: string;
-    allowVideo?: boolean;
     decorativeBackground?: boolean;
     onChange?: () => void;
   };
@@ -121,10 +112,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
   document.querySelectorAll<HTMLElement>('[data-promo-service-products]').forEach((root) => {
     const storeSlug = root.dataset.storeSlug || '';
     const maxPageMedia = Number(root.dataset.maxPageMedia || 0);
-    const maxVideos = Math.min(3, Math.max(0, Number(root.dataset.maxVideos || 0)));
     const canSave = root.dataset.canSave === 'true';
     const canManageMedia = root.dataset.canManageMedia === 'true';
-    const canManageVideo = root.dataset.canManageVideo === 'true';
     const form = root.querySelector<HTMLFormElement>('[data-products-form]');
     const servicesElement = root.querySelector<HTMLElement>('[data-products-services]');
     const ownerElement = root.querySelector<HTMLElement>('[data-products-owner]');
@@ -313,43 +302,13 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       return frame;
     }
 
-    function renderMedia(media: MediaModel, target: MediaModel[], index: number, label: string) {
-      const card = element('article', 'pz-promo-gallery__item');
-      card.append(preview(media));
-      const main = element('div', 'pz-promo-gallery__item-main');
-      const alt = document.createElement('input');
-      alt.type = 'text'; alt.maxLength = 300; alt.value = media.alt; alt.required = !media.decorative; alt.disabled = !canSave;
-      alt.setAttribute('aria-label', `Texto alternativo de ${label}`);
-      alt.addEventListener('input', () => { media.alt = alt.value; markDirty(); });
-      const decorative = document.createElement('input');
-      decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
-      decorative.addEventListener('change', () => {
-        media.decorative = decorative.checked;
-        if (media.decorative) { media.alt = ''; alt.value = ''; }
-        alt.required = !media.decorative;
-        markDirty();
-      });
-      const decorativeLabel = element('label', 'pz-promo-gallery__check');
-      decorativeLabel.append(decorative, element('span', '', 'Imagen decorativa'));
-      main.append(element('strong', '', assetById(media.assetId)?.kind === 'video' ? 'Video' : 'Imagen'), alt, decorativeLabel);
-      const actions = element('div', 'pz-promo-gallery__item-actions');
-      const up = element('button', '', '↑'); up.type = 'button'; up.disabled = !canSave || index === 0; up.ariaLabel = `Subir ${label}`;
-      const down = element('button', '', '↓'); down.type = 'button'; down.disabled = !canSave || index === target.length - 1; down.ariaLabel = `Bajar ${label}`;
-      const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button'; remove.disabled = !canSave;
-      up.addEventListener('click', () => { [target[index - 1], target[index]] = [target[index], target[index - 1]]; markDirty(); render(); });
-      down.addEventListener('click', () => { [target[index + 1], target[index]] = [target[index], target[index + 1]]; markDirty(); render(); });
-      remove.addEventListener('click', () => { target.splice(index, 1); markDirty(); render(); });
-      actions.append(up, down, remove); card.append(main, actions);
-      return card;
-    }
-
     async function loadCatalog() {
       catalog = normalizePromoGalleryCatalog(await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH)));
     }
 
-    async function uploadAsset(file: File, purpose: 'hero' | 'gallery' | 'owner' | 'video_poster', posterAssetId = '') {
+    async function uploadAsset(file: File, purpose: ImagePurpose) {
       const payload = new FormData();
-      payload.append('file', file); payload.append('purpose', purpose); payload.append('poster_asset_id', posterAssetId);
+      payload.append('file', file); payload.append('purpose', purpose); payload.append('poster_asset_id', '');
       const result = await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH), { method: 'POST', body: payload });
       const assetId = text(result?.asset?.asset_id);
       if (!/^[a-z0-9]{15}$/.test(assetId)) throw Object.assign(new Error('promo_media_unavailable'), { code: 'promo_media_unavailable' });
@@ -357,60 +316,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       return assetId;
     }
 
-    async function prepareImageUpload(file: File, purpose: 'hero' | 'gallery' | 'owner' | 'video_poster') {
+    async function prepareImageUpload(file: File, purpose: ImagePurpose) {
       return optimizePromoUploadImageFile(file, purpose) as Promise<File>;
-    }
-
-    async function addImages(files: FileList | null, target: MediaModel[], purpose: 'hero' | 'gallery' | 'owner', maximum = 150) {
-      if (!files?.length || !canManageMedia || busy) return;
-      clearError(); busy = true; render(); setStatus('Procesando y subiendo imágenes…');
-      try {
-        const room = Math.max(0, maximum - target.length);
-        for (const file of Array.from(files).slice(0, room)) {
-          await validateImageSource(file, purpose);
-          const preparedFile = await prepareImageUpload(file, purpose);
-          const assetId = await uploadAsset(preparedFile, purpose);
-          target.push({ useKey: newKey(`${purpose}-media`, 120), assetId, alt: '', decorative: false });
-        }
-        markDirty('Imágenes listas.');
-      } catch (error) { showError(error); setStatus('No se pudieron subir las imágenes.'); }
-      finally { busy = false; render(); }
-    }
-
-    async function addVideo(video: File | undefined, poster: File | undefined, target: MediaModel[], purpose: 'gallery', maximum = 150) {
-      if (!video || !poster || !canManageVideo || busy || target.length >= maximum) return;
-      if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
-      clearError(); busy = true; render(); setStatus('Procesando poster y video…');
-      try {
-        await validateImageSource(poster, 'gallery');
-        const preparedPoster = await prepareImageUpload(poster, 'video_poster');
-        const posterId = await uploadAsset(preparedPoster, 'video_poster');
-        const assetId = await uploadAsset(video, purpose, posterId);
-        target.push({ useKey: newKey(`${purpose}-video`, 120), assetId, alt: '', decorative: false });
-        markDirty('Video listo.');
-      } catch (error) { showError(error); setStatus('No se pudo subir el video.'); }
-      finally { busy = false; render(); }
-    }
-
-    function uploadControls(target: MediaModel[], purpose: 'gallery', maximum: number) {
-      const controls = element('div', 'pz-promo-products__upload-row');
-      const imageLabel = element('label', '', 'Agregar fotos');
-      const images = document.createElement('input');
-      images.type = 'file'; images.multiple = true; images.accept = 'image/jpeg,image/png,image/webp,image/avif';
-      images.disabled = busy || !canManageMedia || target.length >= maximum;
-      images.addEventListener('change', () => addImages(images.files, target, purpose, maximum));
-      imageLabel.append(images); controls.append(imageLabel);
-      if (canManageVideo) {
-        const videoGroup = element('div', 'pz-promo-products__video-upload');
-        const videoLabel = element('label', '', 'Video');
-        const video = document.createElement('input'); video.type = 'file'; video.accept = 'video/mp4,video/webm'; video.disabled = busy;
-        const posterLabel = element('label', '', 'Poster');
-        const poster = document.createElement('input'); poster.type = 'file'; poster.accept = 'image/jpeg,image/png,image/webp,image/avif'; poster.disabled = busy;
-        const add = element('button', 'pz-promo-gallery__secondary', 'Añadir video'); add.type = 'button'; add.disabled = busy || !canManageVideo || target.length >= maximum;
-        add.addEventListener('click', () => addVideo(video.files?.[0], poster.files?.[0], target, purpose, maximum));
-        videoLabel.append(video); posterLabel.append(poster); videoGroup.append(videoLabel, posterLabel, add); controls.append(videoGroup);
-      }
-      return controls;
     }
 
 
@@ -497,40 +404,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       if (shouldSave) saveMediaChanges();
     }
 
-    async function setVideoAt(
-      video: File | undefined,
-      poster: File | undefined,
-      target: MediaModel[],
-      index: number,
-      options: MediaSlotOptions,
-    ) {
-      if (!video || !poster || !options.allowVideo || !canManageVideo || busy
-        || index > target.length || index >= options.maximum) return;
-      if (!['video/mp4', 'video/webm'].includes(video.type)) return showError({ code: 'promo_media_type_invalid' });
-      if ((catalog?.usage.videos || 0) >= maxVideos) return showError({ code: 'promo_capability_denied' });
-      clearError(); busy = true; render(); setStatus('Validando poster y subiendo video…');
-      let shouldSave = false;
-      try {
-        await validateImageSource(poster, 'gallery');
-        const preparedPoster = await prepareImageUpload(poster, 'video_poster');
-        const posterId = await uploadAsset(preparedPoster, 'video_poster');
-        const assetId = await uploadAsset(video, 'gallery', posterId);
-        const media = { useKey: newKey('gallery-video', 120), assetId, alt: '', decorative: false };
-        if (index < target.length) target[index] = media;
-        else target.push(media);
-        options.onChange?.();
-        markDirty('Video listo.');
-        shouldSave = true;
-      } catch (error) {
-        showError(error);
-        setStatus('No se pudo subir el video. Revisa el archivo y su poster.');
-      } finally {
-        busy = false;
-        render();
-      }
-      if (shouldSave) saveMediaChanges();
-    }
-
     function renderMediaSlots(target: MediaModel[], options: MediaSlotOptions) {
       const decorativeBackground = options.decorativeBackground === true;
       const wrapper = element('section', 'pz-promo-media-slots');
@@ -582,7 +455,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
               markDirty();
             });
             const decorativeLabel = element('label', 'pz-promo-gallery__check');
-            decorativeLabel.append(decorative, element('span', '', 'Medio decorativo'));
+            decorativeLabel.append(decorative, element('span', '', 'Imagen decorativa'));
             accessibility.append(altLabel, decorativeLabel);
             slot.append(accessibility);
           }
@@ -626,31 +499,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
           actions.append(remove);
         }
         slot.append(actions);
-
-        if (!media && options.allowVideo && canManageVideo) {
-          const videoDetails = element('details', 'pz-promo-media-slot__video') as HTMLDetailsElement;
-          const videoSummary = element('summary', '', 'Usar video');
-          const videoBody = element('div');
-          const videoLabel = element('label', 'pz-promo-gallery__field', 'Video MP4 o WebM');
-          const videoInput = document.createElement('input');
-          videoInput.type = 'file'; videoInput.accept = 'video/mp4,video/webm'; videoInput.disabled = busy;
-          const posterLabel = element('label', 'pz-promo-gallery__field', 'Imagen poster');
-          const posterInput = document.createElement('input');
-          posterInput.type = 'file'; posterInput.accept = IMAGE_ACCEPT; posterInput.disabled = busy;
-          const addVideoButton = element('button', 'pz-promo-gallery__secondary', 'Añadir video');
-          addVideoButton.type = 'button'; addVideoButton.disabled = busy || !canManageVideo;
-          addVideoButton.addEventListener('click', () => setVideoAt(
-            videoInput.files?.[0],
-            posterInput.files?.[0],
-            target,
-            index,
-            options,
-          ));
-          videoLabel.append(videoInput); posterLabel.append(posterInput);
-          videoBody.append(videoLabel, posterLabel, addVideoButton,
-            element('small', 'pz-promo-media-slot__guidance', 'MP4 o WebM · recomendado 1280×720 px · poster horizontal 1200×900 px'));
-          videoDetails.append(videoSummary, videoBody); slot.append(videoDetails);
-        }
 
         slot.append(element('small', 'pz-promo-media-slot__guidance', IMAGE_GUIDANCE[options.purpose]));
 
@@ -718,7 +566,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: product.name || `Producto ${index + 1}`,
-        allowVideo: true,
         onChange: () => {
           if (!product.media.length) { product.visible = false; product.featured = false; }
         },
@@ -780,13 +627,12 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: workItem.name || `Trabajo ${index + 1}`,
-        allowVideo: true,
         onChange: () => {
           if (!workItem.media.length) { workItem.visible = false; workItem.featured = false; }
         },
       }));
       const actions = element('div', 'pz-promo-gallery__work-actions');
-      actions.append(element('span', 'pz-promo-products__quote-note', 'Puede incluir hasta 3 fotos o videos. Los destacados se administran en la sección independiente.'));
+      actions.append(element('span', 'pz-promo-products__quote-note', 'Puede incluir hasta 3 fotos. Los destacados se administran en la sección independiente.'));
       const remove = element('button', 'is-danger', 'Eliminar trabajo'); remove.type = 'button'; remove.disabled = !canSave;
       remove.addEventListener('click', () => { workGallery.items.splice(index, 1); markDirty(); render(); });
       actions.append(remove); card.append(actions);
@@ -800,7 +646,7 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       title.append(element('span', 'pz-promo-gallery__eyebrow', 'Portafolio'), element('strong', '', `Trabajos realizados (${workGallery.items.length})`));
       summary.append(title, element('span', '', '⌄')); details.append(summary);
       const body = element('div', 'pz-promo-products__body');
-      body.append(element('p', '', 'Publica fotos del resultado o videos mientras realizas un trabajo. Cada trabajo admite hasta 3 medios y la tienda conserva un máximo global de 3 videos.'));
+      body.append(element('p', '', 'Publica fotos del resultado mientras realizas un trabajo. Cada trabajo admite hasta 3 fotos.'));
       const header = element('div', 'pz-promo-products__products-header');
       header.append(element('div', '', ''), element('strong', '', 'Trabajos'));
       const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir trabajo');
@@ -854,8 +700,8 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
         copy.append(
           element('strong', '', item.name || fallback),
           element('small', '', item.media.length
-            ? `${source} · ${item.media.length} ${item.media.length === 1 ? 'medio' : 'medios'}`
-            : `${source} · agrega una foto o video antes de destacarlo`),
+            ? `${source} · ${item.media.length} ${item.media.length === 1 ? 'foto' : 'fotos'}`
+            : `${source} · agrega una foto antes de destacarlo`),
         );
         option.append(checkbox, copy); list.append(option);
       });
@@ -913,11 +759,9 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
     function renderMetrics() {
       const images = root.querySelector<HTMLElement>('[data-products-image-count]');
       const imageLimit = root.querySelector<HTMLElement>('[data-products-image-limit]');
-      const videos = root.querySelector<HTMLElement>('[data-products-video-count]');
       const page = root.querySelector<HTMLElement>('[data-products-page-count]');
       if (images) images.textContent = String(catalog?.usage.images || 0);
       if (imageLimit) imageLimit.textContent = `de ${catalog?.limits.maxStoredImages || 150}`;
-      if (videos) videos.textContent = String(catalog?.usage.videos || 0);
       if (page) page.textContent = String(pageMediaCount());
     }
 
@@ -981,10 +825,6 @@ const effectiveMaxVideos = Number.isSafeInteger(maxVideos) ? Math.min(3, Math.ma
       finally { busy = false; render(); }
     }
 
-    root.querySelector<HTMLInputElement>('[data-products-hero-images]')?.addEventListener('change', (event) => {
-      const input = event.currentTarget as HTMLInputElement;
-      addImages(input.files, heroMedia, 'hero');
-    });
 
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();

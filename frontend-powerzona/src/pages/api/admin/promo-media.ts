@@ -18,6 +18,7 @@ const SAFE_ERROR_CODES = new Set([
   'unauthorized', 'session_revoked', 'user_inactive', 'blocked_by_plan', 'promo_not_found',
   'store_not_promo', 'store_inactive', 'promo_site_inactive', 'promo_store_context_required',
   'promo_capability_denied', 'promo_permission_denied', 'invalid_payload', 'promo_media_unavailable',
+  'promo_media_video_disabled',
   'promo_media_file_required', 'promo_media_size_invalid', 'promo_media_filename_invalid',
   'promo_media_digest_mismatch', 'promo_media_metadata_mismatch', 'promo_media_image_dimensions_invalid',
   'promo_media_video_dimensions_invalid', 'promo_media_video_bitrate_invalid', 'promo_media_poster_required',
@@ -249,11 +250,20 @@ export const POST: APIRoute = async ({ request }) => {
     if (!exactFormData(formData, ['file', 'poster_asset_id', 'purpose'])) {
       return json({ ok: false, error: 'invalid_payload' }, 400);
     }
+    const requestedPurpose = String(formData.get('purpose') || '').trim().toLowerCase();
+    const requestedFile = formData.get('file');
+    const requestedMime = requestedFile instanceof Blob ? String(requestedFile.type || '').trim().toLowerCase() : '';
+    if (requestedPurpose === 'video_poster' || requestedMime.startsWith('video/')) {
+      return json({ ok: false, error: 'promo_media_video_disabled' }, 400);
+    }
     const prepared = await withStorefrontPushMediaConversionSlot(() => preparePromoMedia(
       formData.get('file'),
       formData.get('purpose'),
       formData.get('poster_asset_id'),
     ));
+    if (prepared.kind !== 'image') {
+      return json({ ok: false, error: 'promo_media_video_disabled' }, 400);
+    }
     const payload = new FormData();
     payload.append('contract', 'promo.media.upload.v1');
     payload.append('kind', prepared.kind);

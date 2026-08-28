@@ -23,7 +23,8 @@ const SAFE_ERRORS = new Set([
   "unauthorized", "session_revoked", "user_inactive", "blocked_by_plan", "promo_not_found",
   "store_not_promo", "store_inactive", "promo_site_inactive", "promo_store_context_required",
   "promo_capability_denied", "promo_permission_denied", "reserved_promo_action", "unknown_promo_action",
-  "invalid_payload", "promo_media_unavailable", "promo_media_file_required", "promo_media_size_invalid",
+  "invalid_payload", "promo_media_unavailable", "promo_media_video_disabled",
+  "promo_media_file_required", "promo_media_size_invalid",
   "promo_media_filename_invalid", "promo_media_digest_mismatch", "promo_media_metadata_mismatch",
   "promo_media_image_dimensions_invalid", "promo_media_video_dimensions_invalid",
   "promo_media_video_bitrate_invalid", "promo_media_poster_required", "promo_media_duplicate",
@@ -317,8 +318,11 @@ function handleUpload(e) {
     const preliminaryInfo = e.requestInfo();
     const preliminary = media.parseUploadPayload(preliminaryInfo && preliminaryInfo.body || {});
     if (!preliminary) throw codedError("invalid_payload", 400);
-    const action = preliminary.kind === "video" ? "promo.media.video.manage" : "promo.media.manage";
+    const action = "promo.media.manage";
     const context = privateContext(e, action);
+    if (preliminary.kind === "video" || preliminary.purpose === "video_poster") {
+      throw codedError("promo_media_video_disabled", 400);
+    }
     const payload = media.parseUploadPayload(context.info.body || {});
     if (!payload) throw codedError("invalid_payload", 400);
     try { media.validateUploadedFile(files[0], payload); }
@@ -613,7 +617,8 @@ function errorStatus(error) {
   if (["promo_media_unavailable"].includes(code)) return 503;
   if (["invalid_payload", "promo_media_file_required", "promo_media_filename_invalid", "promo_media_digest_mismatch",
     "promo_media_metadata_mismatch", "promo_media_image_dimensions_invalid", "promo_media_video_dimensions_invalid",
-    "promo_media_video_bitrate_invalid", "promo_media_poster_required", "promo_media_variant_invalid"].includes(code)) return 400;
+    "promo_media_video_bitrate_invalid", "promo_media_poster_required", "promo_media_variant_invalid",
+    "promo_media_video_disabled"].includes(code)) return 400;
   return Number.isInteger(error && error.status) ? error.status : 403;
 }
 

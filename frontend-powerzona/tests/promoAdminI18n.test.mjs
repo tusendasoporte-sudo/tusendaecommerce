@@ -19,7 +19,7 @@ test('traducción cubre shell, editores y textos dinámicos sin alterar contenid
   assert.equal(promoAdminText('en', 'Contenido'), 'Content');
   assert.equal(promoAdminText('en', 'Organización'), 'Organization');
   assert.equal(promoAdminText('en', 'Galería y productos'), 'Gallery and products');
-  assert.equal(promoAdminText('en', 'Título del video'), 'Video title');
+  assert.equal(promoAdminText('en', 'Imágenes usadas en la página'), 'Images used on the page');
   assert.equal(promoAdminText('en', 'Logo del negocio'), 'Business logo');
   assert.equal(promoAdminText('en', 'Solicitar una reseña'), 'Request a review');
   assert.equal(promoAdminText('en', 'Tema actual: Artesanal cálida'), 'Current theme: Artesanal cálida');

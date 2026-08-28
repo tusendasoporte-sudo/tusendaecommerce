@@ -1047,7 +1047,7 @@ export function promoCmsErrorMessage(code: unknown) {
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     invalid_promo_document: 'Revisa los campos: hay datos incompletos o con un formato no permitido.',
-    promo_work_gallery_incomplete: 'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto o video.',
+    promo_work_gallery_incomplete: 'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',
     unsupported_promo_action: 'Ese tipo de contacto todavía no está habilitado.',
     promo_media_duplicate: 'Esta imagen ya está guardada en la tienda. Usa el medio existente o selecciona un archivo diferente.',

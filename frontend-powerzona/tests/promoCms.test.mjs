@@ -209,7 +209,7 @@ test('Trabajos realizados explica sus medios obligatorios antes de intentar publ
   assert.equal(isPromoCmsWorkGalleryReady(workspace.document), false);
   assert.equal(
     promoCmsErrorMessage('promo_work_gallery_incomplete'),
-    'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto o video.',
+    'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto.',
   );
 
   const editor = read('../src/components/admin/promo/PromoCmsEditor.astro');

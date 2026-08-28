@@ -653,7 +653,7 @@ const isContent = scope === 'content';
         fields.append(
           inputField('Título de trabajos realizados', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
           inputField('Resumen de trabajos realizados', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
-          element('p', 'pz-promo-cms__scope-note', 'Las fotos y videos del proceso o resultado se administran en «Galería y productos». La tienda admite hasta 3 videos guardados.'),
+          element('p', 'pz-promo-cms__scope-note', 'Las fotos del proceso o resultado se administran en «Galería y productos». Cada trabajo admite hasta 3 fotos.'),
         );
       } else if (section.type === 'owner') {
         fields.append(

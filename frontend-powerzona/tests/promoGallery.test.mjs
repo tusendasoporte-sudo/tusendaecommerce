@@ -492,7 +492,7 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /data-products-work/);
   assert.match(productsEditor, /data-products-featured/);
   assert.match(productsEditor, /PROMO_CMS_WORK_GALLERY_KEY/);
-  assert.match(productsEditor, /Math\.min\(3/);
+  assert.match(productsEditor, /PROMO_HERO_MAX_MEDIA/);
   assert.match(productsEditor, /PROMO_PRODUCT_MAX_MEDIA/);
   assert.match(productsEditor, /function renderFeaturedSection/);
   assert.match(productsEditor, /Trabajos destacados/);
@@ -505,7 +505,8 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /createImageBitmap/);
   assert.match(productsEditor, /optimizePromoUploadImageFile/);
   assert.match(productsEditor, /prepareImageUpload\(file, options\.purpose\)[\s\S]*?uploadAsset\(preparedFile, options\.purpose\)/);
-  assert.match(productsEditor, /prepareImageUpload\(poster, 'video_poster'\)[\s\S]*?uploadAsset\(preparedPoster, 'video_poster'\)/);
+  assert.doesNotMatch(productsEditor, /allowVideo|canManageVideo|maxVideos|video_poster|Usar video|Añadir video/);
+  assert.match(mediaApi, /promo_media_video_disabled/);
   assert.match(productsEditor, /1920×1080/);
   assert.match(productsEditor, /1200×900/);
   assert.match(productsEditor, /800×1000/);

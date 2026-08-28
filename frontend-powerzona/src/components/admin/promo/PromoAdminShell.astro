@@ -86,9 +86,7 @@ const canSaveCms = section === 'content'
     : false;
 const maxServices = Number(accessContext.capabilities.max_services || 0);
 const maxPageMedia = Number(accessContext.capabilities.max_gallery_assets || 0);
-const maxVideos = Number(accessContext.capabilities.max_videos || 0);
 const canManagePromoMedia = hasPromoAction(accessContext, 'promo.media.manage');
-const canManagePromoVideo = hasPromoAction(accessContext, 'promo.media.video.manage');
 const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
 const canCustomizePromoAppearance = hasPromoAction(accessContext, 'promo.appearance.manage');
@@ -321,10 +319,8 @@ function initials(value: string) {
           <PromoServiceProductsEditor
             storeSlug={storeSlug}
             maxPageMedia={Number.isSafeInteger(maxPageMedia) && maxPageMedia >= 0 ? maxPageMedia : 0}
-            maxVideos={Number.isSafeInteger(maxVideos) && maxVideos >= 0 ? maxVideos : 0}
             canSave={hasPromoAction(accessContext, 'promo.content.manage')}
             canManageMedia={canManagePromoMedia}
-            canManageVideo={canManagePromoVideo}
           />
         ) : activeModule && cmsScope ? (
           <PromoCmsEditor

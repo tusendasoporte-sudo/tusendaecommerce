@@ -14,15 +14,13 @@ const booleanCapabilities = [
   ['custom_domain_enabled', 'Dominio personalizado'],
   ['theme_customization_enabled', 'Personalización de tema'],
   ['multilanguage_enabled', 'Múltiples idiomas'],
-  ['video_enabled', 'Video'],
   ['analytics_enabled', 'Analítica Promo'],
   ['landing_qr_bridge_enabled', 'Puente Landing QR'],
 ] as const;
 const numericCapabilities = [
   ['max_services', 'Máximo de servicios'],
-  ['max_gallery_assets', 'Máximo de recursos de galería'],
+  ['max_gallery_assets', 'Máximo de fotos en la página'],
   ['max_locales', 'Máximo de idiomas'],
-  ['max_videos', 'Máximo de videos'],
   ['max_storage_bytes', 'Almacenamiento máximo (bytes)'],
 ] as const;
 const stateLabels: Record<string, string> = {
@@ -107,7 +105,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
         <form class="promo-master__form" data-entitlements-form>
           <div class="promo-master__entitlement-grid">
             {booleanCapabilities.map(([key, title]) => <label class="master-switch"><span>{title}</span><input name={key} type="checkbox" checked={overview.entitlement.capabilities[key] === true} /></label>)}
-            {numericCapabilities.map(([key, title]) => <div class="master-field"><label for={`promo-cap-${key}`}>{title}</label><input id={`promo-cap-${key}`} name={key} type="number" min="0" max={key === 'max_videos' ? 3 : undefined} step="1" value={Math.max(0, Number(overview.entitlement.capabilities[key] || 0))} required /></div>)}
+            {numericCapabilities.map(([key, title]) => <div class="master-field"><label for={`promo-cap-${key}`}>{title}</label><input id={`promo-cap-${key}`} name={key} type="number" min="0" step="1" value={Math.max(0, Number(overview.entitlement.capabilities[key] || 0))} required /></div>)}
           </div>
           <div class="master-field-grid">
             <div class="master-field"><label for="promo-entitlement-source">Fuente</label><select id="promo-entitlement-source" name="source"><option value="unassigned" selected={overview.entitlement.source === 'unassigned'}>Sin asignar</option><option value="contract" selected={overview.entitlement.source === 'contract'}>Contrato</option><option value="addon" selected={overview.entitlement.source === 'addon'}>Addon</option><option value="master_override" selected={overview.entitlement.source === 'master_override'}>Override Master</option></select></div>

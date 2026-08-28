@@ -21,7 +21,7 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     section: 'gallery',
     label: 'Galería y productos',
     shortLabel: 'Galería y productos',
-    description: 'Portada visual, fotos de servicios, ofertas, productos y videos.',
+    description: 'Portada visual, fotos de servicios, ofertas, productos y trabajos.',
     actions: Object.freeze(['promo.content.manage', 'promo.media.manage'] as PromoActionKey[]),
     delivery: 'Administra los medios vinculados a la página sin una biblioteca privada separada.',
   }),

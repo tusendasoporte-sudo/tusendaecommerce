@@ -8,6 +8,13 @@ const media = require('../pb_hooks/pz_promo_media_lib.js');
 const api = require('../pb_hooks/pz_promo_media_api_lib.js');
 const pubcfg = require('../pb_hooks/pz_promo_pubcfg_lib.js');
 const i18n = require('../pb_hooks/pz_promo_i18n_lib.js');
+const mediaApiSource = fs.readFileSync(path.join(__dirname, '../pb_hooks/pz_promo_media_api_lib.js'), 'utf8');
+
+test('la API privada rechaza nuevas cargas de video y conserva un error seguro', () => {
+  assert.match(mediaApiSource, /preliminary\.kind === "video" \|\| preliminary\.purpose === "video_poster"/);
+  assert.match(mediaApiSource, /codedError\("promo_media_video_disabled", 400\)/);
+  assert.equal(api.errorStatus(Object.assign(new Error('promo_media_video_disabled'), { code: 'promo_media_video_disabled' })), 400);
+});
 
 function webpBytes(width = 1200, height = 630) {
   const bytes = new Uint8Array(30);
