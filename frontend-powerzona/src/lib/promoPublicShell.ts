@@ -6,6 +6,7 @@ import {
   isPromoPlatformHostRequest,
   promoRequestAuthority,
 } from './promoSecurity.ts';
+import { isPromoServiceIconKey } from './promoServiceIcons.ts';
 
 export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
@@ -663,10 +664,18 @@ function normalizeSection(value: unknown): PromoPublicSection {
     if (!HERO_LAYOUTS.has(config.layout)
       || config.button_targets.some((target: string) => !HERO_BUTTON_TARGETS.has(target))) fail();
   } else if (type === 'services') {
-    const source = exactRecord(section.config, ['item_keys', 'gallery_keys']);
+    const source = subsetRecord(section.config, ['item_keys', 'gallery_keys', 'icon_keys']);
     config.item_keys = list(source.item_keys);
-    config.gallery_keys = list(source.gallery_keys, 50, true);
-    if (config.item_keys.length !== config.gallery_keys.length || mediaUseKeys.length) fail();
+    config.gallery_keys = source.gallery_keys === undefined
+      ? config.item_keys.map(() => '')
+      : list(source.gallery_keys, 50, true);
+    config.icon_keys = source.icon_keys === undefined
+      ? config.item_keys.map(() => '')
+      : list(source.icon_keys, 50, true);
+    if (config.item_keys.length !== config.gallery_keys.length
+      || config.item_keys.length !== config.icon_keys.length
+      || config.icon_keys.some((iconKey: string) => iconKey !== '' && !isPromoServiceIconKey(iconKey))
+      || mediaUseKeys.length) fail();
   } else if (type === 'featured_work') {
     const source = exactRecord(section.config, ['item_keys']);
     config.item_keys = list(source.item_keys);

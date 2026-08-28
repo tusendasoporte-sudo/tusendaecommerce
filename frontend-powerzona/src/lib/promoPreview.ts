@@ -1,3 +1,5 @@
+import { isPromoServiceIconKey } from './promoServiceIcons.ts';
+
 export const PROMO_PREVIEW_API_PATH = '/api/admin/promo-preview';
 export const PROMO_PREVIEW_MEDIA_API_PATH = '/api/admin/promo-preview-media';
 export const PROMO_PREVIEW_CONTEXT_CONTRACT = 'promo.preview.context.v1';
@@ -40,7 +42,7 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
 ]);
 const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
   hero: Object.freeze(['media_use_key', 'action_key', 'layout', 'button_targets']),
-  services: Object.freeze(['item_keys']),
+  services: Object.freeze(['item_keys', 'gallery_keys', 'icon_keys']),
   featured_work: Object.freeze(['item_keys']),
   gallery: Object.freeze(['item_keys']),
   owner: Object.freeze(['media_use_key']),
@@ -167,6 +169,11 @@ function stringArray(value: unknown, pattern: RegExp, max: number) {
   const normalized = value.map((item) => safePattern(item, pattern));
   if (new Set(normalized).size !== normalized.length) fail('invalid_payload');
   return normalized;
+}
+
+function optionalKeyArray(value: unknown, maximum: number) {
+  if (!Array.isArray(value) || value.length > maximum) fail('invalid_payload');
+  return value.map((item) => item === '' ? '' : safePattern(item, KEY_PATTERN));
 }
 
 function normalizeLocales(value: unknown) {
@@ -367,10 +374,25 @@ function normalizeSection(value: unknown) {
     ? subsetRecord(section.config, SECTION_CONFIG_KEYS.footer)
     : (type === 'hero'
       ? subsetRecord(section.config, SECTION_CONFIG_KEYS.hero)
-      : exactRecord(section.config, SECTION_CONFIG_KEYS[type] || []));
+      : (type === 'services'
+        ? subsetRecord(section.config, SECTION_CONFIG_KEYS.services)
+        : exactRecord(section.config, SECTION_CONFIG_KEYS[type] || [])));
   const normalizedConfig: JsonRecord = {};
   if (['services', 'featured_work', 'gallery'].includes(type)) {
     normalizedConfig.item_keys = stringArray(config.item_keys, KEY_PATTERN, 50);
+    if (type === 'services') {
+      normalizedConfig.gallery_keys = config.gallery_keys === undefined
+        ? normalizedConfig.item_keys.map(() => '')
+        : optionalKeyArray(config.gallery_keys, 50);
+      normalizedConfig.icon_keys = config.icon_keys === undefined
+        ? normalizedConfig.item_keys.map(() => '')
+        : optionalKeyArray(config.icon_keys, 50);
+      if (normalizedConfig.gallery_keys.length !== normalizedConfig.item_keys.length
+        || normalizedConfig.icon_keys.length !== normalizedConfig.item_keys.length
+        || normalizedConfig.icon_keys.some((iconKey: string) => (
+          iconKey !== '' && !isPromoServiceIconKey(iconKey)
+        ))) fail('invalid_payload');
+    }
   } else if (type === 'hero') {
     normalizedConfig.media_use_key = config.media_use_key === '' ? '' : safePattern(config.media_use_key, USE_KEY_PATTERN);
     normalizedConfig.action_key = config.action_key === '' ? '' : safePattern(config.action_key, KEY_PATTERN);

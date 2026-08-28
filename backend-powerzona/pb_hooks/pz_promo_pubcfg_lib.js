@@ -47,6 +47,10 @@ const HERO_LAYOUTS = Object.freeze(["immersive", "split", "centered", "editorial
 const HERO_BUTTON_TARGETS = Object.freeze([
   "primary-contact", "contact-section", "services-section", "work-section",
 ]);
+const SERVICE_ICON_KEYS = Object.freeze([
+  "carpet", "flooring", "stairs", "finishing",
+  "upholstery", "cleaning", "installation", "commercial",
+]);
 const HERO_MAX_HIGHLIGHTS = 4;
 const HERO_MAX_BUTTONS = 2;
 
@@ -62,7 +66,7 @@ const SECTION_CONFIG_KEYS = Object.freeze({
 });
 const LIVE_SECTION_CONFIG_KEYS = Object.freeze({
   hero: ["media_use_key", "action_key", "layout", "button_targets"],
-  services: ["item_keys", "gallery_keys"],
+  services: ["item_keys", "gallery_keys", "icon_keys"],
   featured_work: ["item_keys"],
   gallery: ["item_keys", "cover_media_use_key", "items"],
   owner: ["media_use_key"],
@@ -271,6 +275,14 @@ function validateSectionConfig(section, knownActions, knownMedia, liveDocument, 
       fail("invalid_promo_document", 400);
     }
     config.gallery_keys.forEach((key) => assertKey(key, KEY_PATTERN, true));
+    if (!Array.isArray(config.icon_keys) || config.icon_keys.length !== config.item_keys.length) {
+      fail("invalid_promo_document", 400);
+    }
+    config.icon_keys.forEach((key) => {
+      if (typeof key !== "string" || (key && !SERVICE_ICON_KEYS.includes(key))) {
+        fail("invalid_promo_document", 400);
+      }
+    });
     if (section.media_use_keys.length) fail("invalid_promo_document", 400);
   }
   if (liveDocument && section.type === "featured_work") {
@@ -720,6 +732,26 @@ function upgradeHeroPresentation(document) {
   return document;
 }
 
+function upgradeServiceIcons(document) {
+  const sections = Array.isArray(document.sections)
+    ? document.sections.filter((section) => section && section.type === "services")
+    : [];
+  sections.forEach((section) => {
+    const config = section.config && typeof section.config === "object" && !Array.isArray(section.config)
+      ? section.config : {};
+    if (!Array.isArray(config.item_keys)) fail("invalid_promo_document", 400);
+    if (!Object.prototype.hasOwnProperty.call(config, "icon_keys")) {
+      section.config = { ...config, icon_keys: config.item_keys.map(() => "") };
+      return;
+    }
+    if (!Array.isArray(config.icon_keys) || config.icon_keys.length !== config.item_keys.length
+      || config.icon_keys.some((key) => typeof key !== "string" || (key && !SERVICE_ICON_KEYS.includes(key)))) {
+      fail("invalid_promo_document", 400);
+    }
+  });
+  return document;
+}
+
 function upgradePromoDocument(input) {
   const document = normalizeJson(input);
   if (document.contract === LIVE_DOCUMENT_CONTRACT) {
@@ -732,7 +764,7 @@ function upgradePromoDocument(input) {
         current.contact.qr_media_use_key = "";
       }
     }
-    return enforceFixedSectionOrder(upgradeHeroPresentation(current));
+    return enforceFixedSectionOrder(upgradeHeroPresentation(upgradeServiceIcons(current)));
   }
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
@@ -851,13 +883,14 @@ function upgradePromoDocument(input) {
       gallery_keys: section.config.item_keys.map(() => (
         targetGallery && targetGallery.visible ? targetGallery.key : ""
       )),
+      icon_keys: section.config.item_keys.map(() => ""),
     };
     section.media_use_keys = [];
   });
   Object.values(next.content_by_locale).forEach((localized) => {
     localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || "") };
   });
-  return enforceFixedSectionOrder(upgradeHeroPresentation(next));
+  return enforceFixedSectionOrder(upgradeHeroPresentation(upgradeServiceIcons(next)));
 }
 
 function validatePromoDocument(input, options) {

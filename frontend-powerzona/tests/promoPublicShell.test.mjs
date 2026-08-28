@@ -198,6 +198,7 @@ function shellEnvelopeWithSections() {
       config: {
         item_keys: ['service-clean', 'service-restore'],
         gallery_keys: ['gallery-main', 'gallery-main'],
+        icon_keys: ['cleaning', 'carpet'],
       },
       media_use_keys: [],
     },
@@ -599,6 +600,10 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
     ['gallery-main', 'gallery-main'],
   );
   assert.deepEqual(
+    normalized.profile.sections.find((section) => section.type === 'services').config.icon_keys,
+    ['cleaning', 'carpet'],
+  );
+  assert.deepEqual(
     normalized.profile.sections.find((section) => section.type === 'featured_work').config.item_keys,
     [],
   );
@@ -612,6 +617,15 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
     normalizePromoPublicShellResponse(optionalGallery).profile.sections[0].config.gallery_keys,
     ['', ''],
   );
+  const previousServiceContract = shellEnvelopeWithSections();
+  delete previousServiceContract.profile.sections[0].config.icon_keys;
+  assert.deepEqual(
+    normalizePromoPublicShellResponse(previousServiceContract).profile.sections[0].config.icon_keys,
+    ['', ''],
+  );
+  const invalidServiceIcon = shellEnvelopeWithSections();
+  invalidServiceIcon.profile.sections[0].config.icon_keys = ['cleaning', 'custom-svg'];
+  assert.throws(() => normalizePromoPublicShellResponse(invalidServiceIcon), PromoPublicShellError);
   const missingGallery = shellEnvelopeWithSections();
   missingGallery.profile.sections[0].config.gallery_keys = ['missing-gallery', 'gallery-main'];
   assert.throws(() => normalizePromoPublicShellResponse(missingGallery), PromoPublicShellError);
@@ -842,6 +856,8 @@ test('SECTIONS integra productos dentro de servicios, deriva destacados y no exp
   assert.match(sections, /section\.type === 'owner'/);
   assert.match(sections, /section\.config\.media_use_key/);
   assert.match(sections, /section\.config\.gallery_keys/);
+  assert.match(sections, /section\.config\.icon_keys/);
+  assert.match(sections, /promo-service-icon/);
   assert.match(sections, /gallerySections\.flatMap\(galleryWorks\)\.filter/);
   assert.match(theme, /navigableSections = orderedSections\.filter\(\(section\) => section\.type !== 'gallery'\)/);
   assert.match(sections, /promo-sections__product-grid/);

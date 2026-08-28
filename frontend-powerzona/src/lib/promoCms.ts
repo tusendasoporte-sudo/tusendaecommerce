@@ -1,3 +1,5 @@
+import { isPromoServiceIconKey } from './promoServiceIcons.ts';
+
 export const PROMO_CMS_API_PATH = '/api/admin/promo-cms';
 export const PROMO_CMS_DEFAULT_LOCALE = 'es';
 export const PROMO_CMS_DOCUMENT_CONTRACT = 'promo.site.v2';
@@ -117,6 +119,7 @@ export type PromoCmsContentPatch = Readonly<{
       summary: string;
       caption: string;
       galleryKey?: string;
+      iconKey?: string;
     }>[];
   }>[];
 }>;
@@ -204,6 +207,12 @@ function key(value: unknown, empty = false) {
   return fail('invalid_promo_document');
 }
 
+function serviceIconKey(value: unknown) {
+  const normalized = typeof value === 'string' ? value : '';
+  if (!normalized || isPromoServiceIconKey(normalized)) return normalized;
+  return fail('invalid_promo_document');
+}
+
 function emptyLocalizedContent(): JsonRecord {
   return {
     identity: {},
@@ -226,7 +235,7 @@ function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number
         button_targets: ['primary-contact'],
       },
     },
-    services: { key: 'services-main', config: { item_keys: [], gallery_keys: [] } },
+    services: { key: 'services-main', config: { item_keys: [], gallery_keys: [], icon_keys: [] } },
     owner: { key: 'owner-main', config: { media_use_key: '' } },
     contact: { key: 'contact-main', config: { action_keys: [] } },
     footer: { key: 'footer-main', config: { navigation_section_keys: [], social_profiles: [] } },
@@ -316,6 +325,29 @@ function upgradeHeroPresentation(document: JsonRecord) {
   return document;
 }
 
+function upgradeServiceIcons(document: JsonRecord) {
+  if (!Array.isArray(document.sections)) return document;
+  document.sections.filter((section: JsonRecord) => section && section.type === 'services')
+    .forEach((section: JsonRecord) => {
+      if (!isRecord(section.config) || !Array.isArray(section.config.item_keys)) {
+        fail('invalid_payload');
+      }
+      if (!Object.prototype.hasOwnProperty.call(section.config, 'icon_keys')) {
+        section.config = {
+          ...section.config,
+          icon_keys: section.config.item_keys.map(() => ''),
+        };
+      } else if (!Array.isArray(section.config.icon_keys)
+        || section.config.icon_keys.length !== section.config.item_keys.length
+        || section.config.icon_keys.some((iconKey: unknown) => (
+          typeof iconKey !== 'string' || (iconKey !== '' && !isPromoServiceIconKey(iconKey))
+        ))) {
+        fail('invalid_payload');
+      }
+    });
+  return document;
+}
+
 function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
   const next = clone(value);
   if (next.contract === PROMO_CMS_DOCUMENT_CONTRACT) {
@@ -323,7 +355,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'logo_media_use_key')) next.contact.logo_media_use_key = '';
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'qr_media_use_key')) next.contact.qr_media_use_key = '';
     }
-    return upgradeHeroPresentation(next);
+    return upgradeHeroPresentation(upgradeServiceIcons(next));
   }
   if (next.contract !== PROMO_CMS_LEGACY_DOCUMENT_CONTRACT) fail('invalid_payload');
   if (!Array.isArray(next.sections) || !Array.isArray(next.section_order)
@@ -447,13 +479,14 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
     section.config = {
       item_keys: section.config.item_keys.slice(),
       gallery_keys: section.config.item_keys.map(() => targetGallery ? targetGallery.key : ''),
+      icon_keys: section.config.item_keys.map(() => ''),
     };
     section.media_use_keys = [];
   });
   localizedEntries.forEach((localized: any) => {
     localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || '') };
   });
-  return upgradeHeroPresentation(next);
+  return upgradeHeroPresentation(upgradeServiceIcons(next));
 }
 
 export function normalizePromoCmsDocument(value: unknown) {
@@ -827,6 +860,9 @@ export function buildPromoCmsContentDocument(
       const previousGalleryByItem = new Map<string, string>((section.config.item_keys || []).map(
         (itemKey: string, index: number) => [itemKey, String(section.config.gallery_keys?.[index] || '')],
       ));
+      const previousIconByItem = new Map<string, string>((section.config.item_keys || []).map(
+        (itemKey: string, index: number) => [itemKey, String(section.config.icon_keys?.[index] || '')],
+      ));
       const normalizedItems = items.map((item) => {
         const itemKey = key(item.key);
         if (itemKeys.has(itemKey)) fail('invalid_promo_document');
@@ -837,11 +873,13 @@ export function buildPromoCmsContentDocument(
           summary: safeText(item.summary, PROMO_CMS_TEXT_LIMITS.shortSummary),
           caption: safeText(item.caption, PROMO_CMS_TEXT_LIMITS.caption),
           galleryKey: key(item.galleryKey ?? previousGalleryByItem.get(itemKey) ?? '', true),
+          iconKey: serviceIconKey(item.iconKey ?? previousIconByItem.get(itemKey) ?? ''),
         };
       });
       serviceCount += normalizedItems.length;
       section.config.item_keys = normalizedItems.map((item) => item.key);
       section.config.gallery_keys = normalizedItems.map((item) => item.galleryKey);
+      section.config.icon_keys = normalizedItems.map((item) => item.iconKey);
       localized.sections[sectionKey] = {
         ...current,
         heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),

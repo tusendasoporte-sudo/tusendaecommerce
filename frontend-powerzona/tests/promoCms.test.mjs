@@ -118,8 +118,8 @@ function contentPatch(document) {
         heading: 'Servicios especializados',
         summary: 'Soluciones informativas sin precio',
         items: [
-          { key: 'service-one', name: 'Limpieza', summary: 'Cuidado', caption: '' },
-          { key: 'service-two', name: 'Restauración', summary: 'Trabajo artesanal', caption: 'Solo con estimado' },
+          { key: 'service-one', name: 'Limpieza', summary: 'Cuidado', caption: '', iconKey: 'cleaning' },
+          { key: 'service-two', name: 'Restauración', summary: 'Trabajo artesanal', caption: 'Solo con estimado', iconKey: 'carpet' },
         ],
       } : {}),
       ...(section.type === 'owner' ? { heading: 'Nuestra historia', name: 'Ada', bio: 'Biografía nueva' } : {}),
@@ -273,6 +273,7 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
   });
   assert.equal(updated.sections.find((section) => section.type === 'owner').visible, false);
   assert.deepEqual(updated.sections.find((section) => section.type === 'services').config.item_keys, ['service-one', 'service-two']);
+  assert.deepEqual(updated.sections.find((section) => section.type === 'services').config.icon_keys, ['cleaning', 'carpet']);
   assert.deepEqual(updated.sections.find((section) => section.type === 'footer').config, {
     navigation_section_keys: ['hero-main', 'contact-main'],
     social_profiles: [
@@ -333,6 +334,12 @@ test('servicios respetan cuota efectiva y el documento no acepta contenido activ
   ];
   assert.throws(
     () => buildPromoCmsContentDocument(original, unsafeSocial, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+  const unsafeIcon = contentPatch(original);
+  unsafeIcon.sections.find((section) => section.key === 'services-main').items[0].iconKey = '<svg>';
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, unsafeIcon, 4),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
 });

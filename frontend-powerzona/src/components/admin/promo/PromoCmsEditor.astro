@@ -259,6 +259,7 @@ const isContent = scope === 'content';
     PROMO_CMS_WORK_GALLERY_KEY,
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
+  import { PROMO_SERVICE_ICON_OPTIONS } from '../../../lib/promoServiceIcons';
 
   type CmsDocument = Record<string, any>;
 
@@ -460,7 +461,7 @@ const isContent = scope === 'content';
       addMoveButton(1, 'Bajar');
       return controls;
     }
-    function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '') {
+    function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '', iconKey = '') {
       const card = element('details', 'pz-promo-cms__service-item pz-promo-cms__accordion') as HTMLDetailsElement;
       card.dataset.cmsServiceItem = item.key;
       card.dataset.cmsServicePortfolioKey = galleryKey;
@@ -482,11 +483,28 @@ const isContent = scope === 'content';
       header.append(title, controls, element('span', 'pz-promo-cms__accordion-chevron', '⌄'));
       const fields = element('div', 'pz-promo-cms__fields two-columns');
       const name = inputField('Nombre del servicio', item.name || '', { max: 160, data: 'name' });
+      const icon = element('label', 'pz-promo-cms__field');
+      icon.append(element('span', '', 'Icono del servicio'));
+      const iconSelect = element('select');
+      iconSelect.dataset.cmsField = 'iconKey';
+      const emptyIcon = element('option', '', 'Sin icono');
+      emptyIcon.value = '';
+      iconSelect.append(emptyIcon);
+      PROMO_SERVICE_ICON_OPTIONS.forEach((iconOption) => {
+        const option = element('option', '', iconOption.label);
+        option.value = iconOption.key;
+        option.selected = iconOption.key === iconKey;
+        iconSelect.append(option);
+      });
+      icon.append(
+        iconSelect,
+        element('small', '', 'Elige un icono lineal aprobado. No consume la cuota de fotos.'),
+      );
       const summary = inputField('Resumen', item.summary || '', { textarea: true, max: 600, data: 'summary' });
       const caption = inputField('Nota o caption', item.caption || '', { max: 500, data: 'caption' });
       const categoryNote = element('p', 'pz-promo-cms__scope-note', 'La foto, las ofertas y los productos de este servicio se administran en «Galería y productos».');
       name.control.addEventListener('input', () => { title.textContent = name.control.value || 'Servicio sin nombre'; });
-      fields.append(name.label, summary.label, caption.label, categoryNote);
+      fields.append(name.label, icon, summary.label, caption.label, categoryNote);
       card.dataset.sectionKey = sectionKey;
       card.append(header, fields);
       return card;
@@ -616,6 +634,7 @@ const isContent = scope === 'content';
           itemByKey.get(itemKey) || { key: itemKey, name: '', summary: '', caption: '' },
           section.key,
           section.config.gallery_keys?.[index] || '',
+          section.config.icon_keys?.[index] || '',
         )));
         add.addEventListener('click', () => {
           if (serviceTotal() >= maxServices) return;
@@ -1075,6 +1094,7 @@ const isContent = scope === 'content';
               summary: item.querySelector<HTMLTextAreaElement>('[data-cms-field="summary"]')?.value || '',
               caption: item.querySelector<HTMLInputElement>('[data-cms-field="caption"]')?.value || '',
               galleryKey: item.dataset.cmsServicePortfolioKey || '',
+              iconKey: item.querySelector<HTMLSelectElement>('[data-cms-field="iconKey"]')?.value || '',
             })),
           });
         }

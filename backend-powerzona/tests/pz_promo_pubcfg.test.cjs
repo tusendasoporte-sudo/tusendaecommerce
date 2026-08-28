@@ -200,7 +200,10 @@ test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y
     live.sections[0],
     {
       key: 'services-main', type: 'services', variant: 'default', visible: true,
-      config: { item_keys: ['restoration'], gallery_keys: ['gallery-rugs'] }, media_use_keys: [],
+      config: {
+        item_keys: ['restoration'], gallery_keys: ['gallery-rugs'], icon_keys: ['carpet'],
+      },
+      media_use_keys: [],
     },
     {
       key: 'featured-main', type: 'featured_work', variant: 'default', visible: true,
@@ -259,6 +262,7 @@ test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y
   assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
   assert.equal(live.sections.find((section) => section.type === 'featured_work').config.item_keys.length, 0);
   assert.equal(live.sections.find((section) => section.type === 'gallery').config.items[0].featured, true);
+  assert.deepEqual(live.sections.find((section) => section.type === 'services').config.icon_keys, ['carpet']);
 
   const serviceWithDirectMedia = structuredClone(live);
   serviceWithDirectMedia.sections[1].media_use_keys = ['gallery-cover'];
@@ -270,6 +274,12 @@ test('modelo vivo enlaza servicios con galerías múltiples, deriva destacados y
   missingLinkedGallery.sections[1].config.gallery_keys = ['missing-gallery'];
   assert.throws(
     () => contract.validatePromoDocument(missingLinkedGallery, { publicRevision: true }),
+    /invalid_promo_document/,
+  );
+  const invalidServiceIcon = structuredClone(live);
+  invalidServiceIcon.sections[1].config.icon_keys = ['custom-icon'];
+  assert.throws(
+    () => contract.validatePromoDocument(invalidServiceIcon, { publicRevision: true }),
     /invalid_promo_document/,
   );
   const visibleWorkWithoutMedia = structuredClone(live);

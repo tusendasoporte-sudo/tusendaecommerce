@@ -73,6 +73,7 @@ const galleryWorks = (gallery: PromoPublicSection): WorkModel[] => {
 const featuredWorks = gallerySections.flatMap(galleryWorks).filter((work) => work.featured);
 const currentGalleryWorks = section.type === 'gallery' ? galleryWorks(section) : [];
 const serviceGalleryKeys = Array.isArray(section.config.gallery_keys) ? section.config.gallery_keys : [];
+const serviceIconKeys = Array.isArray(section.config.icon_keys) ? section.config.icon_keys : [];
 const services = section.type === 'services' ? items.map((item: Record<string, string>, index: number) => {
   const galleryKey = String(serviceGalleryKeys[index] || '');
   const gallery = galleryKey ? sectionByKey.get(galleryKey) : undefined;
@@ -81,6 +82,7 @@ const services = section.type === 'services' ? items.map((item: Record<string, s
   return {
     item,
     gallery,
+    iconKey: String(serviceIconKeys[index] || ''),
     cover: cover?.purpose === 'gallery' ? cover : undefined,
     products: gallery?.type === 'gallery' ? galleryWorks(gallery) : [],
   };
@@ -130,7 +132,7 @@ const itemCount = section.type === 'featured_work'
 
     {section.type === 'services' && services.length > 0 && (
       <ul class="promo-sections__services-list">
-        {services.map(({ item, cover, products }, index) => (
+        {services.map(({ item, iconKey, cover, products }, index) => (
           <li>
             <section class="promo-sections__service-category" aria-labelledby={`${sectionId}-service-${index + 1}`}>
               <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': cover }]}>
@@ -142,8 +144,63 @@ const itemCount = section.type === 'featured_work'
                   )}
                 </div>
                 <div class="promo-sections__service-copy">
-                  <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
-                  {item.name && <h3 id={`${sectionId}-service-${index + 1}`}>{item.name}</h3>}
+                  <div class="promo-sections__service-heading">
+                    {iconKey && (
+                      <span class="promo-service-icon" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" focusable="false">
+                          {iconKey === 'carpet' && (
+                            <g>
+                              <path d="M8 15h25a7 7 0 0 1 0 14H14a5 5 0 0 1 0-10h18" />
+                              <path d="M8 15v14m8-14v4m-2 10v4m8-18v4m6 10v4" />
+                            </g>
+                          )}
+                          {iconKey === 'flooring' && (
+                            <g>
+                              <path d="M7 11h34v26H7zM7 20h34M7 29h34" />
+                              <path d="M16 11v9m14-9v9M23 20v9m14-9v9M13 29v8m18-8v8" />
+                            </g>
+                          )}
+                          {iconKey === 'stairs' && (
+                            <path d="M8 38h8v-8h8v-8h8v-8h8V8" />
+                          )}
+                          {iconKey === 'finishing' && (
+                            <g>
+                              <path d="m10 34 18-18 6 6-18 18H10zM28 16l3-3 6 6-3 3" />
+                              <path d="m13 31 6 6m17-22 4-4" />
+                            </g>
+                          )}
+                          {iconKey === 'upholstery' && (
+                            <g>
+                              <path d="M11 25v-6a5 5 0 0 1 10 0v4h6v-4a5 5 0 0 1 10 0v6" />
+                              <path d="M8 24a4 4 0 0 1 4 4v8h24v-8a4 4 0 0 1 4-4v16H8zM14 40v2m20-2v2" />
+                            </g>
+                          )}
+                          {iconKey === 'cleaning' && (
+                            <g>
+                              <path d="m26 10 9 9M18 38l13-13-8-8-13 13-2 10z" />
+                              <path d="m13 30 8 8M37 8v6m-3-3h6M12 8v8m-4-4h8" />
+                            </g>
+                          )}
+                          {iconKey === 'installation' && (
+                            <g>
+                              <path d="m9 38 18-18 5 5-18 18H9zM24 17l5-5 9 9-5 5" />
+                              <path d="M8 10h13M8 15h8" />
+                            </g>
+                          )}
+                          {iconKey === 'commercial' && (
+                            <g>
+                              <path d="M9 42V12h20v30M29 21h10v21M6 42h36" />
+                              <path d="M14 18h4m5 0h1m-10 7h4m5 0h1m-10 7h4m5 0h1m10-5h2m-2 7h2" />
+                            </g>
+                          )}
+                        </svg>
+                      </span>
+                    )}
+                    <div>
+                      <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(index)}</span>
+                      {item.name && <h3 id={`${sectionId}-service-${index + 1}`}>{item.name}</h3>}
+                    </div>
+                  </div>
                   {item.summary && <p>{item.summary}</p>}
                   {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
                   {products.length > 0 && <p class="promo-sections__product-count">{products.length} {products.length === 1 ? (profile.locale.lang.startsWith('es') ? 'opción' : 'option') : (profile.locale.lang.startsWith('es') ? 'opciones' : 'options')}</p>}

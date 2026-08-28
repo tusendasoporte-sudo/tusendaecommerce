@@ -86,5 +86,6 @@ test('upgrade v1 mantiene publicable un servicio sin galería vinculada', () => 
 
   const live = contract.upgradePromoDocument(legacy);
   assert.deepEqual(live.sections[0].config.gallery_keys, ['']);
+  assert.deepEqual(live.sections[0].config.icon_keys, ['']);
   assert.deepEqual(contract.validatePromoDocument(live, { publicRevision: true }), live);
 });
