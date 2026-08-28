@@ -15,7 +15,6 @@ const booleanCapabilities = [
   ['theme_customization_enabled', 'Personalización de tema'],
   ['multilanguage_enabled', 'Múltiples idiomas'],
   ['analytics_enabled', 'Analítica Promo'],
-  ['landing_qr_bridge_enabled', 'Puente Landing QR'],
 ] as const;
 const numericCapabilities = [
   ['max_services', 'Máximo de servicios'],
@@ -193,7 +192,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
     verifyPromoDomain,
   } from '../../lib/promoMaster';
 
-  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'video_enabled', 'analytics_enabled', 'landing_qr_bridge_enabled'];
+  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'video_enabled', 'analytics_enabled'];
   const NUMERIC_CAPABILITIES = ['max_services', 'max_gallery_assets', 'max_locales', 'max_videos', 'max_storage_bytes'];
 
   function errorCode(error: any) {
@@ -265,6 +264,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
       const values = new FormData(form);
       const capabilities: Record<string, boolean | number> = {};
       BOOLEAN_CAPABILITIES.forEach((key) => { capabilities[key] = values.get(key) === 'on'; });
+      capabilities.landing_qr_bridge_enabled = false;
       NUMERIC_CAPABILITIES.forEach((key) => {
         const value = Math.max(0, Math.floor(Number(values.get(key) || 0)));
         capabilities[key] = key === 'max_videos' ? Math.min(3, value) : value;

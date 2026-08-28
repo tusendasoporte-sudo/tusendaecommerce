@@ -82,4 +82,6 @@ test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo 
   assert.match(view, /verification_evidence_sha256/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
+  assert.doesNotMatch(view, /\['landing_qr_bridge_enabled',|Landing QR/);
+  assert.match(view, /capabilities\.landing_qr_bridge_enabled = false/);
 });

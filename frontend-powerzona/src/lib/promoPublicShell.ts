@@ -44,7 +44,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_ACTION_CONTRACT = 'promo.contact.action.v1';
 const FOOTER_CONTRACT = 'promo.footer.v1';
 const LANDING_QR_LINK_CONTRACT = 'promo.landing-qr-link.v1';
-const LANDING_QR_PLATFORM_ORIGIN = 'https://tusenda84.com';
 const RESERVED_FOOTER_BRAND = 'Tu Senda 84';
 const FOOTER_SOCIALS: Readonly<Record<string, Readonly<{
   label: string;
@@ -468,37 +467,14 @@ function normalizeContactAction(value: unknown): PromoPublicContactAction {
 
 function normalizeLandingQrLink(
   value: unknown,
-  adapterEnabled: boolean,
-  messages: Readonly<Record<string, string>>,
-  business: string,
+  _adapterEnabled: boolean,
+  _messages: Readonly<Record<string, string>>,
+  _business: string,
 ): PromoPublicLandingQrLink {
   const compiled = exactRecord(value, ['contract', 'enabled', 'link']);
   if (compiled.contract !== LANDING_QR_LINK_CONTRACT || typeof compiled.enabled !== 'boolean') fail();
-  if (!compiled.enabled) {
-    if (compiled.link !== null) fail();
-    return { contract: LANDING_QR_LINK_CONTRACT, enabled: false, link: null };
-  }
-  if (!adapterEnabled) fail();
-  const link = exactRecord(compiled.link, ['label', 'aria_label', 'href']);
-  const expectedLabel = messages['landing_qr.open'];
-  const expectedAria = formatSystemMessage(messages['a11y.landing_qr_link'], { business });
-  if (link.label !== expectedLabel || link.aria_label !== expectedAria) fail();
-  const href = safeText(link.href, 420, true);
-  let parsed: URL;
-  try { parsed = new URL(href); } catch (_) { fail(); }
-  if (parsed.origin !== LANDING_QR_PLATFORM_ORIGIN || parsed.username || parsed.password || parsed.port
-    || parsed.search || parsed.hash
-    || !/^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*\/links$/.test(parsed.pathname)
-    || parsed.toString() !== href) fail();
-  return {
-    contract: LANDING_QR_LINK_CONTRACT,
-    enabled: true,
-    link: {
-      label: safeText(link.label, 80, true),
-      aria_label: safeText(link.aria_label, 240, true),
-      href,
-    },
-  };
+  if (compiled.enabled !== false || compiled.link !== null) fail();
+  return { contract: LANDING_QR_LINK_CONTRACT, enabled: false, link: null };
 }
 
 function safePublicMediaPath(value: unknown, input: {

@@ -65,14 +65,6 @@ export const PROMO_ADMIN_MODULES = Object.freeze([
     actions: Object.freeze(['promo.analytics.view'] as PromoActionKey[]),
     delivery: 'Las analíticas Promo se habilitarán después del sitio público y su instrumentación aprobada.',
   }),
-  Object.freeze({
-    section: 'landing-qr',
-    label: 'Landing QR',
-    shortLabel: 'Landing QR',
-    description: 'Puente explícito a la Landing QR cuando el plan lo permite.',
-    actions: Object.freeze(['promo.landing_qr.bridge.manage'] as PromoActionKey[]),
-    delivery: 'Controla el enlace Promo hacia la Landing QR existente sin duplicar ni alterar su flujo.',
-  }),
 ] as const);
 
 export type PromoAdminModule = (typeof PROMO_ADMIN_MODULES)[number];

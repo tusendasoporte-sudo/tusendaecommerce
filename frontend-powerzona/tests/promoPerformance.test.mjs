@@ -139,9 +139,10 @@ test('rutas de plataforma son exactas y el runtime conserva Analytics y polític
   const media = readFileSync(new URL('../src/components/promo-public/PromoSectionMedia.astro', import.meta.url), 'utf8');
   const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
   const config = readFileSync(new URL('../astro.config.mjs', import.meta.url), 'utf8');
-  for (const event of ['page_view', 'section_view', 'contact_activate', 'landing_qr_open']) {
+  for (const event of ['page_view', 'section_view', 'contact_activate']) {
     assert.match(layout, new RegExp(`['\"]${event}['\"]`));
   }
+  assert.doesNotMatch(layout, /['\"]landing_qr_open['\"]/);
   assert.match(layout, /requestIdleCallback/);
   assert.match(layout, /keepalive: true/);
   assert.match(layout, /navigator\.doNotTrack/);

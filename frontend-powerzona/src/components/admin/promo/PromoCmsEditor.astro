@@ -160,11 +160,11 @@ const isContent = scope === 'content';
                     <span>o selecciónala desde tu dispositivo</span>
                   </div>
                   <div class="pz-promo-media-slot__actions">
-                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-logo disabled={!canManageMedia}>Elegir imagen</button>
-                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-logo-file disabled={!canManageMedia} />
-                    <button class="is-danger" type="button" data-cms-remove-logo disabled={!canSave}>Quitar</button>
+                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-logo disabled={!canManageMedia || !canSave}>Elegir imagen</button>
+                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-logo-file disabled={!canManageMedia || !canSave} />
+                    <button class="is-danger" type="button" data-cms-remove-logo disabled={!canManageMedia || !canSave}>Quitar</button>
                   </div>
-                  <small class="pz-promo-media-slot__guidance">JPG, PNG, WebP o AVIF · se adapta automáticamente a 1024×512 px · formato horizontal y sin recorte</small>
+                  <small class="pz-promo-media-slot__guidance" data-cms-logo-guidance>JPG, PNG, WebP o AVIF · ideal 2:1 · WebP 511×256, sin recorte ni metadatos al guardar</small>
                 </article>
               </div>
             </section>
@@ -197,11 +197,11 @@ const isContent = scope === 'content';
                     <span>o selecciónala desde tu dispositivo</span>
                   </div>
                   <div class="pz-promo-media-slot__actions">
-                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-qr disabled={!canManageMedia}>Elegir imagen</button>
-                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia} />
-                    <button class="is-danger" type="button" data-cms-remove-qr disabled={!canSave}>Quitar</button>
+                    <button class="pz-promo-gallery__secondary" type="button" data-cms-choose-qr disabled={!canManageMedia || !canSave}>Elegir imagen</button>
+                    <input class="pz-promo-media-slot__input" type="file" accept="image/jpeg,image/png,image/webp,image/avif" data-cms-qr-file disabled={!canManageMedia || !canSave} />
+                    <button class="is-danger" type="button" data-cms-remove-qr disabled={!canManageMedia || !canSave}>Quitar</button>
                   </div>
-                  <small class="pz-promo-media-slot__guidance">JPG, PNG, WebP o AVIF · se adapta automáticamente a 512×512 px · fondo blanco y sin recorte</small>
+                  <small class="pz-promo-media-slot__guidance" data-cms-qr-guidance>JPG, PNG, WebP o AVIF · QR cuadrado · WebP 512×512, fondo blanco, sin recorte ni metadatos</small>
                 </article>
               </div>
             </section>
@@ -260,6 +260,7 @@ const isContent = scope === 'content';
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
   import { PROMO_SERVICE_ICON_OPTIONS } from '../../../lib/promoServiceIcons';
+  import { optimizePromoUploadImageFile } from '../../../lib/promoImageOptimizationCore.js';
 
   type CmsDocument = Record<string, any>;
 
@@ -305,6 +306,12 @@ const isContent = scope === 'content';
     let busy = false;
     let logoUseKey = '';
     let qrUseKey = '';
+    let pendingLogoFile: File | null = null;
+    let pendingQrFile: File | null = null;
+    let pendingLogoPreviewUrl = '';
+    let pendingQrPreviewUrl = '';
+    let logoCardError = '';
+    let qrCardError = '';
 
     function element<K extends keyof HTMLElementTagNameMap>(
       tag: K,
@@ -356,13 +363,17 @@ const isContent = scope === 'content';
         updateServiceQuota();
         root.querySelectorAll<HTMLElement>('[data-cms-contact-action]').forEach(setContactControlState);
         const logoFile = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
-        if (logoFile) logoFile.disabled = !canManageMedia;
+        if (logoFile) logoFile.disabled = !canManageMedia || !canSave;
         const logoChoose = root.querySelector<HTMLButtonElement>('[data-cms-choose-logo]');
-        if (logoChoose) logoChoose.disabled = !canManageMedia;
+        if (logoChoose) logoChoose.disabled = !canManageMedia || !canSave;
         const qrFile = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
-        if (qrFile) qrFile.disabled = !canManageMedia;
+        if (qrFile) qrFile.disabled = !canManageMedia || !canSave;
         const qrChoose = root.querySelector<HTMLButtonElement>('[data-cms-choose-qr]');
-        if (qrChoose) qrChoose.disabled = !canManageMedia;
+        if (qrChoose) qrChoose.disabled = !canManageMedia || !canSave;
+        if (scope === 'contact' && documentValue) {
+          renderLogoPreview();
+          renderQrPreview();
+        }
       }
     }
 
@@ -844,22 +855,40 @@ const isContent = scope === 'content';
       });
     }
 
+    function releaseObjectUrl(value: string) {
+      if (value) URL.revokeObjectURL(value);
+    }
+
+    function documentAssetIds(documentValue: CmsDocument | null) {
+      return new Set<string>(Object.values(documentValue?.media_refs || {})
+        .map((reference: any) => String(reference?.asset_id || ''))
+        .filter((assetId) => /^[a-z0-9]{15}$/.test(assetId)));
+    }
+
     function renderQrPreview() {
       const preview = root.querySelector<HTMLElement>('[data-cms-qr-preview]');
       const slot = root.querySelector<HTMLElement>('[data-cms-qr-slot]');
       const state = root.querySelector<HTMLElement>('[data-cms-qr-state]');
       const count = root.querySelector<HTMLElement>('[data-cms-qr-count]');
       const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-qr]');
+      const guidance = root.querySelector<HTMLElement>('[data-cms-qr-guidance]');
       if (!preview || !documentValue) return;
       preview.replaceChildren();
       const assetId = documentValue.media_refs?.[qrUseKey]?.asset_id || '';
-      const filled = Boolean(qrUseKey && /^[a-z0-9]{15}$/.test(assetId));
+      const filled = Boolean(pendingQrFile || (qrUseKey && /^[a-z0-9]{15}$/.test(assetId)));
       slot?.classList.toggle('is-filled', filled);
       slot?.classList.toggle('is-empty', !filled);
+      slot?.classList.toggle('is-pending', Boolean(pendingQrFile));
+      slot?.classList.toggle('is-error', Boolean(qrCardError));
       preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
-      if (state) state.textContent = filled ? 'Imagen' : 'Disponible';
+      if (state) state.textContent = qrCardError ? 'Error' : (pendingQrFile ? 'Pendiente' : (filled ? 'Guardada' : 'Disponible'));
       if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
-      if (remove) remove.disabled = !canSave || !filled || busy;
+      if (remove) remove.disabled = !canSave || !canManageMedia || !filled || busy;
+      if (guidance) {
+        guidance.textContent = qrCardError
+          || 'JPG, PNG, WebP o AVIF · QR cuadrado · WebP 512×512, fondo blanco, sin recorte ni metadatos';
+        guidance.classList.toggle('is-error', Boolean(qrCardError));
+      }
       if (!filled) {
         preview.append(
           element('strong', '', 'Arrastra una imagen aquí'),
@@ -868,7 +897,7 @@ const isContent = scope === 'content';
         return;
       }
       const image = element('img');
-      image.src = `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
+      image.src = pendingQrPreviewUrl || `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
       image.alt = 'Vista previa del código QR';
       image.width = 192;
       image.height = 192;
@@ -881,16 +910,24 @@ const isContent = scope === 'content';
       const state = root.querySelector<HTMLElement>('[data-cms-logo-state]');
       const count = root.querySelector<HTMLElement>('[data-cms-logo-count]');
       const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-logo]');
+      const guidance = root.querySelector<HTMLElement>('[data-cms-logo-guidance]');
       if (!preview || !documentValue) return;
       preview.replaceChildren();
       const assetId = documentValue.media_refs?.[logoUseKey]?.asset_id || '';
-      const filled = Boolean(logoUseKey && /^[a-z0-9]{15}$/.test(assetId));
+      const filled = Boolean(pendingLogoFile || (logoUseKey && /^[a-z0-9]{15}$/.test(assetId)));
       slot?.classList.toggle('is-filled', filled);
       slot?.classList.toggle('is-empty', !filled);
+      slot?.classList.toggle('is-pending', Boolean(pendingLogoFile));
+      slot?.classList.toggle('is-error', Boolean(logoCardError));
       preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
-      if (state) state.textContent = filled ? 'Imagen' : 'Disponible';
+      if (state) state.textContent = logoCardError ? 'Error' : (pendingLogoFile ? 'Pendiente' : (filled ? 'Guardada' : 'Disponible'));
       if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
-      if (remove) remove.disabled = !canSave || !filled || busy;
+      if (remove) remove.disabled = !canSave || !canManageMedia || !filled || busy;
+      if (guidance) {
+        guidance.textContent = logoCardError
+          || 'JPG, PNG, WebP o AVIF · ideal 2:1 · WebP 511×256, sin recorte ni metadatos al guardar';
+        guidance.classList.toggle('is-error', Boolean(logoCardError));
+      }
       if (!filled) {
         preview.append(
           element('strong', '', 'Arrastra una imagen aquí'),
@@ -899,32 +936,24 @@ const isContent = scope === 'content';
         return;
       }
       const image = element('img');
-      image.src = `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
+      image.src = pendingLogoPreviewUrl || `${mediaEndpoint}&asset=${encodeURIComponent(assetId)}`;
       image.alt = 'Vista previa del logo del negocio';
       image.width = 192;
       image.height = 192;
       preview.append(image);
     }
 
-    async function uploadLogo(selectedFile?: File) {
+    async function selectLogo(selectedFile?: File) {
       const file = selectedFile || root.querySelector<HTMLInputElement>('[data-cms-logo-file]')?.files?.[0];
-      if (!documentValue || !file || !canManageMedia || busy) return;
+      if (!documentValue || !file || !canManageMedia || !canSave || busy) return;
       clearError();
-      setBusy(true, 'Procesando logo…');
+      logoCardError = '';
+      setBusy(true, 'Optimizando logo…');
       try {
-        const payload = new FormData();
-        payload.append('file', file);
-        payload.append('purpose', 'logo');
-        payload.append('poster_asset_id', '');
-        const response = await fetch(mediaEndpoint, {
-          method: 'POST', body: payload, headers: { Accept: 'application/json' }, credentials: 'same-origin',
-        });
-        const result = await response.json().catch(() => null);
-        const assetId = String(result?.asset?.asset_id || '');
-        if (!response.ok || result?.ok !== true || !/^[a-z0-9]{15}$/.test(assetId)
-          || result.asset?.purpose !== 'logo' || Number(result.asset?.width) < 256 || Number(result.asset?.height) < 256) {
-          throw Object.assign(new Error('promo_media_upload_failed'), { code: result?.error });
-        }
+        const prepared = await optimizePromoUploadImageFile(file, 'logo') as File;
+        releaseObjectUrl(pendingLogoPreviewUrl);
+        pendingLogoFile = prepared;
+        pendingLogoPreviewUrl = URL.createObjectURL(prepared);
         if (!logoUseKey) {
           logoUseKey = 'logo-business';
           if (documentValue.media_refs[logoUseKey]) {
@@ -932,27 +961,28 @@ const isContent = scope === 'content';
             logoUseKey = `logo-business-${random}`.slice(0, 120);
           }
         }
-        documentValue.media_refs[logoUseKey] = { asset_id: assetId, purpose: 'logo' };
-        Object.values(documentValue.content_by_locale).forEach((content: any) => {
-          const businessName = String(content?.identity?.name || '').trim();
-          content.media_alt[logoUseKey] = { alt: businessName ? `Logo de ${businessName}` : 'Logo del negocio', decorative: false };
-        });
         documentValue.contact.logo_media_use_key = logoUseKey;
         renderLogoPreview();
         setDirty();
         if (status) {
           status.hidden = false;
-          status.querySelector('span:last-child')!.textContent = 'Logo procesado. Guarda los cambios para actualizar la página y su vista previa social.';
+          status.querySelector('span:last-child')!.textContent = 'Logo preparado localmente. Se subirá únicamente al guardar los cambios.';
         }
       } catch (error) {
-        showError((error as { code?: string })?.code || 'promo_media_upload_failed');
+        logoCardError = promoCmsErrorMessage((error as { code?: string; message?: string })?.code || (error as Error)?.message || 'promo_media_upload_failed');
+        renderLogoPreview();
+        showError((error as { code?: string; message?: string })?.code || (error as Error)?.message || 'promo_media_upload_failed');
       } finally {
         setBusy(false, '');
       }
     }
 
     function removeLogo() {
-      if (!documentValue || !logoUseKey || !canSave) return;
+      if (!documentValue || !logoUseKey || !canSave || !canManageMedia) return;
+      releaseObjectUrl(pendingLogoPreviewUrl);
+      pendingLogoFile = null;
+      pendingLogoPreviewUrl = '';
+      logoCardError = '';
       delete documentValue.media_refs[logoUseKey];
       Object.values(documentValue.content_by_locale).forEach((content: any) => delete content.media_alt[logoUseKey]);
       documentValue.contact.logo_media_use_key = '';
@@ -961,25 +991,17 @@ const isContent = scope === 'content';
       setDirty();
     }
 
-    async function uploadQr(selectedFile?: File) {
+    async function selectQr(selectedFile?: File) {
       const file = selectedFile || root.querySelector<HTMLInputElement>('[data-cms-qr-file]')?.files?.[0];
-      if (!documentValue || !file || !canManageMedia || busy) return;
+      if (!documentValue || !file || !canManageMedia || !canSave || busy) return;
       clearError();
-      setBusy(true, 'Procesando QR…');
+      qrCardError = '';
+      setBusy(true, 'Optimizando QR…');
       try {
-        const payload = new FormData();
-        payload.append('file', file);
-        payload.append('purpose', 'qr');
-        payload.append('poster_asset_id', '');
-        const response = await fetch(mediaEndpoint, {
-          method: 'POST', body: payload, headers: { Accept: 'application/json' }, credentials: 'same-origin',
-        });
-        const result = await response.json().catch(() => null);
-        const assetId = String(result?.asset?.asset_id || '');
-        if (!response.ok || result?.ok !== true || !/^[a-z0-9]{15}$/.test(assetId)
-          || result.asset?.purpose !== 'qr' || Number(result.asset?.width) !== 512 || Number(result.asset?.height) !== 512) {
-          throw Object.assign(new Error('promo_media_upload_failed'), { code: result?.error });
-        }
+        const prepared = await optimizePromoUploadImageFile(file, 'qr') as File;
+        releaseObjectUrl(pendingQrPreviewUrl);
+        pendingQrFile = prepared;
+        pendingQrPreviewUrl = URL.createObjectURL(prepared);
         if (!qrUseKey) {
           qrUseKey = 'qr-contact';
           if (documentValue.media_refs[qrUseKey]) {
@@ -987,26 +1009,28 @@ const isContent = scope === 'content';
             qrUseKey = `qr-contact-${random}`.slice(0, 120);
           }
         }
-        documentValue.media_refs[qrUseKey] = { asset_id: assetId, purpose: 'qr' };
-        Object.values(documentValue.content_by_locale).forEach((content: any) => {
-          content.media_alt[qrUseKey] = { alt: 'Código QR de contacto', decorative: false };
-        });
         documentValue.contact.qr_media_use_key = qrUseKey;
         renderQrPreview();
         setDirty();
         if (status) {
           status.hidden = false;
-          status.querySelector('span:last-child')!.textContent = 'QR procesado. Guarda los cambios para actualizar la página.';
+          status.querySelector('span:last-child')!.textContent = 'QR preparado localmente. Se subirá únicamente al guardar los cambios.';
         }
       } catch (error) {
-        showError((error as { code?: string })?.code || 'promo_media_upload_failed');
+        qrCardError = promoCmsErrorMessage((error as { code?: string; message?: string })?.code || (error as Error)?.message || 'promo_media_upload_failed');
+        renderQrPreview();
+        showError((error as { code?: string; message?: string })?.code || (error as Error)?.message || 'promo_media_upload_failed');
       } finally {
         setBusy(false, '');
       }
     }
 
     function removeQr() {
-      if (!documentValue || !qrUseKey || !canSave) return;
+      if (!documentValue || !qrUseKey || !canSave || !canManageMedia) return;
+      releaseObjectUrl(pendingQrPreviewUrl);
+      pendingQrFile = null;
+      pendingQrPreviewUrl = '';
+      qrCardError = '';
       delete documentValue.media_refs[qrUseKey];
       Object.values(documentValue.content_by_locale).forEach((content: any) => delete content.media_alt[qrUseKey]);
       documentValue.contact.qr_media_use_key = '';
@@ -1017,6 +1041,14 @@ const isContent = scope === 'content';
 
     function renderContact() {
       if (!documentValue) return;
+      releaseObjectUrl(pendingLogoPreviewUrl);
+      releaseObjectUrl(pendingQrPreviewUrl);
+      pendingLogoFile = null;
+      pendingQrFile = null;
+      pendingLogoPreviewUrl = '';
+      pendingQrPreviewUrl = '';
+      logoCardError = '';
+      qrCardError = '';
       const localized = documentValue.content_by_locale[locale];
       const section = documentValue.sections.find((entry: CmsDocument) => entry.type === 'contact');
       const sectionContent = localized.sections?.[section.key] || {};
@@ -1154,6 +1186,88 @@ const isContent = scope === 'content';
       };
     }
 
+    async function mediaResponse(response: Response) {
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        throw Object.assign(new Error('promo_media_upload_failed'), { code: result?.error || 'promo_media_upload_failed' });
+      }
+      return result;
+    }
+
+    async function uploadContactMedia(file: File, purpose: 'logo' | 'qr') {
+      const payload = new FormData();
+      payload.append('file', file);
+      payload.append('purpose', purpose);
+      payload.append('poster_asset_id', '');
+      const result = await mediaResponse(await fetch(mediaEndpoint, {
+        method: 'POST',
+        body: payload,
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      }));
+      const assetId = String(result?.asset?.asset_id || '');
+      const validDimensions = purpose === 'qr'
+        ? Number(result?.asset?.width) === 512 && Number(result?.asset?.height) === 512
+        : Number(result?.asset?.width) === 511 && Number(result?.asset?.height) === 256;
+      if (!/^[a-z0-9]{15}$/.test(assetId) || result?.asset?.purpose !== purpose
+        || result?.asset?.kind !== 'image' || !validDimensions) {
+        throw Object.assign(new Error('promo_media_upload_failed'), { code: 'promo_media_upload_failed' });
+      }
+      return assetId;
+    }
+
+    async function deleteUnreferencedAssets(assetIds: Iterable<string>) {
+      let failures = 0;
+      for (const assetId of new Set(assetIds)) {
+        if (!/^[a-z0-9]{15}$/.test(assetId)) continue;
+        try {
+          await mediaResponse(await fetch(`/api/admin/promo-media-delete?store=${encodeURIComponent(storeSlug)}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ asset_id: assetId }),
+            credentials: 'same-origin',
+          }));
+        } catch (_) {
+          failures += 1;
+        }
+      }
+      return failures;
+    }
+
+    async function knownMediaAssetIds() {
+      const result = await mediaResponse(await fetch(mediaEndpoint, {
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        credentials: 'same-origin',
+      }));
+      return new Set<string>((Array.isArray(result?.assets) ? result.assets : [])
+        .map((asset: any) => String(asset?.asset_id || ''))
+        .filter((assetId: string) => /^[a-z0-9]{15}$/.test(assetId)));
+    }
+
+    async function uploadPendingContactMedia(created: Set<string>) {
+      if (!documentValue) throw new Error('promo_cms_unavailable');
+      const known = await knownMediaAssetIds();
+      if (pendingLogoFile) {
+        const assetId = await uploadContactMedia(pendingLogoFile, 'logo');
+        if (!known.has(assetId)) created.add(assetId);
+        documentValue.media_refs[logoUseKey] = { asset_id: assetId, purpose: 'logo' };
+        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+          const name = String(content?.identity?.name || '').trim();
+          content.media_alt[logoUseKey] = { alt: `Logo de ${name || 'el negocio'}`, decorative: false };
+        });
+      }
+      if (pendingQrFile) {
+        const assetId = await uploadContactMedia(pendingQrFile, 'qr');
+        if (!known.has(assetId)) created.add(assetId);
+        documentValue.media_refs[qrUseKey] = { asset_id: assetId, purpose: 'qr' };
+        Object.values(documentValue.content_by_locale).forEach((content: any) => {
+          const name = String(content?.identity?.name || '').trim();
+          content.media_alt[qrUseKey] = { alt: `Código QR de contacto de ${name || 'el negocio'}`, decorative: false };
+        });
+      }
+    }
+
     function render() {
       if (!form || !documentValue) return;
       if (scope === 'content') renderContent();
@@ -1204,11 +1318,15 @@ const isContent = scope === 'content';
     root.querySelector('[data-cms-reload]')?.addEventListener('click', loadDraft);
     const logoFileInput = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
     root.querySelector('[data-cms-choose-logo]')?.addEventListener('click', () => logoFileInput?.click());
-    logoFileInput?.addEventListener('change', () => uploadLogo(logoFileInput.files?.[0]));
+    logoFileInput?.addEventListener('change', () => {
+      void selectLogo(logoFileInput.files?.[0]).finally(() => { logoFileInput.value = ''; });
+    });
     root.querySelector('[data-cms-remove-logo]')?.addEventListener('click', removeLogo);
     const qrFileInput = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
     root.querySelector('[data-cms-choose-qr]')?.addEventListener('click', () => qrFileInput?.click());
-    qrFileInput?.addEventListener('change', () => uploadQr(qrFileInput.files?.[0]));
+    qrFileInput?.addEventListener('change', () => {
+      void selectQr(qrFileInput.files?.[0]).finally(() => { qrFileInput.value = ''; });
+    });
     root.querySelector('[data-cms-remove-qr]')?.addEventListener('click', removeQr);
 
     function bindContactMediaDrop(
@@ -1218,7 +1336,7 @@ const isContent = scope === 'content';
       const slot = root.querySelector<HTMLElement>(selector);
       if (!slot) return;
       slot.addEventListener('dragover', (event) => {
-        if (!canManageMedia || busy || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+        if (!canManageMedia || !canSave || busy || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
         event.preventDefault();
         slot.classList.add('is-dragover');
       });
@@ -1226,14 +1344,14 @@ const isContent = scope === 'content';
       slot.addEventListener('drop', (event) => {
         slot.classList.remove('is-dragover');
         const file = event.dataTransfer?.files?.[0];
-        if (!file || !canManageMedia || busy) return;
+        if (!file || !canManageMedia || !canSave || busy) return;
         event.preventDefault();
         upload(file);
       });
     }
 
-    bindContactMediaDrop('[data-cms-logo-slot]', uploadLogo);
-    bindContactMediaDrop('[data-cms-qr-slot]', uploadQr);
+    bindContactMediaDrop('[data-cms-logo-slot]', selectLogo);
+    bindContactMediaDrop('[data-cms-qr-slot]', selectQr);
     root.querySelector('[data-cms-add-contact]')?.addEventListener('click', () => {
       const list = root.querySelector<HTMLElement>('[data-cms-contact-actions]');
       if (!list || list.children.length >= 32) return;
@@ -1270,7 +1388,14 @@ const isContent = scope === 'content';
         status.classList.remove('is-success');
       }
       setBusy(true, 'Guardando…');
+      const previousAssetIds = documentAssetIds(documentValue);
+      const documentBeforeMedia = structuredClone(documentValue);
+      const createdAssetIds = new Set<string>();
       try {
+        if (scope === 'contact' && (pendingLogoFile || pendingQrFile)) {
+          if (!canManageMedia) throw Object.assign(new Error('promo_permission_denied'), { code: 'promo_permission_denied' });
+          await uploadPendingContactMedia(createdAssetIds);
+        }
         const nextDocument = contentPatch
           ? buildPromoCmsContentDocument(documentValue, contentPatch, maxServices)
           : buildPromoCmsContactDocument(documentValue, collectContactPatch());
@@ -1288,16 +1413,23 @@ const isContent = scope === 'content';
         version = draft.version;
         documentValue = workspace.document;
         locale = workspace.locale;
+        const currentAssetIds = documentAssetIds(workspace.document);
+        const replacedAssetIds = Array.from(previousAssetIds).filter((assetId) => !currentAssetIds.has(assetId));
+        const cleanupFailures = canManageMedia ? await deleteUnreferencedAssets(replacedAssetIds) : replacedAssetIds.length;
         render();
         if (status) {
           status.hidden = false;
           status.classList.add('is-success');
-          status.querySelector('span:last-child')!.textContent = result.changed === true
-            ? 'Página pública actualizada correctamente.'
+          status.querySelector('span:last-child')!.textContent = cleanupFailures
+            ? `Página pública actualizada. ${cleanupFailures} archivo(s) anterior(es) siguen protegidos porque aún no pudieron eliminarse.`
+            : result.changed === true
+              ? 'Página pública actualizada correctamente.'
             : 'No había cambios nuevos para guardar.';
         }
         window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'cms' } }));
       } catch (error) {
+        documentValue = documentBeforeMedia;
+        await deleteUnreferencedAssets(createdAssetIds);
         showError((error as { code?: string })?.code || 'promo_cms_unavailable');
       } finally {
         setBusy(false, '');
@@ -1308,6 +1440,11 @@ const isContent = scope === 'content';
       if (!dirty) return;
       event.preventDefault();
     });
+
+    window.addEventListener('pagehide', () => {
+      releaseObjectUrl(pendingLogoPreviewUrl);
+      releaseObjectUrl(pendingQrPreviewUrl);
+    }, { once: true });
 
     window.addEventListener('promo:document-updated', (event: Event) => {
       const source = (event as CustomEvent)?.detail?.source;

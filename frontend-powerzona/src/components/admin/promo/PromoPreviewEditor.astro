@@ -342,14 +342,6 @@ const { storeSlug, canPrepare } = Astro.props;
       const locale = element('span', 'pz-promo-site__locale', preview.locale.effective.toUpperCase());
       locale.setAttribute('aria-label', `${preview.system.messages['locale.current']}: ${preview.locale.effective}`);
       utilities.append(locale);
-      if (preview.adapters.landing_qr_link.enabled === true) {
-        const landingQr = element('span', 'pz-promo-site__landing-qr', preview.system.messages['landing_qr.open']);
-        landingQr.setAttribute(
-          'aria-label',
-          String(preview.system.messages['a11y.landing_qr_link']).replace('{business}', identityName),
-        );
-        utilities.append(landingQr);
-      }
       header.append(utilities);
       site.append(header);
 

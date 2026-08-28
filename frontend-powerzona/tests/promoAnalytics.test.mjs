@@ -81,7 +81,7 @@ test('instrumentación cuenta una visita diaria local sin identificar el navegad
   assert.match(layout, /navigator\.globalPrivacyControl === true/);
   assert.match(layout, /credentials: 'omit'/);
   assert.match(layout, /referrerPolicy: 'no-referrer'/);
-  assert.match(layout, /sendPromoEvent\('landing_qr_open'\)/);
+  assert.doesNotMatch(layout, /sendPromoEvent\('landing_qr_open'\)/);
   assert.match(layout, /dailyVisitStoragePrefix = 'pz_promo_daily_visit_v1:'/);
   assert.match(layout, /new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/);
   assert.match(layout, /window\.localStorage\.getItem\(storageKey\) === utcDay/);
@@ -91,7 +91,7 @@ test('instrumentación cuenta una visita diaria local sin identificar el navegad
   assert.match(middleware, /pathname === PROMO_CUSTOM_ANALYTICS_PATH/);
   assert.match(admin, /Visitantes diarios/);
   assert.match(admin, /Cada navegador cuenta una vez por tienda y día/);
-  assert.match(admin, /Aperturas Landing QR/);
+  assert.doesNotMatch(admin, /Aperturas Landing QR|landing_qr_opens/);
   const commerceClick = readFileSync(new URL('../src/pages/api/landing-qr/click.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(commerceClick, /promo\.analytics|landing_qr_open/);
 });

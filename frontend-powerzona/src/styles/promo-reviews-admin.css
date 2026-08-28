@@ -88,7 +88,7 @@
 .pz-promo-reviews-admin__request-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
 .pz-promo-reviews-admin__field.is-wide,
 .pz-promo-reviews-admin__request-form > button,
-.pz-promo-reviews-admin__photo-order.is-wide { grid-column: 1 / -1; }
+.pz-promo-reviews-admin__photo-uploader.is-wide { grid-column: 1 / -1; }
 .pz-promo-reviews-admin__field select,
 .pz-promo-reviews-admin__field input { width: 100%; border: 1px solid #d0d5dd; background: #fff; color: #101828; padding: .65rem .75rem; }
 .pz-promo-reviews-admin__field small { color: #667085; font-weight: 500; }
@@ -117,12 +117,14 @@
 .pz-promo-reviews-admin__request-card header span[data-status="revoked"] { background: #fff1f2; color: #991b1b; }
 .pz-promo-reviews-admin__request-card p { margin: 0; color: #667085; }
 .pz-promo-reviews-admin__request-card > button { width: fit-content; min-height: 36px; background: #fff; color: #b42318; padding: .45rem .7rem; }
+.pz-promo-reviews-admin__request-thumbnails { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pz-promo-reviews-admin__request-thumbnails img { width: 7.5rem; aspect-ratio: 4 / 3; border: 1px solid #e4e7ec; border-radius: 10px; background: #fff; object-fit: cover; }
 
 @media (max-width: 760px) {
   .pz-promo-reviews-admin__request-form { grid-template-columns: minmax(0, 1fr); }
   .pz-promo-reviews-admin__field.is-wide,
   .pz-promo-reviews-admin__request-form > button,
-  .pz-promo-reviews-admin__photo-order.is-wide { grid-column: auto; }
+  .pz-promo-reviews-admin__photo-uploader.is-wide { grid-column: auto; }
   .pz-promo-reviews-admin__photo-order { grid-template-columns: minmax(0, 1fr); }
   .pz-promo-reviews-admin__generated { grid-template-columns: minmax(0, 1fr); }
   .pz-promo-reviews-admin__generated-actions,

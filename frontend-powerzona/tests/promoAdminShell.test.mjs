@@ -53,11 +53,12 @@ test('catálogo del shell usa únicamente action keys Promo y rutas centrales po
     assert.ok(module.actions.every((action) => action.startsWith('promo.')));
   }
   assert.equal(getPromoAdminSectionPath(' Promo A ', 'overview'), '/t/promo-a/admin');
-  assert.equal(getPromoAdminSectionPath(' Promo A ', 'landing-qr'), '/t/promo-a/admin/promo/landing-qr');
   assert.equal(normalizePromoAdminSection(''), 'overview');
   assert.equal(normalizePromoAdminSection('promo/content'), 'content');
   assert.equal(normalizePromoAdminSection('promo/gallery'), 'gallery');
   assert.equal(PROMO_ADMIN_MODULES.some((module) => module.section === 'gallery'), true);
+  assert.equal(PROMO_ADMIN_MODULES.some((module) => module.section === 'landing-qr'), false);
+  assert.equal(normalizePromoAdminSection('promo/landing-qr'), null);
   assert.equal(normalizePromoAdminSection('orders'), null);
   assert.equal(normalizePromoAdminSection('promo/unknown'), null);
 });

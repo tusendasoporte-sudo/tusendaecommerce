@@ -121,8 +121,15 @@ test('Admin usa módulo Promo dedicado, permisos granulares y DOM seguro', () =>
   assert.match(component, /data-review-action/);
   assert.match(proxy, /promo\.reviews\.list\.v1/);
   assert.match(proxy, /promoCmsSameOriginMutation/);
-  assert.match(component, /purpose', 'review'/);
-  assert.match(component, /incoming\.length > 3/);
+  assert.match(component, /data-review-request-photo-slots/);
+  assert.match(component, /selectReviewPhoto[\s\S]*?optimizePromoUploadImageFile\(file, 'review'\)/);
+  assert.match(component, /for \(let index = 0; index < 3; index \+= 1\)/);
+  assert.match(component, /state\.textContent = error \? 'Error' : \(file \? 'Pendiente' : 'Disponible'\)/);
+  assert.match(component, /WebP comprimido y sin metadatos/);
+  assert.match(component, /data-reviews-save-config disabled/);
+  assert.match(component, /if \(!canConfigure \|\| !configDirty/);
+  assert.match(component, /window\.addEventListener\('beforeunload'[\s\S]*?!configDirty && !requestDirty/);
+  assert.match(component, /image\.src = mediaEndpoint\(assetId\)/);
   assert.match(requestProxy, /promo\.review-requests\.create\.v1/);
   assert.doesNotMatch(`${component}\n${proxy}\n${requestProxy}`, /\/orders|\/products|checkout|cart|innerHTML/);
 });

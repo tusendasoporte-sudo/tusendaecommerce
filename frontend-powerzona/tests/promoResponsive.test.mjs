@@ -8,7 +8,6 @@ function read(relativePath) {
 
 const shellStyles = read('../src/styles/promo-public-shell.css');
 const themeStyles = read('../src/styles/promo-black-gold.css');
-const qrStyles = read('../src/styles/promo-landing-qr.css');
 const heroStyles = read('../src/styles/promo-hero.css');
 const sectionStyles = read('../src/styles/promo-sections.css');
 const reviewStyles = read('../src/styles/promo-reviews.css');
@@ -21,7 +20,6 @@ const sectionMedia = read('../src/components/promo-public/PromoSectionMedia.astr
 test('RESP fija targets táctiles 44×44 y CTA de 54 px en todos los cortes móviles', () => {
   assert.match(themeStyles, /\.promo-shell-navigation a,[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.match(themeStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-shell-locales a \{ min-width: 44px; min-height: 44px;/);
-  assert.match(qrStyles, /\.promo-landing-qr-link[\s\S]*?min-height: 44px;/);
   assert.match(heroStyles, /\.promo-hero__arrow[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px;/);
   assert.doesNotMatch(heroStyles, /\.promo-hero__toggle/);
   assert.doesNotMatch(heroStyles, /min-(?:width|height): 36px/);
@@ -30,12 +28,10 @@ test('RESP fija targets táctiles 44×44 y CTA de 54 px en todos los cortes móv
   assert.match(footerStyles, /min-height: 44px/);
 });
 
-test('RESP conserva cabecera de tres filas, QR icon-only estrecho y navegación confinada', () => {
+test('RESP conserva cabecera sin Landing QR y navegación confinada', () => {
   assert.ok(theme.indexOf('promo-shell-brand') < theme.indexOf('promo-shell-navigation'));
   assert.ok(theme.indexOf('promo-shell-navigation') < theme.indexOf('promo-shell-locales'));
-  assert.ok(theme.indexOf('promo-shell-locales') < theme.indexOf('<PromoLandingQrLink'));
-  assert.match(qrStyles, /@media \(max-width: 720px\)[\s\S]*?grid-row: 2;[\s\S]*?\.promo-shell-navigation[\s\S]*?grid-row: 3;/);
-  assert.match(qrStyles, /@media \(max-width: 340px\)[\s\S]*?\.promo-landing-qr-link__label[\s\S]*?clip-path: inset\(50%\)/);
+  assert.doesNotMatch(theme, /PromoLandingQrLink|landing_qr_link/);
   assert.match(themeStyles, /\.promo-shell-navigation[\s\S]*?overscroll-behavior-inline: contain/);
   assert.match(themeStyles, /\.promo-shell-navigation[\s\S]*?overflow-x: auto/);
 });

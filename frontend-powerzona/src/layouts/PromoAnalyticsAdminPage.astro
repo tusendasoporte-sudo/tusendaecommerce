@@ -42,7 +42,6 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
           <article><span>Visitantes diarios</span><strong data-promo-metric="page_views">0</strong></article>
           <article><span>Secciones vistas</span><strong data-promo-metric="section_views">0</strong></article>
           <article><span>Contactos activados</span><strong data-promo-metric="contact_activations">0</strong></article>
-          <article><span>Aperturas Landing QR</span><strong data-promo-metric="landing_qr_opens">0</strong></article>
         </div>
         <div class="pz-promo-analytics__details">
           <section aria-labelledby="promo-analytics-sections"><h2 id="promo-analytics-sections">Secciones principales</h2><ol data-promo-analytics-list="sections"></ol></section>
@@ -97,7 +96,7 @@ const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeNa
           });
           const result = await response.json();
           if (!response.ok || result?.contract !== 'promo.analytics.summary.v1') throw new Error('unavailable');
-          ['page_views', 'section_views', 'contact_activations', 'landing_qr_opens'].forEach((key) => {
+          ['page_views', 'section_views', 'contact_activations'].forEach((key) => {
             const element = analyticsRoot.querySelector(`[data-promo-metric="${key}"]`);
             if (element instanceof HTMLElement) element.textContent = formatter.format(Number(result.totals?.[key]) || 0);
           });

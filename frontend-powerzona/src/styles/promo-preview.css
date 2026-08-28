@@ -321,7 +321,6 @@
 .pz-promo-site__nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; color: var(--promo-site-muted); font-size: 13px; font-weight: 750; }
 .pz-promo-site__utilities { align-items: center; display: flex; gap: 8px; justify-content: flex-end; }
 .pz-promo-site__locale { border: 1px solid var(--promo-site-border); border-radius: 999px; padding: 7px 10px; color: var(--promo-site-accent); font-size: 11px; font-weight: 900; }
-.pz-promo-site__landing-qr { border: 1px solid var(--promo-site-border); border-radius: var(--promo-site-radius); color: var(--promo-site-text); font-size: 11px; font-weight: 800; padding: 9px 11px; text-transform: uppercase; }
 
 .pz-promo-site__main { display: grid; }
 .pz-promo-site__section {

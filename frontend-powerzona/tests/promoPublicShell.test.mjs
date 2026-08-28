@@ -485,37 +485,24 @@ test('FOOTER acepta solo enlaces compilados, redes tipadas y branding reservado'
   assert.throws(() => normalizePromoPublicShellResponse(commerce), PromoPublicShellError);
 });
 
-test('Landing QR acepta solo el acceso central compilado, localizado y separado del CTA', () => {
+test('Landing QR Promo conserva solo el contrato legado deshabilitado', () => {
   const envelope = shellEnvelope();
-  Object.assign(envelope.profile.system.messages, {
-    'landing_qr.open': 'Más enlaces',
-    'a11y.landing_qr_link': 'Abrir la página de enlaces de {business}',
-  });
-  envelope.profile.adapters.landing_qr_link.enabled = true;
-  envelope.profile.landing_qr_link = {
-    contract: 'promo.landing-qr-link.v1', enabled: true,
-    link: {
-      label: 'Más enlaces',
-      aria_label: 'Abrir la página de enlaces de Negocio demo',
-      href: 'https://tusenda84.com/t/aladdins-carpet/links',
-    },
-  };
   const normalized = normalizePromoPublicShellResponse(envelope);
-  assert.deepEqual(normalized.profile.landing_qr_link, envelope.profile.landing_qr_link);
+  assert.deepEqual(normalized.profile.landing_qr_link, {
+    contract: 'promo.landing-qr-link.v1', enabled: false, link: null,
+  });
   assert.equal(normalized.profile.contact_action.available, false);
 
-  const custom = structuredClone(envelope);
-  custom.profile.landing_qr_link.link.href = 'https://tenant.example/links';
-  assert.throws(() => normalizePromoPublicShellResponse(custom), PromoPublicShellError);
-  const query = structuredClone(envelope);
-  query.profile.landing_qr_link.link.href += '?store=other';
-  assert.throws(() => normalizePromoPublicShellResponse(query), PromoPublicShellError);
-  const mixedLocale = structuredClone(envelope);
-  mixedLocale.profile.landing_qr_link.link.label = 'More links';
-  assert.throws(() => normalizePromoPublicShellResponse(mixedLocale), PromoPublicShellError);
-  const unapproved = structuredClone(envelope);
-  unapproved.profile.adapters.landing_qr_link.enabled = false;
-  assert.throws(() => normalizePromoPublicShellResponse(unapproved), PromoPublicShellError);
+  const legacyEnabled = structuredClone(envelope);
+  legacyEnabled.profile.adapters.landing_qr_link.enabled = true;
+  legacyEnabled.profile.landing_qr_link = {
+    contract: 'promo.landing-qr-link.v1', enabled: true,
+    link: { label: 'Más enlaces', aria_label: 'Más enlaces', href: 'https://tusenda84.com/t/aladdins-carpet/links' },
+  };
+  assert.throws(() => normalizePromoPublicShellResponse(legacyEnabled), PromoPublicShellError);
+  const hiddenLink = structuredClone(envelope);
+  hiddenLink.profile.landing_qr_link.link = { href: 'https://tusenda84.com/t/aladdins-carpet/links' };
+  assert.throws(() => normalizePromoPublicShellResponse(hiddenLink), PromoPublicShellError);
 });
 
 test('CONTACT acepta un QR propio únicamente como imagen normalizada 512 por 512', () => {
@@ -753,7 +740,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   assert.doesNotMatch(commerce, /storeSlug[^\n]*toLowerCase/);
 });
 
-test('renderer ALADDIN aplica la release negra/dorada y delega contacto y QR a renderers focales', () => {
+test('renderer ALADDIN aplica la release negra/dorada y delega contacto sin Landing QR Promo', () => {
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const contact = read('../src/components/promo-public/PromoContact.astro');
@@ -768,7 +755,7 @@ test('renderer ALADDIN aplica la release negra/dorada y delega contacto y QR a r
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
   assert.match(theme, /<PromoContact/);
-  assert.match(theme, /<PromoLandingQrLink/);
+  assert.doesNotMatch(theme, /PromoLandingQrLink|landing_qr_link/);
   assert.match(contact, /data-contact-available/);
   assert.match(contact, /profile\.contact\.qr_media_use_key/);
   assert.match(contact, /localized\.consultation_heading/);
@@ -794,7 +781,6 @@ test('FOOTER renderiza datos localizados, navegación, redes y marca Master sin 
     read('../src/styles/promo-sections.css'),
     read('../src/styles/promo-reviews.css'),
     read('../src/styles/promo-contact.css'),
-    read('../src/styles/promo-landing-qr.css'),
     styles,
   ].join('\n');
   assert.match(theme, /<PromoFooter/);
@@ -812,7 +798,7 @@ test('FOOTER renderiza datos localizados, navegación, redes y marca Master sin 
   assert.match(cmsLib, /social_profiles/);
   assert.doesNotMatch(`${footer}\n${styles}`, /<script|onclick|addEventListener|innerHTML|set:html|target="_blank"/i);
   assert.doesNotMatch(styles, /url\(|@import|https?:/i);
-  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 68 * 1024,
+  assert.ok(Buffer.byteLength(allThemeStyles.replace(/\r\n/g, '\n'), 'utf8') <= 68 * 1024,
     'CSS público combinado Promo excede el budget transitorio de 68 KiB');
 });
 

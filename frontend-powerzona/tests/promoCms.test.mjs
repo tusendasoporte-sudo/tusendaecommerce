@@ -452,13 +452,14 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(editor, /aria-live="polite"/);
   assert.match(editor, /reportValidity\(\)/);
   assert.equal((editor.match(/data-cms-contact-panel=/g) || []).length, 4);
-  assert.match(editor, /data-cms-logo-file[\s\S]*?purpose', 'logo'/);
+  assert.match(editor, /async function selectLogo[\s\S]*?optimizePromoUploadImageFile\(file, 'logo'\)[\s\S]*?pendingLogoFile = prepared/);
+  assert.match(editor, /async function selectQr[\s\S]*?optimizePromoUploadImageFile\(file, 'qr'\)[\s\S]*?pendingQrFile = prepared/);
   assert.match(editor, /<summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">/);
   assert.match(editor, /data-cms-logo-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-logo[\s\S]*?data-cms-remove-logo/);
   assert.match(editor, /data-cms-qr-slot[\s\S]*?Arrastra una imagen aquí[\s\S]*?data-cms-choose-qr[\s\S]*?data-cms-remove-qr/);
   assert.match(editor, /bindContactMediaDrop\('\[data-cms-logo-slot\]'[\s\S]*?bindContactMediaDrop\('\[data-cms-qr-slot\]'/);
-  assert.match(editor, /data-cms-logo-count[\s\S]*?se adapta automáticamente a 1024×512 px · formato horizontal y sin recorte/);
-  assert.match(editor, /data-cms-qr-count[\s\S]*?se adapta automáticamente a 512×512 px · fondo blanco y sin recorte/);
+  assert.match(editor, /data-cms-logo-count[\s\S]*?WebP 511×256, sin recorte ni metadatos al guardar/);
+  assert.match(editor, /data-cms-qr-count[\s\S]*?WebP 512×512, fondo blanco, sin recorte ni metadatos/);
   assert.match(editor, /addEventListener\('invalid'[\s\S]*?accordion\.open = true/);
   assert.match(editor, /Subir/);
   assert.match(editor, /Bajar/);
@@ -472,6 +473,9 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(shell, /section === 'content' \|\| section === 'contact'/);
   assert.match(shell, /<PromoCmsEditor/);
   assert.match(editor, /\/api\/admin\/promo-media/);
-  assert.match(editor, /purpose: 'qr'/);
+  assert.match(editor, /uploadPendingContactMedia[\s\S]*?uploadContactMedia\(pendingLogoFile, 'logo'\)[\s\S]*?uploadContactMedia\(pendingQrFile, 'qr'\)/);
+  assert.match(editor, /expected_version: version[\s\S]*?deleteUnreferencedAssets\(replacedAssetIds\)/);
+  assert.match(editor, /window\.addEventListener\('beforeunload'[\s\S]*?if \(!dirty\) return/);
+  assert.doesNotMatch(editor, /async function uploadLogo|async function uploadQr/);
   assert.doesNotMatch(editor, /themes\/catalog|publication|Cloudflare|Coolify/);
 });

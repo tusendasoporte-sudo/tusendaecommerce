@@ -27,7 +27,6 @@ const sections = read('../src/components/promo-public/PromoSections.astro');
 const reviews = read('../src/components/promo-public/PromoReviews.astro');
 const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
 const footer = read('../src/components/promo-public/PromoFooter.astro');
-const qr = read('../src/components/promo-public/PromoLandingQrLink.astro');
 const heroCarousel = read('../src/lib/promoHeroCarousel.ts');
 const shellStyles = read('../src/styles/promo-public-shell.css');
 const themeStyles = read('../src/styles/promo-black-gold.css');
@@ -36,11 +35,10 @@ const sectionStyles = read('../src/styles/promo-sections.css');
 const reviewStyles = read('../src/styles/promo-reviews.css');
 const contactStyles = read('../src/styles/promo-contact.css');
 const footerStyles = read('../src/styles/promo-footer.css');
-const qrStyles = read('../src/styles/promo-landing-qr.css');
-const components = [theme, hero, sectionMedia, sections, reviews, contactAction, footer, qr].join('\n');
+const components = [theme, hero, sectionMedia, sections, reviews, contactAction, footer].join('\n');
 const publicStyles = [
   shellStyles, themeStyles, heroStyles, sectionStyles, reviewStyles,
-  contactStyles, footerStyles, qrStyles,
+  contactStyles, footerStyles,
 ].join('\n');
 
 test('A11Y conserva documento adaptable, landmarks, skip link y jerarquía de encabezados', () => {
@@ -65,7 +63,6 @@ test('A11Y materializa nombres, estados y alternativas de media sin semántica A
   assert.match(theme, /aria-current=\{option\.active \? 'page'/);
   assert.match(contactAction, /href=\{action\.href\}[\s\S]*?aria-label=\{action\.aria_label\}/);
   assert.match(contactAction, /role="status"/);
-  assert.match(qr, /aria-label=\{link\.aria_label\}/);
   assert.match(footer, /aria-label=\{footer\.navigation_label\}/);
   assert.match(footer, /aria-label=\{footer\.social_label\}/);
   assert.match(reviews, /role="group"[\s\S]*?reviews\.average/);
@@ -124,7 +121,6 @@ test('A11Y preserva targets táctiles, reflow, zoom de texto, RTL y strings larg
   assert.match(heroStyles, /\.promo-hero__arrow[\s\S]*?min-width: 44px;[\s\S]*?min-height: 44px/);
   assert.match(contactStyles, /\.promo-contact-action[\s\S]*?min-height: 54px/);
   assert.match(footerStyles, /min-height: 44px/);
-  assert.match(qrStyles, /min-height: 44px/);
   assert.match(themeStyles, /overflow-wrap: anywhere/);
   assert.match(footerStyles, /overflow-wrap: anywhere/);
   assert.match(contactStyles, /overflow-wrap: anywhere/);
@@ -139,9 +135,8 @@ test('A11Y respeta movimiento reducido por sistema y por token sin tocar video o
   assert.match(contactStyles, /data-promo-token-motion="reduced"[\s\S]*?transition: none/);
   assert.match(reviewStyles, /data-promo-token-motion="reduced"[\s\S]*?scroll-behavior: auto/);
   assert.match(footerStyles, /data-promo-token-motion="reduced"[\s\S]*?transition: none/);
-  assert.match(qrStyles, /data-promo-token-motion="reduced"[\s\S]*?transition: none/);
   assert.match(layout, /requestIdleCallback/);
-  assert.match(layout, /landing_qr_open/);
+  assert.doesNotMatch(layout, /landing_qr_open/);
   assert.match(layout, /credentials: 'omit'/);
   assert.match(heroCarousel, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
   assert.match(heroCarousel, /dataset\.promoTokenMotion === 'reduced'/);

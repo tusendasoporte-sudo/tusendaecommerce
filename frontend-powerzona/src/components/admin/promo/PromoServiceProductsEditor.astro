@@ -31,7 +31,7 @@ const {
       <h2 id="promo-products-title">Galería y productos</h2>
       <p>Administra el carrusel, la foto del propietario, cada servicio, sus productos y los trabajos realizados.</p>
     </div>
-    <span class="pz-promo-gallery__draft-badge">Guardado directo · página pública</span>
+    <span class="pz-promo-gallery__draft-badge">Cambios pendientes · guardado explícito</span>
   </header>
 
   <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de imágenes">
@@ -68,7 +68,7 @@ const {
 
     <footer class="pz-promo-gallery__savebar">
       <span data-products-version>Versión de página: —</span>
-      <button type="submit" data-products-save disabled>Guardar contenido visual</button>
+      <button type="submit" data-products-save disabled>Guardar cambios</button>
     </footer>
   </form>
 </section>
@@ -91,12 +91,21 @@ const {
 
   type Catalog = ReturnType<typeof normalizePromoGalleryCatalog>;
   type Draft = ReturnType<typeof normalizePromoGalleryDraft>;
-  type MediaModel = { useKey: string; assetId: string; alt: string; decorative: boolean };
+  type MediaModel = {
+    useKey: string;
+    assetId: string;
+    alt: string;
+    decorative: boolean;
+    pendingFile?: File;
+    pendingPurpose?: ImagePurpose;
+    previewUrl?: string;
+  };
   type ImagePurpose = 'hero' | 'gallery' | 'owner';
   type MediaSlotOptions = {
     maximum: number;
     purpose: ImagePurpose;
     label: string;
+    slotKey: string;
     decorativeBackground?: boolean;
     onChange?: () => void;
   };
@@ -142,6 +151,7 @@ const {
     let preservedGalleries: GalleryModel[] = [];
     let dirty = false;
     let busy = false;
+    const slotMessages = new Map<string, { tone: 'pending' | 'error'; message: string }>();
 
     const endpoint = (path: string) => `${path}?store=${encodeURIComponent(storeSlug)}`;
     const text = (value: unknown) => String(value === null || value === undefined ? '' : value);
@@ -176,6 +186,34 @@ const {
       dirty = true;
       if (saveButton) saveButton.disabled = busy || !canSave;
       setStatus(`${message} Guardar actualizará la página pública.`);
+    }
+
+    function documentAssetIds(documentValue: any) {
+      return new Set<string>(Object.values(documentValue?.media_refs || {})
+        .map((reference: any) => text(reference?.asset_id))
+        .filter((assetId) => /^[a-z0-9]{15}$/.test(assetId)));
+    }
+
+    function allMediaModels() {
+      return [
+        ...heroMedia,
+        ...(ownerMedia ? [ownerMedia] : []),
+        ...workGallery.items.flatMap((item) => item.media),
+        ...services.flatMap((service) => [
+          ...(service.cover ? [service.cover] : []),
+          ...service.items.flatMap((item) => item.media),
+        ]),
+      ];
+    }
+
+    function revokePreview(media: MediaModel | null | undefined) {
+      if (!media?.previewUrl) return;
+      URL.revokeObjectURL(media.previewUrl);
+      delete media.previewUrl;
+    }
+
+    function revokePendingPreviews() {
+      allMediaModels().forEach(revokePreview);
     }
 
     async function requestJson(url: string, init?: RequestInit) {
@@ -289,6 +327,13 @@ const {
 
     function preview(media: MediaModel) {
       const frame = element('div', 'pz-promo-gallery__item-preview');
+      if (media.previewUrl) {
+        const image = document.createElement('img');
+        image.src = media.previewUrl;
+        image.alt = '';
+        frame.append(image);
+        return frame;
+      }
       const asset = assetById(media.assetId);
       const src = promoGalleryPreviewPath(storeSlug, media.assetId);
       if (!asset || !src) return frame;
@@ -312,7 +357,6 @@ const {
       const result = await requestJson(endpoint(PROMO_GALLERY_MEDIA_API_PATH), { method: 'POST', body: payload });
       const assetId = text(result?.asset?.asset_id);
       if (!/^[a-z0-9]{15}$/.test(assetId)) throw Object.assign(new Error('promo_media_unavailable'), { code: 'promo_media_unavailable' });
-      await loadCatalog();
       return assetId;
     }
 
@@ -357,17 +401,10 @@ const {
       }
     }
 
-    function saveMediaChanges() {
-      queueMicrotask(() => {
-        if (!busy && dirty && canSave) form?.requestSubmit();
-      });
-    }
-
     function slotChanged(options: MediaSlotOptions, message = 'Medios actualizados.') {
       options.onChange?.();
       markDirty(message);
       render();
-      saveMediaChanges();
     }
 
     async function setImageAt(
@@ -376,32 +413,42 @@ const {
       index: number,
       options: MediaSlotOptions,
     ) {
-      if (!file || !canManageMedia || busy || index > target.length || index >= options.maximum) return;
-      clearError(); busy = true; render(); setStatus('Validando y subiendo imagen…');
-      let shouldSave = false;
+      if (!file || !canManageMedia || !canSave || busy || index > target.length || index >= options.maximum) return;
+      const stateKey = `${options.slotKey}:${index}`;
+      clearError();
+      slotMessages.set(stateKey, { tone: 'pending', message: 'Optimizando localmente…' });
+      busy = true;
+      render();
+      setStatus('Validando y optimizando imagen en este dispositivo…');
       try {
         await validateImageSource(file, options.purpose);
         const preparedFile = await prepareImageUpload(file, options.purpose);
-        const assetId = await uploadAsset(preparedFile, options.purpose);
+        const previous = target[index];
         const media = {
-          useKey: newKey(`${options.purpose}-media`, 120),
-          assetId,
-          alt: '',
+          useKey: previous?.useKey || newKey(`${options.purpose}-media`, 120),
+          assetId: '',
+          alt: options.decorativeBackground === true ? '' : (previous?.alt || `Imagen de ${options.label}`),
           decorative: options.decorativeBackground === true,
+          pendingFile: preparedFile,
+          pendingPurpose: options.purpose,
+          previewUrl: URL.createObjectURL(preparedFile),
         };
-        if (index < target.length) target[index] = media;
+        if (index < target.length) {
+          revokePreview(previous);
+          target[index] = media;
+        }
         else target.push(media);
         options.onChange?.();
-        markDirty('Imagen lista.');
-        shouldSave = true;
+        slotMessages.set(stateKey, { tone: 'pending', message: 'Lista para guardar.' });
+        markDirty('Imagen preparada localmente.');
       } catch (error) {
+        slotMessages.set(stateKey, { tone: 'error', message: promoGalleryErrorMessage((error as any)?.code || (error as any)?.message) });
         showError(error);
-        setStatus('No se pudo subir la imagen. Revisa formato y dimensiones.');
+        setStatus('No se pudo preparar la imagen. Revisa formato y dimensiones.');
       } finally {
         busy = false;
         render();
       }
-      if (shouldSave) saveMediaChanges();
     }
 
     function renderMediaSlots(target: MediaModel[], options: MediaSlotOptions) {
@@ -417,7 +464,11 @@ const {
       for (let index = 0; index < options.maximum; index += 1) {
         const media = target[index];
         const asset = media ? assetById(media.assetId) : null;
+        const stateKey = `${options.slotKey}:${index}`;
+        const slotMessage = slotMessages.get(stateKey);
         const slot = element('article', `pz-promo-media-slot${media ? ' is-filled' : ' is-empty'}`);
+        slot.classList.toggle('is-error', slotMessage?.tone === 'error');
+        slot.classList.toggle('is-pending', Boolean(media?.pendingFile));
         slot.dataset.purpose = options.purpose;
         slot.dataset.mediaSlot = String(index);
         slot.draggable = Boolean(media && canSave && !busy && !decorativeBackground);
@@ -425,7 +476,9 @@ const {
         const slotHeading = element('div', 'pz-promo-media-slot__heading');
         slotHeading.append(
           element('strong', '', `Espacio ${index + 1}`),
-          element('span', '', media ? (asset?.kind === 'video' ? 'Video' : 'Imagen') : 'Disponible'),
+          element('span', '', slotMessage?.tone === 'error'
+            ? 'Error'
+            : (media?.pendingFile ? 'Pendiente' : (media ? 'Guardada' : 'Disponible'))),
         );
         slot.append(slotHeading);
 
@@ -433,7 +486,7 @@ const {
         imageInput.type = 'file';
         imageInput.accept = IMAGE_ACCEPT;
         imageInput.className = 'pz-promo-media-slot__input';
-        imageInput.disabled = busy || !canManageMedia;
+        imageInput.disabled = busy || !canManageMedia || !canSave;
         imageInput.setAttribute('aria-label', `${media ? 'Cambiar' : 'Agregar'} imagen en ${options.label}, espacio ${index + 1}`);
         imageInput.addEventListener('change', () => setImageAt(imageInput.files?.[0], target, index, options));
 
@@ -470,7 +523,7 @@ const {
 
         const actions = element('div', 'pz-promo-media-slot__actions');
         const choose = element('button', 'pz-promo-gallery__secondary', media ? 'Cambiar imagen' : 'Elegir imagen');
-        choose.type = 'button'; choose.disabled = busy || !canManageMedia;
+        choose.type = 'button'; choose.disabled = busy || !canManageMedia || !canSave;
         choose.addEventListener('click', () => imageInput.click());
         actions.append(choose, imageInput);
 
@@ -491,16 +544,23 @@ const {
             actions.append(up, down);
           }
           const remove = element('button', 'is-danger', 'Quitar');
-          remove.type = 'button'; remove.disabled = !canSave || busy;
+          remove.type = 'button'; remove.disabled = !canSave || !canManageMedia || busy;
           remove.addEventListener('click', () => {
+            revokePreview(target[index]);
             target.splice(index, 1);
+            Array.from(slotMessages.keys()).filter((key) => key.startsWith(`${options.slotKey}:`))
+              .forEach((key) => slotMessages.delete(key));
             slotChanged(options);
           });
           actions.append(remove);
         }
         slot.append(actions);
 
-        slot.append(element('small', 'pz-promo-media-slot__guidance', IMAGE_GUIDANCE[options.purpose]));
+        slot.append(element(
+          'small',
+          `pz-promo-media-slot__guidance${slotMessage?.tone === 'error' ? ' is-error' : ''}`,
+          slotMessage?.message || `${IMAGE_GUIDANCE[options.purpose]} · WebP optimizado, comprimido y sin metadatos al guardar`,
+        ));
 
         slot.addEventListener('dragstart', (event) => {
           if (decorativeBackground || !media || !event.dataTransfer) return;
@@ -508,8 +568,9 @@ const {
           event.dataTransfer.setData(SLOT_REORDER_TYPE, String(index));
         });
         slot.addEventListener('dragover', (event) => {
-          if (busy || (!canManageMedia && !canSave)) return;
+          if (busy || !canSave) return;
           const types = Array.from(event.dataTransfer?.types || []);
+          if (types.includes('Files') && !canManageMedia) return;
           if (!types.includes('Files') && (decorativeBackground || !types.includes(SLOT_REORDER_TYPE))) return;
           event.preventDefault();
           slot.classList.add('is-dragover');
@@ -566,6 +627,7 @@ const {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: product.name || `Producto ${index + 1}`,
+        slotKey: `product-${service.key}-${product.key}`,
         onChange: () => {
           if (!product.media.length) { product.visible = false; product.featured = false; }
         },
@@ -573,7 +635,12 @@ const {
       const actions = element('div', 'pz-promo-gallery__work-actions');
       actions.append(element('span', 'pz-promo-products__quote-note', 'El botón «Cotizar» se añade automáticamente con el contacto principal.'));
       const remove = element('button', 'is-danger', 'Eliminar producto'); remove.type = 'button'; remove.disabled = !canSave;
-      remove.addEventListener('click', () => { service.items.splice(index, 1); markDirty(); render(); });
+      remove.addEventListener('click', () => {
+        product.media.forEach(revokePreview);
+        service.items.splice(index, 1);
+        markDirty();
+        render();
+      });
       actions.append(remove); card.append(actions);
       return card;
     }
@@ -591,6 +658,7 @@ const {
         maximum: 1,
         purpose: 'owner',
         label: 'Foto del propietario',
+        slotKey: 'owner',
         onChange: () => { ownerMedia = holder[0] || null; },
       }));
       details.append(body);
@@ -627,6 +695,7 @@ const {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: workItem.name || `Trabajo ${index + 1}`,
+        slotKey: `work-${workItem.key}`,
         onChange: () => {
           if (!workItem.media.length) { workItem.visible = false; workItem.featured = false; }
         },
@@ -634,7 +703,12 @@ const {
       const actions = element('div', 'pz-promo-gallery__work-actions');
       actions.append(element('span', 'pz-promo-products__quote-note', 'Puede incluir hasta 3 fotos. Los destacados se administran en la sección independiente.'));
       const remove = element('button', 'is-danger', 'Eliminar trabajo'); remove.type = 'button'; remove.disabled = !canSave;
-      remove.addEventListener('click', () => { workGallery.items.splice(index, 1); markDirty(); render(); });
+      remove.addEventListener('click', () => {
+        workItem.media.forEach(revokePreview);
+        workGallery.items.splice(index, 1);
+        markDirty();
+        render();
+      });
       actions.append(remove); card.append(actions);
       return card;
     }
@@ -725,6 +799,7 @@ const {
         maximum: 1,
         purpose: 'gallery',
         label: `Portada de ${service.serviceName}`,
+        slotKey: `service-${service.serviceKey}`,
         onChange: () => {
           service.cover = holder[0] || null;
           service.coverIndependent = Boolean(service.cover);
@@ -771,6 +846,7 @@ const {
           maximum: PROMO_HERO_MAX_MEDIA,
           purpose: 'hero',
           label: 'Imágenes de portada',
+          slotKey: 'hero',
           decorativeBackground: true,
         }));
       }
@@ -806,6 +882,34 @@ const {
         : common;
     }
 
+    async function deleteUnreferencedAssets(assetIds: Iterable<string>) {
+      let failures = 0;
+      for (const assetId of new Set(assetIds)) {
+        if (!/^[a-z0-9]{15}$/.test(assetId)) continue;
+        try {
+          await requestJson(endpoint('/api/admin/promo-media-delete'), {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ asset_id: assetId }),
+          });
+        } catch (_) {
+          failures += 1;
+        }
+      }
+      return failures;
+    }
+
+    async function uploadPendingImages(state: { pending: MediaModel[]; createdAssetIds: Set<string> }) {
+      const { pending, createdAssetIds } = state;
+      const knownAssetIds = new Set(catalog?.assets.map((asset) => asset.assetId) || []);
+      for (const media of pending) {
+        const assetId = await uploadAsset(media.pendingFile!, media.pendingPurpose!);
+        media.assetId = assetId;
+        if (!knownAssetIds.has(assetId)) createdAssetIds.add(assetId);
+      }
+      if (pending.length) await loadCatalog();
+    }
+
     async function loadAll() {
       clearError(); busy = true; render(); setStatus('Cargando contenido y medios…');
       try {
@@ -817,6 +921,7 @@ const {
         const workspace = createPromoGalleryWorkspace(draft.document);
         draft = { version: draft.version, document: workspace.document };
         locale = workspace.locale;
+        revokePendingPreviews();
         modelFromDocument(workspace.document);
         dirty = false;
         if (form) form.hidden = false;
@@ -829,8 +934,14 @@ const {
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!draft || !catalog || !canSave || busy || !form.reportValidity()) return;
-      clearError(); busy = true; render(); setStatus('Validando y actualizando la página pública…');
+      clearError(); busy = true; render(); setStatus('Optimizando medios y validando el guardado seguro…');
+      const previousAssetIds = documentAssetIds(draft.document);
+      const pendingUpload = {
+        pending: allMediaModels().filter((media) => media.pendingFile && media.pendingPurpose),
+        createdAssetIds: new Set<string>(),
+      };
       try {
+        await uploadPendingImages(pendingUpload);
         const linkedGalleries = services.map((service) => galleryPatch({
           ...service,
           visible: true,
@@ -874,17 +985,41 @@ const {
         draft = normalizePromoGalleryDraft({ ok: result.ok, contract: result.contract, draft: result.draft });
         const workspace = createPromoGalleryWorkspace(draft.document);
         draft = { version: draft.version, document: workspace.document };
-        locale = workspace.locale; modelFromDocument(workspace.document); dirty = false;
-        setStatus(`Contenido visual actualizado · versión ${draft.version}.`);
+        const currentAssetIds = documentAssetIds(workspace.document);
+        const replacedAssetIds = Array.from(previousAssetIds).filter((assetId) => !currentAssetIds.has(assetId));
+        const cleanupFailures = canManageMedia ? await deleteUnreferencedAssets(replacedAssetIds) : replacedAssetIds.length;
+        revokePendingPreviews();
+        locale = workspace.locale;
+        modelFromDocument(workspace.document);
+        slotMessages.clear();
+        dirty = false;
+        setStatus(cleanupFailures
+          ? `Contenido visual actualizado · versión ${draft.version}. ${cleanupFailures} archivo(s) reemplazado(s) quedaron protegidos porque aún no pudieron eliminarse.`
+          : `Contenido visual actualizado · versión ${draft.version}.`);
         window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'products' } }));
-      } catch (error) { showError(error); setStatus('No se guardaron los cambios.'); }
+      } catch (error) {
+        if (pendingUpload.pending.length) {
+          pendingUpload.pending.forEach((media) => { media.assetId = ''; });
+          await deleteUnreferencedAssets(pendingUpload.createdAssetIds);
+          await loadCatalog().catch(() => undefined);
+        }
+        showError(error);
+        setStatus('No se guardaron cambios en la página pública. Las imágenes continúan pendientes para reintentar.');
+      }
       finally { busy = false; render(); }
     });
 
     window.addEventListener('promo:document-updated', (event: Event) => {
       const source = (event as CustomEvent)?.detail?.source;
-      if (source === 'cms') loadAll();
+      if (source === 'cms' && !dirty) loadAll();
     });
+
+    window.addEventListener('beforeunload', (event) => {
+      if (!dirty) return;
+      event.preventDefault();
+    });
+
+    window.addEventListener('pagehide', () => revokePendingPreviews(), { once: true });
 
     loadAll();
   });

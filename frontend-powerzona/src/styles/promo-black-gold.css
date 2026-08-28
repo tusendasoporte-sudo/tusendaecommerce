@@ -248,6 +248,12 @@ body[data-promo-theme-renderer="promo.vibrant"] .promo-hero__brand img {
   min-width: 0;
 }
 
+.promo-shell-utilities {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .promo-shell-navigation {
   overscroll-behavior-inline: contain;
   scroll-padding-inline: 1rem;

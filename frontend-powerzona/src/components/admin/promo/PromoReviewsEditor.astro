@@ -1,5 +1,6 @@
 ---
 import '../../../styles/promo-reviews-admin.css';
+import '../../../styles/promo-gallery.css';
 
 interface Props {
   storeSlug: string;
@@ -49,7 +50,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       <span>Título en el idioma principal</span>
       <input type="text" maxlength="160" data-reviews-heading disabled={!canConfigure} />
     </label>
-    <button type="button" data-reviews-save-config disabled={!canConfigure}>Guardar y actualizar página</button>
+    <button type="button" data-reviews-save-config disabled>Guardar cambios</button>
     {!canConfigure && (
       <p class="pz-promo-reviews-admin__permission-note" role="note">
         Para cambiar la presentación se requieren `promo.content.manage` y `promo.reviews.manage`.
@@ -69,8 +70,13 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
         <label class="pz-promo-reviews-admin__field"><span>Nombre o referencia del cliente (opcional)</span><input data-review-request-customer type="text" maxlength="120" /></label>
         <label class="pz-promo-reviews-admin__field is-wide"><span>Descripción privada del trabajo (opcional)</span><input data-review-request-work type="text" maxlength="240" placeholder="Ej.: Limpieza de alfombra de sala" /></label>
         <label class="pz-promo-reviews-admin__field"><span>Vigencia</span><select data-review-request-expiry><option value="7">7 días</option><option value="14">14 días</option><option value="30" selected>30 días</option></select></label>
-        <label class="pz-promo-reviews-admin__field is-wide"><span>Fotos del trabajo (opcional, máximo 3)</span><input data-review-request-files type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={!canManageMedia || !canModerate} /><small>Se convierten a WebP, sin metadatos ni nombre original.</small></label>
-        <div class="pz-promo-reviews-admin__photo-order is-wide" data-review-request-photo-order></div>
+        <section class="pz-promo-gallery pz-promo-media-slots pz-promo-reviews-admin__photo-uploader is-wide" aria-labelledby="review-request-photos-title">
+          <header class="pz-promo-media-slots__header">
+            <strong id="review-request-photos-title">Fotos del trabajo (opcional)</strong>
+            <span data-review-request-photo-count>0 de 3 utilizadas</span>
+          </header>
+          <div class="pz-promo-media-slots__grid" data-review-request-photo-slots></div>
+        </section>
         <button type="submit" data-review-request-create disabled={!canModerate}>Generar enlace privado</button>
       </form>
       {!canManageMedia && <p class="pz-promo-reviews-admin__permission-note">Puedes crear la solicitud sin fotos; para adjuntarlas se requiere `promo.media.manage`.</p>}
@@ -146,6 +152,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     PROMO_REVIEWS_API_PATH,
     promoReviewsErrorMessage,
   } from '../../../lib/promoReviews';
+  import { optimizePromoUploadImageFile } from '../../../lib/promoImageOptimizationCore.js';
 
   document.querySelectorAll<HTMLElement>('[data-promo-reviews-editor]').forEach((root) => {
     const storeSlug = String(root.dataset.storeSlug || '');
@@ -169,8 +176,8 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     const requestCustomer = root.querySelector<HTMLInputElement>('[data-review-request-customer]');
     const requestWork = root.querySelector<HTMLInputElement>('[data-review-request-work]');
     const requestExpiry = root.querySelector<HTMLSelectElement>('[data-review-request-expiry]');
-    const requestFiles = root.querySelector<HTMLInputElement>('[data-review-request-files]');
-    const requestPhotoOrder = root.querySelector<HTMLElement>('[data-review-request-photo-order]');
+    const requestPhotoSlots = root.querySelector<HTMLElement>('[data-review-request-photo-slots]');
+    const requestPhotoCount = root.querySelector<HTMLElement>('[data-review-request-photo-count]');
     const requestCreate = root.querySelector<HTMLButtonElement>('[data-review-request-create]');
     const requestGenerated = root.querySelector<HTMLElement>('[data-review-request-generated]');
     const requestLink = root.querySelector<HTMLInputElement>('[data-review-request-link]');
@@ -188,6 +195,9 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     let generatedPublicLink = '';
     let generatedShareText = '';
     const photoObjectUrls = new Map<File, string>();
+    const photoErrors = new Map<number, string>();
+    let configDirty = false;
+    let requestDirty = false;
     const requestByReviewId = new Map<string, ReturnType<typeof normalizePromoReviewRequestsPage>['requests'][number]>();
 
     function show(message: string, tone: 'success' | 'error' | 'info' = 'info') {
@@ -211,6 +221,11 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       if (alertBox?.dataset.tone === 'error') show('');
     }
 
+    function setConfigDirty(value = true) {
+      configDirty = value;
+      if (saveConfig) saveConfig.disabled = !canConfigure || !configDirty;
+    }
+
     function requestEndpoint(page?: number) {
       const url = new URL(PROMO_REVIEW_REQUESTS_API_PATH, window.location.origin);
       url.searchParams.set('store', storeSlug);
@@ -225,30 +240,110 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       return url.toString();
     }
 
+    function setRequestDirty(value = true) {
+      requestDirty = value;
+    }
+
+    function releasePhoto(file: File | undefined) {
+      if (!file) return;
+      const objectUrl = photoObjectUrls.get(file);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      photoObjectUrls.delete(file);
+    }
+
+    async function selectReviewPhoto(file: File | undefined, index: number) {
+      if (!file || !canManageMedia || !canModerate || index < 0 || index > selectedPhotos.length || index >= 3) return;
+      photoErrors.delete(index);
+      renderSelectedPhotos();
+      try {
+        const prepared = await optimizePromoUploadImageFile(file, 'review') as File;
+        if (selectedPhotos[index]) releasePhoto(selectedPhotos[index]);
+        if (index < selectedPhotos.length) selectedPhotos[index] = prepared;
+        else selectedPhotos.push(prepared);
+        photoObjectUrls.set(prepared, URL.createObjectURL(prepared));
+        setRequestDirty();
+        clearStaleError();
+      } catch (error) {
+        const code = (error as { code?: string; message?: string })?.code || (error as Error)?.message;
+        photoErrors.set(index, promoReviewRequestsErrorMessage(code));
+        show(promoReviewRequestsErrorMessage(code), 'error');
+      }
+      renderSelectedPhotos();
+    }
+
     function renderSelectedPhotos() {
-      if (!requestPhotoOrder) return;
-      requestPhotoOrder.replaceChildren();
-      selectedPhotos.forEach((file, index) => {
+      if (!requestPhotoSlots) return;
+      requestPhotoSlots.replaceChildren();
+      if (requestPhotoCount) requestPhotoCount.textContent = `${selectedPhotos.length} de 3 utilizadas`;
+      for (let index = 0; index < 3; index += 1) {
+        const file = selectedPhotos[index];
+        const error = photoErrors.get(index) || '';
         const card = document.createElement('article');
-        const url = photoObjectUrls.get(file) || URL.createObjectURL(file);
-        photoObjectUrls.set(file, url);
-        const image = document.createElement('img'); image.src = url; image.alt = '';
-        const details = document.createElement('div');
-        const name = document.createElement('strong'); name.textContent = `Foto ${index + 1}`;
-        const size = document.createElement('small'); size.textContent = `${Math.ceil(file.size / 1024)} KB`;
-        details.append(name, size);
-        const actions = document.createElement('div');
-        const up = document.createElement('button'); up.type = 'button'; up.textContent = '↑'; up.ariaLabel = 'Mover foto hacia arriba'; up.disabled = index === 0;
-        const down = document.createElement('button'); down.type = 'button'; down.textContent = '↓'; down.ariaLabel = 'Mover foto hacia abajo'; down.disabled = index === selectedPhotos.length - 1;
-        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Quitar'; remove.dataset.tone = 'danger';
-        up.addEventListener('click', () => { [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]]; renderSelectedPhotos(); });
-        down.addEventListener('click', () => { [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]]; renderSelectedPhotos(); });
-        remove.addEventListener('click', () => {
-          const removed = selectedPhotos.splice(index, 1)[0]; const objectUrl = photoObjectUrls.get(removed);
-          if (objectUrl) URL.revokeObjectURL(objectUrl); photoObjectUrls.delete(removed); renderSelectedPhotos();
+        card.className = `pz-promo-media-slot${file ? ' is-filled is-pending' : ' is-empty'}${error ? ' is-error' : ''}`;
+        const heading = document.createElement('div'); heading.className = 'pz-promo-media-slot__heading';
+        const title = document.createElement('strong'); title.textContent = `Espacio ${index + 1}`;
+        const state = document.createElement('span'); state.textContent = error ? 'Error' : (file ? 'Pendiente' : 'Disponible');
+        heading.append(title, state); card.append(heading);
+        if (file) {
+          const preview = document.createElement('div'); preview.className = 'pz-promo-gallery__item-preview';
+          const image = document.createElement('img');
+          image.src = photoObjectUrls.get(file) || URL.createObjectURL(file);
+          photoObjectUrls.set(file, image.src);
+          image.alt = `Vista previa privada de la foto ${index + 1} del trabajo`;
+          preview.append(image); card.append(preview);
+        } else {
+          const empty = document.createElement('div'); empty.className = 'pz-promo-media-slot__empty';
+          const strong = document.createElement('strong'); strong.textContent = 'Arrastra una imagen aquí';
+          const copy = document.createElement('span'); copy.textContent = 'o selecciónala desde tu dispositivo';
+          empty.append(strong, copy); card.append(empty);
+        }
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp,image/avif';
+        input.className = 'pz-promo-media-slot__input'; input.disabled = !canManageMedia || !canModerate;
+        input.setAttribute('aria-label', `${file ? 'Reemplazar' : 'Elegir'} foto ${index + 1} del trabajo`);
+        input.addEventListener('change', () => {
+          void selectReviewPhoto(input.files?.[0], index).finally(() => { input.value = ''; });
         });
-        actions.append(up, down, remove); card.append(image, details, actions); requestPhotoOrder.append(card);
-      });
+        const actions = document.createElement('div'); actions.className = 'pz-promo-media-slot__actions';
+        const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'pz-promo-gallery__secondary';
+        choose.textContent = file ? 'Cambiar imagen' : 'Elegir imagen'; choose.disabled = input.disabled;
+        choose.addEventListener('click', () => input.click()); actions.append(choose, input);
+        if (file) {
+          const up = document.createElement('button'); up.type = 'button'; up.className = 'pz-promo-gallery__secondary';
+          up.textContent = '↑'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
+          up.addEventListener('click', () => {
+            [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]];
+            photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
+          });
+          const down = document.createElement('button'); down.type = 'button'; down.className = 'pz-promo-gallery__secondary';
+          down.textContent = '↓'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
+          down.addEventListener('click', () => {
+            [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]];
+            photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
+          });
+          const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = 'Quitar';
+          remove.addEventListener('click', () => {
+            releasePhoto(selectedPhotos[index]); selectedPhotos.splice(index, 1); photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
+          });
+          actions.append(up, down, remove);
+        }
+        card.append(actions);
+        const guidance = document.createElement('small'); guidance.className = `pz-promo-media-slot__guidance${error ? ' is-error' : ''}`;
+        guidance.textContent = error || 'JPG, PNG, WebP o AVIF · horizontal 4:3 · mínimo 320×240 px · WebP comprimido y sin metadatos';
+        card.append(guidance);
+        card.addEventListener('dragover', (event) => {
+          if (!canManageMedia || !canModerate || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+          event.preventDefault(); card.classList.add('is-dragover');
+        });
+        card.addEventListener('dragleave', () => card.classList.remove('is-dragover'));
+        card.addEventListener('drop', (event) => {
+          card.classList.remove('is-dragover');
+          const dropped = event.dataTransfer?.files?.[0];
+          if (!dropped || !canManageMedia || !canModerate) return;
+          event.preventDefault(); void selectReviewPhoto(dropped, index);
+        });
+        requestPhotoSlots.append(card);
+      }
     }
 
     async function uploadPhoto(file: File) {
@@ -282,6 +377,21 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       info.textContent = `${item.locale.toUpperCase()} · ${item.photoAssetIds.length} foto${item.photoAssetIds.length === 1 ? '' : 's'} · vence ${expiry}`;
       article.append(header, info);
       if (item.workLabel && item.workLabel !== title.textContent) { const work = document.createElement('p'); work.textContent = item.workLabel; article.append(work); }
+      if (item.photoAssetIds.length) {
+        const photos = document.createElement('div');
+        photos.className = 'pz-promo-reviews-admin__request-thumbnails';
+        photos.setAttribute('aria-label', 'Fotos privadas asociadas a la solicitud');
+        item.photoAssetIds.forEach((assetId, index) => {
+          const image = document.createElement('img');
+          image.src = mediaEndpoint(assetId);
+          image.alt = `Foto ${index + 1} del trabajo ${item.workLabel || item.customerLabel || 'solicitado'}`;
+          image.loading = 'lazy';
+          image.width = 120;
+          image.height = 90;
+          photos.append(image);
+        });
+        article.append(photos);
+      }
       if (item.status === 'pending') {
         const revoke = document.createElement('button'); revoke.type = 'button'; revoke.textContent = 'Revocar enlace'; revoke.dataset.requestRevoke = item.id; revoke.dataset.tone = 'danger'; revoke.disabled = !canModerate; article.append(revoke);
       }
@@ -352,8 +462,12 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
         })));
         requestCreated = true;
         await displayGeneratedLink(result.token, result.request.locale, uploaded);
-        selectedPhotos.forEach((file) => { const url = photoObjectUrls.get(file); if (url) URL.revokeObjectURL(url); });
-        selectedPhotos = []; photoObjectUrls.clear(); renderSelectedPhotos();
+        selectedPhotos.forEach(releasePhoto);
+        selectedPhotos = [];
+        photoObjectUrls.clear();
+        photoErrors.clear();
+        requestDirty = false;
+        renderSelectedPhotos();
         if (requestCustomer) requestCustomer.value = ''; if (requestWork) requestWork.value = '';
         show('Solicitud creada. El token solo se muestra en este enlace.', 'success');
         await loadRequests();
@@ -484,11 +598,12 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
           option.selected = candidate === current || (!current && candidate === locale); requestLocale.append(option);
         });
       }
+      setConfigDirty(false);
       clearStaleError();
     }
 
     async function saveDisplayConfig() {
-      if (!canConfigure || !draftDocument || !draftVersion) return;
+      if (!canConfigure || !configDirty || !draftDocument || !draftVersion) return;
       if (saveConfig) saveConfig.disabled = true;
       try {
         const document = buildPromoReviewsDisplayDocument(draftDocument, {
@@ -502,10 +617,11 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
         const draft = normalizePromoCmsDraftResponse(result);
         draftVersion = draft.version;
         draftDocument = draft.document;
+        setConfigDirty(false);
         show('Configuración guardada y página pública actualizada.', 'success');
       } catch (error) {
         show(promoReviewsErrorMessage((error as { code?: string })?.code), 'error');
-      } finally { if (saveConfig) saveConfig.disabled = !canConfigure; }
+      } finally { if (saveConfig) saveConfig.disabled = !canConfigure || !configDirty; }
     }
 
     async function moderate(button: HTMLButtonElement) {
@@ -536,23 +652,23 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     filter?.addEventListener('change', () => { currentPage = 1; void loadReviews().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error')); });
     previous?.addEventListener('click', () => { if (currentPage > 1) { currentPage -= 1; void loadReviews(); } });
     next?.addEventListener('click', () => { if (currentPage < totalPages) { currentPage += 1; void loadReviews(); } });
-    refresh?.addEventListener('click', () => { void loadWorkspace().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error')); });
+    refresh?.addEventListener('click', () => {
+      if (configDirty || requestDirty) {
+        show('Guarda o completa los cambios pendientes antes de actualizar los datos.', 'error');
+        return;
+      }
+      void loadWorkspace().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error'));
+    });
     saveConfig?.addEventListener('click', () => { void saveDisplayConfig(); });
+    enabled?.addEventListener('change', () => setConfigDirty());
+    heading?.addEventListener('input', () => setConfigDirty());
     list?.addEventListener('click', (event) => {
       const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-review-action]') : null;
       if (button) void moderate(button);
     });
 
-    requestFiles?.addEventListener('change', () => {
-      const incoming = Array.from(requestFiles.files || []);
-      if (incoming.length > 3) {
-        requestFiles.value = '';
-        show('Selecciona un máximo de 3 fotos.', 'error');
-        return;
-      }
-      selectedPhotos.forEach((file) => { const url = photoObjectUrls.get(file); if (url) URL.revokeObjectURL(url); });
-      photoObjectUrls.clear(); selectedPhotos = incoming; renderSelectedPhotos(); clearStaleError();
-    });
+    requestForm?.addEventListener('input', () => setRequestDirty());
+    requestForm?.addEventListener('change', () => setRequestDirty());
     requestForm?.addEventListener('submit', (event) => { event.preventDefault(); void createRequest(); });
     root.querySelector('[data-review-copy-link]')?.addEventListener('click', () => {
       if (!generatedLink) return;
@@ -589,7 +705,12 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       }).catch((error) => { show(promoReviewRequestsErrorMessage(error?.code), 'error'); button.disabled = false; });
     });
 
+    renderSelectedPhotos();
     void loadWorkspace().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error'));
+    window.addEventListener('beforeunload', (event) => {
+      if (!configDirty && !requestDirty) return;
+      event.preventDefault();
+    });
     window.addEventListener('pagehide', () => {
       photoObjectUrls.forEach((url) => URL.revokeObjectURL(url)); photoObjectUrls.clear();
     }, { once: true });
