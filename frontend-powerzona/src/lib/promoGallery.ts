@@ -516,6 +516,7 @@ export function promoGalleryErrorMessage(code: unknown) {
     unauthorized: 'Tu sesión terminó. Vuelve a iniciar sesión.',
     session_revoked: 'Tu sesión ya no está vigente. Vuelve a iniciar sesión.',
     blocked_by_plan: 'El plan actual bloquea la gestión de galerías.',
+    invalid_payload: 'No se pudo preparar el guardado. Intenta nuevamente.',
     promo_permission_denied: 'Tu sesión no tiene todos los permisos necesarios para esta acción.',
     promo_capability_denied: 'La cuota o capacidad necesaria no está disponible para esta tienda.',
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',

@@ -63,7 +63,6 @@ const {
     <div class="pz-promo-gallery__section-list" data-products-services></div>
 
     <footer class="pz-promo-gallery__savebar">
-      <span data-products-version>Versión de página: —</span>
       <button type="submit" data-products-save disabled>Guardar cambios</button>
     </footer>
   </form>
@@ -842,10 +841,17 @@ const {
         if (!services.length) servicesElement.append(element('p', 'pz-promo-gallery__empty', 'Primero crea y guarda un servicio en la sección superior de Contenido.'));
       }
       renderMetrics();
-      const version = root.querySelector<HTMLElement>('[data-products-version]');
-      if (version) version.textContent = `Versión de página: ${draft?.version || '—'}`;
       if (saveButton) saveButton.disabled = busy || !canSave || !dirty;
       root.setAttribute('aria-busy', busy ? 'true' : 'false');
+    }
+
+    function mediaPatch(media: MediaModel) {
+      return {
+        useKey: media.useKey,
+        assetId: media.assetId,
+        alt: media.alt,
+        decorative: media.decorative,
+      };
     }
 
     function galleryPatch(gallery: GalleryModel, forceVisible?: boolean) {
@@ -858,10 +864,18 @@ const {
         heading: gallery.heading || gallery.navigationLabel || 'Productos',
         summary: gallery.summary,
         coverUseKey: gallery.cover?.useKey || '',
-        items: gallery.items,
+        items: gallery.items.map((item) => ({
+          key: item.key,
+          featured: item.featured,
+          visible: item.visible,
+          name: item.name,
+          summary: item.summary,
+          caption: item.caption,
+          media: item.media.map(mediaPatch),
+        })),
       };
       return gallery.cover?.useKey && gallery.coverIndependent
-        ? { ...common, coverMedia: gallery.cover }
+        ? { ...common, coverMedia: mediaPatch(gallery.cover) }
         : common;
     }
 
@@ -944,7 +958,11 @@ const {
         const preserved = preservedGalleries.map((gallery) => galleryPatch(gallery));
         const nextDocument = buildPromoGalleryDocument(
           draft.document,
-          { heroMedia, ownerMedia, galleries: [...linkedGalleries, work, ...preserved] },
+          {
+            heroMedia: heroMedia.map(mediaPatch),
+            ownerMedia: ownerMedia ? mediaPatch(ownerMedia) : null,
+            galleries: [...linkedGalleries, work, ...preserved],
+          },
           catalog.assets,
         );
         const serviceSection = nextDocument.sections.find((section: any) => section.type === 'services');
@@ -976,8 +994,8 @@ const {
         slotMessages.clear();
         dirty = false;
         setStatus(cleanupFailures
-          ? `Contenido visual actualizado · versión ${draft.version}. ${cleanupFailures} archivo(s) reemplazado(s) quedaron protegidos porque aún no pudieron eliminarse.`
-          : `Contenido visual actualizado · versión ${draft.version}.`);
+          ? `Contenido visual actualizado. ${cleanupFailures} archivo(s) reemplazado(s) quedaron protegidos porque aún no pudieron eliminarse.`
+          : 'Contenido visual actualizado.');
         window.dispatchEvent(new CustomEvent('promo:document-updated', { detail: { source: 'products' } }));
       } catch (error) {
         if (pendingUpload.pending.length) {

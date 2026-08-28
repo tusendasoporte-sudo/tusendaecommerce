@@ -19,6 +19,11 @@ test('traducción cubre shell, editores y textos dinámicos sin alterar contenid
   assert.equal(promoAdminText('en', 'Contenido'), 'Content');
   assert.equal(promoAdminText('en', 'Organización'), 'Organization');
   assert.equal(promoAdminText('en', 'Galería y productos'), 'Gallery and products');
+  assert.equal(promoAdminText('en', 'Contenido visual actualizado.'), 'Visual content updated.');
+  assert.equal(
+    promoAdminText('en', 'No se guardaron cambios en la página pública. Las imágenes continúan pendientes para reintentar.'),
+    'No changes were saved to the public page. The images remain pending so you can try again.',
+  );
   assert.equal(promoAdminText('en', 'Logo del negocio'), 'Business logo');
   assert.equal(promoAdminText('en', 'Solicitar una reseña'), 'Request a review');
   assert.equal(promoAdminText('en', 'Tema actual: Artesanal cálida'), 'Current theme: Artesanal cálida');

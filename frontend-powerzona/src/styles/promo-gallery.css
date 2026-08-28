@@ -549,6 +549,7 @@
   position: sticky;
   bottom: .5rem;
   z-index: 2;
+  justify-content: flex-end;
   padding: .75rem;
   border: 1px solid #cab98f;
   border-radius: .85rem;

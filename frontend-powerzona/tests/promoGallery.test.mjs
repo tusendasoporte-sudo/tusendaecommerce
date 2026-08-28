@@ -7,6 +7,7 @@ import {
   buildPromoGalleryDocument,
   createPromoGalleryWorkspace,
   normalizePromoGalleryCatalog,
+  promoGalleryErrorMessage,
   promoGalleryPreviewPath,
   PROMO_GALLERY_HARD_MAX_VIDEOS,
   PROMO_HERO_MAX_MEDIA,
@@ -460,6 +461,7 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
   );
   assert.equal(promoGalleryPreviewPath('../otro', 'assetg000000001'), '');
   assert.throws(() => normalizePromoGalleryCatalog({ ...catalog, tenant: 'otro' }), PromoCmsError);
+  assert.equal(promoGalleryErrorMessage('invalid_payload'), 'No se pudo preparar el guardado. Intenta nuevamente.');
 });
 
 test('shell separa Galería y productos sin biblioteca privada y conserva el proxy central', () => {
@@ -504,6 +506,10 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /optimizePromoUploadImageFile/);
   assert.match(productsEditor, /async function uploadPendingImages[\s\S]*?uploadAsset\(media\.pendingFile!, media\.pendingPurpose!\)/);
   assert.match(productsEditor, /const pendingUpload = \{[\s\S]*?createdAssetIds: new Set<string>\(\)[\s\S]*?await uploadPendingImages\(pendingUpload\)/);
+  assert.match(productsEditor, /function mediaPatch\(media: MediaModel\)[\s\S]*?useKey: media\.useKey[\s\S]*?decorative: media\.decorative/);
+  assert.match(productsEditor, /heroMedia: heroMedia\.map\(mediaPatch\)[\s\S]*?ownerMedia: ownerMedia \? mediaPatch\(ownerMedia\) : null/);
+  assert.match(productsEditor, /items: gallery\.items\.map[\s\S]*?media: item\.media\.map\(mediaPatch\)/);
+  assert.match(productsEditor, /coverMedia: mediaPatch\(gallery\.cover\)/);
   assert.match(productsEditor, /if \(pendingUpload\.pending\.length\)[\s\S]*?deleteUnreferencedAssets\(pendingUpload\.createdAssetIds\)/);
   assert.match(productsEditor, /expected_version: draft\.version[\s\S]*?deleteUnreferencedAssets\(replacedAssetIds\)/);
   assert.match(productsEditor, /window\.addEventListener\('beforeunload'[\s\S]*?if \(!dirty\) return/);
@@ -518,5 +524,6 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.doesNotMatch(productsEditor, /data-products-add-hero-video|data-products-hero-video|data-products-hero-poster/);
   assert.doesNotMatch(productsEditor, /element\('span', '', 'Destacado'\)/);
   assert.doesNotMatch(productsEditor, /Biblioteca privada|Crear otra galería/);
+  assert.doesNotMatch(productsEditor, /data-products-version|Versión de página|Contenido visual actualizado · versión/);
   assert.doesNotMatch(`${shell}\n${cmsEditor}\n${mediaApi}`, /orders|checkout|cart|Cloudflare|Coolify/);
 });
