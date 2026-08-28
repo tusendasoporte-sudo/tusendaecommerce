@@ -73,7 +73,7 @@ const isContent = scope === 'content';
   <form class="pz-promo-cms__form" data-cms-form hidden novalidate>
     {isContent ? (
       <>
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" open aria-labelledby="cms-identity-title">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-promo-accordion-group="promo-cms-panels" open aria-labelledby="cms-identity-title">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
@@ -105,7 +105,7 @@ const isContent = scope === 'content';
       </>
     ) : (
       <>
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="presentation">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-promo-accordion-group="promo-cms-panels" data-cms-contact-panel="presentation">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
@@ -134,7 +134,7 @@ const isContent = scope === 'content';
           </div>
         </details>
 
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="logo">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-promo-accordion-group="promo-cms-panels" data-cms-contact-panel="logo">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">02</span>
             <div>
@@ -171,7 +171,7 @@ const isContent = scope === 'content';
           </div>
         </details>
 
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="qr">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-promo-accordion-group="promo-cms-panels" data-cms-contact-panel="qr">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">03</span>
             <div>
@@ -208,7 +208,7 @@ const isContent = scope === 'content';
           </div>
         </details>
 
-        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-cms-contact-panel="methods">
+        <details class="pz-promo-cms__panel pz-promo-cms__accordion" data-promo-accordion-group="promo-cms-panels" data-cms-contact-panel="methods">
           <summary class="pz-promo-cms__panel-heading pz-promo-cms__accordion-summary">
             <span class="pz-promo-cms__step" aria-hidden="true">04</span>
             <div>
@@ -474,6 +474,7 @@ const isContent = scope === 'content';
     }
     function createServiceItem(item: CmsDocument, sectionKey: string, galleryKey = '', iconKey = '') {
       const card = element('details', 'pz-promo-cms__service-item pz-promo-cms__accordion') as HTMLDetailsElement;
+      card.dataset.promoAccordionGroup = 'promo-cms-service-items';
       card.dataset.cmsServiceItem = item.key;
       card.dataset.cmsServicePortfolioKey = galleryKey;
       const header = element('summary', 'pz-promo-cms__item-heading pz-promo-cms__accordion-summary');
@@ -526,6 +527,7 @@ const isContent = scope === 'content';
       const labelText = isWorkSection ? 'Trabajos realizados' : (sectionLabels[section.type] || 'Sección');
       const sectionContent = localized.sections?.[section.key] || {};
       const card = element('details', 'pz-promo-cms__section-card pz-promo-cms__accordion') as HTMLDetailsElement;
+      card.dataset.promoAccordionGroup = 'promo-cms-sections';
       card.dataset.cmsSectionKey = section.key;
       card.dataset.cmsSectionType = section.type;
       const header = element('summary', 'pz-promo-cms__section-card-heading pz-promo-cms__accordion-summary');

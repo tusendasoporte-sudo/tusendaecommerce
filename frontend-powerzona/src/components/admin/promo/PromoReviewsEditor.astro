@@ -315,13 +315,13 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
           });
           if (selectedPhotos.length > 1) {
             const up = document.createElement('button'); up.type = 'button'; up.className = 'pz-promo-gallery__secondary';
-            up.textContent = '↑'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
+            up.textContent = '←'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
             up.addEventListener('click', () => {
               [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]];
               photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
             });
             const down = document.createElement('button'); down.type = 'button'; down.className = 'pz-promo-gallery__secondary';
-            down.textContent = '↓'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
+            down.textContent = '→'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
             down.addEventListener('click', () => {
               [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]];
               photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();

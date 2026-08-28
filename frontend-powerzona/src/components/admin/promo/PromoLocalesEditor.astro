@@ -293,6 +293,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createIdentityPanel(localized: LocaleDocument) {
       const panel = element('details', 'pz-promo-locales__panel');
+      panel.dataset.promoAccordionGroup = 'promo-locales-panels';
       panel.append(heading('Identidad', 'Nombre y presentación pública para este idioma.'));
       const fields = element('div', 'pz-promo-locales__fields two-columns');
       const definitions = [
@@ -350,6 +351,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createSectionsPanel(localized: LocaleDocument) {
       const panel = element('details', 'pz-promo-locales__panel');
+      panel.dataset.promoAccordionGroup = 'promo-locales-panels';
       panel.append(heading('Navegación y secciones', 'Solo las secciones visibles bloquean la completitud, pero puedes traducir también las ocultas.'));
       const stack = element('div', 'pz-promo-locales__section-stack');
       documentValue!.sections.filter((section: LocaleDocument) => (
@@ -445,6 +447,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createContactPanel(localized: LocaleDocument) {
       const panel = element('details', 'pz-promo-locales__panel');
+      panel.dataset.promoAccordionGroup = 'promo-locales-panels';
       panel.append(heading('Textos de contacto', 'El destino se conserva en Contacto; aquí solo se traducen labels, nombres accesibles y mensajes.'));
       const stack = element('div', 'pz-promo-locales__items');
       if (!documentValue!.contact.actions.length) {
@@ -480,6 +483,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createMediaPanel(localized: LocaleDocument) {
       const panel = element('details', 'pz-promo-locales__panel');
+      panel.dataset.promoAccordionGroup = 'promo-locales-panels';
       panel.append(heading('Accesibilidad de medios', 'Cada referencia requiere alt localizado o una marca decorativa explícita.'));
       const stack = element('div', 'pz-promo-locales__items');
       const mediaKeys = Object.keys(documentValue!.media_refs);
@@ -518,6 +522,7 @@ const canSave = canManageContent && canManageTranslations;
 
     function createSeoPanel(localized: LocaleDocument) {
       const panel = element('details', 'pz-promo-locales__panel');
+      panel.dataset.promoAccordionGroup = 'promo-locales-panels';
       panel.append(heading('SEO localizado', 'Los campos obligatorios se validan al guardar; canonical y hreflang se administran desde su configuración técnica.'));
       const fields = element('div', 'pz-promo-locales__fields two-columns');
       const definitions = [

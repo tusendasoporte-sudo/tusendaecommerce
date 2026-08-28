@@ -46,7 +46,12 @@ const {
   <p class="pz-promo-gallery__status" data-products-status role="status" aria-live="polite">Cargando contenido y medios…</p>
 
   <form class="pz-promo-gallery__form" data-products-form hidden novalidate>
-    <details class="pz-promo-gallery__section pz-promo-products__accordion" open>
+    <details
+      class="pz-promo-gallery__section pz-promo-products__accordion"
+      data-promo-accordion-group="promo-gallery-sections"
+      data-promo-accordion-key="hero"
+      open
+    >
       <summary>
         <span><span class="pz-promo-gallery__eyebrow">Portada</span><strong>Imagen principal o carrusel</strong></span>
         <span aria-hidden="true">⌄</span>
@@ -147,6 +152,10 @@ const {
     let preservedGalleries: GalleryModel[] = [];
     let dirty = false;
     let busy = false;
+    const gallerySectionAccordionGroup = 'promo-gallery-sections';
+    const galleryItemAccordionGroup = 'promo-gallery-items';
+    let activeGallerySectionKey = 'hero';
+    let activeGalleryItemKey = '';
     const slotMessages = new Map<string, { tone: 'pending' | 'error'; message: string }>();
 
     const endpoint = (path: string) => `${path}?store=${encodeURIComponent(storeSlug)}`;
@@ -157,6 +166,32 @@ const {
       if (value) node.textContent = value;
       return node;
     };
+
+    function configureAccordion(details: HTMLDetailsElement, group: string, key: string) {
+      details.dataset.promoAccordionGroup = group;
+      details.dataset.promoAccordionKey = key;
+      details.open = group === gallerySectionAccordionGroup
+        ? activeGallerySectionKey === key
+        : activeGalleryItemKey === key;
+      details.addEventListener('toggle', () => {
+        if (details.open) {
+          if (group === gallerySectionAccordionGroup) activeGallerySectionKey = key;
+          else activeGalleryItemKey = key;
+          return;
+        }
+        queueMicrotask(() => {
+          const activeKey = group === gallerySectionAccordionGroup ? activeGallerySectionKey : activeGalleryItemKey;
+          if (details.open || activeKey !== key) return;
+          const replacement = root.querySelector<HTMLDetailsElement>(`details[data-promo-accordion-group="${group}"][open]`);
+          if (replacement) return;
+          if (group === gallerySectionAccordionGroup) activeGallerySectionKey = '';
+          else activeGalleryItemKey = '';
+        });
+      });
+    }
+
+    const heroAccordion = root.querySelector<HTMLDetailsElement>('[data-promo-accordion-key="hero"]');
+    if (heroAccordion) configureAccordion(heroAccordion, gallerySectionAccordionGroup, 'hero');
 
     function newKey(prefix: string, maximum = 64) {
       const suffix = Array.from(crypto.getRandomValues(new Uint8Array(6)), (value) => value.toString(16).padStart(2, '0')).join('');
@@ -508,13 +543,13 @@ const {
 
         if (media) {
           if (reorderable) {
-            const up = element('button', 'pz-promo-gallery__secondary', '↑');
+            const up = element('button', 'pz-promo-gallery__secondary', '←');
             up.type = 'button'; up.disabled = !canSave || busy || index === 0; up.ariaLabel = `Mover ${options.label} a la izquierda`;
             up.addEventListener('click', () => {
               [target[index - 1], target[index]] = [target[index], target[index - 1]];
               slotChanged(options, 'Orden actualizado.');
             });
-            const down = element('button', 'pz-promo-gallery__secondary', '↓');
+            const down = element('button', 'pz-promo-gallery__secondary', '→');
             down.type = 'button'; down.disabled = !canSave || busy || index === target.length - 1; down.ariaLabel = `Mover ${options.label} a la derecha`;
             down.addEventListener('click', () => {
               [target[index + 1], target[index]] = [target[index], target[index + 1]];
@@ -582,14 +617,18 @@ const {
       return wrapper;
     }
     function renderProduct(service: ServiceModel, product: ProductModel, index: number) {
-      const card = element('article', 'pz-promo-gallery__work pz-promo-products__product');
-      const header = element('header');
+      const card = element('details', 'pz-promo-gallery__work pz-promo-products__product') as HTMLDetailsElement;
+      configureAccordion(card, galleryItemAccordionGroup, `product:${service.key}:${product.key}`);
+      const header = element('summary', 'pz-promo-products__item-summary');
       const heading = element('strong', '', product.name || `Producto ${index + 1}`);
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = product.visible; visible.disabled = !canSave;
       const visibleLabel = element('label', 'pz-promo-gallery__check'); visibleLabel.append(visible, element('span', '', 'Visible'));
+      visibleLabel.addEventListener('click', (event) => event.stopPropagation());
       visible.addEventListener('change', () => { product.visible = visible.checked; if (!product.visible) product.featured = false; markDirty(); render(); });
-      flags.append(visibleLabel); header.append(heading, flags); card.append(header);
+      flags.append(visibleLabel, element('span', 'pz-promo-products__item-chevron', '⌄'));
+      header.append(heading, flags); card.append(header);
+      const body = element('div', 'pz-promo-products__item-body');
       const fields = element('div', 'pz-promo-gallery__section-fields');
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = product.name; name.required = product.visible; name.disabled = !canSave;
       const summary = document.createElement('textarea'); summary.maxLength = 600; summary.rows = 3; summary.value = product.summary; summary.disabled = !canSave;
@@ -601,8 +640,8 @@ const {
         const wrapper = element('label', `pz-promo-gallery__field${wide ? ' is-wide' : ''}`, label); wrapper.append(control); return wrapper;
       };
       fields.append(field('Nombre del producto o trabajo', name), field('Descripción', summary), field('Nota opcional', caption, true));
-      card.append(fields);
-      card.append(renderMediaSlots(product.media, {
+      body.append(fields);
+      body.append(renderMediaSlots(product.media, {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: product.name || `Producto ${index + 1}`,
@@ -621,12 +660,13 @@ const {
         markDirty();
         render();
       });
-      actions.append(remove); card.append(actions);
+      actions.append(remove); body.append(actions); card.append(body);
       return card;
     }
 
     function renderOwnerSection() {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      configureAccordion(details, gallerySectionAccordionGroup, 'owner');
       const summary = element('summary');
       const title = element('span');
       title.append(element('span', 'pz-promo-gallery__eyebrow', 'Propietario'), element('strong', '', 'Foto del dueño del negocio'));
@@ -647,16 +687,20 @@ const {
     }
 
     function renderWorkItem(workItem: ProductModel, index: number) {
-      const card = element('article', 'pz-promo-gallery__work pz-promo-products__product');
-      const header = element('header');
+      const card = element('details', 'pz-promo-gallery__work pz-promo-products__product') as HTMLDetailsElement;
+      configureAccordion(card, galleryItemAccordionGroup, `work:${workItem.key}`);
+      const header = element('summary', 'pz-promo-products__item-summary');
       const heading = element('strong', '', workItem.name || `Trabajo ${index + 1}`);
       const flags = element('div', 'pz-promo-gallery__flags');
       const visible = document.createElement('input');
       visible.type = 'checkbox'; visible.checked = workItem.visible; visible.disabled = !canSave || workItem.media.length === 0;
       const visibleLabel = element('label', 'pz-promo-gallery__check');
       visibleLabel.append(visible, element('span', '', 'Visible'));
+      visibleLabel.addEventListener('click', (event) => event.stopPropagation());
       visible.addEventListener('change', () => { workItem.visible = visible.checked; if (!workItem.visible) workItem.featured = false; markDirty(); render(); });
-      flags.append(visibleLabel); header.append(heading, flags); card.append(header);
+      flags.append(visibleLabel, element('span', 'pz-promo-products__item-chevron', '⌄'));
+      header.append(heading, flags); card.append(header);
+      const body = element('div', 'pz-promo-products__item-body');
 
       const fields = element('div', 'pz-promo-gallery__section-fields');
       const name = document.createElement('input'); name.type = 'text'; name.maxLength = 160; name.value = workItem.name; name.disabled = !canSave;
@@ -670,9 +714,9 @@ const {
         wrapper.append(control); return wrapper;
       };
       fields.append(field('Título del trabajo', name), field('Descripción', description), field('Nota opcional', caption, true));
-      card.append(fields);
+      body.append(fields);
 
-      card.append(renderMediaSlots(workItem.media, {
+      body.append(renderMediaSlots(workItem.media, {
         maximum: PROMO_PRODUCT_MAX_MEDIA,
         purpose: 'gallery',
         label: workItem.name || `Trabajo ${index + 1}`,
@@ -691,12 +735,13 @@ const {
         markDirty();
         render();
       });
-      actions.append(remove); card.append(actions);
+      actions.append(remove); body.append(actions); card.append(body);
       return card;
     }
 
     function renderWorkSection() {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      configureAccordion(details, gallerySectionAccordionGroup, 'work');
       const summary = element('summary');
       const title = element('span');
       title.append(element('span', 'pz-promo-gallery__eyebrow', 'Portafolio'), element('strong', '', `Trabajos realizados (${workGallery.items.length})`));
@@ -708,7 +753,10 @@ const {
       const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir trabajo');
       add.type = 'button'; add.disabled = !canSave || busy;
       add.addEventListener('click', () => {
-        workGallery.items.push({ key: newKey('work'), featured: false, visible: false, name: '', summary: '', caption: '', media: [] });
+        const workItem = { key: newKey('work'), featured: false, visible: false, name: '', summary: '', caption: '', media: [] };
+        workGallery.items.push(workItem);
+        activeGallerySectionKey = 'work';
+        activeGalleryItemKey = `work:${workItem.key}`;
         markDirty(); render();
       });
       header.append(add); body.append(header);
@@ -721,6 +769,7 @@ const {
 
     function renderFeaturedSection() {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
+      configureAccordion(details, gallerySectionAccordionGroup, 'featured');
       const candidates = [
         ...workGallery.items.map((item, index) => ({ item, source: 'Trabajos realizados', fallback: `Trabajo ${index + 1}` })),
         ...services.flatMap((service) => service.items.map((item, index) => ({
@@ -768,7 +817,7 @@ const {
 
     function renderService(service: ServiceModel, index: number) {
       const details = element('details', 'pz-promo-gallery__section pz-promo-products__accordion') as HTMLDetailsElement;
-      if (index === 0) details.open = true;
+      configureAccordion(details, gallerySectionAccordionGroup, `service:${service.key}`);
       const summary = element('summary');
       const title = element('span'); title.append(element('span', 'pz-promo-gallery__eyebrow', `Servicio ${index + 1}`), element('strong', '', service.serviceName));
       summary.append(title, element('span', '', '⌄')); details.append(summary);
@@ -793,7 +842,10 @@ const {
       productsHeader.append(element('div', '', ''), element('strong', '', `Productos o trabajos (${service.items.length})`));
       const add = element('button', 'pz-promo-gallery__secondary', '+ Añadir producto'); add.type = 'button'; add.disabled = !canSave;
       add.addEventListener('click', () => {
-        service.items.push({ key: newKey('product'), featured: false, visible: true, name: '', summary: '', caption: '', media: [] });
+        const product = { key: newKey('product'), featured: false, visible: true, name: '', summary: '', caption: '', media: [] };
+        service.items.push(product);
+        activeGallerySectionKey = `service:${service.key}`;
+        activeGalleryItemKey = `product:${service.key}:${product.key}`;
         markDirty(); render();
       });
       productsHeader.append(add); body.append(productsHeader);

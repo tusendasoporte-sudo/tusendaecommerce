@@ -381,6 +381,16 @@ function initials(value: string) {
       document.cookie = `${PROMO_ADMIN_LOCALE_COOKIE}=${selected}; Path=/; Max-Age=31536000; SameSite=Lax`;
       window.location.reload();
     });
+
+    document.addEventListener('toggle', (event) => {
+      const opened = event.target instanceof HTMLDetailsElement ? event.target : null;
+      const group = opened?.dataset.promoAccordionGroup || '';
+      if (!(root instanceof HTMLElement) || !opened?.open || !group || !root.contains(opened)) return;
+      root.querySelectorAll<HTMLDetailsElement>('details[data-promo-accordion-group][open]').forEach((candidate) => {
+        if (candidate !== opened && candidate.dataset.promoAccordionGroup === group) candidate.open = false;
+      });
+    }, true);
+
     const sidebar = root?.querySelector('[data-promo-admin-sidebar]');
     const openButton = root?.querySelector('[data-promo-admin-menu-open]');
     const closeButton = root?.querySelector('[data-promo-admin-menu-close]');

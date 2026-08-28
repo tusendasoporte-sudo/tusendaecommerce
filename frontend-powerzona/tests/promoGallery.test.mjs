@@ -467,6 +467,7 @@ test('catálogo privado y preview aceptan solo descriptores exactos y rutas same
 test('shell separa Galería y productos sin biblioteca privada y conserva el proxy central', () => {
   const shell = readFileSync(new URL('../src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   const cmsEditor = readFileSync(new URL('../src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
+  const localesEditor = readFileSync(new URL('../src/components/admin/promo/PromoLocalesEditor.astro', import.meta.url), 'utf8');
   const productsEditor = readFileSync(new URL('../src/components/admin/promo/PromoServiceProductsEditor.astro', import.meta.url), 'utf8');
   const galleryStyles = readFileSync(new URL('../src/styles/promo-gallery.css', import.meta.url), 'utf8');
   const moduleRoute = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/promo/[section].astro', import.meta.url), 'utf8');
@@ -521,6 +522,21 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /alternativeText: \(\) => `Retrato del propietario de \$\{businessName\}`/);
   assert.match(productsEditor, /alternativeText: \(\) => `Portada del servicio \$\{service\.serviceName\}`/);
   assert.match(productsEditor, /const reorderable = !decorativeBackground && options\.maximum > 1 && target\.length > 1/);
+  assert.match(productsEditor, /element\('details', 'pz-promo-gallery__work pz-promo-products__product'\)/);
+  assert.match(productsEditor, /pz-promo-products__item-summary/);
+  assert.match(productsEditor, /visibleLabel\.addEventListener\('click', \(event\) => event\.stopPropagation\(\)\)/);
+  assert.match(productsEditor, /gallerySectionAccordionGroup = 'promo-gallery-sections'/);
+  assert.match(productsEditor, /galleryItemAccordionGroup = 'promo-gallery-items'/);
+  assert.match(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '←'\)/);
+  assert.match(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '→'\)/);
+  assert.doesNotMatch(productsEditor, /element\('button', 'pz-promo-gallery__secondary', '[↑↓]'\)/);
+  assert.match(shell, /document\.addEventListener\('toggle',[\s\S]*?candidate\.dataset\.promoAccordionGroup === group[\s\S]*?candidate\.open = false/);
+  assert.match(cmsEditor, /data-promo-accordion-group="promo-cms-panels"/);
+  assert.match(cmsEditor, /promo-cms-service-items/);
+  assert.match(cmsEditor, /promo-cms-sections/);
+  assert.match(localesEditor, /promo-locales-panels/);
+  assert.match(galleryStyles, /pz-promo-products__item-summary/);
+  assert.match(galleryStyles, /pz-promo-products__item-body/);
   assert.doesNotMatch(productsEditor, /Texto alternativo|Imagen decorativa|pz-promo-media-slot__accessibility/);
   assert.match(galleryStyles, /pz-promo-media-slot\.is-dragover/);
   assert.doesNotMatch(galleryStyles, /pz-promo-media-slot__accessibility/);
