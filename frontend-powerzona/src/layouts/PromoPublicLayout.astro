@@ -80,9 +80,11 @@ const {
   >
     <slot />
     <script>
+      import { initializePromoFeaturedWorkCarousels } from '../lib/promoFeaturedWorkCarousel';
       import { initializePromoHeroCarousels } from '../lib/promoHeroCarousel';
       import { initializePromoServiceGalleries } from '../lib/promoServiceGallery';
 
+      initializePromoFeaturedWorkCarousels();
       initializePromoHeroCarousels();
       initializePromoServiceGalleries();
 

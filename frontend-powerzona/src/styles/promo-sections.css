@@ -488,7 +488,8 @@
 }
 
 .promo-sections__more:focus-visible,
-.promo-sections__work-controls a:focus-visible {
+.promo-sections__work-controls a:focus-visible,
+.promo-sections__work-controls button:focus-visible {
   outline: 3px solid var(--promo-focus);
   outline-offset: 3px;
 }
@@ -560,20 +561,26 @@
   backdrop-filter: blur(8px);
 }
 
-.promo-sections__work-controls a {
+.promo-sections__work-controls a,
+.promo-sections__work-controls button {
   display: grid;
   width: 44px;
   min-height: 44px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 50%;
+  background: transparent;
   color: var(--promo-text);
   font-size: .75rem;
+  font-family: inherit;
   font-weight: 850;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.promo-sections__work-controls a:hover { border-color: var(--promo-border); }
+.promo-sections__work-controls button { font-size: 1rem; }
+.promo-sections__work-controls a:hover,
+.promo-sections__work-controls button:hover { border-color: var(--promo-border); }
 
 .promo-sections__work-copy {
   padding: var(--promo-card-space);

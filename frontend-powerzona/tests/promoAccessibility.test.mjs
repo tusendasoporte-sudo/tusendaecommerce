@@ -28,6 +28,7 @@ const reviews = read('../src/components/promo-public/PromoReviews.astro');
 const contactAction = read('../src/components/promo-public/PromoContactAction.astro');
 const footer = read('../src/components/promo-public/PromoFooter.astro');
 const heroCarousel = read('../src/lib/promoHeroCarousel.ts');
+const featuredWorkCarousel = read('../src/lib/promoFeaturedWorkCarousel.ts');
 const shellStyles = read('../src/styles/promo-public-shell.css');
 const themeStyles = read('../src/styles/promo-black-gold.css');
 const heroStyles = read('../src/styles/promo-hero.css');
@@ -74,6 +75,8 @@ test('A11Y materializa nombres, estados y alternativas de media sin semántica A
   assert.match(hero, /aria-label=\{mediaLabel\(media, index\)\}/);
   assert.match(hero, /aria-label=\{carouselControlLabels\.previous\}/);
   assert.match(hero, /aria-label=\{carouselControlLabels\.next\}/);
+  assert.match(sections, /data-featured-work-previous aria-label=\{previousWorkLabel\}/);
+  assert.match(sections, /data-featured-work-next aria-label=\{nextWorkLabel\}/);
   assert.doesNotMatch([hero, sectionMedia].join('\n'), /autoplay=/);
 });
 
@@ -90,6 +93,9 @@ test('A11Y mantiene teclado completo, foco visible y controles de video no ocult
   assert.match(hero, /tabindex=\{heroMedia\.length > 1 \? '0'/);
   assert.match(heroCarousel, /previousControl\.addEventListener\('click'/);
   assert.match(heroCarousel, /nextControl\.addEventListener\('click'/);
+  assert.match(featuredWorkCarousel, /previous\.addEventListener\('click'/);
+  assert.match(featuredWorkCarousel, /next\.addEventListener\('click'/);
+  assert.match(featuredWorkCarousel, /event\.key !== 'ArrowLeft'/);
   assert.doesNotMatch(heroCarousel, /Pause carousel|Pausar carrusel|promo-hero__toggle/);
   assert.doesNotMatch(heroStyles, /\.promo-hero__toggle/);
   assert.match(reviews, /tabindex="0"[\s\S]*?role="region"[\s\S]*?aria-label=/);

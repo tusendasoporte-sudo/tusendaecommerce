@@ -103,6 +103,15 @@ test('sección pública conserva SSR y añade formulario moderado, carrusel y vi
   assert.match(component, /function resetRequestContext\(\)/);
   assert.match(styles, /\.promo-reviews \[hidden\][\s\S]*?display: none !important/);
   assert.match(component, /prefers-reduced-motion/);
+  assert.match(component, /success: 'Gracias por tu reseña\.'/);
+  assert.match(component, /success: 'Thank you for your review\.'/);
+  assert.match(component, /noticeTimer = window\.setTimeout\([\s\S]*?5000/);
+  assert.doesNotMatch(component, /data-review-controls|data-review-group-status|data-review-pause/);
+  assert.match(component, /carousel\?\.addEventListener\('mouseenter',[\s\S]*?pointerPaused = true/);
+  assert.match(component, /carousel\?\.addEventListener\('focusin',[\s\S]*?focusPaused = true/);
+  assert.match(component, /pointerPaused \|\| focusPaused/);
+  assert.match(component, /document\.addEventListener\('visibilitychange', restartTimer\)/);
+  assert.match(component, /document\.hidden/);
   assert.match(component, /textContent = review\.comment/);
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /@media \(max-width: 720px\)/);

@@ -48,6 +48,8 @@ const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
 const estimateLabel = profile.system.messages['contact.request_estimate'];
 const quoteLabel = profile.locale.lang.startsWith('es') ? 'Cotizar' : 'Get a quote';
 const viewOptionsLabel = profile.locale.lang.startsWith('es') ? 'Ver opciones' : 'View options';
+const previousWorkLabel = profile.locale.lang.startsWith('es') ? 'Imagen anterior' : 'Previous image';
+const nextWorkLabel = profile.locale.lang.startsWith('es') ? 'Imagen siguiente' : 'Next image';
 
 const galleryWorks = (gallery: PromoPublicSection): WorkModel[] => {
   const content = profile.content.sections[gallery.key] || {};
@@ -239,8 +241,8 @@ const itemCount = section.type === 'featured_work'
           return (
             <li>
               <article class="promo-sections__featured-card">
-                <div class="promo-sections__featured-media">
-                  <ol class="promo-sections__work-slides" aria-label={work.name} tabindex={work.media.length > 1 ? '0' : undefined}>
+                <div class="promo-sections__featured-media" data-featured-work-carousel>
+                  <ol class="promo-sections__work-slides" data-featured-work-slides aria-label={work.name} tabindex={work.media.length > 1 ? '0' : undefined}>
                     {work.media.map((media, mediaIndex) => (
                       <li id={`${carouselId}-media-${mediaIndex + 1}`}>
                         <PromoSectionMedia media={media} accessibleLabel={work.name} />
@@ -248,12 +250,9 @@ const itemCount = section.type === 'featured_work'
                     ))}
                   </ol>
                   {work.media.length > 1 && (
-                    <nav class="promo-sections__work-controls" aria-label={`${work.name} - ${work.media.length}`}>
-                      {work.media.map((_, mediaIndex) => (
-                        <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${work.media.length}`}>
-                          {mediaIndex + 1}
-                        </a>
-                      ))}
+                    <nav class="promo-sections__work-controls" data-featured-work-controls aria-label={`${work.name} - ${work.media.length}`}>
+                      <button type="button" data-featured-work-previous aria-label={previousWorkLabel}>←</button>
+                      <button type="button" data-featured-work-next aria-label={nextWorkLabel}>→</button>
                     </nav>
                   )}
                 </div>

@@ -22,8 +22,6 @@ const copy = spanish ? {
   all: 'Ver todas las reseñas',
   previous: 'Reseñas anteriores',
   next: 'Reseñas siguientes',
-  pause: 'Pausar rotación',
-  play: 'Reanudar rotación',
   close: 'Cerrar',
   formTitle: 'Comparte tu experiencia',
   formIntro: 'Tu reseña se enviará para moderación antes de aparecer públicamente.',
@@ -33,7 +31,7 @@ const copy = spanish ? {
   consent: 'Autorizo mostrar estas fotos del trabajo junto a mi reseña si es aprobada.',
   submit: 'Enviar reseña',
   sending: 'Enviando…',
-  success: 'Gracias. Tu reseña quedó pendiente de aprobación.',
+  success: 'Gracias por tu reseña.',
   verified: 'Trabajo verificado',
   photos: 'Fotos del trabajo',
   requestLoading: 'Cargando la solicitud y sus fotos…',
@@ -45,8 +43,6 @@ const copy = spanish ? {
   all: 'View all reviews',
   previous: 'Previous reviews',
   next: 'Next reviews',
-  pause: 'Pause rotation',
-  play: 'Resume rotation',
   close: 'Close',
   formTitle: 'Share your experience',
   formIntro: 'Your review will be moderated before it appears publicly.',
@@ -56,7 +52,7 @@ const copy = spanish ? {
   consent: 'I authorize these work photos to appear with my review if it is approved.',
   submit: 'Submit review',
   sending: 'Sending…',
-  success: 'Thank you. Your review is pending approval.',
+  success: 'Thank you for your review.',
   verified: 'Verified service',
   photos: 'Work photos',
   requestLoading: 'Loading the request and its photos…',
@@ -144,12 +140,6 @@ const countCopy = rating.summary.count === 1
             </ol>
           </div>
           <p class="promo-reviews__state" data-review-empty role="status" hidden={rating.reviews.length > 0}>{copy.first}</p>
-          <div class="promo-reviews__controls" data-review-controls hidden>
-            <button type="button" data-review-previous aria-label={copy.previous}>←</button>
-            <span data-review-group-status aria-live="polite"></span>
-            <button type="button" data-review-next aria-label={copy.next}>→</button>
-            <button type="button" data-review-pause>{copy.pause}</button>
-          </div>
         </div>
 
         <div class="promo-reviews__primary-actions">
@@ -217,9 +207,7 @@ const countCopy = rating.summary.count === 1
     const copy = JSON.parse(root.dataset.copy || '{}') as Record<string, string>;
     const list = root.querySelector<HTMLOListElement>('[data-review-list]');
     const empty = root.querySelector<HTMLElement>('[data-review-empty]');
-    const controls = root.querySelector<HTMLElement>('[data-review-controls]');
-    const groupStatus = root.querySelector<HTMLElement>('[data-review-group-status]');
-    const pauseButton = root.querySelector<HTMLButtonElement>('[data-review-pause]');
+    const carousel = root.querySelector<HTMLElement>('[data-review-carousel]');
     const openAll = root.querySelector<HTMLButtonElement>('[data-review-open-all]');
     const formDialog = root.querySelector<HTMLDialogElement>('[data-review-form-dialog]');
     const allDialog = root.querySelector<HTMLDialogElement>('[data-review-all-dialog]');
@@ -237,8 +225,10 @@ const countCopy = rating.summary.count === 1
     let reviews: Review[] = [];
     let groups: Review[][] = [];
     let groupIndex = 0;
-    let paused = reducedMotion.matches;
+    let pointerPaused = false;
+    let focusPaused = false;
     let timer = 0;
+    let noticeTimer = 0;
     let requestToken = '';
     let renderedAt = Date.now();
     let allCurrentPage = 1;
@@ -247,9 +237,16 @@ const countCopy = rating.summary.count === 1
 
     function show(message: string, tone: 'success' | 'error' = 'success') {
       if (!notice) return;
+      window.clearTimeout(noticeTimer);
       notice.hidden = !message;
       notice.textContent = message;
       notice.dataset.tone = tone;
+      if (message && tone === 'success') {
+        noticeTimer = window.setTimeout(() => {
+          notice.hidden = true;
+          notice.textContent = '';
+        }, 5000);
+      }
     }
 
     async function responseJson(response: Response) {
@@ -327,16 +324,13 @@ const countCopy = rating.summary.count === 1
       const current = groups[groupIndex] || [];
       current.forEach((review) => { const item = document.createElement('li'); item.append(card(review)); list.append(item); });
       if (empty) empty.hidden = current.length > 0;
-      if (controls) controls.hidden = groups.length <= 1;
-      if (groupStatus) groupStatus.textContent = groups.length ? `${groupIndex + 1} / ${groups.length}` : '';
-      if (pauseButton) { pauseButton.textContent = paused ? copy.play : copy.pause; pauseButton.hidden = groups.length <= 1 || reducedMotion.matches; }
       root.dataset.visibleReviewCount = String(current.length);
       restartTimer();
     }
 
     function restartTimer() {
       window.clearInterval(timer);
-      if (paused || reducedMotion.matches || groups.length <= 1) return;
+      if (pointerPaused || focusPaused || reducedMotion.matches || document.hidden || groups.length <= 1) return;
       timer = window.setInterval(() => { groupIndex = (groupIndex + 1) % groups.length; renderGroup(); }, 8000);
     }
 
@@ -415,13 +409,15 @@ const countCopy = rating.summary.count === 1
       }
     }
 
-    root.querySelector('[data-review-previous]')?.addEventListener('click', () => { if (groups.length) { groupIndex = (groupIndex - 1 + groups.length) % groups.length; renderGroup(); } });
-    root.querySelector('[data-review-next]')?.addEventListener('click', () => { if (groups.length) { groupIndex = (groupIndex + 1) % groups.length; renderGroup(); } });
-    pauseButton?.addEventListener('click', () => { paused = !paused; renderGroup(); });
-    root.querySelector('[data-review-carousel]')?.addEventListener('mouseenter', () => { window.clearInterval(timer); });
-    root.querySelector('[data-review-carousel]')?.addEventListener('mouseleave', restartTimer);
-    root.querySelector('[data-review-carousel]')?.addEventListener('focusin', () => { window.clearInterval(timer); });
-    root.querySelector('[data-review-carousel]')?.addEventListener('focusout', restartTimer);
+    carousel?.addEventListener('mouseenter', () => { pointerPaused = true; restartTimer(); });
+    carousel?.addEventListener('mouseleave', () => { pointerPaused = false; restartTimer(); });
+    carousel?.addEventListener('focusin', () => { focusPaused = true; restartTimer(); });
+    carousel?.addEventListener('focusout', (event) => {
+      if (!(event.relatedTarget instanceof Node) || !carousel.contains(event.relatedTarget)) {
+        focusPaused = false;
+        restartTimer();
+      }
+    });
     root.querySelectorAll('[data-review-open-form]').forEach((button) => button.addEventListener('click', () => openReviewForm()));
     root.querySelector('[data-review-all-leave]')?.addEventListener('click', () => { allDialog?.close(); openReviewForm(); });
     openAll?.addEventListener('click', () => { allDialog?.showModal(); void loadAllPage(1).catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error')); });
@@ -429,7 +425,8 @@ const countCopy = rating.summary.count === 1
     root.querySelector('[data-review-all-next]')?.addEventListener('click', () => { if (allCurrentPage < allTotalPages) void loadAllPage(allCurrentPage + 1); });
 
     [mobile, tablet].forEach((query) => query.addEventListener('change', regroup));
-    reducedMotion.addEventListener('change', () => { paused = reducedMotion.matches; renderGroup(); });
+    reducedMotion.addEventListener('change', restartTimer);
+    document.addEventListener('visibilitychange', restartTimer);
 
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -462,6 +459,10 @@ const countCopy = rating.summary.count === 1
       });
     }
     void loadInitial().catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error'));
-    window.addEventListener('pagehide', () => { objectUrls.forEach((url) => URL.revokeObjectURL(url)); window.clearInterval(timer); }, { once: true });
+    window.addEventListener('pagehide', () => {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      window.clearInterval(timer);
+      window.clearTimeout(noticeTimer);
+    }, { once: true });
   });
 </script>

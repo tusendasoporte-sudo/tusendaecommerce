@@ -874,9 +874,11 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
 });
 
 test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y no expone galerías internas', () => {
+  const layout = read('../src/layouts/PromoPublicLayout.astro');
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const media = read('../src/components/promo-public/PromoSectionMedia.astro');
+  const featuredWorkCarousel = read('../src/lib/promoFeaturedWorkCarousel.ts');
   const sectionStyles = read('../src/styles/promo-sections.css');
   const allThemeStyles = [
     read('../src/styles/promo-black-gold.css'),
@@ -893,6 +895,16 @@ test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y 
   assert.match(sections, /section\.config\.icon_keys/);
   assert.match(sections, /promo-service-icon/);
   assert.match(sections, /gallerySections\.flatMap\(galleryWorks\)\.filter/);
+  assert.match(sections, /data-featured-work-previous/);
+  assert.match(sections, /data-featured-work-next/);
+  const featuredControls = sections.match(/<nav class="promo-sections__work-controls" data-featured-work-controls[\s\S]*?<\/nav>/)?.[0] || '';
+  assert.match(featuredControls, />←<\/button>/);
+  assert.match(featuredControls, />→<\/button>/);
+  assert.doesNotMatch(featuredControls, /mediaIndex \+ 1/);
+  assert.match(layout, /initializePromoFeaturedWorkCarousels/);
+  assert.match(featuredWorkCarousel, /slides\[activeIndex\]\?\.scrollIntoView/);
+  assert.match(featuredWorkCarousel, /previous\.addEventListener\('click'/);
+  assert.match(featuredWorkCarousel, /next\.addEventListener\('click'/);
   assert.match(theme, /navigableSections = orderedSections\.filter\(\(section\) => section\.type !== 'gallery'\)/);
   assert.match(sections, /promoServicePath/);
   assert.match(sections, /promo-sections__service-action/);
@@ -910,7 +922,7 @@ test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y 
   assert.match(sectionStyles, /@media \(max-width: 720px\)/);
   assert.match(sectionStyles, /@media \(max-width: 420px\)/);
   assert.match(sectionStyles, /video:focus-visible/);
-  assert.doesNotMatch(`${sections}\n${media}`, /<script|<button|<form|tel:|mailto:|wa\.me|onclick|addEventListener/i);
+  assert.doesNotMatch(`${sections}\n${media}`, /<script|<form|tel:|mailto:|wa\.me|onclick|addEventListener/i);
   assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.doesNotMatch(sectionStyles, /url\(|@import|https?:/i);
   assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 50 * 1024,
