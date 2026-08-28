@@ -57,6 +57,14 @@ test('lista y detalle consultan estado, muestran badge y reutilizan el flujo pro
   assert.match(detailView, /Reemplaza primero al Administrador principal/);
 });
 
+test('las tiendas Promo conservan su aviso y pueden definir al Administrador principal', () => {
+  assert.match(usersView, /store\.storeType === 'promo'[\s\S]*Usuarios de Tienda Promo/);
+  assert.match(usersView, /<MasterPrimaryAdminControl storeId=\{store\.id\} status=\{primaryAdmin\} \/>/);
+  assert.doesNotMatch(usersView, /\)\s*:\s*<MasterPrimaryAdminControl/);
+  assert.match(detailView, /<MasterPrimaryAdminControl storeId=\{store\.id\} status=\{primaryAdmin\} fixedTargetId=\{user\.id\} compact \/>/);
+  assert.doesNotMatch(detailView, /store\.storeType !== 'promo'\s*&&\s*<MasterPrimaryAdminControl/);
+});
+
 test('los estados pendientes y sin candidato son visibles para el Master', () => {
   assert.match(service, /pending_multiple/);
   assert.match(service, /pending_single/);

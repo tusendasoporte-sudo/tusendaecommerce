@@ -62,7 +62,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
 
   {isPrimaryAdmin ? <div class="master-user-warning" role="status"><strong>Este usuario es el Administrador principal.</strong><br />Para suspenderlo, degradarlo o eliminarlo debes completar primero el reemplazo explícito y auditado.</div> : detail.protection.last_active_admin && <div class="master-user-warning" role="status"><strong>Este usuario es el único Administrador activo de la tienda.</strong><br />Debe existir al menos un Administrador activo en todo momento. Suspenderlo o degradarlo a Personal está deshabilitado.</div>}
 
-  {store.storeType !== 'promo' && <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} fixedTargetId={user.id} compact />}
+  <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} fixedTargetId={user.id} compact />
 
   <div class="master-user-detail-grid">
     <div class="master-user-detail-stack">

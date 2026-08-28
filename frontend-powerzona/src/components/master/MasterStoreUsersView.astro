@@ -57,11 +57,13 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
     </div>
   </header>
 
-  {store.storeType === 'promo' ? (
+  {store.storeType === 'promo' && (
     <div class="master-notice" role="status">
       <strong>Usuarios de Tienda Promo</strong><br />Las cuentas comparten la identidad administrativa de la tienda. Sus permisos Promo se mantienen separados de los permisos Commerce.
     </div>
-  ) : <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} />}
+  )}
+
+  <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} />
 
   <div class="master-users-metrics" data-users-metrics>
     <article class="master-users-metric"><span>Usuarios activos</span><strong data-metric-active>{plan.active_users} / {plan.max_active_users}</strong></article>
