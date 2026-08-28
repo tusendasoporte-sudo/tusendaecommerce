@@ -426,11 +426,6 @@
   font-size: .78rem;
 }
 
-.pz-promo-media-slot__accessibility {
-  display: grid;
-  gap: .55rem;
-}
-
 .pz-promo-media-slot__actions {
   justify-content: flex-start;
 }

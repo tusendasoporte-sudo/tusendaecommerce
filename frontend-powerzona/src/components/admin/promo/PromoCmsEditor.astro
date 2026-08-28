@@ -870,6 +870,8 @@ const isContent = scope === 'content';
       const slot = root.querySelector<HTMLElement>('[data-cms-qr-slot]');
       const state = root.querySelector<HTMLElement>('[data-cms-qr-state]');
       const count = root.querySelector<HTMLElement>('[data-cms-qr-count]');
+      const choose = root.querySelector<HTMLButtonElement>('[data-cms-choose-qr]');
+      const input = root.querySelector<HTMLInputElement>('[data-cms-qr-file]');
       const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-qr]');
       const guidance = root.querySelector<HTMLElement>('[data-cms-qr-guidance]');
       if (!preview || !documentValue) return;
@@ -883,6 +885,8 @@ const isContent = scope === 'content';
       preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
       if (state) state.textContent = qrCardError ? 'Error' : (pendingQrFile ? 'Pendiente' : (filled ? 'Guardada' : 'Disponible'));
       if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
+      if (choose) choose.textContent = filled ? 'Cambiar imagen' : 'Elegir imagen';
+      if (input) input.setAttribute('aria-label', `${filled ? 'Cambiar' : 'Agregar'} imagen del código QR`);
       if (remove) remove.disabled = !canSave || !canManageMedia || !filled || busy;
       if (guidance) {
         guidance.textContent = qrCardError
@@ -909,6 +913,8 @@ const isContent = scope === 'content';
       const slot = root.querySelector<HTMLElement>('[data-cms-logo-slot]');
       const state = root.querySelector<HTMLElement>('[data-cms-logo-state]');
       const count = root.querySelector<HTMLElement>('[data-cms-logo-count]');
+      const choose = root.querySelector<HTMLButtonElement>('[data-cms-choose-logo]');
+      const input = root.querySelector<HTMLInputElement>('[data-cms-logo-file]');
       const remove = root.querySelector<HTMLButtonElement>('[data-cms-remove-logo]');
       const guidance = root.querySelector<HTMLElement>('[data-cms-logo-guidance]');
       if (!preview || !documentValue) return;
@@ -922,6 +928,8 @@ const isContent = scope === 'content';
       preview.className = filled ? 'pz-promo-gallery__item-preview' : 'pz-promo-media-slot__empty';
       if (state) state.textContent = logoCardError ? 'Error' : (pendingLogoFile ? 'Pendiente' : (filled ? 'Guardada' : 'Disponible'));
       if (count) count.textContent = `${filled ? 1 : 0} de 1 utilizados`;
+      if (choose) choose.textContent = filled ? 'Cambiar imagen' : 'Elegir imagen';
+      if (input) input.setAttribute('aria-label', `${filled ? 'Cambiar' : 'Agregar'} imagen del logo del negocio`);
       if (remove) remove.disabled = !canSave || !canManageMedia || !filled || busy;
       if (guidance) {
         guidance.textContent = logoCardError

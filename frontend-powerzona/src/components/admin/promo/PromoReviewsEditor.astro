@@ -309,23 +309,26 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
         choose.textContent = file ? 'Cambiar imagen' : 'Elegir imagen'; choose.disabled = input.disabled;
         choose.addEventListener('click', () => input.click()); actions.append(choose, input);
         if (file) {
-          const up = document.createElement('button'); up.type = 'button'; up.className = 'pz-promo-gallery__secondary';
-          up.textContent = '↑'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
-          up.addEventListener('click', () => {
-            [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]];
-            photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
-          });
-          const down = document.createElement('button'); down.type = 'button'; down.className = 'pz-promo-gallery__secondary';
-          down.textContent = '↓'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
-          down.addEventListener('click', () => {
-            [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]];
-            photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
-          });
           const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = 'Quitar';
           remove.addEventListener('click', () => {
             releasePhoto(selectedPhotos[index]); selectedPhotos.splice(index, 1); photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
           });
-          actions.append(up, down, remove);
+          if (selectedPhotos.length > 1) {
+            const up = document.createElement('button'); up.type = 'button'; up.className = 'pz-promo-gallery__secondary';
+            up.textContent = '↑'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
+            up.addEventListener('click', () => {
+              [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]];
+              photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
+            });
+            const down = document.createElement('button'); down.type = 'button'; down.className = 'pz-promo-gallery__secondary';
+            down.textContent = '↓'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
+            down.addEventListener('click', () => {
+              [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]];
+              photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
+            });
+            actions.append(up, down);
+          }
+          actions.append(remove);
         }
         card.append(actions);
         const guidance = document.createElement('small'); guidance.className = `pz-promo-media-slot__guidance${error ? ' is-error' : ''}`;

@@ -102,6 +102,7 @@ const {
     label: string;
     slotKey: string;
     decorativeBackground?: boolean;
+    alternativeText?: (index: number) => string;
     onChange?: () => void;
   };
   type ProductModel = {
@@ -129,6 +130,7 @@ const {
     let draft: Draft | null = null;
     let catalog: Catalog | null = null;
     let locale = 'es';
+    let businessName = 'el negocio';
     let heroMedia: MediaModel[] = [];
     let ownerMedia: MediaModel | null = null;
     let services: ServiceModel[] = [];
@@ -259,6 +261,7 @@ const {
 
     function modelFromDocument(documentValue: any) {
       const localized = documentValue.content_by_locale?.[locale] || {};
+      businessName = text(localized.identity?.name).trim() || 'el negocio';
       const hero = documentValue.sections.find((section: any) => section.type === 'hero');
       heroMedia = (hero?.media_use_keys || [])
         .map((useKey: string) => mediaFromDocument(documentValue, useKey))
@@ -421,7 +424,9 @@ const {
         const media = {
           useKey: previous?.useKey || newKey(`${options.purpose}-media`, 120),
           assetId: '',
-          alt: options.decorativeBackground === true ? '' : (previous?.alt || `Imagen de ${options.label}`),
+          alt: options.decorativeBackground === true
+            ? ''
+            : (text(previous?.alt).trim() || options.alternativeText?.(index) || `Imagen de ${options.label}`),
           decorative: options.decorativeBackground === true,
           pendingFile: preparedFile,
           pendingPurpose: options.purpose,
@@ -457,15 +462,15 @@ const {
 
       for (let index = 0; index < options.maximum; index += 1) {
         const media = target[index];
-        const asset = media ? assetById(media.assetId) : null;
         const stateKey = `${options.slotKey}:${index}`;
         const slotMessage = slotMessages.get(stateKey);
+        const reorderable = !decorativeBackground && options.maximum > 1 && target.length > 1;
         const slot = element('article', `pz-promo-media-slot${media ? ' is-filled' : ' is-empty'}`);
         slot.classList.toggle('is-error', slotMessage?.tone === 'error');
         slot.classList.toggle('is-pending', Boolean(media?.pendingFile));
         slot.dataset.purpose = options.purpose;
         slot.dataset.mediaSlot = String(index);
-        slot.draggable = Boolean(media && canSave && !busy && !decorativeBackground);
+        slot.draggable = Boolean(media && canSave && !busy && reorderable);
 
         const slotHeading = element('div', 'pz-promo-media-slot__heading');
         slotHeading.append(
@@ -486,26 +491,6 @@ const {
 
         if (media) {
           slot.append(preview(media));
-          if (!decorativeBackground) {
-            const accessibility = element('div', 'pz-promo-media-slot__accessibility');
-            const altLabel = element('label', 'pz-promo-gallery__field', asset?.kind === 'video' ? 'Descripción accesible del video' : 'Texto alternativo');
-            const alt = document.createElement('input');
-            alt.type = 'text'; alt.maxLength = 300; alt.value = media.alt; alt.required = !media.decorative; alt.disabled = !canSave;
-            alt.addEventListener('input', () => { media.alt = alt.value; markDirty(); });
-            altLabel.append(alt);
-            const decorative = document.createElement('input');
-            decorative.type = 'checkbox'; decorative.checked = media.decorative; decorative.disabled = !canSave;
-            decorative.addEventListener('change', () => {
-              media.decorative = decorative.checked;
-              if (media.decorative) { media.alt = ''; alt.value = ''; }
-              alt.required = !media.decorative;
-              markDirty();
-            });
-            const decorativeLabel = element('label', 'pz-promo-gallery__check');
-            decorativeLabel.append(decorative, element('span', '', 'Imagen decorativa'));
-            accessibility.append(altLabel, decorativeLabel);
-            slot.append(accessibility);
-          }
         } else {
           const empty = element('div', 'pz-promo-media-slot__empty');
           empty.append(
@@ -522,7 +507,7 @@ const {
         actions.append(choose, imageInput);
 
         if (media) {
-          if (!decorativeBackground) {
+          if (reorderable) {
             const up = element('button', 'pz-promo-gallery__secondary', '↑');
             up.type = 'button'; up.disabled = !canSave || busy || index === 0; up.ariaLabel = `Mover ${options.label} a la izquierda`;
             up.addEventListener('click', () => {
@@ -557,7 +542,7 @@ const {
         ));
 
         slot.addEventListener('dragstart', (event) => {
-          if (decorativeBackground || !media || !event.dataTransfer) return;
+          if (!reorderable || !media || !event.dataTransfer) return;
           event.dataTransfer.effectAllowed = 'move';
           event.dataTransfer.setData(SLOT_REORDER_TYPE, String(index));
         });
@@ -565,7 +550,7 @@ const {
           if (busy || !canSave) return;
           const types = Array.from(event.dataTransfer?.types || []);
           if (types.includes('Files') && !canManageMedia) return;
-          if (!types.includes('Files') && (decorativeBackground || !types.includes(SLOT_REORDER_TYPE))) return;
+          if (!types.includes('Files') && (!reorderable || !types.includes(SLOT_REORDER_TYPE))) return;
           event.preventDefault();
           slot.classList.add('is-dragover');
         });
@@ -576,7 +561,7 @@ const {
           const source = event.dataTransfer.getData(SLOT_REORDER_TYPE);
           if (source !== '') {
             event.preventDefault();
-            if (decorativeBackground) return;
+            if (!reorderable) return;
             const from = Number(source);
             if (!canSave || !Number.isInteger(from) || from < 0 || from >= target.length || from === index) return;
             if (index < target.length) [target[from], target[index]] = [target[index], target[from]];
@@ -622,6 +607,7 @@ const {
         purpose: 'gallery',
         label: product.name || `Producto ${index + 1}`,
         slotKey: `product-${service.key}-${product.key}`,
+        alternativeText: (mediaIndex) => `${product.name || `Producto ${index + 1}`} · imagen ${mediaIndex + 1}`,
         onChange: () => {
           if (!product.media.length) { product.visible = false; product.featured = false; }
         },
@@ -653,6 +639,7 @@ const {
         purpose: 'owner',
         label: 'Foto del propietario',
         slotKey: 'owner',
+        alternativeText: () => `Retrato del propietario de ${businessName}`,
         onChange: () => { ownerMedia = holder[0] || null; },
       }));
       details.append(body);
@@ -690,6 +677,7 @@ const {
         purpose: 'gallery',
         label: workItem.name || `Trabajo ${index + 1}`,
         slotKey: `work-${workItem.key}`,
+        alternativeText: (mediaIndex) => `${workItem.name || `Trabajo ${index + 1}`} · imagen ${mediaIndex + 1}`,
         onChange: () => {
           if (!workItem.media.length) { workItem.visible = false; workItem.featured = false; }
         },
@@ -794,6 +782,7 @@ const {
         purpose: 'gallery',
         label: `Portada de ${service.serviceName}`,
         slotKey: `service-${service.serviceKey}`,
+        alternativeText: () => `Portada del servicio ${service.serviceName}`,
         onChange: () => {
           service.cover = holder[0] || null;
           service.coverIndependent = Boolean(service.cover);
@@ -845,12 +834,13 @@ const {
       root.setAttribute('aria-busy', busy ? 'true' : 'false');
     }
 
-    function mediaPatch(media: MediaModel) {
+    function mediaPatch(media: MediaModel, alternativeText = '', decorative = false) {
+      const storedAlternative = text(media.alt).trim();
       return {
         useKey: media.useKey,
         assetId: media.assetId,
-        alt: media.alt,
-        decorative: media.decorative,
+        alt: decorative ? '' : ((media.pendingFile || media.decorative) ? alternativeText : (storedAlternative || alternativeText)),
+        decorative,
       };
     }
 
@@ -871,11 +861,14 @@ const {
           name: item.name,
           summary: item.summary,
           caption: item.caption,
-          media: item.media.map(mediaPatch),
+          media: item.media.map((media, index) => mediaPatch(
+            media,
+            `${item.name || 'Producto o trabajo'} · imagen ${index + 1}`,
+          )),
         })),
       };
       return gallery.cover?.useKey && gallery.coverIndependent
-        ? { ...common, coverMedia: mediaPatch(gallery.cover) }
+        ? { ...common, coverMedia: mediaPatch(gallery.cover, `Portada de ${gallery.heading || gallery.navigationLabel || 'la sección'}`) }
         : common;
     }
 
@@ -959,8 +952,8 @@ const {
         const nextDocument = buildPromoGalleryDocument(
           draft.document,
           {
-            heroMedia: heroMedia.map(mediaPatch),
-            ownerMedia: ownerMedia ? mediaPatch(ownerMedia) : null,
+            heroMedia: heroMedia.map((media) => mediaPatch(media, '', true)),
+            ownerMedia: ownerMedia ? mediaPatch(ownerMedia, `Retrato del propietario de ${businessName}`) : null,
             galleries: [...linkedGalleries, work, ...preserved],
           },
           catalog.assets,

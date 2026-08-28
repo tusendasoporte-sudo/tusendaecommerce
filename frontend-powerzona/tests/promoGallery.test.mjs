@@ -506,10 +506,10 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /optimizePromoUploadImageFile/);
   assert.match(productsEditor, /async function uploadPendingImages[\s\S]*?uploadAsset\(media\.pendingFile!, media\.pendingPurpose!\)/);
   assert.match(productsEditor, /const pendingUpload = \{[\s\S]*?createdAssetIds: new Set<string>\(\)[\s\S]*?await uploadPendingImages\(pendingUpload\)/);
-  assert.match(productsEditor, /function mediaPatch\(media: MediaModel\)[\s\S]*?useKey: media\.useKey[\s\S]*?decorative: media\.decorative/);
-  assert.match(productsEditor, /heroMedia: heroMedia\.map\(mediaPatch\)[\s\S]*?ownerMedia: ownerMedia \? mediaPatch\(ownerMedia\) : null/);
-  assert.match(productsEditor, /items: gallery\.items\.map[\s\S]*?media: item\.media\.map\(mediaPatch\)/);
-  assert.match(productsEditor, /coverMedia: mediaPatch\(gallery\.cover\)/);
+  assert.match(productsEditor, /function mediaPatch\(media: MediaModel, alternativeText = '', decorative = false\)[\s\S]*?alt: decorative \? ''[\s\S]*?decorative/);
+  assert.match(productsEditor, /heroMedia: heroMedia\.map\(\(media\) => mediaPatch\(media, '', true\)\)[\s\S]*?ownerMedia: ownerMedia \? mediaPatch\(ownerMedia, `Retrato del propietario de \$\{businessName\}`\) : null/);
+  assert.match(productsEditor, /items: gallery\.items\.map[\s\S]*?media: item\.media\.map\(\(media, index\) => mediaPatch[\s\S]*?imagen \$\{index \+ 1\}/);
+  assert.match(productsEditor, /coverMedia: mediaPatch\(gallery\.cover, `Portada de \$\{gallery\.heading/);
   assert.match(productsEditor, /if \(pendingUpload\.pending\.length\)[\s\S]*?deleteUnreferencedAssets\(pendingUpload\.createdAssetIds\)/);
   assert.match(productsEditor, /expected_version: draft\.version[\s\S]*?deleteUnreferencedAssets\(replacedAssetIds\)/);
   assert.match(productsEditor, /window\.addEventListener\('beforeunload'[\s\S]*?if \(!dirty\) return/);
@@ -518,7 +518,12 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(productsEditor, /1920×1080/);
   assert.match(productsEditor, /1200×900/);
   assert.match(productsEditor, /800×1000/);
+  assert.match(productsEditor, /alternativeText: \(\) => `Retrato del propietario de \$\{businessName\}`/);
+  assert.match(productsEditor, /alternativeText: \(\) => `Portada del servicio \$\{service\.serviceName\}`/);
+  assert.match(productsEditor, /const reorderable = !decorativeBackground && options\.maximum > 1 && target\.length > 1/);
+  assert.doesNotMatch(productsEditor, /Texto alternativo|Imagen decorativa|pz-promo-media-slot__accessibility/);
   assert.match(galleryStyles, /pz-promo-media-slot\.is-dragover/);
+  assert.doesNotMatch(galleryStyles, /pz-promo-media-slot__accessibility/);
   assert.doesNotMatch(galleryStyles, /data-maximum='1'/);
   assert.match(galleryStyles, /pz-promo-media-slot__empty[\s\S]*?aspect-ratio: 16 \/ 9/);
   assert.doesNotMatch(productsEditor, /data-products-add-hero-video|data-products-hero-video|data-products-hero-poster/);

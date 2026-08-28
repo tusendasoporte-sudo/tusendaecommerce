@@ -85,6 +85,7 @@ test('UI y proxies usan POST same-origin, consentimiento, QR local y Web Share o
   assert.match(adminComponent, /data-review-request-photo-slots/);
   assert.match(adminComponent, /optimizePromoUploadImageFile\(file, 'review'\)/);
   assert.match(adminComponent, /for \(let index = 0; index < 3; index \+= 1\)/);
+  assert.match(adminComponent, /if \(selectedPhotos\.length > 1\)[\s\S]*?Mover foto hacia la izquierda[\s\S]*?Mover foto hacia la derecha/);
   assert.match(adminComponent, /image\.src = mediaEndpoint\(assetId\)/);
   assert.match(adminComponent, /QRCode\.toDataURL/);
   assert.match(adminComponent, /navigator\.canShare\(\{ files \}\)/);
