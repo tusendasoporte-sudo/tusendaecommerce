@@ -1,0 +1,15 @@
+---
+import PromoServiceDetail from '../../components/promo-public/PromoServiceDetail.astro';
+import { findPromoService, promoServiceSeo } from '../../lib/promoServiceCatalog';
+import { promoPublicUnavailable } from '../../lib/promoPublicShell';
+
+const profile = Astro.locals.promoPublicProfile;
+const baseSeo = Astro.locals.promoPublicSeo;
+const serviceKey = Astro.locals.promoPublicServiceKey || '';
+if (!profile || !baseSeo || !serviceKey) return promoPublicUnavailable(404);
+const service = findPromoService(profile, serviceKey);
+if (!service) return promoPublicUnavailable(404);
+const seo = promoServiceSeo(profile, baseSeo, service);
+---
+
+<PromoServiceDetail profile={profile} seo={seo} service={service} />

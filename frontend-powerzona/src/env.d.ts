@@ -16,6 +16,7 @@ declare global {
       promoAccessContext?: PromoAccessContext;
       promoPublicProfile?: PromoPublicProfile;
       promoPublicSeo?: PromoPublicSeo;
+      promoPublicServiceKey?: string;
       adminAppPolicy?: AdminAppPolicy;
     }
   }

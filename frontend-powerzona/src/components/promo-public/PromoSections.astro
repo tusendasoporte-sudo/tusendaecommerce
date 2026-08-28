@@ -5,6 +5,7 @@ import type {
   PromoPublicProfile,
   PromoPublicSection,
 } from '../../lib/promoPublicShell';
+import { promoServicePath } from '../../lib/promoServiceCatalog';
 import PromoContactAction from './PromoContactAction.astro';
 import PromoSectionMedia from './PromoSectionMedia.astro';
 
@@ -46,6 +47,7 @@ const ownerMedia = ownerMediaKey ? mediaByKey.get(ownerMediaKey) : undefined;
 const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
 const estimateLabel = profile.system.messages['contact.request_estimate'];
 const quoteLabel = profile.locale.lang.startsWith('es') ? 'Cotizar' : 'Get a quote';
+const viewOptionsLabel = profile.locale.lang.startsWith('es') ? 'Ver opciones' : 'View options';
 
 const galleryWorks = (gallery: PromoPublicSection): WorkModel[] => {
   const content = profile.content.sections[gallery.key] || {};
@@ -81,10 +83,9 @@ const services = section.type === 'services' ? items.map((item: Record<string, s
   const cover = coverKey ? mediaByKey.get(coverKey) : undefined;
   return {
     item,
-    gallery,
     iconKey: String(serviceIconKeys[index] || ''),
     cover: cover?.purpose === 'gallery' ? cover : undefined,
-    products: gallery?.type === 'gallery' ? galleryWorks(gallery) : [],
+    productCount: gallery?.type === 'gallery' ? galleryWorks(gallery).length : 0,
   };
 }) : [];
 const itemCount = section.type === 'featured_work'
@@ -132,7 +133,7 @@ const itemCount = section.type === 'featured_work'
 
     {section.type === 'services' && services.length > 0 && (
       <ul class="promo-sections__services-list">
-        {services.map(({ item, iconKey, cover, products }, index) => (
+        {services.map(({ item, iconKey, cover, productCount }, index) => (
           <li>
             <section class="promo-sections__service-category" aria-labelledby={`${sectionId}-service-${index + 1}`}>
               <article class:list={['promo-sections__service-card', { 'promo-sections__service-card--with-media': cover }]}>
@@ -203,57 +204,27 @@ const itemCount = section.type === 'featured_work'
                   </div>
                   {item.summary && <p>{item.summary}</p>}
                   {item.caption && <p class="promo-sections__caption">{item.caption}</p>}
-                  {products.length > 0 && <p class="promo-sections__product-count">{products.length} {products.length === 1 ? (profile.locale.lang.startsWith('es') ? 'opción' : 'option') : (profile.locale.lang.startsWith('es') ? 'opciones' : 'options')}</p>}
+                  {productCount > 0 ? (
+                    <a
+                      class="promo-sections__service-action"
+                      href={promoServicePath(profile, String(item.key || ''))}
+                      aria-label={`${viewOptionsLabel}: ${String(item.name || '')}`}
+                    >
+                      <span>{viewOptionsLabel}</span><span aria-hidden="true">→</span>
+                    </a>
+                  ) : (
+                    <PromoContactAction
+                      profile={profile}
+                      className="promo-sections__service-action promo-sections__service-quote"
+                      fallbackLabel={estimateLabel}
+                      labelOverride={quoteLabel}
+                      context={profile.locale.lang.startsWith('es')
+                        ? `Quiero cotizar: ${String(item.name || '')}`
+                        : `Quote request: ${String(item.name || '')}`}
+                    />
+                  )}
                 </div>
               </article>
-
-              {products.length > 0 && (
-                <ul class="promo-sections__product-grid">
-                  {products.map((product, productIndex) => {
-                    const carouselId = `${sectionId}-${product.galleryKey}-${product.key}`;
-                    const quoteContext = profile.locale.lang.startsWith('es')
-                      ? `Quiero cotizar: ${String(item.name || '')} · ${product.name}`
-                      : `Quote request: ${String(item.name || '')} · ${product.name}`;
-                    return (
-                      <li>
-                        <article class="promo-sections__work-card promo-sections__product-card">
-                          <div class="promo-sections__work-media">
-                            <ol class="promo-sections__work-slides" aria-label={product.name} tabindex={product.media.length > 1 ? '0' : undefined}>
-                              {product.media.map((media, mediaIndex) => (
-                                <li id={`${carouselId}-media-${mediaIndex + 1}`}>
-                                  <PromoSectionMedia media={media} accessibleLabel={product.name} />
-                                </li>
-                              ))}
-                            </ol>
-                            {product.media.length > 1 && (
-                              <nav class="promo-sections__work-controls" aria-label={`${product.name} - ${product.media.length}`}>
-                                {product.media.map((_, mediaIndex) => (
-                                  <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${product.media.length}`}>
-                                    {mediaIndex + 1}
-                                  </a>
-                                ))}
-                              </nav>
-                            )}
-                          </div>
-                          <div class="promo-sections__work-copy">
-                            <span class="promo-sections__item-number" aria-hidden="true">{itemNumber(productIndex)}</span>
-                            <h4>{product.name}</h4>
-                            {product.summary && <p>{product.summary}</p>}
-                            {product.caption && <p class="promo-sections__caption">{product.caption}</p>}
-                            <PromoContactAction
-                              profile={profile}
-                              className="promo-sections__estimate"
-                              fallbackLabel={estimateLabel}
-                              labelOverride={quoteLabel}
-                              context={quoteContext}
-                            />
-                          </div>
-                        </article>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
             </section>
           </li>
         ))}

@@ -8,7 +8,9 @@ import {
   isPromoPlatformRequest,
   normalizePromoPublicShellResponse,
   PROMO_PUBLIC_INTERNAL_PATH,
+  PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
+  platformPromoPublicPath,
   promoHostEndpoint,
   promoPlatformEndpoint,
   readCustomHostPromoShell,
@@ -632,6 +634,14 @@ test('rutas públicas separan plataforma, Host y paths custom allowlisted', () =
   assert.equal(promoHostEndpoint('en'), '/api/pz/promo/public/v1/shell/host/locales/en');
   assert.deepEqual(customPromoPublicPath('/'), { allowed: true, locale: undefined });
   assert.deepEqual(customPromoPublicPath('/es'), { allowed: true, locale: 'es' });
+  assert.deepEqual(customPromoPublicPath('/es/servicios/service-clean'), {
+    allowed: true, locale: 'es', serviceKey: 'service-clean',
+  });
+  assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/es/servicios/service-clean'), {
+    publicSlug: 'demo-promo', locale: 'es', serviceKey: 'service-clean',
+  });
+  assert.equal(customPromoPublicPath('/es/servicios').allowed, false);
+  assert.equal(customPromoPublicPath('/es/servicios/Service-Clean').allowed, false);
   assert.equal(customPromoPublicPath('/admin').allowed, false);
   assert.equal(customPromoPublicPath('/api/pz').allowed, false);
   assert.equal(isPromoPlatformRequest(new Request('https://tusenda84.com/promo/demo-promo')), true);
@@ -707,6 +717,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
     'promo.vibrant', 'promo.professional', 'promo.portfolio',
   ]) assert.match(`${themeStyles}\n${variantStyles}`, new RegExp(`data-promo-theme-renderer="${renderer.replace('.', '\\.')}"`));
   assert.equal(PROMO_PUBLIC_INTERNAL_PATH, '/promo-shell-internal');
+  assert.equal(PROMO_PUBLIC_SERVICE_INTERNAL_PATH, '/__pz/promo-service');
   assert.match(internal, /Astro\.locals\.promoPublicProfile/);
   assert.match(shell, /promo_public_renderer_unavailable/);
   assert.match(theme, /promo-skip-link/);
@@ -825,7 +836,7 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
     'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
 });
 
-test('SECTIONS integra productos dentro de servicios, deriva destacados y no expone galerías internas', () => {
+test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y no expone galerías internas', () => {
   const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
   const sections = read('../src/components/promo-public/PromoSections.astro');
   const media = read('../src/components/promo-public/PromoSectionMedia.astro');
@@ -846,9 +857,12 @@ test('SECTIONS integra productos dentro de servicios, deriva destacados y no exp
   assert.match(sections, /promo-service-icon/);
   assert.match(sections, /gallerySections\.flatMap\(galleryWorks\)\.filter/);
   assert.match(theme, /navigableSections = orderedSections\.filter\(\(section\) => section\.type !== 'gallery'\)/);
-  assert.match(sections, /promo-sections__product-grid/);
+  assert.match(sections, /promoServicePath/);
+  assert.match(sections, /promo-sections__service-action/);
+  assert.match(sections, /viewOptionsLabel/);
+  assert.doesNotMatch(sections, /promo-sections__product-grid/);
+  assert.doesNotMatch(sections, /products\.map\(\(product/);
   assert.match(sections, /labelOverride=\{quoteLabel\}/);
-  assert.match(sections, /context=\{quoteContext\}/);
   assert.match(sections, /<PromoContactAction/);
   assert.match(sections, /data-section-item-count/);
   assert.match(media, /loading=\{media\.delivery\.loading\}/);

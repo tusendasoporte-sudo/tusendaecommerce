@@ -32,11 +32,13 @@ import {
   customPromoPublicPath,
   platformPromoPublicPath,
   PROMO_PUBLIC_INTERNAL_PATH,
+  PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
   promoPublicUnavailable,
   readCustomHostPromoShell,
   readPlatformPromoShell,
 } from './lib/promoPublicShell';
+import { findPromoService } from './lib/promoServiceCatalog';
 import { servePromoPublicRepresentation } from './lib/promoPerformance';
 import { promoPublicMediaPath, proxyPromoPublicMedia } from './lib/promoPublicMediaProxy';
 import {
@@ -274,12 +276,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
     }
     if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(421);
+    if (publicPath.serviceKey && !findPromoService(resolved.profile, publicPath.serviceKey)) {
+      return promoPublicUnavailable(404);
+    }
     context.locals.promoPublicProfile = resolved.profile;
     context.locals.promoPublicSeo = resolved.seo;
+    context.locals.promoPublicServiceKey = publicPath.serviceKey;
     const response = await servePromoPublicRepresentation(
       context.request,
       resolved,
-      () => context.rewrite(PROMO_PUBLIC_INTERNAL_PATH),
+      () => context.rewrite(publicPath.serviceKey ? PROMO_PUBLIC_SERVICE_INTERNAL_PATH : PROMO_PUBLIC_INTERNAL_PATH),
     );
     return applyPromoPublicHeaders(response, resolved);
   }
@@ -303,12 +309,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
       return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
     }
     if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(404);
+    if (platformPromoPath.serviceKey && !findPromoService(resolved.profile, platformPromoPath.serviceKey)) {
+      return promoPublicUnavailable(404);
+    }
     context.locals.promoPublicProfile = resolved.profile;
     context.locals.promoPublicSeo = resolved.seo;
+    context.locals.promoPublicServiceKey = platformPromoPath.serviceKey;
     const response = await servePromoPublicRepresentation(
       context.request,
       resolved,
-      () => context.rewrite(PROMO_PUBLIC_INTERNAL_PATH),
+      () => context.rewrite(platformPromoPath.serviceKey ? PROMO_PUBLIC_SERVICE_INTERNAL_PATH : PROMO_PUBLIC_INTERNAL_PATH),
     );
     return applyPromoPublicHeaders(response, resolved);
   }

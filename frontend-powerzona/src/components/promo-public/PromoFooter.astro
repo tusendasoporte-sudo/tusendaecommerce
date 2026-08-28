@@ -6,11 +6,13 @@ interface Props {
   profile: PromoPublicProfile;
   section: PromoPublicSection;
   localized: Record<string, any>;
+  basePath?: string;
 }
 
-const { profile, section, localized } = Astro.props;
+const { profile, section, localized, basePath = '' } = Astro.props;
 const footer = profile.footer.sections.find((entry) => entry.key === section.key);
 const sectionId = `promo-section-${section.key}`;
+const footerHref = (href: string) => basePath && href.startsWith('#') ? `${basePath}${href}` : href;
 ---
 
 {footer && (
@@ -33,7 +35,7 @@ const sectionId = `promo-section-${section.key}`;
         <nav class="promo-footer__navigation" aria-label={footer.navigation_label}>
           <ul>
             {footer.navigation_links.map((link) => (
-              <li><a href={link.href}>{link.label}</a></li>
+              <li><a href={footerHref(link.href)}>{link.label}</a></li>
             ))}
           </ul>
         </nav>

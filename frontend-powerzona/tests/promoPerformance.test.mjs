@@ -132,7 +132,14 @@ test('caché falla cerrada sin clave completa y headers no-store cubren estados 
 test('rutas de plataforma son exactas y el runtime conserva Analytics y políticas MEDIA/SEC', () => {
   assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/es'), { publicSlug: 'demo-promo', locale: 'es' });
   assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/'), { publicSlug: 'demo-promo', locale: undefined });
+  assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/es/servicios/service-clean'), {
+    publicSlug: 'demo-promo', locale: 'es', serviceKey: 'service-clean',
+  });
   assert.equal(platformPromoPublicPath('/promo/demo-promo/es/private'), null);
+  assert.notEqual(
+    promoRepresentationVariantKey(shellResult(), 'br', '/promo/demo-promo/es'),
+    promoRepresentationVariantKey(shellResult(), 'br', '/promo/demo-promo/es/servicios/service-clean'),
+  );
 
   const layout = readFileSync(new URL('../src/layouts/PromoPublicLayout.astro', import.meta.url), 'utf8');
   const hero = readFileSync(new URL('../src/components/promo-public/PromoHero.astro', import.meta.url), 'utf8');

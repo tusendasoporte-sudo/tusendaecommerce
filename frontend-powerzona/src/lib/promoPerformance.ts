@@ -79,9 +79,18 @@ function safeBaseKey(result: PromoPublicShellResult) {
   return result.route.action === 'serve' && CACHE_KEY_PATTERN.test(key) ? key : '';
 }
 
-export function promoRepresentationVariantKey(result: PromoPublicShellResult, encoding: PromoContentEncoding) {
+export function promoRepresentationVariantKey(
+  result: PromoPublicShellResult,
+  encoding: PromoContentEncoding,
+  representationScope = '',
+) {
   const base = safeBaseKey(result);
-  return base ? `${base}|text-html|${encoding}` : '';
+  const scope = /^[A-Za-z0-9/_-]{1,320}$/.test(representationScope) ? representationScope : '';
+  return base ? `${base}|text-html|${encoding}${scope ? `|${scope}` : ''}` : '';
+}
+
+function requestRepresentationScope(request: Request) {
+  try { return new URL(request.url).pathname; } catch (_) { return ''; }
 }
 
 function pruneCache(now: number) {
@@ -163,7 +172,11 @@ async function prepareRepresentation(
   }
   const requestedEncoding = selectPromoContentEncoding(request.headers.get('accept-encoding') || '');
   const encoded = await encodeBody(raw, requestedEncoding);
-  const variantKey = promoRepresentationVariantKey(result, encoded.encoding);
+  const variantKey = promoRepresentationVariantKey(
+    result,
+    encoded.encoding,
+    requestRepresentationScope(request),
+  );
   const etag = variantKey
     ? `"pz-promo-${createHash('sha256').update(variantKey).update(encoded.body).digest('hex').slice(0, 32)}"`
     : '';
@@ -201,7 +214,11 @@ export async function servePromoPublicRepresentation(
 ) {
   if (request.method !== 'GET') return render();
   const selected = selectPromoContentEncoding(request.headers.get('accept-encoding') || '');
-  const selectedVariant = promoRepresentationVariantKey(result, selected);
+  const selectedVariant = promoRepresentationVariantKey(
+    result,
+    selected,
+    requestRepresentationScope(request),
+  );
   const hit = cachedResponse(request, selectedVariant);
   if (hit) return hit;
   if (selectedVariant) {

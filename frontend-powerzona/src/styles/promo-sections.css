@@ -23,44 +23,6 @@
   gap: clamp(1rem, 2.4vw, 1.75rem);
 }
 
-.promo-sections__product-count {
-  margin-top: .85rem !important;
-  color: var(--promo-accent, #c99b42) !important;
-  font-size: .76rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.promo-sections__product-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(.85rem, 1.8vw, 1.25rem);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.promo-sections__product-card {
-  height: 100%;
-}
-
-.promo-sections__product-card .promo-sections__work-copy h4 {
-  margin: 0;
-  color: var(--promo-text, #f8f5ef);
-  font-family: var(--promo-font-heading, serif);
-  font-size: clamp(1.2rem, 2vw, 1.65rem);
-  line-height: 1.1;
-}
-
-@media (max-width: 900px) {
-  .promo-sections__product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 620px) {
-  .promo-sections__product-grid { grid-template-columns: 1fr; }
-}
-
 .promo-sections__services-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -126,6 +88,13 @@
   padding: var(--promo-card-space);
 }
 
+.promo-sections__service-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .promo-sections__service-heading {
   display: flex;
   align-items: flex-start;
@@ -182,6 +151,41 @@
   margin-block-start: 1rem;
   font-size: .98rem;
   line-height: 1.7;
+}
+
+.promo-sections__service-action {
+  display: inline-flex;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-start: auto;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--promo-border);
+  border-radius: calc(var(--promo-radius) * .72);
+  color: var(--promo-surface);
+  background: var(--promo-accent);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.promo-sections__service-copy > .promo-sections__service-action {
+  margin-block-start: 1.4rem;
+}
+
+.promo-sections__service-action:hover { background: var(--promo-accent-bright); }
+
+.promo-sections__service-action:focus-visible {
+  outline: 3px solid var(--promo-focus);
+  outline-offset: 3px;
+}
+
+.promo-sections__service-quote {
+  color: var(--promo-surface);
 }
 
 .promo-sections__caption,

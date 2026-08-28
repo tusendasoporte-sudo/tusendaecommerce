@@ -12,6 +12,7 @@ export const PROMO_PUBLIC_SHELL_CONTRACT = 'promo.public.shell.v1';
 export const PROMO_PUBLIC_ROUTE_CONTRACT = 'promo.public.route.v1';
 export const PROMO_PUBLIC_LOCALIZED_CONTRACT = 'promo.public.localized.v1';
 export const PROMO_PUBLIC_INTERNAL_PATH = '/promo-shell-internal';
+export const PROMO_PUBLIC_SERVICE_INTERNAL_PATH = '/__pz/promo-service';
 export const PROMO_BLACK_GOLD_THEME_ID = 'promo.black-gold';
 export const PROMO_BLACK_GOLD_THEME_VERSION = '1.0.0';
 export const PROMO_BLACK_GOLD_RENDERER_KEY = 'promo.black-gold';
@@ -1384,10 +1385,14 @@ export async function readPromoCommerceBridge(request: Request, storeSlug: strin
 
 export function customPromoPublicPath(pathname: string) {
   if (pathname === '/') return { allowed: true as const, locale: undefined };
-  const match = pathname.match(LOCALE_PATH_PATTERN);
+  const match = pathname.match(/^\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)(?:\/servicios\/([a-z][a-z0-9_-]{0,119}))?\/?$/);
   const reserved = new Set(['admin', 'master', 'api', 't', 'checkout']);
   return match && !reserved.has(match[1].toLowerCase())
-    ? { allowed: true as const, locale: match[1] }
+    ? {
+      allowed: true as const,
+      locale: match[1],
+      ...(match[2] ? { serviceKey: match[2] } : {}),
+    }
     : { allowed: false as const, locale: undefined };
 }
 
@@ -1397,10 +1402,14 @@ export function isPromoPlatformRequest(request: Request) {
 
 export function platformPromoPublicPath(pathname: string) {
   const match = String(pathname || '').match(
-    /^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*))?\/?$/,
+    /^\/promo\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)(?:\/servicios\/([a-z][a-z0-9_-]{0,119}))?)?\/?$/,
   );
   return match
-    ? { publicSlug: match[1], locale: match[2] || undefined }
+    ? {
+      publicSlug: match[1],
+      locale: match[2] || undefined,
+      ...(match[3] ? { serviceKey: match[3] } : {}),
+    }
     : null;
 }
 

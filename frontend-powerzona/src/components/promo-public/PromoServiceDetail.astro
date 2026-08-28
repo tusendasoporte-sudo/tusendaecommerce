@@ -1,0 +1,203 @@
+---
+import '../../styles/promo-black-gold.css';
+import '../../styles/promo-theme-variants.css';
+import '../../styles/promo-service-detail.css';
+import PromoPublicLayout from '../../layouts/PromoPublicLayout.astro';
+import type { PromoPublicProfile, PromoPublicSeo, PromoPublicSection } from '../../lib/promoPublicShell';
+import type { PromoServiceDetail } from '../../lib/promoServiceCatalog';
+import PromoContactAction from './PromoContactAction.astro';
+import PromoFooter from './PromoFooter.astro';
+import PromoSectionMedia from './PromoSectionMedia.astro';
+
+interface Props {
+  profile: PromoPublicProfile;
+  seo: PromoPublicSeo;
+  service: PromoServiceDetail;
+}
+
+const { profile, seo, service } = Astro.props;
+const { content, locale, selector, system, theme } = profile;
+const identity = content.identity;
+const spanish = locale.lang.startsWith('es');
+const labels = spanish ? {
+  back: 'Volver a servicios',
+  options: 'Opciones disponibles',
+  option: 'opción',
+  optionsPlural: 'opciones',
+  quote: 'Cotizar',
+  quoteService: 'Cotizar servicio',
+  gallery: 'Fotos de',
+} : {
+  back: 'Back to services',
+  options: 'Available options',
+  option: 'option',
+  optionsPlural: 'options',
+  quote: 'Get a quote',
+  quoteService: 'Get a service quote',
+  gallery: 'Photos of',
+};
+const homePath = locale.canonical_path;
+const servicePath = `/servicios/${service.key}`;
+const servicesAnchor = `${homePath}#promo-section-${service.section.key}`;
+const localizedSelector = selector.options.map((option) => ({
+  ...option,
+  href: `${option.href}${servicePath}`,
+}));
+const logoMediaKey = String(profile.contact.logo_media_use_key || '');
+const logoMedia = profile.media.find((media) => (
+  media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
+));
+const footerSections = profile.section_order
+  .map((key) => profile.sections.find((section) => section.key === key))
+  .filter((section): section is PromoPublicSection => Boolean(section?.type === 'footer'));
+const productCountLabel = `${service.products.length} ${service.products.length === 1 ? labels.option : labels.optionsPlural}`;
+const quoteContext = spanish
+  ? `Quiero cotizar: ${service.name}`
+  : `Quote request: ${service.name}`;
+---
+
+<PromoPublicLayout
+  lang={locale.lang}
+  direction={locale.direction}
+  title={`${service.name} | ${identity.name}`}
+  description={service.summary || content.seo.description}
+  themeId={theme.theme_id}
+  themeVersion={theme.version}
+  themeRenderer={theme.renderer_key}
+  themeTokens={theme.tokens}
+  seo={seo}
+>
+  <a class="promo-skip-link" href="#promo-main">{system.messages['a11y.skip_to_content']}</a>
+
+  <div class="promo-public-shell promo-black-gold promo-theme promo-service-detail">
+    <header class:list={['promo-shell-header', { 'promo-shell-header--with-logo': Boolean(logoMedia) }]} data-logo-placement={logoMedia ? 'header' : undefined}>
+      <a class:list={['promo-shell-brand', { 'promo-shell-brand--with-logo': Boolean(logoMedia) }]} href={homePath} aria-label={identity.name}>
+        {logoMedia?.kind === 'image' ? (
+          <span class="promo-shell-brand__logo"><PromoSectionMedia media={logoMedia} accessibleLabel={identity.name} /></span>
+        ) : (
+          <><span class="promo-shell-brand__mark" aria-hidden="true"><span></span></span><span class="promo-shell-brand__name">{identity.name}</span></>
+        )}
+      </a>
+
+      <nav class="promo-shell-navigation promo-service-detail__navigation" aria-label={system.messages['a11y.main_navigation']}>
+        <ul><li><a href={servicesAnchor}>← {labels.back}</a></li></ul>
+      </nav>
+
+      <div class="promo-shell-utilities">
+        <nav class="promo-shell-locales" aria-label={selector.label}>
+          <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
+          <ul>
+            {localizedSelector.map((option) => (
+              <li>
+                <a
+                  href={option.href}
+                  aria-label={option.aria_label}
+                  aria-current={option.active ? 'page' : undefined}
+                  lang={option.locale}
+                  hreflang={option.locale}
+                >
+                  {option.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="promo-main" class="promo-service-detail__main" aria-label={system.messages['a11y.main_content']} tabindex="-1">
+      <section class:list={['promo-service-detail__hero', { 'promo-service-detail__hero--with-media': service.cover }]} aria-labelledby="promo-service-detail-heading">
+        <div class="promo-service-detail__hero-copy">
+          <a class="promo-service-detail__back" href={servicesAnchor}>← {labels.back}</a>
+          <p class="promo-shell-section__eyebrow">{service.navigationLabel}</p>
+          <h1 id="promo-service-detail-heading">{service.name}</h1>
+          {service.summary && <p class="promo-service-detail__summary">{service.summary}</p>}
+          {service.caption && <p class="promo-service-detail__caption">{service.caption}</p>}
+          <PromoContactAction
+            profile={profile}
+            className="promo-service-detail__quote"
+            fallbackLabel={system.messages['contact.request_estimate']}
+            labelOverride={labels.quoteService}
+            context={quoteContext}
+          />
+        </div>
+        {service.cover && (
+          <figure class="promo-service-detail__cover">
+            <PromoSectionMedia media={service.cover} accessibleLabel={service.name} />
+          </figure>
+        )}
+      </section>
+
+      <section class="promo-service-detail__products" aria-labelledby="promo-service-products-heading">
+        <div class="promo-service-detail__products-heading">
+          <div>
+            <p class="promo-shell-section__eyebrow">{service.sectionHeading}</p>
+            <h2 id="promo-service-products-heading">{labels.options}</h2>
+          </div>
+          <p class="promo-service-detail__count">{productCountLabel}</p>
+        </div>
+
+        <ol class="promo-service-detail__grid">
+          {service.products.map((product, productIndex) => {
+            const carouselId = `promo-service-${service.key}-${product.key}`;
+            const productQuoteContext = spanish
+              ? `Quiero cotizar: ${service.name} · ${product.name}`
+              : `Quote request: ${service.name} · ${product.name}`;
+            return (
+              <li>
+                <article class="promo-service-detail__product">
+                  {product.media.length > 0 && (
+                    <div class="promo-service-detail__product-media">
+                      <ol
+                        class="promo-service-detail__slides"
+                        aria-label={`${labels.gallery} ${product.name}`}
+                        tabindex={product.media.length > 1 ? '0' : undefined}
+                      >
+                        {product.media.map((media, mediaIndex) => (
+                          <li id={`${carouselId}-media-${mediaIndex + 1}`}>
+                            <PromoSectionMedia media={media} accessibleLabel={product.name} />
+                          </li>
+                        ))}
+                      </ol>
+                      {product.media.length > 1 && (
+                        <nav class="promo-service-detail__controls" aria-label={`${labels.gallery} ${product.name}`}>
+                          {product.media.map((_, mediaIndex) => (
+                            <a href={`#${carouselId}-media-${mediaIndex + 1}`} aria-label={`${mediaIndex + 1}/${product.media.length}`}>
+                              {mediaIndex + 1}
+                            </a>
+                          ))}
+                        </nav>
+                      )}
+                    </div>
+                  )}
+                  <div class="promo-service-detail__product-copy">
+                    <span class="promo-service-detail__number" aria-hidden="true">{String(productIndex + 1).padStart(2, '0')}</span>
+                    <h3>{product.name}</h3>
+                    {product.summary && <p>{product.summary}</p>}
+                    {product.caption && <p class="promo-service-detail__caption">{product.caption}</p>}
+                    <PromoContactAction
+                      profile={profile}
+                      className="promo-service-detail__quote"
+                      fallbackLabel={system.messages['contact.request_estimate']}
+                      labelOverride={labels.quote}
+                      context={productQuoteContext}
+                    />
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </main>
+
+    {footerSections.map((section) => (
+      <PromoFooter
+        profile={profile}
+        section={section}
+        localized={content.sections[section.key] || {}}
+        basePath={homePath}
+      />
+    ))}
+  </div>
+</PromoPublicLayout>
