@@ -88,7 +88,7 @@ test('A11Y mantiene teclado completo, foco visible y controles de video no ocult
   assert.match(heroStyles, /video:focus-visible[\s\S]*?box-shadow: inset 0 0 0 8px/);
   assert.match(sectionStyles, /video:focus-visible[\s\S]*?box-shadow: inset 0 0 0 8px/);
   assert.match(themeStyles, /@media \(forced-colors: active\)[\s\S]*?outline: 3px solid Highlight/);
-  assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?inset: 0;[\s\S]*?pointer-events: none/);
+  assert.match(heroStyles, /\.promo-hero__controls \{[\s\S]*?display: none;[\s\S]*?inset: 0;[\s\S]*?pointer-events: none/);
   assert.doesNotMatch(heroStyles.match(/\.promo-hero__controls \{[\s\S]*?\}/)?.[0] || '', /inset-block-end/);
   assert.match(hero, /tabindex=\{heroMedia\.length > 1 \? '0'/);
   assert.match(heroCarousel, /previousControl\.addEventListener\('click'/);

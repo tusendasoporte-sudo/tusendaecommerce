@@ -115,6 +115,7 @@
 }
 
 .promo-hero__controls {
+  display: none;
   position: absolute;
   z-index: 5;
   inset: 0;
