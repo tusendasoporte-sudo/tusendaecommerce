@@ -233,6 +233,11 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(editor, /PROMO_LOCALES_API_PATH/);
   assert.match(editor, /section\.type !== 'gallery'/);
   assert.match(editor, /Productos de \$\{serviceName\}/);
+  assert.match(editor, /structuredClone\(current\)/);
+  assert.match(editor, /content\.sections\[section\.key\] \|\|= \{\}/);
+  assert.match(editor, /if \(!itemControls\.length\) return/);
+  assert.match(editor, /delete content\.navigation\[sectionKey\]/);
+  assert.match(editor, /delete content\.media_alt\[useKey\]/);
   assert.doesNotMatch(editor, /gallery: 'Galería'/);
   assert.equal((editor.match(/element\('details', 'pz-promo-locales__panel'\)/g) || []).length, 5);
   assert.match(editor, /element\('summary', 'pz-promo-locales__panel-heading'\)/);

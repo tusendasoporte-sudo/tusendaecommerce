@@ -543,16 +543,25 @@ const canSave = canManageContent && canManageTranslations;
     }
 
     function collectActiveContent() {
-      const content: LocaleDocument = {
+      const current = documentValue!.content_by_locale[activeLocale] || {
         identity: {}, navigation: {}, sections: {}, contact: {}, media_alt: {}, seo: {},
       };
+      const content = structuredClone(current) as LocaleDocument;
+      content.identity ||= {};
+      content.navigation ||= {};
+      content.sections ||= {};
+      content.contact ||= {};
+      content.media_alt ||= {};
+      content.seo ||= {};
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-identity]').forEach((control) => {
         content.identity[control.dataset.localeIdentity || ''] = control.value;
       });
       root.querySelectorAll<HTMLInputElement>('[data-locale-navigation]').forEach((control) => {
-        if (control.value.trim()) content.navigation[control.dataset.localeNavigation || ''] = control.value;
+        const sectionKey = control.dataset.localeNavigation || '';
+        if (control.value.trim()) content.navigation[sectionKey] = control.value;
+        else delete content.navigation[sectionKey];
       });
-      documentValue!.sections.forEach((section: LocaleDocument) => { content.sections[section.key] = {}; });
+      documentValue!.sections.forEach((section: LocaleDocument) => { content.sections[section.key] ||= {}; });
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-section]').forEach((control) => {
         content.sections[control.dataset.localeSection || ''][control.dataset.localeSectionField || ''] = control.value;
       });
@@ -563,6 +572,10 @@ const canSave = canManageContent && canManageTranslations;
           .map((control) => control.value);
       });
       documentValue!.sections.filter((section: LocaleDocument) => ['services', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
+        const itemControls = root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+          `[data-locale-item-section="${section.key}"]`,
+        );
+        if (!itemControls.length) return;
         const items: LocaleDocument[] = [];
         (section.config.item_keys || []).forEach((itemKey: string) => {
           const item: LocaleDocument = { key: itemKey };
@@ -582,6 +595,7 @@ const canSave = canManageContent && canManageTranslations;
         const decorative = root.querySelector<HTMLInputElement>(`[data-locale-media-decorative="${useKey}"]`)?.checked === true;
         const alt = root.querySelector<HTMLInputElement>(`[data-locale-media-alt="${useKey}"]`)?.value || '';
         if (decorative || alt.trim()) content.media_alt[useKey] = { alt: decorative ? '' : alt, decorative };
+        else delete content.media_alt[useKey];
       });
       root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-locale-seo]').forEach((control) => {
         content.seo[control.dataset.localeSeo || ''] = control.value;
