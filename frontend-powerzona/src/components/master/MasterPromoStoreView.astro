@@ -18,7 +18,6 @@ const booleanCapabilities = [
 ] as const;
 const numericCapabilities = [
   ['max_services', 'Máximo de servicios'],
-  ['max_gallery_assets', 'Máximo de fotos en la página'],
   ['max_locales', 'Máximo de idiomas'],
   ['max_storage_bytes', 'Almacenamiento máximo (bytes)'],
 ] as const;
@@ -193,7 +192,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
   } from '../../lib/promoMaster';
 
   const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'video_enabled', 'analytics_enabled'];
-  const NUMERIC_CAPABILITIES = ['max_services', 'max_gallery_assets', 'max_locales', 'max_videos', 'max_storage_bytes'];
+  const NUMERIC_CAPABILITIES = ['max_services', 'max_locales', 'max_videos', 'max_storage_bytes'];
 
   function errorCode(error: any) {
     return String(error?.data?.error || error?.response?.error || error?.message || 'promo_master_unavailable').slice(0, 80);
@@ -265,6 +264,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
       const capabilities: Record<string, boolean | number> = {};
       BOOLEAN_CAPABILITIES.forEach((key) => { capabilities[key] = values.get(key) === 'on'; });
       capabilities.landing_qr_bridge_enabled = false;
+      capabilities.max_gallery_assets = 150;
       NUMERIC_CAPABILITIES.forEach((key) => {
         const value = Math.max(0, Math.floor(Number(values.get(key) || 0)));
         capabilities[key] = key === 'max_videos' ? Math.min(3, value) : value;

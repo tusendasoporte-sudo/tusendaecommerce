@@ -84,7 +84,6 @@ const canSaveCms = section === 'content'
       && hasPromoAction(accessContext, 'promo.contact.manage')
     : false;
 const maxServices = Number(accessContext.capabilities.max_services || 0);
-const maxPageMedia = Number(accessContext.capabilities.max_gallery_assets || 0);
 const canManagePromoMedia = hasPromoAction(accessContext, 'promo.media.manage');
 const canManageAppearanceContent = hasPromoAction(accessContext, 'promo.content.manage');
 const canSelectPromoTheme = hasPromoAction(accessContext, 'promo.theme.select');
@@ -316,7 +315,6 @@ function initials(value: string) {
         ) : activeModule && section === 'gallery' ? (
           <PromoServiceProductsEditor
             storeSlug={storeSlug}
-            maxPageMedia={Number.isSafeInteger(maxPageMedia) && maxPageMedia >= 0 ? maxPageMedia : 0}
             canSave={hasPromoAction(accessContext, 'promo.content.manage')}
             canManageMedia={canManagePromoMedia}
           />

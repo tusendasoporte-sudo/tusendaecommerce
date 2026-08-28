@@ -384,6 +384,22 @@ test('payloads privados versionados rechazan tenant, revisión, filters y campos
   }
 });
 
+test('el límite legado de galería no restringe el documento Promo', () => {
+  const document = publishedDocument();
+  document.sections.push({
+    key: 'gallery-main', type: 'gallery', variant: 'default', visible: false,
+    config: { item_keys: Array.from({ length: 25 }, (_, index) => `item-${index}`) },
+    media_use_keys: [],
+  });
+  const entitlement = {
+    source: 'contract', promo_site_enabled: true,
+    multilanguage_enabled: false, video_enabled: false, landing_qr_bridge_enabled: false,
+    max_services: 50, max_gallery_assets: 0, max_locales: 10, max_videos: 3,
+    max_storage_bytes: 262144000,
+  };
+  assert.equal(api.assertEntitlementMetrics(entitlement, document, []).gallery, 25);
+});
+
 test('acciones derivadas preservan permisos granulares para tema, traducciones, contacto, rating y QR', () => {
   const previous = emptyDraft();
   const next = publishedDocument();

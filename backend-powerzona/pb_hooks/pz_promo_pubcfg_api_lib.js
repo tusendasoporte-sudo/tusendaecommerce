@@ -250,7 +250,6 @@ function assertEntitlementMetrics(entitlement, document, assets) {
   const metrics = contract.documentMetrics(document, assets);
   const checks = [
     ["max_services", metrics.services],
-    ["max_gallery_assets", metrics.gallery],
     ["max_locales", metrics.locales],
     ["max_videos", metrics.videos],
     ["max_storage_bytes", metrics.bytes],

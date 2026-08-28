@@ -205,7 +205,7 @@ test('foto del propietario se guarda como imagen owner sin mezclarse con product
       decorative: false,
     },
     galleries: [],
-  }, 12, assets);
+  }, assets);
   const owner = updated.sections.find((section) => section.type === 'owner');
   assert.equal(owner.config.media_use_key, 'owner-portrait');
   assert.deepEqual(owner.media_use_keys, ['owner-portrait']);
@@ -247,7 +247,7 @@ test('Trabajos realizados admite fotos y videos con un máximo de tres medios po
       items: videoItems,
     }],
   };
-  const updated = buildPromoGalleryDocument(workspace.document, videoPatch, 12, assets);
+  const updated = buildPromoGalleryDocument(workspace.document, videoPatch, assets);
   const videos = updated.sections.find((section) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY);
   assert.equal(videos.config.items.length, 3);
   assert.equal(videos.config.items.every((item) => item.media_use_keys.length === 1), true);
@@ -258,7 +258,7 @@ test('Trabajos realizados admite fotos y videos con un máximo de tres medios po
     media: [{ useKey: 'video-image-1', assetId: 'assetg000000001', alt: 'Imagen', decorative: false }],
   }];
   imageInstead.galleries[0].coverUseKey = 'video-image-1';
-  const withImage = buildPromoGalleryDocument(workspace.document, imageInstead, 12, assets);
+  const withImage = buildPromoGalleryDocument(workspace.document, imageInstead, assets);
   assert.deepEqual(withImage.sections.find((section) => section.key === PROMO_CMS_VIDEO_GALLERY_KEY)
     .config.items[0].media_use_keys, ['video-image-1']);
 
@@ -266,7 +266,7 @@ test('Trabajos realizados admite fotos y videos con un máximo de tres medios po
   tooManyMedia.galleries[0].items[0].media = Array.from({ length: 4 }, (_, index) => ({
     useKey: `work-image-${index + 1}`, assetId: 'assetg000000001', alt: `Imagen ${index + 1}`, decorative: false,
   }));
-  assert.throws(() => buildPromoGalleryDocument(workspace.document, tooManyMedia, 12, assets), PromoCmsError);
+  assert.throws(() => buildPromoGalleryDocument(workspace.document, tooManyMedia, assets), PromoCmsError);
 });
 test('editor guarda carrusel y productos internos sin exponer enlaces de galería', () => {
   const original = completeDocument();
@@ -304,7 +304,7 @@ test('editor guarda carrusel y productos internos sin exponer enlaces de galerí
   });
   protectedBefore.footer.config.navigation_section_keys = protectedBefore.footer.config.navigation_section_keys
     .filter((sectionKey) => sectionKey !== 'gallery-rugs');
-  const updated = buildPromoGalleryDocument(original, update, 24, assets);
+  const updated = buildPromoGalleryDocument(original, update, assets);
   assert.deepEqual(backendContract.validatePromoDocument(updated, { publicRevision: false }), updated);
   const gallery = updated.sections.find((section) => section.type === 'gallery');
   assert.equal(gallery.config.items[0].featured, true);
@@ -351,7 +351,7 @@ test('eliminar una galería limpia sus medios y vínculos de servicios y pie', (
   const original = completeDocument();
   const update = patch(original);
   update.galleries = [];
-  const updated = buildPromoGalleryDocument(original, update, 24, assets);
+  const updated = buildPromoGalleryDocument(original, update, assets);
   assert.equal(updated.sections.some((section) => section.type === 'gallery'), false);
   assert.deepEqual(updated.sections.find((section) => section.type === 'services').config.gallery_keys, ['']);
   assert.deepEqual(updated.sections.find((section) => section.type === 'footer').config.navigation_section_keys, ['hero-main']);
@@ -368,7 +368,7 @@ test('servicio admite portada independiente y cada producto queda limitado a tre
     useKey: 'service-cover-media', assetId: 'assetg000000001',
     alt: 'Portada del servicio de alfombras', decorative: false,
   };
-  const updated = buildPromoGalleryDocument(original, update, 150, assets);
+  const updated = buildPromoGalleryDocument(original, update, assets);
   const gallery = updated.sections.find((section) => section.key === 'gallery-rugs');
   assert.equal(gallery.config.cover_media_use_key, 'service-cover-media');
   assert.deepEqual(gallery.media_use_keys, ['service-cover-media', 'gallery-item-media-1']);
@@ -384,27 +384,23 @@ test('servicio admite portada independiente y cada producto queda limitado a tre
   }));
   tooMany.galleries[0].coverUseKey = 'gallery-product-media-1';
   assert.throws(
-    () => buildPromoGalleryDocument(original, tooMany, 150, assets),
+    () => buildPromoGalleryDocument(original, tooMany, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_payload',
   );
 });
 
-test('cuota, portada y metadata accesible fallan cerradas', () => {
+test('portada y metadata accesible fallan cerradas', () => {
   const original = completeDocument();
   const update = patch(original);
-  assert.throws(
-    () => buildPromoGalleryDocument(original, update, 0, assets),
-    (error) => error instanceof PromoCmsError && error.code === 'promo_capability_denied',
-  );
   update.galleries[0].items[0].media[0].alt = '';
   assert.throws(
-    () => buildPromoGalleryDocument(original, update, 24, assets),
+    () => buildPromoGalleryDocument(original, update, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
   update.galleries[0].items[0].media[0].alt = 'Detalle';
   update.galleries[0].items[0].media[0].assetId = 'assetdeotro000';
   assert.throws(
-    () => buildPromoGalleryDocument(original, update, 24, assets),
+    () => buildPromoGalleryDocument(original, update, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_media_reference',
   );
   assert.equal(PROMO_HERO_MAX_MEDIA, 3);
@@ -414,7 +410,7 @@ test('cuota, portada y metadata accesible fallan cerradas', () => {
     assetId: 'asseth000000001', alt: `Portada ${index + 1}`, decorative: false,
   }));
   assert.throws(
-    () => buildPromoGalleryDocument(original, tooManyHeroImages, 24, assets),
+    () => buildPromoGalleryDocument(original, tooManyHeroImages, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_payload',
   );
   const heroVideo = patch(original);
@@ -422,13 +418,13 @@ test('cuota, portada y metadata accesible fallan cerradas', () => {
     useKey: 'hero-video-1', assetId: 'assethv00000001', alt: 'Video de portada', decorative: false,
   }];
   assert.throws(
-    () => buildPromoGalleryDocument(original, heroVideo, 24, assets),
+    () => buildPromoGalleryDocument(original, heroVideo, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_media_reference',
   );
   const missingCover = patch(original);
   missingCover.galleries[0].coverUseKey = '';
   assert.throws(
-    () => buildPromoGalleryDocument(original, missingCover, 24, assets),
+    () => buildPromoGalleryDocument(original, missingCover, assets),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
 });
@@ -488,6 +484,8 @@ test('shell separa Galería y productos sin biblioteca privada y conserva el pro
   assert.match(mediaApi, /X-PZ-Promo-Store/);
   assert.match(mediaApi, /promo\/private\/v1\/media/);
   assert.match(productsEditor, /Galería y productos/);
+  assert.doesNotMatch(productsEditor, /data-products-page-count|Imágenes usadas en la página|maxPageMedia/);
+  assert.doesNotMatch(shell, /maxPageMedia/);
   assert.match(productsEditor, /data-products-owner/);
   assert.match(productsEditor, /data-products-work/);
   assert.match(productsEditor, /data-products-featured/);

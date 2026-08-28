@@ -170,7 +170,6 @@ const ENGLISH_COPY: Readonly<Record<string, string>> = Object.freeze({
   'Administra el carrusel, la foto del propietario, cada servicio, sus productos y los trabajos realizados.': 'Manage the carousel, owner photo, each service, its products, and completed projects.',
   'Cambios pendientes · guardado explícito': 'Pending changes · explicit save',
   'Imágenes almacenadas': 'Stored images',
-  'Imágenes usadas en la página': 'Images used on the page',
   'Uso y límites de imágenes': 'Image usage and limits',
   'Uso y límites de medios': 'Media usage and limits',
   'Contenido visual en modo lectura.': 'Visual content is read-only.',

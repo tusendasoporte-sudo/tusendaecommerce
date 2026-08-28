@@ -3,14 +3,12 @@ import '../../../styles/promo-gallery.css';
 
 interface Props {
   storeSlug: string;
-  maxPageMedia: number;
   canSave: boolean;
   canManageMedia: boolean;
 }
 
 const {
   storeSlug,
-  maxPageMedia,
   canSave,
   canManageMedia,
 } = Astro.props;
@@ -20,7 +18,6 @@ const {
   class="pz-promo-gallery pz-promo-products"
   data-promo-service-products
   data-store-slug={storeSlug}
-  data-max-page-media={maxPageMedia}
   data-can-save={canSave ? 'true' : 'false'}
   data-can-manage-media={canManageMedia ? 'true' : 'false'}
   aria-labelledby="promo-products-title"
@@ -36,7 +33,6 @@ const {
 
   <div class="pz-promo-gallery__metrics" aria-label="Uso y límites de imágenes">
     <article><strong data-products-image-count>—</strong><span>Imágenes almacenadas</span><small data-products-image-limit>de 150</small></article>
-    <article><strong data-products-page-count>—</strong><span>Imágenes usadas en la página</span><small>de {maxPageMedia}</small></article>
   </div>
 
   {!canSave && (
@@ -120,7 +116,6 @@ const {
 
   document.querySelectorAll<HTMLElement>('[data-promo-service-products]').forEach((root) => {
     const storeSlug = root.dataset.storeSlug || '';
-    const maxPageMedia = Number(root.dataset.maxPageMedia || 0);
     const canSave = root.dataset.canSave === 'true';
     const canManageMedia = root.dataset.canManageMedia === 'true';
     const form = root.querySelector<HTMLFormElement>('[data-products-form]');
@@ -821,23 +816,11 @@ const {
       return details;
     }
 
-    function pageMediaCount() {
-      return heroMedia.length
-        + (ownerMedia ? 1 : 0)
-        + workGallery.items.reduce((total, item) => total + item.media.length, 0)
-        + services.reduce((total, service) => (
-          total + (service.cover?.useKey && service.coverIndependent ? 1 : 0)
-          + service.items.reduce((sum, item) => sum + item.media.length, 0)
-        ), 0);
-    }
-
     function renderMetrics() {
       const images = root.querySelector<HTMLElement>('[data-products-image-count]');
       const imageLimit = root.querySelector<HTMLElement>('[data-products-image-limit]');
-      const page = root.querySelector<HTMLElement>('[data-products-page-count]');
       if (images) images.textContent = String(catalog?.usage.images || 0);
       if (imageLimit) imageLimit.textContent = `de ${catalog?.limits.maxStoredImages || 150}`;
-      if (page) page.textContent = String(pageMediaCount());
     }
 
     function render() {
@@ -962,7 +945,6 @@ const {
         const nextDocument = buildPromoGalleryDocument(
           draft.document,
           { heroMedia, ownerMedia, galleries: [...linkedGalleries, work, ...preserved] },
-          maxPageMedia,
           catalog.assets,
         );
         const serviceSection = nextDocument.sections.find((section: any) => section.type === 'services');

@@ -9,7 +9,6 @@ import {
 export const PROMO_GALLERY_MEDIA_API_PATH = '/api/admin/promo-media';
 export const PROMO_GALLERY_DRAFT_API_PATH = '/api/admin/promo-cms';
 export const PROMO_GALLERY_SECTION_TYPES = Object.freeze(['gallery'] as const);
-export const PROMO_GALLERY_HARD_MAX_VISIBLE = 150;
 export const PROMO_HERO_MAX_MEDIA = 3;
 export const PROMO_PRODUCT_MAX_MEDIA = 3;
 export const PROMO_GALLERY_HARD_MAX_VIDEOS = 3;
@@ -352,7 +351,6 @@ function localizedGalleryItems(content: JsonRecord, sectionKey: string, defaults
 export function buildPromoGalleryDocument(
   value: unknown,
   patch: PromoGalleryPatch,
-  maxGalleryAssets: number,
   catalogAssets: readonly PromoGalleryAsset[],
 ) {
   const workspace = createPromoGalleryWorkspace(value);
@@ -387,7 +385,6 @@ export function buildPromoGalleryDocument(
     if (ownerMedia) setMediaReference(document, locale, ownerMedia, 'owner');
   }
 
-  let galleryMediaCount = 0;
   const nextGalleries = galleries.map((raw) => {
     const sectionKey = checkedKey(raw.key);
     const existing = document.sections.find((section: JsonRecord) => section.key === sectionKey);
@@ -428,7 +425,6 @@ export function buildPromoGalleryDocument(
       galleryUseKeys.unshift(coverMedia.useKey);
       setMediaReference(document, locale, coverMedia, 'gallery');
     }
-    galleryMediaCount += galleryUseKeys.length;
     const coverUseKey = checkedKey(coverMedia?.useKey || raw.coverUseKey, USE_KEY_PATTERN, true);
     if (coverUseKey && !galleryUseKeys.includes(coverUseKey)) fail('invalid_promo_media_reference');
     if (raw.visible && (!coverUseKey || itemDefinitions.some((item) => item.visible && !item.media_use_keys.length))) {
@@ -460,11 +456,6 @@ export function buildPromoGalleryDocument(
       media_use_keys: Array.from(new Set([coverUseKey, ...galleryUseKeys].filter(Boolean))),
     };
   });
-
-  const effectiveMaximum = Number.isSafeInteger(maxGalleryAssets) && maxGalleryAssets >= 0
-    ? Math.min(maxGalleryAssets, PROMO_GALLERY_HARD_MAX_VISIBLE)
-    : 0;
-  if (galleryMediaCount > effectiveMaximum) fail('promo_capability_denied', 403);
 
   const nextGalleryKeys = new Set(nextGalleries.map((section) => section.key));
   const removedGalleryKeys = new Set(document.sections

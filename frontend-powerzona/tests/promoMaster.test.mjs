@@ -84,4 +84,6 @@ test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo 
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
   assert.doesNotMatch(view, /\['landing_qr_bridge_enabled',|Landing QR/);
   assert.match(view, /capabilities\.landing_qr_bridge_enabled = false/);
+  assert.doesNotMatch(view, /Máximo de fotos en la página|\['max_gallery_assets',/);
+  assert.match(view, /capabilities\.max_gallery_assets = 150/);
 });
