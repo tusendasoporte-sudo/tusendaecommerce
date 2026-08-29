@@ -57,6 +57,7 @@ export const PROMO_CMS_TEXT_LIMITS = Object.freeze({
   itemName: 160,
   caption: 500,
   navigation: 80,
+  contactCtaLabel: 80,
   contactLabel: 80,
   contactAria: 160,
   contactMessage: 1000,
@@ -94,7 +95,7 @@ export type PromoCmsDraft = Readonly<{
 }>;
 
 export type PromoCmsContentPatch = Readonly<{
-  identity: Readonly<{ name: string; slogan: string; summary: string }>;
+  identity: Readonly<{ name: string; slogan: string; summary: string; contactCtaLabel: string }>;
   sectionOrder: readonly string[];
   sections: readonly Readonly<{
     key: string;
@@ -484,7 +485,11 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
     section.media_use_keys = [];
   });
   localizedEntries.forEach((localized: any) => {
-    localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || '') };
+    localized.identity = {
+      ...localized.identity,
+      slogan: String(localized.identity.slogan || ''),
+      contact_cta_label: String(localized.identity.contact_cta_label || ''),
+    };
   });
   return upgradeHeroPresentation(upgradeServiceIcons(next));
 }
@@ -777,7 +782,17 @@ export function buildPromoCmsContentDocument(
   const name = safeText(patch.identity?.name, PROMO_CMS_TEXT_LIMITS.businessName);
   const slogan = safeText(patch.identity?.slogan || '', PROMO_CMS_TEXT_LIMITS.slogan);
   const summary = safeText(patch.identity?.summary, PROMO_CMS_TEXT_LIMITS.shortSummary);
-  localized.identity = { ...localized.identity, name, slogan, summary };
+  const contactCtaLabel = safeText(
+    patch.identity?.contactCtaLabel || '',
+    PROMO_CMS_TEXT_LIMITS.contactCtaLabel,
+  );
+  localized.identity = {
+    ...localized.identity,
+    name,
+    slogan,
+    summary,
+    contact_cta_label: contactCtaLabel,
+  };
 
   let serviceCount = 0;
   const sectionMap = new Map(document.sections.map((section: JsonRecord) => [section.key, section]));

@@ -336,10 +336,13 @@ test('cada sección sólo acepta medios con el propósito allowlisted', () => {
 });
 
 test('proyección pública se construye por allowlist y elimina destino, IDs y records privados', () => {
-  const document = contract.validatePromoDocument(publishedDocument(), { publicRevision: true });
+  const live = contract.upgradePromoDocument(publishedDocument());
+  live.content_by_locale.es.identity.contact_cta_label = 'Escríbeme por WhatsApp';
+  const document = contract.validatePromoDocument(live, { publicRevision: true });
   const projection = contract.projectPublicDocument(document, 'aladdin-carpet', []);
   assert.equal(projection.contract, 'promo.public.projection.v1');
   assert.equal(projection.site.public_slug, 'aladdin-carpet');
+  assert.equal(projection.content_by_locale.es.identity.contact_cta_label, 'Escríbeme por WhatsApp');
   assert.deepEqual(projection.contact.actions, [{ key: 'call-main', type: 'phone', enabled: true }]);
   const serialized = JSON.stringify(projection);
   for (const forbidden of [

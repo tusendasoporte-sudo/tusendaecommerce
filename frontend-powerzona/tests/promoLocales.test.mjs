@@ -231,6 +231,9 @@ test('shell monta el editor con permisos separados, CAS existente, accesibilidad
   assert.match(editor, /beforeunload/);
   assert.match(editor, /expected_version: version/);
   assert.match(editor, /PROMO_LOCALES_API_PATH/);
+  assert.match(editor, /'contact_cta_label', 'Texto global del botón de contacto'/);
+  assert.match(editor, /if \(target === 'primary-contact'\) return/);
+  assert.match(editor, /if \(target === 'primary-contact'\) return ''/);
   assert.match(editor, /section\.type !== 'gallery'/);
   assert.match(editor, /Productos de \$\{serviceName\}/);
   assert.match(editor, /structuredClone\(current\)/);

@@ -25,6 +25,7 @@ function documentFixture() {
       es: {
         identity: {
           name: "Aladdin's Carpet", slogan: 'Cuidamos cada fibra', summary: 'Cuidado experto',
+          contact_cta_label: 'Escríbeme por WhatsApp',
           owner_name: 'Aladdin Smith', owner_bio: 'Especialista en alfombras.',
         },
         navigation: {
@@ -59,6 +60,7 @@ function documentFixture() {
       en: {
         identity: {
           name: "Aladdin's Carpet", slogan: 'We care for every fiber', summary: 'Expert care',
+          contact_cta_label: 'Message me on WhatsApp',
           owner_name: 'Aladdin Smith', owner_bio: 'Carpet specialist.',
         },
         navigation: {
@@ -161,13 +163,19 @@ test('un cambio del idioma base vuelve a traducir automáticamente un valor admi
   previous.content_by_locale.en.sections['services-main'].items[0].name = 'Deep cleaning';
   const next = clone(previous);
   next.content_by_locale.es.sections['services-main'].items[0].name = 'Limpieza intensiva';
-  const fake = provider({ 'Limpieza intensiva': 'Intensive cleaning' });
+  next.content_by_locale.es.identity.contact_cta_label = 'Contáctame';
+  const fake = provider({
+    'Limpieza intensiva': 'Intensive cleaning',
+    'Contáctame': 'Contact me',
+  });
 
   const result = translation.autoTranslatePromoDocument(previous, next, {}, {
     config, hash: sha256, send: fake.send,
   });
   assert.equal(result.document.content_by_locale.en.sections['services-main'].items[0].name, 'Intensive cleaning');
+  assert.equal(result.document.content_by_locale.en.identity.contact_cta_label, 'Contact me');
   assert.equal(fake.calls.flatMap((call) => call.input.entries).some((entry) => entry.text === 'Limpieza intensiva'), true);
+  assert.equal(fake.calls.flatMap((call) => call.input.entries).some((entry) => entry.text === 'Contáctame'), true);
 });
 
 test('una corrección manual crea un bloqueo privado y vaciarla reactiva la traducción automática', () => {

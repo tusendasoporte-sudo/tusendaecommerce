@@ -583,7 +583,7 @@ function requireLocalizedParity(document, locale, localized, liveDocument) {
   const base = plainObject(document.content_by_locale[document.locales.default]);
   const baseIdentity = plainObject(base.identity);
   const identity = plainObject(localized.identity);
-  ["slogan", "summary", "owner_name", "owner_bio"].forEach((field) => {
+  ["slogan", "summary", "contact_cta_label", "owner_name", "owner_bio"].forEach((field) => {
     if (hasLocalizedText(baseIdentity[field]) && !hasLocalizedText(identity[field])) {
       fail("incomplete_promo_locale", 400, `identity_${field}`);
     }
@@ -613,6 +613,7 @@ function requireLocalizedParity(document, locale, localized, liveDocument) {
       const sourceButtons = Array.isArray(source.button_labels) ? source.button_labels : [];
       const targetButtons = Array.isArray(target.button_labels) ? target.button_labels : [];
       sourceButtons.forEach((value, index) => {
+        if (section.config.button_targets[index] === "primary-contact") return;
         if (hasLocalizedText(value) && !hasLocalizedText(targetButtons[index])) {
           fail("incomplete_promo_locale", 400, "localized_hero_buttons");
         }
@@ -669,12 +670,15 @@ function validateLocalizedContent(document, publicRevision, liveDocument) {
   for (const locale of localeKeys) {
     const localized = exactKeys(byLocale[locale], ["identity", "navigation", "sections", "contact", "media_alt", "seo"]);
     const identity = onlyKeys(localized.identity, liveDocument
-      ? ["name", "slogan", "summary", "owner_name", "owner_bio"]
+      ? ["name", "slogan", "summary", "contact_cta_label", "owner_name", "owner_bio"]
       : ["name", "summary", "owner_name", "owner_bio"]);
     if (Object.prototype.hasOwnProperty.call(identity, "name")) assertSafeText(identity.name, 140, { empty: !publicRevision });
     if (Object.prototype.hasOwnProperty.call(identity, "summary")) assertSafeText(identity.summary, 600, { empty: true });
     if (liveDocument && Object.prototype.hasOwnProperty.call(identity, "slogan")) {
       assertSafeText(identity.slogan, 120, { empty: true });
+    }
+    if (liveDocument && Object.prototype.hasOwnProperty.call(identity, "contact_cta_label")) {
+      assertSafeText(identity.contact_cta_label, 80, { empty: true });
     }
     if (Object.prototype.hasOwnProperty.call(identity, "owner_name")) assertSafeText(identity.owner_name, 140, { empty: true });
     if (Object.prototype.hasOwnProperty.call(identity, "owner_bio")) assertSafeText(identity.owner_bio, 4000, { empty: true });
@@ -968,7 +972,11 @@ function upgradePromoDocument(input) {
     section.media_use_keys = [];
   });
   Object.values(next.content_by_locale).forEach((localized) => {
-    localized.identity = { ...localized.identity, slogan: String(localized.identity.slogan || "") };
+    localized.identity = {
+      ...localized.identity,
+      slogan: String(localized.identity.slogan || ""),
+      contact_cta_label: String(localized.identity.contact_cta_label || ""),
+    };
   });
   return enforceFixedSectionOrder(upgradeHeroPresentation(upgradeServiceIcons(next)));
 }

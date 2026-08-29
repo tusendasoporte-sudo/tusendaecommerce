@@ -34,8 +34,10 @@ const heroMedia = heroMediaKeys
   .map((key) => mediaByKey.get(key))
   .filter((item): item is PromoPublicMedia => Boolean(item && item.purpose === 'hero'));
 const primaryActionKey = String(profile.contact.primary_action_key || '');
-const actionCopy = primaryActionKey ? profile.content.contact[primaryActionKey] : undefined;
-const ctaLabel = String(actionCopy?.label || profile.system.messages['contact.request_estimate']);
+const ctaLabel = String(
+  profile.content.identity?.contact_cta_label
+  || profile.system.messages['contact.request_estimate'],
+);
 const requestedActionKey = String(section.config.action_key || primaryActionKey);
 const contactEnabled = Boolean(primaryActionKey && requestedActionKey === primaryActionKey);
 const heroLayout = ['immersive', 'split', 'centered', 'editorial'].includes(String(section.config.layout))
@@ -65,7 +67,7 @@ const targetSection = (target: string) => {
 };
 const heroButtons = buttonTargets.map((target: string, index: number) => ({
   target,
-  label: String(buttonLabels[index] || targetDefaults[target] || ctaLabel),
+  label: String(target === 'primary-contact' ? ctaLabel : (buttonLabels[index] || targetDefaults[target] || ctaLabel)),
   section: targetSection(target),
 })).filter((button) => button.target === 'primary-contact' || button.section);
 const srcset = (media: PromoPublicMedia) => media.kind === 'image'
@@ -112,7 +114,6 @@ const carouselControlLabels = profile.locale.lang.toLowerCase().startsWith('en')
               profile={profile}
               className="promo-hero__cta"
               fallbackLabel={button.label}
-              labelOverride={button.label}
               enabled={contactEnabled}
             />
           ) : (

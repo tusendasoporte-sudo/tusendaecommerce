@@ -837,8 +837,8 @@ function normalizeFooter(
 function normalizeContent(value: unknown, sections: readonly PromoPublicSection[], mediaKeys: readonly string[], actionKeys: readonly string[]) {
   const content = exactRecord(value, ['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
   const sectionKeys = sections.map((section) => section.key);
-  const identity = optionalTextMap(content.identity, ['name', 'slogan', 'summary', 'owner_name', 'owner_bio'], {
-    name: 140, slogan: 120, summary: 600, owner_name: 140, owner_bio: 4000,
+  const identity = optionalTextMap(content.identity, ['name', 'slogan', 'summary', 'contact_cta_label', 'owner_name', 'owner_bio'], {
+    name: 140, slogan: 120, summary: 600, contact_cta_label: 80, owner_name: 140, owner_bio: 4000,
   });
   if (!identity.name) fail();
   const navigation = exactStringMap(content.navigation, sectionKeys, 80);

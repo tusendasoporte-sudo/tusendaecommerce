@@ -7,18 +7,18 @@ interface Props {
   className?: string;
   fallbackLabel: string;
   enabled?: boolean;
-  labelOverride?: string;
   context?: string;
   purpose?: 'primary' | 'quote';
 }
 
 const {
-  profile, className = '', fallbackLabel, enabled = true, labelOverride = '', context = '', purpose = 'primary',
+  profile, className = '', fallbackLabel, enabled = true, context = '', purpose = 'primary',
 } = Astro.props;
 const compiled = purpose === 'quote' ? profile.quote_action : profile.contact_action;
 const action = enabled && compiled.available ? compiled.action : null;
 const unavailable = profile.system.messages['contact.unavailable'];
-const actionLabel = labelOverride.trim() || action?.label || fallbackLabel;
+const configuredLabel = String(profile.content.identity?.contact_cta_label || '').trim();
+const actionLabel = configuredLabel || fallbackLabel;
 const quoteContext = context.trim();
 const actionHref = action && purpose === 'quote' && quoteContext
   ? promoQuoteHref(action.href, quoteContext)
@@ -44,7 +44,7 @@ const actionHref = action && purpose === 'quote' && quoteContext
     role="status"
     data-contact-action="unavailable"
   >
-    <span class="promo-contact-action__label">{fallbackLabel}</span>
+    <span class="promo-contact-action__label">{actionLabel}</span>
     <span class="promo-contact-action__state">{unavailable}</span>
   </span>
 )}

@@ -461,8 +461,8 @@ function normalizeContent(value: unknown, sections: JsonRecord[], media: JsonRec
   const sectionMap = new Map(sections.map((section) => [section.key, section]));
   const mediaKeys = new Set(media.map((item) => item.key));
   const actionKeys = new Set(contact.actions.map((action: JsonRecord) => action.key));
-  const identity = normalizeTextRecord(content.identity, ['name', 'slogan', 'summary', 'owner_name', 'owner_bio'], {
-    name: 140, slogan: 120, summary: 600, owner_name: 140, owner_bio: 4000,
+  const identity = normalizeTextRecord(content.identity, ['name', 'slogan', 'summary', 'contact_cta_label', 'owner_name', 'owner_bio'], {
+    name: 140, slogan: 120, summary: 600, contact_cta_label: 80, owner_name: 140, owner_bio: 4000,
   });
   const navigation = normalizeTextRecord(content.navigation, [...sectionMap.keys()], {});
   const localizedSections = subsetRecord(content.sections, [...sectionMap.keys()]);

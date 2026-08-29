@@ -153,6 +153,8 @@ test('SERVICIO renderiza navegación inmersiva en la misma pestaña, galerías y
   assert.match(gallery, /indicator\.addEventListener\('click'/);
   assert.match(gallery, /event\.key === 'ArrowLeft'/);
   assert.match(detail, /purpose="quote"/);
+  assert.match(detail, /identity\.contact_cta_label/);
+  assert.doesNotMatch(detail, /labelOverride|quoteService|labels\.quote/);
   assert.match(contactAction, /profile\.quote_action/);
   assert.match(contactAction, /promoQuoteHref\(action\.href, quoteContext\)/);
   assert.doesNotMatch(detail, />\s*\{mediaIndex \+ 1\}\s*<\/a>/);

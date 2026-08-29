@@ -95,7 +95,12 @@ function shellEnvelope(source = 'platform') {
       quote_action: { contract: 'promo.quote.action.v1', available: false, action: null },
       footer: { contract: 'promo.footer.v1', sections: [] },
       content: {
-        identity: { name: 'Negocio demo', slogan: 'Oficio que perdura', summary: 'Presentación pública' },
+        identity: {
+          name: 'Negocio demo',
+          slogan: 'Oficio que perdura',
+          summary: 'Presentación pública',
+          contact_cta_label: 'Escríbeme por WhatsApp',
+        },
         navigation: { 'hero-main': 'Inicio' },
         sections: { 'hero-main': { heading: 'Negocio demo', summary: 'Trabajo profesional' } },
         contact: {}, media_alt: {}, seo: { title: 'Negocio demo', description: 'Presentación pública' },
@@ -365,6 +370,7 @@ test('cliente SHELL acepta únicamente la proyección localized allowlisted', ()
   assert.equal(normalized.seo.canonical_url, 'https://tusenda84.com/promo/demo-promo/es');
   assert.equal(normalized.seo.open_graph.type, 'website');
   assert.equal(normalized.profile.content.identity.name, 'Negocio demo');
+  assert.equal(normalized.profile.content.identity.contact_cta_label, 'Escríbeme por WhatsApp');
   assert.equal(normalized.profile.theme.renderer_key, 'promo.black-gold');
   const hostile = structuredClone(shellEnvelope());
   hostile.profile.theme.tokens.accent = '#ff00ff';
@@ -857,9 +863,12 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
   const heroStyles = read('../src/styles/promo-hero.css');
   assert.match(hero, /<PromoContactAction/);
   assert.match(hero, /profile\.contact\.primary_action_key/);
+  assert.match(hero, /profile\.content\.identity\?\.contact_cta_label/);
   assert.match(hero, /requestedActionKey === primaryActionKey/);
   assert.match(action, /href=\{actionHref\}/);
   assert.match(action, /aria-label=\{action\.aria_label\}/);
+  assert.match(action, /profile\.content\.identity\?\.contact_cta_label/);
+  assert.doesNotMatch(`${hero}\n${action}`, /labelOverride/);
   assert.match(action, /purpose = 'primary'/);
   assert.match(action, /data-contact-action=\{purpose\}/);
   assert.match(action, /role="status"/);
@@ -912,7 +921,8 @@ test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y 
   assert.match(sections, /viewOptionsLabel/);
   assert.doesNotMatch(sections, /promo-sections__product-grid/);
   assert.doesNotMatch(sections, /products\.map\(\(product/);
-  assert.match(sections, /labelOverride=\{quoteLabel\}/);
+  assert.match(sections, /profile\.content\.identity\?\.contact_cta_label/);
+  assert.doesNotMatch(sections, /labelOverride|quoteLabel/);
   assert.match(sections, /<PromoContactAction/);
   assert.match(sections, /data-section-item-count/);
   assert.match(media, /loading=\{media\.delivery\.loading\}/);

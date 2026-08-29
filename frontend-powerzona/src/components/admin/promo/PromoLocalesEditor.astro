@@ -300,6 +300,7 @@ const canSave = canManageContent && canManageTranslations;
         ['name', 'Nombre público', 140, true, false],
         ['slogan', 'Slogan', 120, false, false],
         ['summary', 'Resumen del negocio', 600, false, true],
+        ['contact_cta_label', 'Texto global del botón de contacto', 80, false, false],
         ['owner_name', 'Nombre público del propietario', 140, false, false],
         ['owner_bio', 'Presentación general del propietario', 4000, false, true],
       ] as const;
@@ -409,7 +410,8 @@ const canSave = canManageContent && canManageTranslations;
           const buttonValues = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
           const buttonGroup = element('div', 'pz-promo-locales__product-group');
           buttonGroup.append(element('h5', '', 'Botones de portada'));
-          (section.config.button_targets || []).slice(0, 2).forEach((_: string, index: number) => {
+          (section.config.button_targets || []).slice(0, 2).forEach((target: string, index: number) => {
+            if (target === 'primary-contact') return;
             const entry = field(`Botón ${index + 1}`, buttonValues[index] || '', {
               max: 80, fallback: activeLocale === documentValue!.locales.default ? '' : String(baseHero.button_labels?.[index] || ''),
             });
@@ -568,8 +570,13 @@ const canSave = canManageContent && canManageTranslations;
       documentValue!.sections.filter((section: LocaleDocument) => section.type === 'hero').forEach((section: LocaleDocument) => {
         content.sections[section.key].highlights = Array.from(root.querySelectorAll<HTMLInputElement>(`[data-locale-hero-highlight="${section.key}"]`))
           .map((control) => control.value);
-        content.sections[section.key].button_labels = Array.from(root.querySelectorAll<HTMLInputElement>(`[data-locale-hero-button="${section.key}"]`))
-          .map((control) => control.value);
+        content.sections[section.key].button_labels = (section.config.button_targets || []).slice(0, 2)
+          .map((target: string, index: number) => {
+            if (target === 'primary-contact') return '';
+            return root.querySelector<HTMLInputElement>(
+              `[data-locale-hero-button="${section.key}"][data-locale-hero-index="${index}"]`,
+            )?.value || '';
+          });
       });
       documentValue!.sections.filter((section: LocaleDocument) => ['services', 'gallery'].includes(section.type)).forEach((section: LocaleDocument) => {
         const itemControls = root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(

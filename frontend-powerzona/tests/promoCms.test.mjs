@@ -97,7 +97,12 @@ function completeDocument() {
 function contentPatch(document) {
   const es = document.content_by_locale.es;
   return {
-    identity: { name: 'Negocio editado', slogan: 'Tu visión, nuestro trabajo', summary: 'Resumen seguro y actualizado' },
+    identity: {
+      name: 'Negocio editado',
+      slogan: 'Tu visión, nuestro trabajo',
+      summary: 'Resumen seguro y actualizado',
+      contactCtaLabel: 'Escríbeme por WhatsApp',
+    },
     sectionOrder: document.section_order,
     sections: document.sections.map((section) => ({
       key: section.key,
@@ -266,6 +271,7 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
   assert.deepEqual(backendContract.validatePromoDocument(updated, { publicRevision: false }), updated);
   assert.equal(updated.content_by_locale.es.identity.name, 'Negocio editado');
   assert.equal(updated.content_by_locale.es.identity.slogan, 'Tu visión, nuestro trabajo');
+  assert.equal(updated.content_by_locale.es.identity.contact_cta_label, 'Escríbeme por WhatsApp');
   assert.deepEqual(updated.sections.find((section) => section.type === 'hero').config, {
     media_use_key: '',
     action_key: 'call-main',
@@ -455,6 +461,10 @@ test('API SSR y shell conservan auth central, CAS, soporte Master y aislamiento 
   assert.match(api, /X-PZ-Promo-Store/);
   assert.doesNotMatch(api, /filter|sort|fields|expand|realtime|Cloudflare|Coolify/);
   assert.match(editor, /Guardar actualiza la página automáticamente/);
+  assert.match(editor, /data-cms-identity-contact-cta/);
+  assert.match(editor, /contactCtaLabel: identityContactCta/);
+  assert.match(editor, /value === 'primary-contact'[\s\S]*?\? ''/);
+  assert.match(editor, /globalContactCta\(\)/);
   assert.match(editor, /la página pública se actualiza automáticamente después de validar permisos/);
   assert.match(editor, /role="alert"/);
   assert.match(editor, /aria-live="polite"/);

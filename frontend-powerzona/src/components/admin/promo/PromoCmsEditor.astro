@@ -78,7 +78,7 @@ const isContent = scope === 'content';
             <span class="pz-promo-cms__step" aria-hidden="true">01</span>
             <div>
               <h3 id="cms-identity-title">Identidad pública</h3>
-              <p>Nombre, slogan y resumen público del negocio.</p>
+              <p>Nombre, slogan, botón global y resumen público del negocio.</p>
             </div>
             <span class="pz-promo-cms__accordion-chevron" aria-hidden="true">⌄</span>
           </summary>
@@ -97,6 +97,11 @@ const isContent = scope === 'content';
               <span>Resumen del negocio</span>
               <textarea rows="4" maxlength="600" data-cms-identity-summary></textarea>
               <small>Texto plano, sin HTML, scripts ni URLs.</small>
+            </label>
+            <label class="pz-promo-cms__field is-wide">
+              <span>Texto global del botón de contacto</span>
+              <input type="text" maxlength="80" placeholder="Ej. Contáctame, Escríbeme por WhatsApp o WhatsApp" data-cms-identity-contact-cta />
+              <small>Se usa en todos los botones de contacto y cotización de la página Promo. El destino continúa configurándose en Contacto.</small>
             </label>
           </div>
         </details>
@@ -598,6 +603,12 @@ const isContent = scope === 'content';
         };
         const buttons = dynamicList('pz-promo-cms__hero-list', 'cmsHeroButtons');
         const localizedButtonLabels = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
+        const defaultGlobalContactCta = String(localized.identity?.contact_cta_label || (
+          locale.startsWith('es') ? 'Solicitar estimado' : 'Request an estimate'
+        ));
+        const globalContactCta = () => String(
+          root.querySelector<HTMLInputElement>('[data-cms-identity-contact-cta]')?.value || defaultGlobalContactCta,
+        );
         const addHeroButton = (target = 'primary-contact', label = '') => {
           if (buttons.children.length >= PROMO_CMS_HERO_MAX_BUTTONS) return;
           const row = element('div', 'pz-promo-cms__hero-row is-button');
@@ -608,6 +619,16 @@ const isContent = scope === 'content';
           });
           const input = element('input'); input.type = 'text'; input.maxLength = 80; input.value = label;
           input.placeholder = 'Texto del botón'; input.dataset.cmsHeroButtonLabel = '';
+          let customLabel = label;
+          const syncLabelSource = () => {
+            const usesGlobalLabel = select.value === 'primary-contact';
+            input.disabled = usesGlobalLabel;
+            input.value = usesGlobalLabel ? globalContactCta() : customLabel;
+            input.placeholder = usesGlobalLabel ? 'Usa el texto global configurado arriba' : 'Texto del botón';
+          };
+          input.addEventListener('input', () => { if (!input.disabled) customLabel = input.value; });
+          select.addEventListener('change', syncLabelSource);
+          syncLabelSource();
           const remove = element('button', 'is-danger', 'Quitar'); remove.type = 'button';
           remove.addEventListener('click', () => { row.remove(); setDirty(); });
           row.append(select, input, remove); buttons.append(row);
@@ -739,9 +760,13 @@ const isContent = scope === 'content';
       const name = root.querySelector<HTMLInputElement>('[data-cms-identity-name]');
       const slogan = root.querySelector<HTMLInputElement>('[data-cms-identity-slogan]');
       const summary = root.querySelector<HTMLTextAreaElement>('[data-cms-identity-summary]');
+      const contactCta = root.querySelector<HTMLInputElement>('[data-cms-identity-contact-cta]');
       if (name) name.value = localized.identity?.name || '';
       if (slogan) slogan.value = localized.identity?.slogan || '';
       if (summary) summary.value = localized.identity?.summary || '';
+      if (contactCta) contactCta.value = localized.identity?.contact_cta_label || (
+        locale.startsWith('es') ? 'Solicitar estimado' : 'Request an estimate'
+      );
       const list = root.querySelector<HTMLElement>('[data-cms-sections]');
       if (!list) return;
       const organizationSections = documentValue.sections.filter((section: CmsDocument) => (
@@ -1087,6 +1112,7 @@ const isContent = scope === 'content';
       const identityName = root.querySelector<HTMLInputElement>('[data-cms-identity-name]')?.value || '';
       const identitySlogan = root.querySelector<HTMLInputElement>('[data-cms-identity-slogan]')?.value || '';
       const identitySummary = root.querySelector<HTMLTextAreaElement>('[data-cms-identity-summary]')?.value || '';
+      const identityContactCta = root.querySelector<HTMLInputElement>('[data-cms-identity-contact-cta]')?.value || '';
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-cms-section-key]'));
       const renderedSections = cards.map((card) => {
         const type = card.dataset.cmsSectionType || '';
@@ -1105,7 +1131,9 @@ const isContent = scope === 'content';
             .map((input) => input.value.trim()).filter(Boolean),
           buttons: Array.from(card.querySelectorAll<HTMLElement>('[data-cms-hero-button-target]')).map((select) => ({
             target: (select as HTMLSelectElement).value,
-            label: select.parentElement?.querySelector<HTMLInputElement>('[data-cms-hero-button-label]')?.value || '',
+            label: (select as HTMLSelectElement).value === 'primary-contact'
+              ? ''
+              : select.parentElement?.querySelector<HTMLInputElement>('[data-cms-hero-button-label]')?.value || '',
           })),
         });
         if (type === 'gallery') Object.assign(result, { heading: field('heading'), summary: field('summary') });
@@ -1160,7 +1188,12 @@ const isContent = scope === 'content';
         }
       ));
       return {
-        identity: { name: identityName, slogan: identitySlogan, summary: identitySummary },
+        identity: {
+          name: identityName,
+          slogan: identitySlogan,
+          summary: identitySummary,
+          contactCtaLabel: identityContactCta,
+        },
         sectionOrder,
         sections,
       };
@@ -1383,6 +1416,14 @@ const isContent = scope === 'content';
 
     form?.addEventListener('input', () => setDirty());
     form?.addEventListener('change', () => setDirty());
+    root.querySelector('[data-cms-identity-contact-cta]')?.addEventListener('input', (event) => {
+      const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';
+      root.querySelectorAll<HTMLSelectElement>('[data-cms-hero-button-target]').forEach((select) => {
+        if (select.value !== 'primary-contact') return;
+        const input = select.parentElement?.querySelector<HTMLInputElement>('[data-cms-hero-button-label]');
+        if (input) input.value = value;
+      });
+    });
     form?.addEventListener('invalid', (event) => {
       const control = event.target instanceof HTMLElement ? event.target : null;
       const accordion = control?.closest<HTMLDetailsElement>('.pz-promo-cms__accordion');

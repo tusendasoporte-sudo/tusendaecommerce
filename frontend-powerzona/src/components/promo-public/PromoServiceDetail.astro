@@ -24,8 +24,6 @@ const labels = spanish ? {
   options: 'Opciones disponibles',
   option: 'opción',
   optionsPlural: 'opciones',
-  quote: 'Cotizar',
-  quoteService: 'Cotizar servicio',
   gallery: 'Fotos de',
   previousPhoto: 'Foto anterior',
   nextPhoto: 'Foto siguiente',
@@ -34,8 +32,6 @@ const labels = spanish ? {
   options: 'Available options',
   option: 'option',
   optionsPlural: 'options',
-  quote: 'Get a quote',
-  quoteService: 'Get a service quote',
   gallery: 'Photos of',
   previousPhoto: 'Previous photo',
   nextPhoto: 'Next photo',
@@ -55,6 +51,7 @@ const footerSections = profile.section_order
   .map((key) => profile.sections.find((section) => section.key === key))
   .filter((section): section is PromoPublicSection => Boolean(section?.type === 'footer'));
 const productCountLabel = `${service.products.length} ${service.products.length === 1 ? labels.option : labels.optionsPlural}`;
+const contactCtaLabel = String(identity.contact_cta_label || system.messages['contact.request_estimate']);
 const quoteContext = spanish
   ? `Quiero cotizar: ${service.name}`
   : `Quote request: ${service.name}`;
@@ -120,8 +117,7 @@ const quoteContext = spanish
           <PromoContactAction
             profile={profile}
             className="promo-service-detail__quote"
-            fallbackLabel={system.messages['contact.request_estimate']}
-            labelOverride={labels.quoteService}
+            fallbackLabel={contactCtaLabel}
             context={quoteContext}
             purpose="quote"
           />
@@ -211,8 +207,7 @@ const quoteContext = spanish
                     <PromoContactAction
                       profile={profile}
                       className="promo-service-detail__quote"
-                      fallbackLabel={system.messages['contact.request_estimate']}
-                      labelOverride={labels.quote}
+                      fallbackLabel={contactCtaLabel}
                       context={productQuoteContext}
                       purpose="quote"
                     />

@@ -20,6 +20,7 @@ export const PROMO_LOCALES_TEXT_LIMITS = Object.freeze({
   itemName: 160,
   caption: 500,
   navigation: 80,
+  contactCtaLabel: 80,
   contactLabel: 80,
   contactAria: 160,
   contactMessage: 1000,
@@ -32,7 +33,7 @@ export const PROMO_LOCALES_TEXT_LIMITS = Object.freeze({
 });
 
 const LOCALIZED_KEYS = Object.freeze(['identity', 'navigation', 'sections', 'contact', 'media_alt', 'seo']);
-const IDENTITY_KEYS = Object.freeze(['name', 'slogan', 'summary', 'owner_name', 'owner_bio']);
+const IDENTITY_KEYS = Object.freeze(['name', 'slogan', 'summary', 'contact_cta_label', 'owner_name', 'owner_bio']);
 const CONTACT_TEXT_KEYS = Object.freeze(['label', 'aria_label', 'message']);
 const SEO_KEYS = Object.freeze(['title', 'description', 'social_title', 'social_description']);
 const SECTION_TEXT_KEYS = Object.freeze({
@@ -197,6 +198,7 @@ function normalizeLocalizedContent(document: JsonRecord, value: unknown) {
     name: PROMO_LOCALES_TEXT_LIMITS.businessName,
     slogan: PROMO_LOCALES_TEXT_LIMITS.slogan,
     summary: PROMO_LOCALES_TEXT_LIMITS.shortSummary,
+    contact_cta_label: PROMO_LOCALES_TEXT_LIMITS.contactCtaLabel,
     owner_name: PROMO_LOCALES_TEXT_LIMITS.businessName,
     owner_bio: PROMO_LOCALES_TEXT_LIMITS.body,
   });
@@ -367,7 +369,7 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
   check(document.system_catalog_version === PROMO_LOCALES_SYSTEM_CATALOG, 'Catálogo general del sistema');
   check(textPresent(localized.identity?.name), 'Identidad: nombre público');
   if (locale !== document.locales.default) {
-    ['slogan', 'summary', 'owner_name', 'owner_bio'].forEach((field) => {
+    ['slogan', 'summary', 'contact_cta_label', 'owner_name', 'owner_bio'].forEach((field) => {
       if (textPresent(base.identity?.[field])) check(textPresent(localized.identity?.[field]), `Identidad: ${field}`);
     });
   }
@@ -396,6 +398,7 @@ export function diagnosePromoLocale(value: unknown, requestedLocale: string): Pr
         const baseButtons = Array.isArray(baseSection.button_labels) ? baseSection.button_labels : [];
         const translatedButtons = Array.isArray(sectionContent.button_labels) ? sectionContent.button_labels : [];
         baseButtons.forEach((button: unknown, index: number) => {
+          if (section.config?.button_targets?.[index] === 'primary-contact') return;
           if (textPresent(button)) check(textPresent(translatedButtons[index]), `${label}: button ${index + 1}`);
         });
       }

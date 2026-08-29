@@ -29,6 +29,10 @@ test('traducción cubre shell, editores y textos dinámicos sin alterar contenid
     'No changes were saved to the public page. The images remain pending so you can try again.',
   );
   assert.equal(promoAdminText('en', 'Logo del negocio'), 'Business logo');
+  assert.equal(
+    promoAdminText('en', 'Texto global del botón de contacto'),
+    'Global contact button text',
+  );
   assert.equal(promoAdminText('en', 'Solicitar una reseña'), 'Request a review');
   assert.equal(promoAdminText('en', 'Artesanal cálida'), 'Warm artisan');
   assert.equal(promoAdminText('en', 'Tema actual: Artesanal cálida'), 'Current theme: Warm artisan');

@@ -45,8 +45,10 @@ const gallerySections = profile.sections.filter((item) => item.type === 'gallery
 const ownerMediaKey = String(section.config.media_use_key || section.media_use_keys[0] || '');
 const ownerMedia = ownerMediaKey ? mediaByKey.get(ownerMediaKey) : undefined;
 const itemNumber = (index: number) => String(index + 1).padStart(2, '0');
-const estimateLabel = profile.system.messages['contact.request_estimate'];
-const quoteLabel = profile.locale.lang.startsWith('es') ? 'Cotizar' : 'Get a quote';
+const estimateLabel = String(
+  profile.content.identity?.contact_cta_label
+  || profile.system.messages['contact.request_estimate'],
+);
 const viewOptionsLabel = profile.locale.lang.startsWith('es') ? 'Ver opciones' : 'View options';
 const previousWorkLabel = profile.locale.lang.startsWith('es') ? 'Imagen anterior' : 'Previous image';
 const nextWorkLabel = profile.locale.lang.startsWith('es') ? 'Imagen siguiente' : 'Next image';
@@ -219,7 +221,6 @@ const itemCount = section.type === 'featured_work'
                       profile={profile}
                       className="promo-sections__service-action promo-sections__service-quote"
                       fallbackLabel={estimateLabel}
-                      labelOverride={quoteLabel}
                       context={profile.locale.lang.startsWith('es')
                         ? `Quiero cotizar: ${String(item.name || '')}`
                         : `Quote request: ${String(item.name || '')}`}

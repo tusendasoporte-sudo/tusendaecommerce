@@ -15,6 +15,7 @@ const IDENTITY_FIELDS = Object.freeze({
   name: Object.freeze({ max: 140, mode: "copy" }),
   slogan: Object.freeze({ max: 120, mode: "translate" }),
   summary: Object.freeze({ max: 600, mode: "translate" }),
+  contact_cta_label: Object.freeze({ max: 80, mode: "translate" }),
   owner_name: Object.freeze({ max: 140, mode: "copy" }),
   owner_bio: Object.freeze({ max: 4000, mode: "translate" }),
 });
