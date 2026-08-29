@@ -327,6 +327,18 @@ test('ocultar una sección elimina automáticamente su enlace del footer', () =>
   );
 });
 
+test('el CTA predeterminado completa los idiomas legados al guardar Organización', () => {
+  const original = normalizePromoCmsDocument(completeDocument());
+  assert.equal(original.content_by_locale.es.identity.contact_cta_label, '');
+  assert.equal(original.content_by_locale.en.identity.contact_cta_label, '');
+  const patch = contentPatch(original);
+  patch.identity.contactCtaLabel = 'Solicitar estimado';
+  const updated = buildPromoCmsContentDocument(original, patch, 4);
+  assert.equal(updated.content_by_locale.es.identity.contact_cta_label, 'Solicitar estimado');
+  assert.equal(updated.content_by_locale.en.identity.contact_cta_label, 'Request an estimate');
+  assert.equal(updated.sections.find((section) => section.key === 'owner-main').visible, false);
+});
+
 test('portada limita cuatro especialidades, dos botones y diseños aprobados', () => {
   const original = completeDocument();
   const tooManyHighlights = contentPatch(original);

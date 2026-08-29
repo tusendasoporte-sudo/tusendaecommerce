@@ -761,6 +761,10 @@ export function isPromoCmsWorkGalleryReady(value: unknown) {
     ));
 }
 
+function defaultPromoContactCtaLabel(locale: string) {
+  return locale.toLowerCase().startsWith('es') ? 'Solicitar estimado' : 'Request an estimate';
+}
+
 export function prunePromoCmsHiddenFooterLinks(document: JsonRecord) {
   const visibleSectionKeys = new Set(document.sections
     .filter((section: JsonRecord) => section.visible === true && section.type !== 'footer')
@@ -806,6 +810,18 @@ export function buildPromoCmsContentDocument(
     patch.identity?.contactCtaLabel || '',
     PROMO_CMS_TEXT_LIMITS.contactCtaLabel,
   );
+  const previousContactCtaLabel = String(localized.identity?.contact_cta_label || '').trim();
+  if (!previousContactCtaLabel && contactCtaLabel === defaultPromoContactCtaLabel(locale)) {
+    Object.entries(document.content_by_locale).forEach(([contentLocale, rawOtherLocalized]) => {
+      if (contentLocale === locale || !isRecord(rawOtherLocalized)) return;
+      const otherIdentity = isRecord(rawOtherLocalized.identity) ? rawOtherLocalized.identity : {};
+      if (String(otherIdentity.contact_cta_label || '').trim()) return;
+      rawOtherLocalized.identity = {
+        ...otherIdentity,
+        contact_cta_label: defaultPromoContactCtaLabel(contentLocale),
+      };
+    });
+  }
   localized.identity = {
     ...localized.identity,
     name,
