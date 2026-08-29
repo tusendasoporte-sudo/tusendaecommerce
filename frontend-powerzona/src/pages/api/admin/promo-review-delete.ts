@@ -88,7 +88,7 @@ export const DELETE: APIRoute = async ({ request }) => {
       signal: AbortSignal.timeout(20_000),
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok || result?.ok !== true || result?.contract !== 'promo.reviews.deleted.v1') {
+    if (!response.ok || result?.ok !== true || result?.contract !== 'promo.reviews.deleted.v2') {
       fail(String(result?.error || 'promo_reviews_unavailable'), response.status || 503);
     }
     return json(result);

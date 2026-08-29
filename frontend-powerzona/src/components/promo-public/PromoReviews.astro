@@ -28,13 +28,11 @@ const copy = spanish ? {
   name: 'Nombre público',
   rating: 'Calificación',
   comment: 'Cuéntanos tu experiencia',
-  consent: 'Autorizo mostrar estas fotos del trabajo junto a mi reseña si es aprobada.',
   submit: 'Enviar reseña',
   sending: 'Enviando…',
   success: 'Gracias por tu reseña.',
   verified: 'Trabajo verificado',
-  photos: 'Fotos del trabajo',
-  requestLoading: 'Cargando la solicitud y sus fotos…',
+  requestLoading: 'Cargando la solicitud…',
   allTitle: 'Todas las reseñas',
   page: 'Página',
 } : {
@@ -49,13 +47,11 @@ const copy = spanish ? {
   name: 'Public name',
   rating: 'Rating',
   comment: 'Tell us about your experience',
-  consent: 'I authorize these work photos to appear with my review if it is approved.',
   submit: 'Submit review',
   sending: 'Sending…',
   success: 'Thank you for your review.',
   verified: 'Verified service',
-  photos: 'Work photos',
-  requestLoading: 'Loading the request and its photos…',
+  requestLoading: 'Loading the request…',
   allTitle: 'All reviews',
   page: 'Page',
 };
@@ -156,7 +152,6 @@ const countCopy = rating.summary.count === 1
     <div class="promo-reviews__dialog-body">
       <header><p class="promo-shell-section__eyebrow">{navigationLabel}</p><h3 id={`${sectionId}-form-title`}>{copy.formTitle}</h3><p>{copy.formIntro}</p></header>
       <p data-review-request-status role="status" hidden></p>
-      <div class="promo-reviews__request-photos" data-review-request-photos hidden aria-label={copy.photos}></div>
       <form class="promo-reviews__form" data-review-form novalidate>
         <label><span>{copy.name}</span><input type="text" name="name" minlength="2" maxlength="80" autocomplete="name" required /></label>
         <fieldset>
@@ -169,7 +164,6 @@ const countCopy = rating.summary.count === 1
         </fieldset>
         <label><span>{copy.comment}</span><textarea name="comment" maxlength="1000" rows="6" required></textarea></label>
         <label class="promo-reviews__honeypot" aria-hidden="true"><span>Website</span><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
-        <label class="promo-reviews__consent" data-review-photo-consent hidden><input type="checkbox" name="photo_consent" /><span>{copy.consent}</span></label>
         <button type="submit" data-review-submit>{copy.submit}</button>
       </form>
     </div>
@@ -215,8 +209,6 @@ const countCopy = rating.summary.count === 1
     const submit = root.querySelector<HTMLButtonElement>('[data-review-submit]');
     const notice = root.querySelector<HTMLElement>('[data-review-notice]');
     const requestStatus = root.querySelector<HTMLElement>('[data-review-request-status]');
-    const requestPhotos = root.querySelector<HTMLElement>('[data-review-request-photos]');
-    const consent = root.querySelector<HTMLElement>('[data-review-photo-consent]');
     const allGrid = root.querySelector<HTMLElement>('[data-review-all-grid]');
     const allPage = root.querySelector<HTMLElement>('[data-review-all-page]');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -233,7 +225,6 @@ const countCopy = rating.summary.count === 1
     let renderedAt = Date.now();
     let allCurrentPage = 1;
     let allTotalPages = 1;
-    const objectUrls: string[] = [];
 
     function show(message: string, tone: 'success' | 'error' = 'success') {
       if (!notice) return;
@@ -291,16 +282,6 @@ const countCopy = rating.summary.count === 1
     function card(review: Review) {
       const article = document.createElement('article');
       article.className = 'promo-reviews__card';
-      if (review.photos[0]) {
-        const image = document.createElement('img');
-        image.className = 'promo-reviews__card-photo';
-        image.src = review.photos[0].url;
-        image.width = review.photos[0].width;
-        image.height = review.photos[0].height;
-        image.alt = copy.photos || '';
-        image.loading = 'lazy';
-        article.append(image);
-      }
       const quote = document.createElement('span'); quote.className = 'promo-reviews__quote'; quote.ariaHidden = 'true'; quote.textContent = '“';
       const stars = document.createElement('div'); stars.className = 'promo-reviews__stars'; stars.setAttribute('role', 'img');
       stars.setAttribute('aria-label', `${review.rating} / 5`);
@@ -365,16 +346,6 @@ const countCopy = rating.summary.count === 1
         requestStatus.hidden = true;
         requestStatus.textContent = '';
       }
-      if (requestPhotos) {
-        requestPhotos.hidden = true;
-        requestPhotos.replaceChildren();
-      }
-      if (consent) {
-        consent.hidden = true;
-        const checkbox = consent.querySelector<HTMLInputElement>('input[name="photo_consent"]');
-        if (checkbox) checkbox.checked = false;
-      }
-      objectUrls.splice(0).forEach((url) => URL.revokeObjectURL(url));
     }
 
     function openReviewForm(clearRequest = true) {
@@ -394,19 +365,6 @@ const countCopy = rating.summary.count === 1
       const name = form?.elements.namedItem('name');
       if (name instanceof HTMLInputElement && context.customerLabel) name.value = context.customerLabel;
       if (requestStatus) { requestStatus.hidden = !context.workLabel; requestStatus.textContent = context.workLabel; }
-      if (requestPhotos) {
-        requestPhotos.replaceChildren();
-        for (const photo of context.photos) {
-          const response = await fetch(promoPublicReviewsPath(slug, 'request-photo'), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, index: photo.index }),
-          });
-          if (!response.ok) throw new Error('review_photo_not_found');
-          const url = URL.createObjectURL(await response.blob()); objectUrls.push(url);
-          const image = document.createElement('img'); image.src = url; image.alt = copy.photos; image.width = photo.width; image.height = photo.height; requestPhotos.append(image);
-        }
-        requestPhotos.hidden = context.photos.length === 0;
-        if (consent) consent.hidden = context.photos.length === 0;
-      }
     }
 
     carousel?.addEventListener('mouseenter', () => { pointerPaused = true; restartTimer(); });
@@ -440,7 +398,6 @@ const countCopy = rating.summary.count === 1
             name: String(data.get('name') || ''), rating: Number(data.get('rating')),
             comment: String(data.get('comment') || ''), honeypot: String(data.get('website') || ''),
             rendered_at: renderedAt, request_token: requestToken,
-            photo_consent: requestToken ? data.get('photo_consent') === 'on' : false,
           }),
         })));
         form.reset(); resetRequestContext(); formDialog?.close(); show(copy.success, 'success');
@@ -460,7 +417,6 @@ const countCopy = rating.summary.count === 1
     }
     void loadInitial().catch((error) => show(promoReviewRequestsErrorMessage(error?.code || error?.message), 'error'));
     window.addEventListener('pagehide', () => {
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
       window.clearInterval(timer);
       window.clearTimeout(noticeTimer);
     }, { once: true });

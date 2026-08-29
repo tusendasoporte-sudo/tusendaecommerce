@@ -19,7 +19,7 @@ const SAFE_ERRORS = new Set([
   'store_not_promo', 'store_inactive', 'promo_site_inactive', 'promo_store_context_required',
   'promo_capability_denied', 'promo_permission_denied', 'invalid_payload', 'invalid_origin',
   'unsafe_review_content', 'invalid_review_request', 'review_request_used', 'review_request_expired',
-  'review_request_revoked', 'review_request_conflict', 'review_photo_not_found', 'promo_reviews_unavailable',
+  'review_request_revoked', 'promo_reviews_unavailable',
 ]);
 
 function json(payload: unknown, status = 200) {
@@ -103,7 +103,7 @@ export const GET: APIRoute = async ({ request }) => {
   try {
     const { parsed, pb, current } = await context(request, true);
     const result = await backend(LIST_PATH, pb.authStore.token, {
-      contract: 'promo.review-requests.list.v1', page: parsed.page,
+      contract: 'promo.review-requests.list.v2', page: parsed.page,
     }, current.isMasterSupport ? current.storeId : '');
     normalizePromoReviewRequestsPage(result);
     return json(result);
@@ -115,16 +115,14 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const { pb, current } = await context(request, false);
     const body = await request.json();
-    if (!exactObject(body, ['locale', 'customer_label', 'work_label', 'photo_asset_ids', 'expires_days'])
-      || !Array.isArray(body.photo_asset_ids) || body.photo_asset_ids.length > 3) {
+    if (!exactObject(body, ['locale', 'customer_label', 'work_label', 'expires_days'])) {
       throw new PromoReviewRequestsError('invalid_payload', 400);
     }
     const result = await backend(CREATE_PATH, pb.authStore.token, {
-      contract: 'promo.review-requests.create.v1',
+      contract: 'promo.review-requests.create.v2',
       locale: body.locale,
       customer_label: body.customer_label,
       work_label: body.work_label,
-      photo_asset_ids: body.photo_asset_ids,
       expires_days: body.expires_days,
     }, current.isMasterSupport ? current.storeId : '');
     normalizePromoReviewRequestCreated(result);
@@ -142,7 +140,7 @@ export const DELETE: APIRoute = async ({ request }) => {
     const body = await request.json();
     if (!exactObject(body, ['request_id'])) throw new PromoReviewRequestsError('invalid_payload', 400);
     const result = await backend(REVOKE_PATH, pb.authStore.token, {
-      contract: 'promo.review-requests.revoke.v1', request_id: body.request_id,
+      contract: 'promo.review-requests.revoke.v2', request_id: body.request_id,
     }, current.isMasterSupport ? current.storeId : '');
     normalizePromoReviewRequestRevoked(result);
     return json(result);

@@ -111,7 +111,7 @@ test('sección pública conserva SSR y añade formulario moderado, carrusel y vi
   assert.match(component, /Intl\.DateTimeFormat\(profile\.locale\.effective/);
   assert.match(component, /data-review-form/);
   assert.match(component, /data-review-open-all/);
-  assert.match(component, /photo_consent/);
+  assert.doesNotMatch(component, /photo_consent|request-photo|data-review-request-photos/);
   assert.doesNotMatch(component, /name="comment"[^>]*minlength/);
   assert.match(component, /\[1, 2, 3, 4, 5\]\.map\(\(value\) =>/);
   assert.doesNotMatch(styles, /flex-direction:\s*row-reverse/);
@@ -146,15 +146,10 @@ test('Admin usa módulo Promo dedicado, permisos granulares y DOM seguro', () =>
   assert.match(component, /data-review-action/);
   assert.match(proxy, /promo\.reviews\.list\.v1/);
   assert.match(proxy, /promoCmsSameOriginMutation/);
-  assert.match(component, /data-review-request-photo-slots/);
-  assert.match(component, /selectReviewPhoto[\s\S]*?optimizePromoUploadImageFile\(file, 'review'\)/);
-  assert.match(component, /for \(let index = 0; index < 3; index \+= 1\)/);
-  assert.match(component, /state\.textContent = error \? 'Error' : \(file \? 'Pendiente' : 'Disponible'\)/);
-  assert.match(component, /WebP comprimido y sin metadatos/);
+  assert.doesNotMatch(component, /data-review-request-photo-slots|selectReviewPhoto|photo_asset_ids|purpose', 'review'/);
   assert.match(component, /data-reviews-save-config disabled/);
   assert.match(component, /if \(!canConfigure \|\| !configDirty/);
   assert.match(component, /window\.addEventListener\('beforeunload'[\s\S]*?!configDirty && !requestDirty/);
-  assert.match(component, /image\.src = mediaEndpoint\(assetId\)/);
-  assert.match(requestProxy, /promo\.review-requests\.create\.v1/);
+  assert.match(requestProxy, /promo\.review-requests\.create\.v2/);
   assert.doesNotMatch(`${component}\n${proxy}\n${requestProxy}`, /\/orders|\/products|checkout|cart|innerHTML/);
 });

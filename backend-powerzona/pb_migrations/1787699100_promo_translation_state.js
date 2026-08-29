@@ -5,12 +5,16 @@
 const TRANSLATION_STATE_FIELD_ID = "json1787699101";
 const TRANSLATION_STATE_FIELD_NAME = "translation_state_json";
 
+function fieldType(field) {
+  try { return typeof field.type === "function" ? field.type() : field.type; } catch (_) { return ""; }
+}
+
 migrate((app) => {
   const drafts = app.findCollectionByNameOrId("promo_draft_documents");
   let existing = null;
   try { existing = drafts.fields.getByName(TRANSLATION_STATE_FIELD_NAME); } catch (_) {}
   if (existing) {
-    if (existing.id !== TRANSLATION_STATE_FIELD_ID || existing.type !== "json") {
+    if (existing.id !== TRANSLATION_STATE_FIELD_ID || fieldType(existing) !== "json") {
       throw new Error("incompatible_promo_translation_state");
     }
     return;
@@ -31,7 +35,7 @@ migrate((app) => {
   let field = null;
   try { field = drafts.fields.getByName(TRANSLATION_STATE_FIELD_NAME); } catch (_) {}
   if (!field) return;
-  if (field.id !== TRANSLATION_STATE_FIELD_ID || field.type !== "json") {
+  if (field.id !== TRANSLATION_STATE_FIELD_ID || fieldType(field) !== "json") {
     throw new Error("incompatible_promo_translation_state");
   }
   drafts.fields.removeById(TRANSLATION_STATE_FIELD_ID);

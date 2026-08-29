@@ -1,6 +1,5 @@
 ---
 import '../../../styles/promo-reviews-admin.css';
-import '../../../styles/promo-gallery.css';
 
 interface Props {
   storeSlug: string;
@@ -8,10 +7,9 @@ interface Props {
   publicSlug: string;
   canModerate: boolean;
   canConfigure: boolean;
-  canManageMedia: boolean;
 }
 
-const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMedia } = Astro.props;
+const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.props;
 ---
 
 <section
@@ -22,7 +20,6 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
   data-public-slug={publicSlug}
   data-can-moderate={canModerate ? 'true' : 'false'}
   data-can-configure={canConfigure ? 'true' : 'false'}
-  data-can-manage-media={canManageMedia ? 'true' : 'false'}
   aria-labelledby="promo-reviews-editor-title"
 >
   <header class="pz-promo-reviews-admin__header">
@@ -61,25 +58,17 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
   <details class="pz-promo-reviews-admin__requests" open>
     <summary>
       <span><span class="pz-promo-reviews-admin__section-label">Después de un trabajo</span><strong>Solicitar una reseña</strong></span>
-      <span>Enlace privado · hasta 3 fotos</span>
+      <span>Enlace privado de un solo uso</span>
     </summary>
     <div class="pz-promo-reviews-admin__request-body">
-      <p>Crea un enlace de un solo uso. El cliente verá las fotos en privado y decidirá si autoriza mostrarlas junto a la reseña.</p>
+      <p>Crea un enlace de un solo uso para que el cliente deje una reseña del trabajo realizado.</p>
       <form data-review-request-form class="pz-promo-reviews-admin__request-form">
         <label class="pz-promo-reviews-admin__field"><span>Idioma del cliente</span><select data-review-request-locale required></select></label>
         <label class="pz-promo-reviews-admin__field"><span>Nombre o referencia del cliente (opcional)</span><input data-review-request-customer type="text" maxlength="120" /></label>
         <label class="pz-promo-reviews-admin__field is-wide"><span>Descripción privada del trabajo (opcional)</span><input data-review-request-work type="text" maxlength="240" placeholder="Ej.: Limpieza de alfombra de sala" /></label>
         <label class="pz-promo-reviews-admin__field"><span>Vigencia</span><select data-review-request-expiry><option value="7">7 días</option><option value="14">14 días</option><option value="30" selected>30 días</option></select></label>
-        <section class="pz-promo-gallery pz-promo-media-slots pz-promo-reviews-admin__photo-uploader is-wide" aria-labelledby="review-request-photos-title">
-          <header class="pz-promo-media-slots__header">
-            <strong id="review-request-photos-title">Fotos del trabajo (opcional)</strong>
-            <span data-review-request-photo-count>0 de 3 utilizadas</span>
-          </header>
-          <div class="pz-promo-media-slots__grid" data-review-request-photo-slots></div>
-        </section>
         <button type="submit" data-review-request-create disabled={!canModerate}>Generar enlace privado</button>
       </form>
-      {!canManageMedia && <p class="pz-promo-reviews-admin__permission-note">Puedes crear la solicitud sin fotos; para adjuntarlas se requiere `promo.media.manage`.</p>}
       <section class="pz-promo-reviews-admin__generated" data-review-request-generated hidden aria-labelledby="review-generated-title">
         <h4 id="review-generated-title">Enlace creado</h4>
         <input type="text" readonly data-review-request-link aria-label="Enlace privado de reseña" />
@@ -88,7 +77,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
           <button type="button" data-review-share-link>Compartir</button>
           <a data-review-whatsapp-link target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
         </div>
-        <p>WhatsApp abrirá el mensaje con el enlace. Las fotos solo se adjuntan con el menú Compartir cuando el dispositivo lo permite.</p>
+        <p>WhatsApp y el menú Compartir enviarán el enlace privado al cliente.</p>
         <img data-review-request-qr alt="Código QR del enlace privado de reseña" width="220" height="220" />
       </section>
       <div class="pz-promo-reviews-admin__request-summary" data-review-request-summary></div>
@@ -152,7 +141,6 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     PROMO_REVIEWS_API_PATH,
     promoReviewsErrorMessage,
   } from '../../../lib/promoReviews';
-  import { optimizePromoUploadImageFile } from '../../../lib/promoImageOptimizationCore.js';
 
   document.querySelectorAll<HTMLElement>('[data-promo-reviews-editor]').forEach((root) => {
     const storeSlug = String(root.dataset.storeSlug || '');
@@ -161,7 +149,6 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     const publicSlug = String(root.dataset.publicSlug || '');
     const canModerate = root.dataset.canModerate === 'true';
     const canConfigure = root.dataset.canConfigure === 'true';
-    const canManageMedia = root.dataset.canManageMedia === 'true';
     const alertBox = root.querySelector<HTMLElement>('[data-reviews-alert]');
     const list = root.querySelector<HTMLElement>('[data-reviews-list]');
     const filter = root.querySelector<HTMLSelectElement>('[data-reviews-filter]');
@@ -177,8 +164,6 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     const requestCustomer = root.querySelector<HTMLInputElement>('[data-review-request-customer]');
     const requestWork = root.querySelector<HTMLInputElement>('[data-review-request-work]');
     const requestExpiry = root.querySelector<HTMLSelectElement>('[data-review-request-expiry]');
-    const requestPhotoSlots = root.querySelector<HTMLElement>('[data-review-request-photo-slots]');
-    const requestPhotoCount = root.querySelector<HTMLElement>('[data-review-request-photo-count]');
     const requestCreate = root.querySelector<HTMLButtonElement>('[data-review-request-create]');
     const requestGenerated = root.querySelector<HTMLElement>('[data-review-request-generated]');
     const requestLink = root.querySelector<HTMLInputElement>('[data-review-request-link]');
@@ -190,13 +175,9 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     let requestPage = 1;
     let draftVersion = 0;
     let draftDocument: Record<string, any> | null = null;
-    let selectedPhotos: File[] = [];
-    let generatedAssetIds: string[] = [];
     let generatedLink = '';
     let generatedPublicLink = '';
     let generatedShareText = '';
-    const photoObjectUrls = new Map<File, string>();
-    const photoErrors = new Map<number, string>();
     let configDirty = false;
     let requestDirty = false;
     const requestByReviewId = new Map<string, ReturnType<typeof normalizePromoReviewRequestsPage>['requests'][number]>();
@@ -234,137 +215,8 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       return url.toString();
     }
 
-    function mediaEndpoint(assetId = '') {
-      const url = new URL('/api/admin/promo-media', window.location.origin);
-      url.searchParams.set('store', storeSlug);
-      if (assetId) url.searchParams.set('asset', assetId);
-      return url.toString();
-    }
-
     function setRequestDirty(value = true) {
       requestDirty = value;
-    }
-
-    function releasePhoto(file: File | undefined) {
-      if (!file) return;
-      const objectUrl = photoObjectUrls.get(file);
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-      photoObjectUrls.delete(file);
-    }
-
-    async function selectReviewPhoto(file: File | undefined, index: number) {
-      if (!file || !canManageMedia || !canModerate || index < 0 || index > selectedPhotos.length || index >= 3) return;
-      photoErrors.delete(index);
-      renderSelectedPhotos();
-      try {
-        const prepared = await optimizePromoUploadImageFile(file, 'review') as File;
-        if (selectedPhotos[index]) releasePhoto(selectedPhotos[index]);
-        if (index < selectedPhotos.length) selectedPhotos[index] = prepared;
-        else selectedPhotos.push(prepared);
-        photoObjectUrls.set(prepared, URL.createObjectURL(prepared));
-        setRequestDirty();
-        clearStaleError();
-      } catch (error) {
-        const code = (error as { code?: string; message?: string })?.code || (error as Error)?.message;
-        photoErrors.set(index, promoReviewRequestsErrorMessage(code));
-        show(promoReviewRequestsErrorMessage(code), 'error');
-      }
-      renderSelectedPhotos();
-    }
-
-    function renderSelectedPhotos() {
-      if (!requestPhotoSlots) return;
-      requestPhotoSlots.replaceChildren();
-      if (requestPhotoCount) requestPhotoCount.textContent = `${selectedPhotos.length} de 3 utilizadas`;
-      for (let index = 0; index < 3; index += 1) {
-        const file = selectedPhotos[index];
-        const error = photoErrors.get(index) || '';
-        const card = document.createElement('article');
-        card.className = `pz-promo-media-slot${file ? ' is-filled is-pending' : ' is-empty'}${error ? ' is-error' : ''}`;
-        const heading = document.createElement('div'); heading.className = 'pz-promo-media-slot__heading';
-        const title = document.createElement('strong'); title.textContent = `Espacio ${index + 1}`;
-        const state = document.createElement('span'); state.textContent = error ? 'Error' : (file ? 'Pendiente' : 'Disponible');
-        heading.append(title, state); card.append(heading);
-        if (file) {
-          const preview = document.createElement('div'); preview.className = 'pz-promo-gallery__item-preview';
-          const image = document.createElement('img');
-          image.src = photoObjectUrls.get(file) || URL.createObjectURL(file);
-          photoObjectUrls.set(file, image.src);
-          image.alt = `Vista previa privada de la foto ${index + 1} del trabajo`;
-          preview.append(image); card.append(preview);
-        } else {
-          const empty = document.createElement('div'); empty.className = 'pz-promo-media-slot__empty';
-          const strong = document.createElement('strong'); strong.textContent = 'Arrastra una imagen aquí';
-          const copy = document.createElement('span'); copy.textContent = 'o selecciónala desde tu dispositivo';
-          empty.append(strong, copy); card.append(empty);
-        }
-        const input = document.createElement('input');
-        input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp,image/avif';
-        input.className = 'pz-promo-media-slot__input'; input.disabled = !canManageMedia || !canModerate;
-        input.setAttribute('aria-label', `${file ? 'Reemplazar' : 'Elegir'} foto ${index + 1} del trabajo`);
-        input.addEventListener('change', () => {
-          void selectReviewPhoto(input.files?.[0], index).finally(() => { input.value = ''; });
-        });
-        const actions = document.createElement('div'); actions.className = 'pz-promo-media-slot__actions';
-        const choose = document.createElement('button'); choose.type = 'button'; choose.className = 'pz-promo-gallery__secondary';
-        choose.textContent = file ? 'Cambiar imagen' : 'Elegir imagen'; choose.disabled = input.disabled;
-        choose.addEventListener('click', () => input.click()); actions.append(choose, input);
-        if (file) {
-          const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'is-danger'; remove.textContent = 'Quitar';
-          remove.addEventListener('click', () => {
-            releasePhoto(selectedPhotos[index]); selectedPhotos.splice(index, 1); photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
-          });
-          if (selectedPhotos.length > 1) {
-            const up = document.createElement('button'); up.type = 'button'; up.className = 'pz-promo-gallery__secondary';
-            up.textContent = '←'; up.ariaLabel = 'Mover foto hacia la izquierda'; up.disabled = index === 0;
-            up.addEventListener('click', () => {
-              [selectedPhotos[index - 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index - 1]];
-              photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
-            });
-            const down = document.createElement('button'); down.type = 'button'; down.className = 'pz-promo-gallery__secondary';
-            down.textContent = '→'; down.ariaLabel = 'Mover foto hacia la derecha'; down.disabled = index === selectedPhotos.length - 1;
-            down.addEventListener('click', () => {
-              [selectedPhotos[index + 1], selectedPhotos[index]] = [selectedPhotos[index], selectedPhotos[index + 1]];
-              photoErrors.clear(); setRequestDirty(); renderSelectedPhotos();
-            });
-            actions.append(up, down);
-          }
-          actions.append(remove);
-        }
-        card.append(actions);
-        const guidance = document.createElement('small'); guidance.className = `pz-promo-media-slot__guidance${error ? ' is-error' : ''}`;
-        guidance.textContent = error || 'JPG, PNG, WebP o AVIF · horizontal 4:3 · mínimo 320×240 px · WebP comprimido y sin metadatos';
-        card.append(guidance);
-        card.addEventListener('dragover', (event) => {
-          if (!canManageMedia || !canModerate || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
-          event.preventDefault(); card.classList.add('is-dragover');
-        });
-        card.addEventListener('dragleave', () => card.classList.remove('is-dragover'));
-        card.addEventListener('drop', (event) => {
-          card.classList.remove('is-dragover');
-          const dropped = event.dataTransfer?.files?.[0];
-          if (!dropped || !canManageMedia || !canModerate) return;
-          event.preventDefault(); void selectReviewPhoto(dropped, index);
-        });
-        requestPhotoSlots.append(card);
-      }
-    }
-
-    async function uploadPhoto(file: File) {
-      const body = new FormData();
-      body.append('file', file); body.append('purpose', 'review'); body.append('poster_asset_id', '');
-      const result = await responseJson(await fetch(mediaEndpoint(), { method: 'POST', body }));
-      const id = String(result?.asset?.asset_id || '');
-      if (!/^[a-z0-9]{15}$/.test(id) || result?.asset?.purpose !== 'review' || result?.asset?.kind !== 'image') {
-        throw new Error('promo_media_backend_mismatch');
-      }
-      return id;
-    }
-
-    async function cleanupAssets(assetIds: string[]) {
-      await Promise.allSettled(assetIds.map((assetId) => fetch(mediaEndpoint(), {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ asset_id: assetId }),
-      })));
     }
 
     function requestStatusLabel(status: string) {
@@ -379,28 +231,13 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       const badge = document.createElement('span'); badge.dataset.status = item.status; badge.textContent = requestStatusLabel(item.status); header.append(title, badge);
       const info = document.createElement('p');
       const expiry = new Intl.DateTimeFormat(adminLocale, { dateStyle: 'medium' }).format(new Date(item.expiresAt));
-      info.textContent = `${item.locale.toUpperCase()} · ${item.photoAssetIds.length} foto${item.photoAssetIds.length === 1 ? '' : 's'} · vence ${expiry}`;
+      info.textContent = `${item.locale.toUpperCase()} · vence ${expiry}`;
       article.append(header, info);
       if (item.workLabel && item.workLabel !== title.textContent) {
         const work = document.createElement('p');
         work.textContent = item.workLabel;
         work.dataset.promoAdminNoTranslate = '';
         article.append(work);
-      }
-      if (item.photoAssetIds.length) {
-        const photos = document.createElement('div');
-        photos.className = 'pz-promo-reviews-admin__request-thumbnails';
-        photos.setAttribute('aria-label', 'Fotos privadas asociadas a la solicitud');
-        item.photoAssetIds.forEach((assetId, index) => {
-          const image = document.createElement('img');
-          image.src = mediaEndpoint(assetId);
-          image.alt = `Foto ${index + 1} del trabajo ${item.workLabel || item.customerLabel || 'solicitado'}`;
-          image.loading = 'lazy';
-          image.width = 120;
-          image.height = 90;
-          photos.append(image);
-        });
-        article.append(photos);
       }
       if (item.status === 'pending') {
         const revoke = document.createElement('button'); revoke.type = 'button'; revoke.textContent = 'Revocar enlace'; revoke.dataset.requestRevoke = item.id; revoke.dataset.tone = 'danger'; revoke.disabled = !canModerate; article.append(revoke);
@@ -422,21 +259,10 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       clearStaleError();
     }
 
-    async function requestPhotoFiles(assetIds: string[]) {
-      const files: File[] = [];
-      for (let index = 0; index < assetIds.length; index += 1) {
-        const response = await fetch(mediaEndpoint(assetIds[index]), { cache: 'no-store' });
-        if (!response.ok) continue;
-        files.push(new File([await response.blob()], `trabajo-${index + 1}.webp`, { type: 'image/webp' }));
-      }
-      return files;
-    }
-
-    async function displayGeneratedLink(token: string, locale: string, assetIds: string[]) {
+    async function displayGeneratedLink(token: string, locale: string) {
       generatedPublicLink = promoPublicPageLink(publicSlug, locale, window.location.origin);
       generatedLink = promoReviewRequestLink(publicSlug, locale, token, window.location.origin);
       generatedShareText = `Hola. Gracias por confiar en ${storeName}.\n\nConoce nuestra página: ${generatedPublicLink}\n\nDeja tu reseña privada de este trabajo aquí: ${generatedLink}`;
-      generatedAssetIds = assetIds.slice();
       if (requestLink) requestLink.value = generatedLink;
       const whatsapp = root.querySelector<HTMLAnchorElement>('[data-review-whatsapp-link]');
       if (whatsapp) whatsapp.href = `https://wa.me/?text=${encodeURIComponent(generatedShareText)}`;
@@ -456,33 +282,22 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
     async function createRequest() {
       if (!canModerate || !requestCreate || !requestLocale) return;
       requestCreate.disabled = true; requestCreate.textContent = 'Preparando solicitud…';
-      const uploaded: string[] = [];
-      let requestCreated = false;
       try {
-        for (const file of selectedPhotos) uploaded.push(await uploadPhoto(file));
         const result = normalizePromoReviewRequestCreated(await responseJson(await fetch(requestEndpoint(), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             locale: requestLocale.value,
             customer_label: requestCustomer?.value || '',
             work_label: requestWork?.value || '',
-            photo_asset_ids: uploaded,
             expires_days: Number(requestExpiry?.value || 30),
           }),
         })));
-        requestCreated = true;
-        await displayGeneratedLink(result.token, result.request.locale, uploaded);
-        selectedPhotos.forEach(releasePhoto);
-        selectedPhotos = [];
-        photoObjectUrls.clear();
-        photoErrors.clear();
+        await displayGeneratedLink(result.token, result.request.locale);
         requestDirty = false;
-        renderSelectedPhotos();
         if (requestCustomer) requestCustomer.value = ''; if (requestWork) requestWork.value = '';
         show('Solicitud creada. El token solo se muestra en este enlace.', 'success');
         await loadRequests();
       } catch (error) {
-        if (uploaded.length && !requestCreated) await cleanupAssets(uploaded);
         const candidate = error as { code?: string; message?: string };
         show(promoReviewRequestsErrorMessage(candidate.code || candidate.message), 'error');
       } finally { requestCreate.disabled = !canModerate; requestCreate.textContent = 'Generar enlace privado'; }
@@ -528,7 +343,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       if (request) {
         const verified = document.createElement('p');
         verified.className = 'pz-promo-reviews-admin__verified';
-        verified.textContent = `Trabajo verificado · ${request.photoAssetIds.length} foto${request.photoAssetIds.length === 1 ? '' : 's'}${request.photoAssetIds.length ? (request.photoConsent ? ' autorizadas' : ' privadas') : ''}`;
+        verified.textContent = 'Trabajo verificado';
         article.append(verified);
       }
       if (review.comment) {
@@ -693,13 +508,11 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       }
       void (async () => {
         try {
-          const files = await requestPhotoFiles(generatedAssetIds);
           const payload: ShareData = {
             title: `Solicitud de reseña · ${storeName}`,
             text: `Gracias por confiar en ${storeName}. Conoce nuestra página: ${generatedPublicLink}`,
             url: generatedLink,
           };
-          if (files.length && typeof navigator.canShare === 'function' && navigator.canShare({ files })) payload.files = files;
           await navigator.share(payload);
         } catch (error) {
           if ((error as DOMException)?.name !== 'AbortError') show('No se pudo abrir el menú Compartir.', 'error');
@@ -713,18 +526,14 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure, canManageMe
       void fetch(requestEndpoint(), {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: button.dataset.requestRevoke }),
       }).then(responseJson).then((value) => {
-        normalizePromoReviewRequestRevoked(value); show('Enlace revocado y fotos retiradas.', 'success'); return loadRequests();
+        normalizePromoReviewRequestRevoked(value); show('Enlace revocado.', 'success'); return loadRequests();
       }).catch((error) => { show(promoReviewRequestsErrorMessage(error?.code), 'error'); button.disabled = false; });
     });
 
-    renderSelectedPhotos();
     void loadWorkspace().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error'));
     window.addEventListener('beforeunload', (event) => {
       if (!configDirty && !requestDirty) return;
       event.preventDefault();
     });
-    window.addEventListener('pagehide', () => {
-      photoObjectUrls.forEach((url) => URL.revokeObjectURL(url)); photoObjectUrls.clear();
-    }, { once: true });
   });
 </script>

@@ -37,6 +37,8 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787698900_promo_brand_logo.js',
   '1787699000_promo_audit_reviews_module.js',
   '1787699100_promo_translation_state.js',
+  '1787699200_promo_language_selector.js',
+  '1787699300_promo_reviews_without_photos.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -414,9 +416,16 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     }
     const mediaMetadata = promoMetadata.find((collection) => collection.name === 'promo_media_assets');
     const mediaFileField = mediaMetadata.fields.find((field) => field.name === 'file');
+    const mediaPurposeField = mediaMetadata.fields.find((field) => field.name === 'purpose');
     assert.equal(mediaFileField.protected, true);
     assert.equal(mediaFileField.maxSize, 25 * 1024 * 1024);
     assert.deepEqual(mediaFileField.mimeTypes, ['image/webp', 'video/mp4', 'video/webm']);
+    assert.equal(mediaPurposeField.values.includes('review'), false);
+    const reviewRequestMetadata = promoMetadata.find(
+      (collection) => collection.name === 'promo_review_requests',
+    );
+    assert.equal(reviewRequestMetadata.fields.some((field) => field.name === 'photo_assets'), false);
+    assert.equal(reviewRequestMetadata.fields.some((field) => field.name === 'photo_consent'), false);
     const auditMetadata = promoMetadata.find((collection) => collection.name === 'promo_audit_events');
     const auditModuleField = auditMetadata.fields.find((field) => field.name === 'module');
     assert.ok(auditModuleField.values.includes('reviews'));

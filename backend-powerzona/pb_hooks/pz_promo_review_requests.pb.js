@@ -26,22 +26,6 @@ routerAdd(
 
 routerAdd(
   "POST",
-  "/api/pz/promo/public/v1/reviews/sites/{publicSlug}/request-photo",
-  (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handleRequestPhoto(e),
-  $apis.bodyLimit(2048),
-  $apis.skipSuccessActivityLog()
-);
-
-routerAdd(
-  "GET",
-  "/api/pz/promo/public/v1/reviews/sites/{publicSlug}/photos/{assetId}/{digest}/{filename}",
-  (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handlePublicPhoto(e),
-  $apis.bodyLimit(0),
-  $apis.skipSuccessActivityLog()
-);
-
-routerAdd(
-  "POST",
   "/api/pz/promo/private/v1/reviews/requests/create",
   (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handlePrivateCreate(e),
   (e) => require(`${__hooks}/pz_promo_reviews_api_lib.js`).requireAuthenticatedUser(e),

@@ -1,23 +1,20 @@
 export const PROMO_REVIEW_REQUESTS_API_PATH = '/api/admin/promo-review-requests';
-export const PROMO_PUBLIC_REVIEWS_LIST_CONTRACT = 'promo.reviews.public-page.v1';
-export const PROMO_PUBLIC_REVIEW_SUBMISSION_CONTRACT = 'promo.review.submission.v1';
-export const PROMO_PUBLIC_REVIEW_REQUEST_CONTEXT_CONTRACT = 'promo.review-request.context-response.v1';
-export const PROMO_REVIEW_REQUEST_CREATED_CONTRACT = 'promo.review-requests.created.v1';
-export const PROMO_REVIEW_REQUESTS_PAGE_CONTRACT = 'promo.review-requests.page.v1';
-export const PROMO_REVIEW_REQUEST_REVOKED_CONTRACT = 'promo.review-requests.revoked.v1';
-export const PROMO_REVIEW_MAX_PHOTOS = 3;
+export const PROMO_PUBLIC_REVIEWS_LIST_CONTRACT = 'promo.reviews.public-page.v2';
+export const PROMO_PUBLIC_REVIEW_SUBMISSION_CONTRACT = 'promo.review.submission.v2';
+export const PROMO_PUBLIC_REVIEW_REQUEST_CONTEXT_CONTRACT = 'promo.review-request.context-response.v2';
+export const PROMO_REVIEW_REQUEST_CREATED_CONTRACT = 'promo.review-requests.created.v2';
+export const PROMO_REVIEW_REQUESTS_PAGE_CONTRACT = 'promo.review-requests.page.v2';
+export const PROMO_REVIEW_REQUEST_REVOKED_CONTRACT = 'promo.review-requests.revoked.v2';
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,96}$/;
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
-const PUBLIC_PHOTO_PATTERN = /^\/api\/pz\/promo\/public\/v1\/reviews\/sites\/[a-z0-9-]+\/photos\/[a-z0-9]{15}\/[a-f0-9]{64}\/review\.webp$/;
 const REQUEST_STATUSES = Object.freeze(['pending', 'received', 'expired', 'revoked'] as const);
 
 type JsonRecord = Record<string, any>;
 export type PromoReviewRequestStatus = (typeof REQUEST_STATUSES)[number];
 
-export type PromoPublicReviewPhoto = Readonly<{ url: string; width: number; height: number }>;
 export type PromoPublicReview = Readonly<{
   rating: number;
   name: string;
@@ -25,7 +22,6 @@ export type PromoPublicReview = Readonly<{
   date: string;
   featured: boolean;
   serviceVerified: boolean;
-  photos: readonly PromoPublicReviewPhoto[];
 }>;
 
 export type PromoPublicReviewsPage = Readonly<{
@@ -42,9 +38,7 @@ export type PromoReviewRequest = Readonly<{
   locale: string;
   customerLabel: string;
   workLabel: string;
-  photoAssetIds: readonly string[];
   reviewId: string;
-  photoConsent: boolean;
   expiresAt: string;
   created: string;
 }>;
@@ -96,43 +90,27 @@ function int(value: unknown, minimum: number, maximum: number) {
 
 function requestValue(value: unknown): PromoReviewRequest {
   const item = record(value, [
-    'id', 'status', 'locale', 'customer_label', 'work_label', 'photo_asset_ids',
-    'review_id', 'photo_consent', 'expires_at', 'created',
+    'id', 'status', 'locale', 'customer_label', 'work_label',
+    'review_id', 'expires_at', 'created',
   ]);
   if (!RECORD_ID_PATTERN.test(String(item.id || '')) || !REQUEST_STATUSES.includes(item.status)
-    || !LOCALE_PATTERN.test(String(item.locale || '')) || !Array.isArray(item.photo_asset_ids)
-    || item.photo_asset_ids.length > PROMO_REVIEW_MAX_PHOTOS
-    || item.photo_asset_ids.some((id: unknown) => !RECORD_ID_PATTERN.test(String(id || '')))
-    || (item.review_id && !RECORD_ID_PATTERN.test(String(item.review_id)))
-    || typeof item.photo_consent !== 'boolean') fail();
+    || !LOCALE_PATTERN.test(String(item.locale || ''))
+    || (item.review_id && !RECORD_ID_PATTERN.test(String(item.review_id)))) fail();
   return Object.freeze({
     id: item.id,
     status: item.status,
     locale: item.locale,
     customerLabel: stringValue(item.customer_label, 120),
     workLabel: stringValue(item.work_label, 240),
-    photoAssetIds: Object.freeze(item.photo_asset_ids.map(String)),
     reviewId: String(item.review_id || ''),
-    photoConsent: item.photo_consent,
     expiresAt: stringValue(item.expires_at, 80, true),
     created: stringValue(item.created, 80, true),
   });
 }
 
-function publicPhoto(value: unknown): PromoPublicReviewPhoto {
-  const item = record(value, ['url', 'width', 'height']);
-  if (!PUBLIC_PHOTO_PATTERN.test(String(item.url || ''))) fail();
-  return Object.freeze({
-    url: item.url,
-    width: int(item.width, 1, 16384),
-    height: int(item.height, 1, 16384),
-  });
-}
-
 function publicReview(value: unknown): PromoPublicReview {
-  const item = record(value, ['rating', 'name', 'comment', 'date', 'featured', 'service_verified', 'photos']);
+  const item = record(value, ['rating', 'name', 'comment', 'date', 'featured', 'service_verified']);
   if (typeof item.featured !== 'boolean' || typeof item.service_verified !== 'boolean'
-    || !Array.isArray(item.photos) || item.photos.length > PROMO_REVIEW_MAX_PHOTOS
     || (item.date && !/^\d{4}-\d{2}-\d{2}$/.test(item.date))) fail();
   return Object.freeze({
     rating: int(item.rating, 1, 5),
@@ -141,7 +119,6 @@ function publicReview(value: unknown): PromoPublicReview {
     date: item.date,
     featured: item.featured,
     serviceVerified: item.service_verified,
-    photos: Object.freeze(item.photos.map(publicPhoto)),
   });
 }
 
@@ -167,25 +144,15 @@ export function normalizePromoPublicReviewSubmission(value: unknown) {
 
 export function normalizePromoPublicRequestContext(value: unknown) {
   const response = record(value, [
-    'ok', 'contract', 'locale', 'customer_label', 'work_label', 'expires_at', 'photos',
+    'ok', 'contract', 'locale', 'customer_label', 'work_label', 'expires_at',
   ]);
   if (response.ok !== true || response.contract !== PROMO_PUBLIC_REVIEW_REQUEST_CONTEXT_CONTRACT
-    || !LOCALE_PATTERN.test(String(response.locale || '')) || !Array.isArray(response.photos)
-    || response.photos.length > PROMO_REVIEW_MAX_PHOTOS) fail();
-  const photos = response.photos.map((value: unknown) => {
-    const item = record(value, ['index', 'width', 'height']);
-    return Object.freeze({
-      index: int(item.index, 0, PROMO_REVIEW_MAX_PHOTOS - 1),
-      width: int(item.width, 1, 16384),
-      height: int(item.height, 1, 16384),
-    });
-  });
+    || !LOCALE_PATTERN.test(String(response.locale || ''))) fail();
   return Object.freeze({
     locale: response.locale,
     customerLabel: stringValue(response.customer_label, 120),
     workLabel: stringValue(response.work_label, 240),
     expiresAt: stringValue(response.expires_at, 80, true),
-    photos: Object.freeze(photos),
   });
 }
 
@@ -228,7 +195,7 @@ export function normalizePromoReviewRequestRevoked(value: unknown) {
 
 export function promoPublicReviewsPath(publicSlug: unknown, suffix = '') {
   const slug = String(publicSlug || '');
-  if (!PUBLIC_SLUG_PATTERN.test(slug) || (suffix && !['request', 'request-photo'].includes(suffix))) fail();
+  if (!PUBLIC_SLUG_PATTERN.test(slug) || (suffix && suffix !== 'request')) fail();
   return `/api/promo/reviews/sites/${slug}${suffix ? `/${suffix}` : ''}`;
 }
 
@@ -262,11 +229,7 @@ export function promoReviewRequestsErrorMessage(code: unknown) {
     review_request_used: 'Este enlace ya fue utilizado.',
     review_request_expired: 'Este enlace de reseña venció.',
     review_request_revoked: 'Este enlace fue revocado.',
-    review_request_conflict: 'Una foto ya pertenece a otra solicitud activa.',
-    review_photo_not_found: 'No se pudo cargar una de las fotos del trabajo.',
     promo_permission_denied: 'Tu sesión no tiene permiso para gestionar solicitudes.',
-    promo_media_output_too_large: 'No se pudo optimizar la foto al tamaño permitido.',
-    promo_media_dimensions_invalid: 'La foto es demasiado pequeña o tiene dimensiones no permitidas.',
   };
   return messages[String(code || '')] || 'No se pudo completar la operación. Intenta nuevamente.';
 }

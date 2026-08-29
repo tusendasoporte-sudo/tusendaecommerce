@@ -17,7 +17,6 @@ const PROMO_UPLOAD_IMAGE_POLICIES = Object.freeze({
   social: Object.freeze({ minWidth: 600, minHeight: 315, maxWidth: 1200, maxHeight: 630 }),
   video_poster: Object.freeze({ minWidth: 640, minHeight: 360, maxWidth: 1600, maxHeight: 900 }),
   qr: Object.freeze({ minWidth: 1, minHeight: 1, maxWidth: 512, maxHeight: 512 }),
-  review: Object.freeze({ minWidth: 320, minHeight: 240, maxWidth: 1600, maxHeight: 1600 }),
   logo: Object.freeze({ minWidth: 1, minHeight: 1, maxWidth: 1024, maxHeight: 1024 }),
 });
 

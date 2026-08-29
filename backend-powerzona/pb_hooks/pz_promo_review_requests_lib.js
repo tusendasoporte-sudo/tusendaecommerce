@@ -2,30 +2,27 @@
 
 "use strict";
 
-const PUBLIC_LIST_CONTRACT = "promo.reviews.public-list.v1";
-const PUBLIC_PAGE_CONTRACT = "promo.reviews.public-page.v1";
-const PUBLIC_SUBMIT_CONTRACT = "promo.review.submit.v1";
-const PUBLIC_SUBMISSION_CONTRACT = "promo.review.submission.v1";
-const PUBLIC_REQUEST_CONTEXT_CONTRACT = "promo.review-request.context.v1";
-const PUBLIC_REQUEST_CONTEXT_RESPONSE_CONTRACT = "promo.review-request.context-response.v1";
-const PUBLIC_REQUEST_PHOTO_CONTRACT = "promo.review-request.photo.v1";
-const PRIVATE_CREATE_CONTRACT = "promo.review-requests.create.v1";
-const PRIVATE_CREATED_CONTRACT = "promo.review-requests.created.v1";
-const PRIVATE_LIST_CONTRACT = "promo.review-requests.list.v1";
-const PRIVATE_PAGE_CONTRACT = "promo.review-requests.page.v1";
-const PRIVATE_REVOKE_CONTRACT = "promo.review-requests.revoke.v1";
-const PRIVATE_REVOKED_CONTRACT = "promo.review-requests.revoked.v1";
+const PUBLIC_LIST_CONTRACT = "promo.reviews.public-list.v2";
+const PUBLIC_PAGE_CONTRACT = "promo.reviews.public-page.v2";
+const PUBLIC_SUBMIT_CONTRACT = "promo.review.submit.v2";
+const PUBLIC_SUBMISSION_CONTRACT = "promo.review.submission.v2";
+const PUBLIC_REQUEST_CONTEXT_CONTRACT = "promo.review-request.context.v2";
+const PUBLIC_REQUEST_CONTEXT_RESPONSE_CONTRACT = "promo.review-request.context-response.v2";
+const PRIVATE_CREATE_CONTRACT = "promo.review-requests.create.v2";
+const PRIVATE_CREATED_CONTRACT = "promo.review-requests.created.v2";
+const PRIVATE_LIST_CONTRACT = "promo.review-requests.list.v2";
+const PRIVATE_PAGE_CONTRACT = "promo.review-requests.page.v2";
+const PRIVATE_REVOKE_CONTRACT = "promo.review-requests.revoke.v2";
+const PRIVATE_REVOKED_CONTRACT = "promo.review-requests.revoked.v2";
 
 const PUBLIC_PAGE_SIZE = 12;
 const PRIVATE_PAGE_SIZE = 20;
-const MAX_PHOTOS = 3;
 const MAX_REQUEST_DAYS = 30;
 const REQUEST_STATUSES = Object.freeze(["pending", "received", "expired", "revoked"]);
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,96}$/;
 const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
-const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const URL_PATTERN = /(?:\b(?:https?|ftp):\/\/|\bwww\.|\b[a-z0-9.-]+\.(?:com|net|org|io|co|app|dev|xyz|info|biz)(?:\b|\/))/i;
 
 class PromoReviewRequestError extends Error {
@@ -89,13 +86,6 @@ function relationId(record, key) {
   return text(value, 15);
 }
 
-function relationIds(record, key) {
-  const value = recordValue(record, key);
-  const values = Array.isArray(value) ? value : (value ? [value] : []);
-  return values.map((item) => text(item && typeof item === "object" ? item.id : item, 15))
-    .filter((item, index, all) => RECORD_ID_PATTERN.test(item) && all.indexOf(item) === index);
-}
-
 function recordBool(record, key) {
   const value = recordValue(record, key);
   if (typeof value === "boolean") return value;
@@ -139,10 +129,9 @@ function parsePublicList(query) {
 
 function parsePublicSubmission(value) {
   const body = exactPayload(value, [
-    "comment", "contract", "honeypot", "name", "photo_consent", "rating", "rendered_at", "request_token",
+    "comment", "contract", "honeypot", "name", "rating", "rendered_at", "request_token",
   ]);
-  if (!body || body.contract !== PUBLIC_SUBMIT_CONTRACT || body.honeypot !== ""
-    || typeof body.photo_consent !== "boolean") fail("invalid_payload", 400);
+  if (!body || body.contract !== PUBLIC_SUBMIT_CONTRACT || body.honeypot !== "") fail("invalid_payload", 400);
   const token = String(body.request_token || "");
   if (token && !TOKEN_PATTERN.test(token)) fail("invalid_review_request", 404);
   const renderedAt = integer(body.rendered_at, 1, Number.MAX_SAFE_INTEGER);
@@ -150,13 +139,11 @@ function parsePublicSubmission(value) {
   if (renderedAt > now || now - renderedAt < 2000 || now - renderedAt > 2 * 60 * 60 * 1000) {
     fail("review_submission_too_fast", 429);
   }
-  if (!token && body.photo_consent) fail("invalid_payload", 400);
   return Object.freeze({
     name: cleanText(body.name, 80, true),
     comment: cleanText(body.comment, 1000, true),
     rating: integer(body.rating, 1, 5),
     requestToken: token,
-    photoConsent: body.photo_consent,
   });
 }
 
@@ -171,26 +158,18 @@ function parseRequestContext(value) {
   return Object.freeze(parseTokenPayload(value, PUBLIC_REQUEST_CONTEXT_CONTRACT, ["contract", "token"]));
 }
 
-function parseRequestPhoto(value) {
-  const parsed = parseTokenPayload(value, PUBLIC_REQUEST_PHOTO_CONTRACT, ["contract", "index", "token"]);
-  return Object.freeze({ token: parsed.token, index: integer(parsed.body.index, 0, MAX_PHOTOS - 1) });
-}
-
 function parsePrivateCreate(value) {
   const body = exactPayload(value, [
-    "contract", "customer_label", "expires_days", "locale", "photo_asset_ids", "work_label",
+    "contract", "customer_label", "expires_days", "locale", "work_label",
   ]);
-  if (!body || body.contract !== PRIVATE_CREATE_CONTRACT || !LOCALE_PATTERN.test(String(body.locale || ""))
-    || !Array.isArray(body.photo_asset_ids) || body.photo_asset_ids.length > MAX_PHOTOS) fail("invalid_payload", 400);
-  const photoAssetIds = body.photo_asset_ids.map((item) => String(item || ""));
-  if (photoAssetIds.some((item) => !RECORD_ID_PATTERN.test(item))
-    || new Set(photoAssetIds).size !== photoAssetIds.length) fail("invalid_payload", 400);
+  if (!body || body.contract !== PRIVATE_CREATE_CONTRACT || !LOCALE_PATTERN.test(String(body.locale || ""))) {
+    fail("invalid_payload", 400);
+  }
   return Object.freeze({
     locale: body.locale,
     customerLabel: safeLabel(body.customer_label, 120),
     workLabel: safeLabel(body.work_label, 240),
     expiresDays: integer(body.expires_days, 1, MAX_REQUEST_DAYS),
-    photoAssetIds: Object.freeze(photoAssetIds),
   });
 }
 
@@ -240,13 +219,6 @@ function requestState(record, now) {
   return status === "pending" && expires.getTime() <= Number(now || Date.now()) ? "expired" : status;
 }
 
-function publicPhotoPath(slug, asset) {
-  const id = recordId(asset);
-  const digest = recordString(asset, "sha256", 64);
-  if (!PUBLIC_SLUG_PATTERN.test(slug) || !RECORD_ID_PATTERN.test(id) || !DIGEST_PATTERN.test(digest)) return "";
-  return `/api/pz/promo/public/v1/reviews/sites/${slug}/photos/${id}/${digest}/review.webp`;
-}
-
 function requestDescriptor(record) {
   const status = requestState(record);
   return Object.freeze({
@@ -255,9 +227,7 @@ function requestDescriptor(record) {
     locale: recordString(record, "locale", 12),
     customer_label: recordString(record, "customer_label", 120),
     work_label: recordString(record, "work_label", 240),
-    photo_asset_ids: Object.freeze(relationIds(record, "photo_assets")),
     review_id: relationId(record, "review"),
-    photo_consent: recordBool(record, "photo_consent"),
     expires_at: recordString(record, "expires_at", 80),
     created: recordString(record, "created", 80),
   });
@@ -278,14 +248,11 @@ function publicReview(record, metadata) {
     date: /^\d{4}-\d{2}-\d{2}$/.test(created) ? created : "",
     featured: recordBool(record, "featured"),
     service_verified: Boolean(metadata && metadata.verified),
-    photos: Object.freeze(metadata && Array.isArray(metadata.photos) ? metadata.photos : []),
   });
 }
 
 module.exports = {
-  DIGEST_PATTERN,
   LOCALE_PATTERN,
-  MAX_PHOTOS,
   MAX_REQUEST_DAYS,
   PRIVATE_CREATE_CONTRACT,
   PRIVATE_CREATED_CONTRACT,
@@ -299,7 +266,6 @@ module.exports = {
   PUBLIC_PAGE_SIZE,
   PUBLIC_REQUEST_CONTEXT_CONTRACT,
   PUBLIC_REQUEST_CONTEXT_RESPONSE_CONTRACT,
-  PUBLIC_REQUEST_PHOTO_CONTRACT,
   PUBLIC_SLUG_PATTERN,
   PUBLIC_SUBMISSION_CONTRACT,
   PUBLIC_SUBMIT_CONTRACT,
@@ -315,16 +281,13 @@ module.exports = {
   parsePublicList,
   parsePublicSubmission,
   parseRequestContext,
-  parseRequestPhoto,
   plainObject,
-  publicPhotoPath,
   publicReview,
   recordBool,
   recordId,
   recordString,
   recordValue,
   relationId,
-  relationIds,
   requestDescriptor,
   requestState,
   requestToken,

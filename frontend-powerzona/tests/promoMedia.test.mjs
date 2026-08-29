@@ -83,7 +83,6 @@ test('perfiles visuales respetan dimensiones y evitan miniaturas PNG de PocketBa
     ['owner', 900, 1400, 639, 852, 320],
     ['footer', 1600, 800, 959, 480, 480],
     ['social', 1200, 630, 1199, 630, 600],
-    ['review', 1600, 1200, 959, 720, 480],
     ['video_poster', 1600, 900, 959, 540, 480],
   ];
   for (const [purpose, width, height, expectedWidth, expectedHeight, firstVariant] of cases) {

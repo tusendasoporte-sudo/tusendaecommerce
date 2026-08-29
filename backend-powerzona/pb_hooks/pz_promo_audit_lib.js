@@ -82,7 +82,7 @@ const RESOURCE_SAFE_FIELDS = Object.freeze({
   promo_publication_slot: Object.freeze(["state", "generation", "canonical_mode", "revision_digest", "binding_state", "reason_code"]),
   promo_domain_binding: Object.freeze(["role", "status", "is_current", "state_version", "verification_method"]),
   promo_store_review: Object.freeze(["status", "featured", "approved"]),
-  promo_review_request: Object.freeze(["status", "locale", "photo_count", "expires"]),
+  promo_review_request: Object.freeze(["status", "locale", "expires"]),
   promo_security_event: Object.freeze(["class", "result", "reason_code"]),
 });
 
@@ -104,7 +104,7 @@ const RESOURCE_PATH_PREFIXES = Object.freeze({
   promo_publication_slot: Object.freeze(["/state", "/generation", "/canonical_mode", "/revision_digest", "/binding_state", "/reason_code"]),
   promo_domain_binding: Object.freeze(["/role", "/status", "/is_current", "/state_version", "/verification_method"]),
   promo_store_review: Object.freeze(["/status", "/featured", "/approved"]),
-  promo_review_request: Object.freeze(["/status", "/locale", "/photo_count", "/expires_at"]),
+  promo_review_request: Object.freeze(["/status", "/locale", "/expires_at"]),
   promo_security_event: Object.freeze(["/class", "/result", "/reason_code"]),
 });
 

@@ -28,6 +28,8 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787698900_promo_brand_logo.js',
   '1787699000_promo_audit_reviews_module.js',
   '1787699100_promo_translation_state.js',
+  '1787699200_promo_language_selector.js',
+  '1787699300_promo_reviews_without_photos.js',
 ];
 
 function runtimeEnvironment() {

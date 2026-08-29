@@ -11,12 +11,6 @@ const promoAudit = typeof __hooks === "undefined"
 const pubcfgApi = typeof __hooks === "undefined"
   ? require("./pz_promo_pubcfg_api_lib.js")
   : require(`${__hooks}/pz_promo_pubcfg_api_lib.js`);
-const media = typeof __hooks === "undefined"
-  ? require("./pz_promo_media_lib.js")
-  : require(`${__hooks}/pz_promo_media_lib.js`);
-const mediaApi = typeof __hooks === "undefined"
-  ? require("./pz_promo_media_api_lib.js")
-  : require(`${__hooks}/pz_promo_media_api_lib.js`);
 const contracts = typeof __hooks === "undefined"
   ? require("./pz_promo_review_requests_lib.js")
   : require(`${__hooks}/pz_promo_review_requests_lib.js`);
@@ -31,7 +25,7 @@ const SAFE_ERROR_CODES = new Set([
   "promo_capability_denied", "promo_permission_denied", "invalid_payload", "invalid_origin",
   "unsafe_review_content", "review_submission_too_fast", "review_rate_limited",
   "invalid_review_request", "review_request_used", "review_request_expired", "review_request_revoked",
-  "review_request_conflict", "review_photo_not_found", "promo_reviews_unavailable",
+  "promo_reviews_unavailable",
 ]);
 
 function codedError(code, status) {
@@ -51,8 +45,8 @@ function errorStatus(error) {
   if (error && Number.isInteger(error.status)) return error.status;
   const code = errorCode(error);
   if (["invalid_payload", "unsafe_review_content"].includes(code)) return 400;
-  if (["invalid_review_request", "review_photo_not_found", "promo_not_found"].includes(code)) return 404;
-  if (["review_request_used", "review_request_expired", "review_request_revoked", "review_request_conflict"].includes(code)) return 409;
+  if (["invalid_review_request", "promo_not_found"].includes(code)) return 404;
+  if (["review_request_used", "review_request_expired", "review_request_revoked"].includes(code)) return 409;
   if (["review_submission_too_fast", "review_rate_limited"].includes(code)) return 429;
   if (code === "promo_reviews_unavailable") return 503;
   return 403;
@@ -94,15 +88,12 @@ function collectionsReady(app) {
   try {
     const requests = app.findCollectionByNameOrId("promo_review_requests");
     const reviews = app.findCollectionByNameOrId("reviews");
-    const assets = app.findCollectionByNameOrId("promo_media_assets");
     return [
-      "site", "store", "token_sha256", "status", "locale", "photo_assets", "review",
-      "photo_consent", "created_by", "expires_at", "received_at", "revoked_at", "created", "updated",
+      "site", "store", "token_sha256", "status", "locale", "review",
+      "created_by", "expires_at", "received_at", "revoked_at", "created", "updated",
     ].every((field) => !!requests.fields.getByName(field))
       && ["store", "type", "rating", "customer_name", "comment", "status", "source", "featured", "approved_at"]
-        .every((field) => !!reviews.fields.getByName(field))
-      && ["site", "kind", "purpose", "status", "sha256", "file"]
-        .every((field) => !!assets.fields.getByName(field));
+        .every((field) => !!reviews.fields.getByName(field));
   } catch (_) { return false; }
 }
 
@@ -165,22 +156,7 @@ function requestForReview(app, siteId, reviewId) {
 
 function publicMetadata(app, context, review) {
   const request = requestForReview(app, context.siteId, contracts.recordId(review));
-  if (!request || contracts.requestState(request) !== "received") return { verified: false, photos: [] };
-  const consent = contracts.recordBool(request, "photo_consent");
-  const photos = consent ? contracts.relationIds(request, "photo_assets").map((assetId) => {
-    const asset = findRecord(app, "promo_media_assets", assetId);
-    const url = asset && contracts.relationId(asset, "site") === context.siteId
-      && contracts.recordString(asset, "kind", 20) === "image"
-      && contracts.recordString(asset, "purpose", 30) === "review"
-      && contracts.recordString(asset, "status", 30) === "ready"
-      ? contracts.publicPhotoPath(contracts.recordString(context.site, "public_slug", 120), asset) : "";
-    return url ? Object.freeze({
-      url,
-      width: Number(contracts.recordValue(asset, "width")) || 0,
-      height: Number(contracts.recordValue(asset, "height")) || 0,
-    }) : null;
-  }).filter(Boolean) : [];
-  return { verified: true, photos };
+  return { verified: Boolean(request && contracts.requestState(request) === "received") };
 }
 
 function handlePublicList(e) {
@@ -293,7 +269,6 @@ function handlePublicSubmit(e) {
       if (request) {
         request.set("status", "received");
         request.set("review", contracts.recordId(review));
-        request.set("photo_consent", parsed.photoConsent);
         request.set("received_at", new Date().toISOString());
         app.save(request);
       }
@@ -316,18 +291,6 @@ function handleRequestContext(e) {
     const parsed = contracts.parseRequestContext(info.body || {});
     const context = siteForSlug(e.app, String(e.request.pathValue("publicSlug") || ""));
     const request = usableRequest(e.app, context.siteId, parsed.token);
-    const photos = contracts.relationIds(request, "photo_assets").map((assetId, index) => {
-      const asset = findRecord(e.app, "promo_media_assets", assetId);
-      if (!asset || contracts.relationId(asset, "site") !== context.siteId
-        || contracts.recordString(asset, "kind", 20) !== "image"
-        || contracts.recordString(asset, "purpose", 30) !== "review"
-        || contracts.recordString(asset, "status", 30) !== "ready") throw codedError("review_photo_not_found", 404);
-      return Object.freeze({
-        index,
-        width: Number(contracts.recordValue(asset, "width")) || 0,
-        height: Number(contracts.recordValue(asset, "height")) || 0,
-      });
-    });
     return e.json(200, {
       ok: true,
       contract: contracts.PUBLIC_REQUEST_CONTEXT_RESPONSE_CONTRACT,
@@ -335,79 +298,8 @@ function handleRequestContext(e) {
       customer_label: contracts.recordString(request, "customer_label", 120),
       work_label: contracts.recordString(request, "work_label", 240),
       expires_at: contracts.recordString(request, "expires_at", 80),
-      photos,
     });
   } catch (error) { return sendError(e, error, false); }
-}
-
-function handleRequestPhoto(e) {
-  setHeaders(e, false);
-  try {
-    const info = e.requestInfo();
-    if (!info || !contracts.exactPayload(info.query || {}, [])) throw codedError("invalid_payload", 400);
-    const parsed = contracts.parseRequestPhoto(info.body || {});
-    const context = siteForSlug(e.app, String(e.request.pathValue("publicSlug") || ""));
-    const request = usableRequest(e.app, context.siteId, parsed.token);
-    const assetId = contracts.relationIds(request, "photo_assets")[parsed.index];
-    const asset = findRecord(e.app, "promo_media_assets", assetId);
-    if (!asset || contracts.relationId(asset, "site") !== context.siteId
-      || contracts.recordString(asset, "kind", 20) !== "image"
-      || contracts.recordString(asset, "purpose", 30) !== "review"
-      || contracts.recordString(asset, "status", 30) !== "ready") throw codedError("review_photo_not_found", 404);
-    return mediaApi.serveFile(e, asset, "original", "webp", "private, no-store, max-age=0");
-  } catch (error) { return sendError(e, error, false); }
-}
-
-function publicRequestForAsset(app, siteId, assetId) {
-  const rows = findRows(
-    app, "promo_review_requests", "site = {:site} && status = 'received' && photo_consent = true",
-    "-created", 1000, 0, { site: siteId },
-  );
-  return rows.find((request) => contracts.relationIds(request, "photo_assets").includes(assetId)) || null;
-}
-
-function handlePublicPhoto(e) {
-  setHeaders(e, false);
-  try {
-    const info = e.requestInfo();
-    if (!info || !contracts.exactPayload(info.query || {}, [])) throw codedError("review_photo_not_found", 404);
-    const slug = String(e.request.pathValue("publicSlug") || "");
-    const assetId = String(e.request.pathValue("assetId") || "");
-    const digest = String(e.request.pathValue("digest") || "");
-    if (!contracts.RECORD_ID_PATTERN.test(assetId) || !contracts.DIGEST_PATTERN.test(digest)
-      || String(e.request.pathValue("filename") || "") !== "review.webp") throw codedError("review_photo_not_found", 404);
-    const context = siteForSlug(e.app, slug);
-    const request = publicRequestForAsset(e.app, context.siteId, assetId);
-    const review = request && findRecord(e.app, "reviews", contracts.relationId(request, "review"));
-    const asset = findRecord(e.app, "promo_media_assets", assetId);
-    if (!request || !review || contracts.relationId(review, "store") !== contracts.recordId(context.store)
-      || contracts.recordString(review, "status", 20) !== "approved"
-      || !asset || contracts.relationId(asset, "site") !== context.siteId
-      || contracts.recordString(asset, "kind", 20) !== "image"
-      || contracts.recordString(asset, "purpose", 30) !== "review"
-      || contracts.recordString(asset, "status", 30) !== "ready"
-      || contracts.recordString(asset, "sha256", 64) !== digest) throw codedError("review_photo_not_found", 404);
-    return mediaApi.serveFile(e, asset, "original", "webp", "public, max-age=300, stale-while-revalidate=60");
-  } catch (_) {
-    if (typeof NotFoundError === "function") throw new NotFoundError("No disponible.");
-    throw codedError("review_photo_not_found", 404);
-  }
-}
-
-function validRequestAsset(app, siteId, id) {
-  const asset = findRecord(app, "promo_media_assets", id);
-  if (!asset || contracts.relationId(asset, "site") !== siteId
-    || contracts.recordString(asset, "kind", 20) !== "image"
-    || contracts.recordString(asset, "purpose", 30) !== "review"
-    || contracts.recordString(asset, "status", 30) !== "ready") throw codedError("review_photo_not_found", 404);
-  const active = findRows(
-    app, "promo_review_requests", "site = {:site} && (status = 'pending' || status = 'received')",
-    "id", 5000, 0, { site: siteId },
-  );
-  if (active.some((request) => contracts.relationIds(request, "photo_assets").includes(id))) {
-    throw codedError("review_request_conflict", 409);
-  }
-  return asset;
 }
 
 function createToken(app) {
@@ -430,7 +322,6 @@ function handlePrivateCreate(e) {
     let response;
     e.app.runInTransaction((app) => {
       const siteId = contracts.recordId(context.decision.site);
-      parsed.photoAssetIds.forEach((id) => validRequestAsset(app, siteId, id));
       const secret = createToken(app);
       const record = new Record(app.findCollectionByNameOrId("promo_review_requests"), {});
       record.set("site", siteId);
@@ -440,9 +331,7 @@ function handlePrivateCreate(e) {
       record.set("locale", parsed.locale);
       record.set("customer_label", parsed.customerLabel);
       record.set("work_label", parsed.workLabel);
-      record.set("photo_assets", parsed.photoAssetIds.slice());
       record.set("review", "");
-      record.set("photo_consent", false);
       record.set("created_by", contracts.recordId(context.decision.actor));
       record.set("expires_at", new Date(Date.now() + parsed.expiresDays * 24 * 60 * 60 * 1000).toISOString());
       record.set("received_at", "");
@@ -452,11 +341,9 @@ function handlePrivateCreate(e) {
         action: "promo.reviews.request.create",
         resourceType: "promo_review_request",
         resourceId: contracts.recordId(record),
-        changedPaths: ["/status", "/locale", "/photo_count", "/expires_at"],
-        previousValues: { status: "", locale: "", photo_count: 0, expires: false },
-        newValues: {
-          status: "pending", locale: parsed.locale, photo_count: parsed.photoAssetIds.length, expires: true,
-        },
+        changedPaths: ["/status", "/locale", "/expires_at"],
+        previousValues: { status: "", locale: "", expires: false },
+        newValues: { status: "pending", locale: parsed.locale, expires: true },
         sourceEventKey: `promo.reviews.request.create.${contracts.recordId(record)}`,
       });
       response = {
@@ -476,15 +363,6 @@ function expireRequests(app, siteId) {
     if (contracts.requestState(record) !== "expired") return;
     record.set("status", "expired");
     app.save(record);
-    contracts.relationIds(record, "photo_assets").forEach((assetId) => {
-      const asset = findRecord(app, "promo_media_assets", assetId);
-      if (asset && contracts.recordString(asset, "purpose", 30) === "review"
-        && contracts.recordString(asset, "status", 30) === "ready") {
-        asset.set("status", "retired");
-        asset.set("retired_at", new Date().toISOString());
-        app.save(asset);
-      }
-    });
   });
 }
 
@@ -538,15 +416,6 @@ function handlePrivateRevoke(e) {
       record.set("status", "revoked");
       record.set("revoked_at", new Date().toISOString());
       app.save(record);
-      contracts.relationIds(record, "photo_assets").forEach((assetId) => {
-        const asset = findRecord(app, "promo_media_assets", assetId);
-        if (asset && contracts.recordString(asset, "purpose", 30) === "review"
-          && contracts.recordString(asset, "status", 30) === "ready") {
-          asset.set("status", "retired");
-          asset.set("retired_at", new Date().toISOString());
-          app.save(asset);
-        }
-      });
       promoAudit.createPromoAudit(app, context.decision, {
         action: "promo.reviews.request.revoke",
         resourceType: "promo_review_request",
@@ -576,10 +445,8 @@ module.exports = {
   handlePrivateList,
   handlePrivateRevoke,
   handlePublicList,
-  handlePublicPhoto,
   handlePublicSubmit,
   handleRequestContext,
-  handleRequestPhoto,
   publicMetadata,
   siteForSlug,
   usableRequest,

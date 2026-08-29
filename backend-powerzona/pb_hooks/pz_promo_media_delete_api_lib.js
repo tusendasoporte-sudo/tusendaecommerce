@@ -132,14 +132,7 @@ function mediaIsInUse(app, ownerSiteId, assetId) {
     media.MAX_STORED_VIDEOS + 1,
     { site: ownerSiteId, asset: assetId, processing: "processing", ready: "ready" },
   );
-  if (dependentVideos.length) return true;
-  return findRecords(
-    app,
-    "promo_review_requests",
-    "site = {:site} && photo_assets ?= {:asset}",
-    1,
-    { site: ownerSiteId, asset: assetId },
-  ).length > 0;
+  return dependentVideos.length > 0;
 }
 
 function deleteStoredPrefix(app, base) {
