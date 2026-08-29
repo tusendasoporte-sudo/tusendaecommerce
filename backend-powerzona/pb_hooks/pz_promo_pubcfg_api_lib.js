@@ -18,6 +18,9 @@ const promoTheme = typeof __hooks === "undefined"
 const promoMedia = typeof __hooks === "undefined"
   ? require("./pz_promo_media_lib.js")
   : require(`${__hooks}/pz_promo_media_lib.js`);
+const promoTranslation = typeof __hooks === "undefined"
+  ? require("./pz_promo_translation_lib.js")
+  : require(`${__hooks}/pz_promo_translation_lib.js`);
 
 const PRIVATE_COLLECTIONS = Object.freeze([
   "promo_sites",
@@ -60,6 +63,8 @@ const SAFE_PRIVATE_ERRORS = new Set([
   "promo_draft_unavailable",
   "promo_live_conflict",
   "promo_live_unavailable",
+  "promo_translation_unavailable",
+  "promo_translation_invalid_response",
   "promo_pubcfg_unavailable",
 ]);
 
@@ -160,6 +165,7 @@ function codedError(code, status) {
 }
 
 function errorCode(error) {
+  if (error instanceof promoTranslation.PromoTranslationError) return error.code;
   if (error instanceof contract.PromoPubcfgError) {
     return error.code === "promo_pubcfg_unavailable" ? "promo_pubcfg_unavailable" : "invalid_promo_document";
   }
@@ -180,7 +186,10 @@ function privateStatus(error) {
   ].includes(code)) return 400;
   if (["promo_not_found", "store_not_promo"].includes(code)) return 404;
   if (["promo_draft_conflict", "promo_live_conflict"].includes(code)) return 409;
-  if (["promo_draft_unavailable", "promo_live_unavailable", "promo_pubcfg_unavailable"].includes(code)) return 503;
+  if ([
+    "promo_draft_unavailable", "promo_live_unavailable", "promo_translation_unavailable",
+    "promo_translation_invalid_response", "promo_pubcfg_unavailable",
+  ].includes(code)) return 503;
   return 403;
 }
 
@@ -231,6 +240,17 @@ function requestInfo(e) {
 
 function jsonRecordValue(record, key) {
   try { return contract.normalizeJson(recordValue(record, key)); } catch (_) {
+    throw codedError("promo_pubcfg_unavailable", 503);
+  }
+}
+
+function translationStateValue(record) {
+  const raw = recordValue(record, "translation_state_json");
+  if (raw === undefined || raw === null || raw === "") return {};
+  try {
+    const normalized = contract.normalizeJson(raw);
+    return normalized && typeof normalized === "object" && !Array.isArray(normalized) ? normalized : {};
+  } catch (_) {
     throw codedError("promo_pubcfg_unavailable", 503);
   }
 }
@@ -435,6 +455,10 @@ function resolvePublicProjectionForSite(app, site, options) {
   }
   return {
     projection: contract.projectPublicDocument(document, publicSlug, assets),
+    languageSelectorEnabled: promo.resolvePromoCapabilityAccess(
+      entitlement,
+      "language_selector_enabled",
+    ).allowed === true,
     site,
     siteId,
     slot: finalSlot,
@@ -663,10 +687,55 @@ function lockPublicationSlot(app, slotId) {
 function handleDraftUpdate(e) {
   let parsed;
   let context;
+  let prepared;
   try {
     context = privateRequestContext(e);
     parsed = parseDraftUpdate(context.info.body || {});
     if (!parsed) throw codedError("invalid_payload", 400);
+    let decision = draftDecision(e.app, e.auth, context.supportStoreId, ["promo.content.manage"]);
+    const draft = findDraft(e.app, recordId(decision.site));
+    if (!draft) throw codedError("promo_draft_unavailable", 503);
+    const previousDocument = validatedStoredLive(draft);
+    const currentVersion = recordInteger(draft, "version");
+    if (currentVersion !== parsed.expectedVersion) throw codedError("promo_live_conflict", 409);
+    if (parsed.document.contract !== contract.LIVE_DOCUMENT_CONTRACT) {
+      throw codedError("unknown_promo_contract", 400);
+    }
+    const translationState = translationStateValue(draft);
+    const translationConfig = promoTranslation.translationConfig();
+    let translationPlan;
+    if (translationConfig.enabled) {
+      translationPlan = promoTranslation.preparePromoTranslations(
+        previousDocument,
+        parsed.document,
+        translationState,
+      );
+      const preflightActions = contract.changedActionKeys(previousDocument, parsed.document, []);
+      if (translationPlan.willChange && !preflightActions.includes("promo.translations.manage")) {
+        preflightActions.push("promo.translations.manage");
+      }
+      decision = draftDecision(e.app, e.auth, context.supportStoreId, preflightActions.length
+        ? preflightActions
+        : ["promo.content.manage"]);
+      promoTranslation.executePromoTranslations(translationPlan, { config: translationConfig });
+    } else {
+      const preflightActions = contract.changedActionKeys(previousDocument, parsed.document, []);
+      decision = draftDecision(e.app, e.auth, context.supportStoreId, preflightActions.length
+        ? preflightActions
+        : ["promo.content.manage"]);
+      translationPlan = promoTranslation.autoTranslatePromoDocument(
+        previousDocument,
+        parsed.document,
+        translationState,
+        { config: translationConfig },
+      );
+    }
+    prepared = {
+      document: translationPlan.document,
+      previousDigest: contract.digestDocument(previousDocument),
+      siteId: recordId(decision.site),
+      translationState: translationPlan.state,
+    };
   } catch (error) {
     return sendPrivateError(e, error);
   }
@@ -674,6 +743,7 @@ function handleDraftUpdate(e) {
     let response;
     e.app.runInTransaction((app) => {
       let decision = draftDecision(app, e.auth, context.supportStoreId, ["promo.content.manage"]);
+      if (recordId(decision.site) !== prepared.siteId) throw codedError("promo_not_found", 404);
       let draft = findDraft(app, recordId(decision.site));
       if (!draft) throw codedError("promo_draft_unavailable", 503);
       lockDraft(app, recordId(draft));
@@ -682,6 +752,10 @@ function handleDraftUpdate(e) {
       const previousDocument = validatedStoredLive(draft);
       const currentVersion = recordInteger(draft, "version");
       if (currentVersion !== parsed.expectedVersion) throw codedError("promo_live_conflict", 409);
+      if (contract.digestDocument(previousDocument) !== prepared.previousDigest) {
+        throw codedError("promo_live_conflict", 409);
+      }
+      parsed.document = prepared.document;
       if (parsed.document.contract !== contract.LIVE_DOCUMENT_CONTRACT) {
         throw codedError("unknown_promo_contract", 400);
       }
@@ -719,6 +793,7 @@ function handleDraftUpdate(e) {
       draft.set("document_sha256", nextDigest);
       draft.set("version", nextVersion);
       draft.set("updated_by", recordId(decision.actor));
+      draft.set("translation_state_json", prepared.translationState);
       app.save(draft);
       let slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: recordId(decision.site) });
       if (!slot) throw codedError("promo_live_unavailable", 503);
@@ -768,6 +843,7 @@ module.exports = {
   requireAuthenticatedUser,
   resolvePublicMediaContext,
   resolvePublicProjection,
+  resolvePublicProjectionContext,
   resolvePublicProjectionForSite,
   findDraft,
   validateRevisionMediaRows,

@@ -77,6 +77,7 @@ function httpsLocation(hostname, path) {
 function localizedProfile(localized, source) {
   if (!localized || localized.ok !== true || localized.contract !== "promo.public.localized.v1"
     || !localized.site || !localized.locale || !localized.selector
+    || typeof localized.selector.enabled !== "boolean"
     || !Array.isArray(localized.selector.options)) {
     fail("promo_shell_unavailable", 503);
   }

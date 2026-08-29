@@ -89,7 +89,8 @@ function customProjectionFixture() {
     promo_sites: [site],
     promo_site_entitlements: [record(ids.entitlement, {
       site: ids.site, source: 'contract', promo_site_enabled: true, custom_domain_enabled: true,
-      multilanguage_enabled: true, video_enabled: false, landing_qr_bridge_enabled: false,
+      multilanguage_enabled: true, language_selector_enabled: true,
+      video_enabled: false, landing_qr_bridge_enabled: false,
       max_services: 50, max_gallery_assets: 24, max_locales: 10, max_videos: 3,
       max_storage_bytes: 262144000,
     })],
@@ -358,6 +359,7 @@ test('lector PUBCFG interno admite custom solo con binding, generación y docume
     });
     assert.equal(resolved.projection.contract, 'promo.public.projection.v1');
     assert.equal(resolved.projection.site.public_slug, 'aladdin-carpet');
+    assert.equal(resolved.languageSelectorEnabled, true);
     for (const options of [
       { canonicalMode: 'custom', primaryBindingId: 'bindwrongaaaaaa', expectedGeneration: 4 },
       { canonicalMode: 'custom', primaryBindingId: ids.binding, expectedGeneration: 3 },

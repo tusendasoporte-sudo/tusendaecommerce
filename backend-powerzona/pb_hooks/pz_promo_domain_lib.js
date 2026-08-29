@@ -552,6 +552,7 @@ function resolveHostContext(app, headers, options) {
     ...context,
     document: published.document,
     generation: published.generation,
+    language_selector_enabled: published.languageSelectorEnabled === true,
     projection: published.projection,
     live: published.live,
     content_version: published.contentVersion,

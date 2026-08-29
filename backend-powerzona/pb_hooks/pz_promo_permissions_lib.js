@@ -18,6 +18,7 @@ const PROMO_BOOLEAN_CAPABILITY_KEYS = Object.freeze([
   "custom_domain_enabled",
   "theme_customization_enabled",
   "multilanguage_enabled",
+  "language_selector_enabled",
   "video_enabled",
   "analytics_enabled",
   "landing_qr_bridge_enabled",

@@ -96,10 +96,8 @@ function localeSignals(info, explicitLocale) {
   const explicit = explicitLocale !== undefined;
   return {
     ...(explicit ? { explicitLocale } : {}),
-    preferenceLocale: explicit ? "" : i18nApi.localePreferenceFromCookie(
-      i18nApi.headerValue(info, "Cookie", 2048),
-    ),
-    acceptLanguage: explicit ? "" : i18nApi.headerValue(info, "Accept-Language", 512),
+    preferenceLocale: "",
+    acceptLanguage: "",
   };
 }
 
@@ -109,15 +107,22 @@ function authoritativeRequestHeaders(e, info) {
   return { ...(info && info.headers || {}), Host: host };
 }
 
-function localizeProjection(projection, signals) {
+function localizeProjection(projection, signals, options) {
+  const published = projection && projection.locales && Array.isArray(projection.locales.published)
+    ? projection.locales.published : [];
+  const publicProjection = published.includes("es") && projection.locales.default !== "es"
+    ? { ...projection, locales: { ...projection.locales, default: "es" } }
+    : projection;
   const negotiation = i18n.negotiateLocale({
-    published: projection.locales.published,
-    defaultLocale: projection.locales.default,
+    published: publicProjection.locales.published,
+    defaultLocale: publicProjection.locales.default,
     ...(signals.explicitLocale === undefined ? {} : { explicitLocale: signals.explicitLocale }),
     preferenceLocale: signals.preferenceLocale,
     acceptLanguage: signals.acceptLanguage,
   });
-  return i18n.localizePublicProjection(projection, negotiation);
+  return i18n.localizePublicProjection(publicProjection, negotiation, {
+    languageSelectorEnabled: options && options.languageSelectorEnabled === true,
+  });
 }
 
 function siteByPublicSlug(app, publicSlug) {
@@ -168,7 +173,9 @@ function resolvePlatformShell(app, publicSlug, signals) {
       app,
       promoContact.attachPublicContact(
         promoFooter.attachPublicFooter(
-          localizeProjection(context.projection, signals || {}),
+          localizeProjection(context.projection, signals || {}, {
+            languageSelectorEnabled: context.languageSelectorEnabled,
+          }),
         ),
         context,
       ),
@@ -199,7 +206,9 @@ function resolveHostShell(app, headers, signals) {
         app,
         promoContact.attachPublicContact(
           promoFooter.attachPublicFooter(
-            localizeProjection(context.projection, signals || {}),
+            localizeProjection(context.projection, signals || {}, {
+              languageSelectorEnabled: context.language_selector_enabled,
+            }),
           ),
           context,
         ),

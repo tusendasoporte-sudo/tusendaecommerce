@@ -220,6 +220,14 @@ test('Trabajos realizados explica sus medios obligatorios antes de intentar publ
 
 test('Contacto informa la causa exacta cuando una imagen no puede procesarse', () => {
   assert.equal(
+    promoCmsErrorMessage('promo_translation_unavailable'),
+    'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.',
+  );
+  assert.equal(
+    promoCmsErrorMessage('promo_translation_invalid_response'),
+    'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.',
+  );
+  assert.equal(
     promoCmsErrorMessage('promo_media_duplicate'),
     'Esta imagen ya está guardada en la tienda. Usa el medio existente o selecciona un archivo diferente.',
   );

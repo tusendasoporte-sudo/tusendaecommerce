@@ -34,6 +34,7 @@ function context(actions) {
       custom_domain_enabled: false,
       theme_customization_enabled: false,
       multilanguage_enabled: false,
+      language_selector_enabled: false,
       video_enabled: false,
       analytics_enabled: false,
       landing_qr_bridge_enabled: false,

@@ -103,6 +103,7 @@ test('proyección localizada carga un locale, catálogo y selector allowlisted s
   });
   assert.equal(localized.content.identity.summary, 'Specialized restoration');
   assert.equal(localized.system.messages['navigation.home'], 'Home');
+  assert.equal(localized.selector.enabled, false);
   assert.deepEqual(localized.selector.options.map((option) => [option.locale, option.active]), [
     ['en', true], ['es', false],
   ]);
@@ -113,6 +114,19 @@ test('proyección localizada carga un locale, catálogo y selector allowlisted s
     'content_by_locale', 'Restauración especializada', 'phone_e164', 'store_id', 'site_id',
     'revision_id', 'tokenKey', 'price', 'currency', 'stock', 'cart', 'checkout',
   ]) assert.equal(serialized.includes(forbidden), false, `localized no contiene ${forbidden}`);
+});
+
+test('selector público solo se proyecta habilitado por configuración Master explícita', () => {
+  const projection = publicProjection();
+  const hidden = i18n.localizePublicProjection(projection, { effective: 'es', source: 'default' });
+  const visible = i18n.localizePublicProjection(
+    projection,
+    { effective: 'es', source: 'default' },
+    { languageSelectorEnabled: true },
+  );
+  assert.equal(hidden.selector.enabled, false);
+  assert.equal(visible.selector.enabled, true);
+  assert.deepEqual(visible.selector.options.map((option) => option.locale), ['en', 'es']);
 });
 
 test('catálogo ausente en cualquier locale publicado invalida selector completo', () => {

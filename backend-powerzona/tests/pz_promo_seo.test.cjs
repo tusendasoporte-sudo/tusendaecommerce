@@ -19,7 +19,7 @@ function localizedFixture(locale = 'es') {
     contract: 'promo.public.localized.v1',
     site: { public_slug: 'demo-promo' },
     locale: { effective: locale, default: 'es', lang: locale, direction: 'ltr', source: 'url', canonical_path: '/unused' },
-    selector: { label: 'Idioma', options: [option('en'), option('es')] },
+    selector: { enabled: false, label: 'Idioma', options: [option('en'), option('es')] },
     content: {
       identity: { name: locale === 'es' ? 'Negocio demo' : 'Demo business' },
       seo: {

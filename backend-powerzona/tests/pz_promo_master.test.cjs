@@ -134,7 +134,7 @@ test('foundation Promo crea tenant, entitlement cerrado, draft válido, slot gen
     assert.equal(result.site.status, 'draft');
     assert.equal(result.site.contract_version, 1);
     assert.equal(result.entitlement.source, 'unassigned');
-    for (const key of ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled']) {
+    for (const key of ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'language_selector_enabled']) {
       assert.equal(result.entitlement[key], false);
     }
     for (const key of ['max_services', 'max_gallery_assets', 'max_locales', 'max_videos', 'max_storage_bytes']) {

@@ -13,6 +13,7 @@ import {
 const READ_PATH = '/api/pz/promo/private/v1/live/read';
 const UPDATE_PATH = '/api/pz/promo/private/v1/live/update';
 const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
+const BACKEND_REQUEST_TIMEOUT_MS = 120_000;
 const SAFE_ERROR_CODES = new Set([
   'unauthorized', 'session_revoked', 'user_inactive', 'blocked_by_plan', 'promo_not_found',
   'store_not_promo', 'store_inactive', 'promo_site_inactive', 'promo_store_context_required',
@@ -20,7 +21,8 @@ const SAFE_ERROR_CODES = new Set([
   'invalid_promo_document', 'unsafe_promo_document_value', 'unknown_promo_contract',
   'unknown_promo_theme_token', 'unsupported_promo_action', 'invalid_promo_media_reference',
   'invalid_promo_contact_reference', 'incomplete_promo_locale', 'promo_live_conflict',
-  'promo_live_unavailable', 'promo_draft_unavailable', 'promo_pubcfg_unavailable',
+  'promo_live_unavailable', 'promo_draft_unavailable', 'promo_translation_unavailable',
+  'promo_translation_invalid_response', 'promo_pubcfg_unavailable',
 ]);
 
 function json(payload: unknown, status = 200) {
@@ -78,7 +80,7 @@ async function backendRequest(
       },
       body: JSON.stringify(body),
       cache: 'no-store',
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(BACKEND_REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
     if ((error as { name?: string })?.name === 'TimeoutError') {

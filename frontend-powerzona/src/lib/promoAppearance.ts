@@ -574,6 +574,8 @@ export function promoAppearanceErrorMessage(code: unknown) {
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar este cambio.',
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_translation_unavailable: 'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.',
+    promo_translation_invalid_response: 'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.',
     promo_theme_not_selectable: 'Ese tema ya no está aprobado para una nueva selección.',
     promo_theme_unavailable: 'La selección visual actual no puede editarse de forma segura.',
     invalid_promo_theme_tokens: 'Uno de los valores visuales no pertenece al tema aprobado.',

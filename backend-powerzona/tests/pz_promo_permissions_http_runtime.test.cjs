@@ -27,12 +27,15 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
   '1787699000_promo_audit_reviews_module.js',
+  '1787699100_promo_translation_state.js',
 ];
 
 function runtimeEnvironment() {
   const environment = { ...process.env };
   for (const key of Object.keys(environment)) {
-    if (/TOKEN|SECRET|PASSWORD|CLOUDFLARE|COOLIFY|POCKETBASE_URL|PB_URL/i.test(key)) delete environment[key];
+    if (/TOKEN|SECRET|PASSWORD|OPENAI|TRANSLATION|CLOUDFLARE|COOLIFY|POCKETBASE_URL|PB_URL/i.test(key)) {
+      delete environment[key];
+    }
   }
   environment.PZ_SECURITY_HMAC_SECRET = randomBytes(32).toString('hex');
   environment.PZ_SECURITY_AES_KEY = randomBytes(24).toString('base64url').slice(0, 32);

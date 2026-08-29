@@ -79,7 +79,8 @@ function requestInfo(e) {
 
 function resolveLocalizedProjection(app, publicSlug, signals) {
   const settings = signals || {};
-  const base = pubcfgApi.resolvePublicProjection(app, publicSlug);
+  const context = pubcfgApi.resolvePublicProjectionContext(app, publicSlug);
+  const base = context.projection;
   const negotiation = i18n.negotiateLocale({
     published: base.locales.published,
     defaultLocale: base.locales.default,
@@ -87,7 +88,9 @@ function resolveLocalizedProjection(app, publicSlug, signals) {
     preferenceLocale: settings.preferenceLocale,
     acceptLanguage: settings.acceptLanguage,
   });
-  return i18n.localizePublicProjection(base, negotiation);
+  return i18n.localizePublicProjection(base, negotiation, {
+    languageSelectorEnabled: context.languageSelectorEnabled,
+  });
 }
 
 function handleLocalizedProjection(e, explicit) {

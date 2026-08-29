@@ -88,7 +88,7 @@ const quoteContext = spanish
       </nav>
 
       <div class="promo-shell-utilities">
-        <nav class="promo-shell-locales" aria-label={selector.label}>
+        {selector.enabled && localizedSelector.length > 1 && <nav class="promo-shell-locales" aria-label={selector.label}>
           <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
           <ul>
             {localizedSelector.map((option) => (
@@ -105,7 +105,7 @@ const quoteContext = spanish
               </li>
             ))}
           </ul>
-        </nav>
+        </nav>}
       </div>
     </header>
 

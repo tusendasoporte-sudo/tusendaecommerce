@@ -46,6 +46,7 @@ function entitlement(overrides) {
     custom_domain_enabled: false,
     theme_customization_enabled: false,
     multilanguage_enabled: false,
+    language_selector_enabled: false,
     video_enabled: false,
     analytics_enabled: false,
     landing_qr_bridge_enabled: false,
@@ -112,6 +113,22 @@ test('entitlement unassigned solo admite gates false y cuotas cero', () => {
     () => promo.assertEntitlementLimits(entitlement({ source: 'contract', max_services: 51 })),
     /invalid_promo_entitlement_limit/,
   );
+  assert.throws(
+    () => promo.assertEntitlementLimits(entitlement({
+      source: 'contract',
+      promo_site_enabled: true,
+      language_selector_enabled: true,
+      max_locales: 1,
+    })),
+    /promo_language_selector_without_multilanguage/,
+  );
+  assert.equal(promo.assertEntitlementLimits(entitlement({
+    source: 'contract',
+    promo_site_enabled: true,
+    multilanguage_enabled: true,
+    language_selector_enabled: true,
+    max_locales: 2,
+  })), true);
 });
 
 test('documento Promo rechaza Commerce, código arbitrario y exceso de contenido', () => {

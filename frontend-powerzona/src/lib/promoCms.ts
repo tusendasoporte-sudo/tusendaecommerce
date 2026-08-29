@@ -1046,6 +1046,8 @@ export function promoCmsErrorMessage(code: unknown) {
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar este cambio.',
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_translation_unavailable: 'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.',
+    promo_translation_invalid_response: 'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.',
     invalid_promo_document: 'Revisa los campos: hay datos incompletos o con un formato no permitido.',
     promo_work_gallery_incomplete: 'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto.',
     unsafe_promo_document_value: 'El contenido incluye código, una URL o texto activo no permitido.',

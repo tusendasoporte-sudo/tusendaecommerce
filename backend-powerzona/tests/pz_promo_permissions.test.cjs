@@ -43,6 +43,7 @@ function entitlement(site, overrides = {}) {
     custom_domain_enabled: true,
     theme_customization_enabled: true,
     multilanguage_enabled: true,
+    language_selector_enabled: true,
     video_enabled: true,
     analytics_enabled: true,
     landing_qr_bridge_enabled: true,
@@ -173,7 +174,7 @@ function fixture() {
 test('catálogos Promo quedan separados de los 29 permisos, cinco reservados y nueve capacidades Commerce vigentes', () => {
   assert.equal(promo.PROMO_ASSIGNABLE_PERMISSION_KEYS.length, 10);
   assert.equal(promo.PROMO_RESERVED_PERMISSION_KEYS.length, 6);
-  assert.equal(promo.PROMO_CAPABILITY_KEYS.length, 13);
+  assert.equal(promo.PROMO_CAPABILITY_KEYS.length, 14);
   assert.equal(promo.PROMO_ACTION_KEYS.length, 18);
   assert.equal(commercePermissions.ASSIGNABLE_PERMISSION_KEYS.length, 29);
   assert.equal(commercePermissions.RESERVED_PERMISSIONS.length, 5);
@@ -203,6 +204,7 @@ test('normalización Promo agrega dependencias pero rechaza permiso desconocido 
 test('capacidades Promo fallan cerradas si faltan, son desconocidas, están vencidas o exceden cuota', () => {
   const { entitlementA } = fixture();
   assert.equal(promo.resolvePromoCapabilityAccess(entitlementA, 'video_enabled').allowed, true);
+  assert.equal(promo.resolvePromoCapabilityAccess(entitlementA, 'language_selector_enabled').allowed, true);
   assert.equal(promo.resolvePromoCapabilityAccess(null, 'video_enabled').reason, 'capability_missing');
   assert.equal(promo.resolvePromoCapabilityAccess(entitlementA, 'inventada').reason, 'invalid_capability');
   assert.equal(

@@ -285,7 +285,7 @@ function localizedPath(publicSlug, locale) {
   return `/api/pz/promo/public/v1/sites/${publicSlug}/locales/${canonical}`;
 }
 
-function localizePublicProjection(projectionValue, negotiation) {
+function localizePublicProjection(projectionValue, negotiation, settings) {
   const projection = pubcfg.normalizeJson(projectionValue);
   if (!projection || projection.contract !== pubcfg.PUBLIC_CONTRACT || projection.ok !== true) {
     fail("promo_i18n_unavailable", 503);
@@ -336,6 +336,7 @@ function localizePublicProjection(projectionValue, negotiation) {
       canonical_path: localizedPath(siteSlug, negotiation.effective),
     },
     selector: {
+      enabled: Boolean(settings && settings.languageSelectorEnabled === true),
       label: effectiveCatalog.messages["a11y.language_selector"],
       options,
     },

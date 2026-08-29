@@ -550,6 +550,8 @@ const ENGLISH_COPY: Readonly<Record<string, string>> = Object.freeze({
   'El catálogo general de la página no es compatible con este editor.': 'The page’s general catalog is not compatible with this editor.',
   'La configuración contiene datos incompletos o no permitidos.': 'The settings contain incomplete or disallowed data.',
   'La traducción incluye código, una URL o texto activo no permitido.': 'The translation includes code, a URL, or disallowed active text.',
+  'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.': 'Automatic translation is unavailable. No changes were saved; try again.',
+  'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.': 'Automatic translation returned incomplete or disallowed content. No changes were saved.',
   'Revisa los campos: hay datos incompletos o con un formato no permitido.': 'Review the fields: some data is incomplete or has a disallowed format.',
   'Para mostrar Trabajos realizados, agrega primero al menos un trabajo con una foto.': 'To show Completed projects, first add at least one project with a photo.',
   'Ese tipo de contacto todavía no está habilitado.': 'That contact type is not enabled yet.',

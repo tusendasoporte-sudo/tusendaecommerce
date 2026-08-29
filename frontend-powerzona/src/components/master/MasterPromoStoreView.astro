@@ -14,6 +14,7 @@ const booleanCapabilities = [
   ['custom_domain_enabled', 'Dominio personalizado'],
   ['theme_customization_enabled', 'Personalización de tema'],
   ['multilanguage_enabled', 'Múltiples idiomas'],
+  ['language_selector_enabled', 'Selector público de idioma'],
   ['analytics_enabled', 'Analítica Promo'],
 ] as const;
 const numericCapabilities = [
@@ -105,6 +106,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
             {booleanCapabilities.map(([key, title]) => <label class="master-switch"><span>{title}</span><input name={key} type="checkbox" checked={overview.entitlement.capabilities[key] === true} /></label>)}
             {numericCapabilities.map(([key, title]) => <div class="master-field"><label for={`promo-cap-${key}`}>{title}</label><input id={`promo-cap-${key}`} name={key} type="number" min="0" step="1" value={Math.max(0, Number(overview.entitlement.capabilities[key] || 0))} required /></div>)}
           </div>
+          <p class="master-notice">El selector público permanece oculto hasta activarlo. La entrada sin idioma abre el sitio en español; una URL con idioma explícito conserva ese idioma.</p>
           <div class="master-field-grid">
             <div class="master-field"><label for="promo-entitlement-source">Fuente</label><select id="promo-entitlement-source" name="source"><option value="unassigned" selected={overview.entitlement.source === 'unassigned'}>Sin asignar</option><option value="contract" selected={overview.entitlement.source === 'contract'}>Contrato</option><option value="addon" selected={overview.entitlement.source === 'addon'}>Addon</option><option value="master_override" selected={overview.entitlement.source === 'master_override'}>Override Master</option></select></div>
             <div class="master-field"><label for="promo-entitlement-reason">Motivo auditable</label><input id="promo-entitlement-reason" name="reason" type="text" minlength="5" maxlength="500" required autocomplete="off" /></div>
@@ -191,7 +193,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
     verifyPromoDomain,
   } from '../../lib/promoMaster';
 
-  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'video_enabled', 'analytics_enabled'];
+  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'language_selector_enabled', 'video_enabled', 'analytics_enabled'];
   const NUMERIC_CAPABILITIES = ['max_services', 'max_locales', 'max_videos', 'max_storage_bytes'];
 
   function errorCode(error: any) {

@@ -36,6 +36,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787698800_promo_review_requests.js',
   '1787698900_promo_brand_logo.js',
   '1787699000_promo_audit_reviews_module.js',
+  '1787699100_promo_translation_state.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -111,11 +112,15 @@ const MP4 = Buffer.from('00000018667479706d703432000000006d70343269736f6d', 'hex
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function runtimeEnvironment() {
-  return {
-    ...process.env,
-    PZ_SECURITY_HMAC_SECRET: randomBytes(32).toString('hex'),
-    PZ_SECURITY_AES_KEY: randomBytes(24).toString('base64url').slice(0, 32),
-  };
+  const environment = { ...process.env };
+  for (const key of Object.keys(environment)) {
+    if (/TOKEN|SECRET|PASSWORD|OPENAI|TRANSLATION|CLOUDFLARE|COOLIFY|POCKETBASE_URL|PB_URL/i.test(key)) {
+      delete environment[key];
+    }
+  }
+  environment.PZ_SECURITY_HMAC_SECRET = randomBytes(32).toString('hex');
+  environment.PZ_SECURITY_AES_KEY = randomBytes(24).toString('base64url').slice(0, 32);
+  return environment;
 }
 
 function runtimeFlags(dataDirectory) {

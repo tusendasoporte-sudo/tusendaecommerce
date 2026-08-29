@@ -379,7 +379,7 @@ function assertEntitlementLimits(record) {
     for (const field of [
       "promo_site_enabled", "publish_enabled", "custom_domain_enabled",
       "theme_customization_enabled", "multilanguage_enabled", "video_enabled",
-      "analytics_enabled", "landing_qr_bridge_enabled",
+      "analytics_enabled", "language_selector_enabled", "landing_qr_bridge_enabled",
     ]) {
       if (boolValue(record, field)) fail("unassigned_promo_entitlement_enabled", field);
     }
@@ -392,6 +392,10 @@ function assertEntitlementLimits(record) {
   }
   if (!boolValue(record, "multilanguage_enabled") && integerValue(record, "max_locales") > 1) {
     fail("promo_locale_quota_without_entitlement", "max_locales");
+  }
+  if (boolValue(record, "language_selector_enabled")
+    && (!boolValue(record, "multilanguage_enabled") || integerValue(record, "max_locales") < 2)) {
+    fail("promo_language_selector_without_multilanguage", "language_selector_enabled");
   }
   return true;
 }

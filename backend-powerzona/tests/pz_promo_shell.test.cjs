@@ -28,7 +28,7 @@ function localizedFixture(locale = 'es') {
       direction: 'ltr',
       canonical_path: `/api/pz/promo/public/v1/sites/demo-promo/locales/${locale}`,
     },
-    selector: { label: 'Idioma', options: [option('en', 'English'), option('es', 'Español')] },
+    selector: { enabled: false, label: 'Idioma', options: [option('en', 'English'), option('es', 'Español')] },
     theme: { theme_id: 'promo.black-gold', version: '1.0.0', tokens: {} },
     section_order: [], sections: [], media: [], contact: {},
     content: { identity: { name: 'Negocio demo' }, seo: { title: 'Demo', description: 'Descripción pública' } },
@@ -71,6 +71,7 @@ test('SHELL materializa rutas públicas localized sin reutilizar paths API de I1
   assert.deepEqual(platform.profile.selector.options.map((item) => item.href), [
     '/promo/demo-promo/en', '/promo/demo-promo/es',
   ]);
+  assert.equal(platform.profile.selector.enabled, false);
   assert.doesNotMatch(JSON.stringify(platform), /\/api\/pz\/promo\/public\/v1\/sites/);
 });
 
@@ -106,6 +107,30 @@ test('SHELL localiza una sola proyección publicada y nunca mezcla el otro local
     }),
     /promo_locale_not_published/,
   );
+});
+
+test('SHELL neutral ignora cookie y navegador para entrar siempre al idioma base español', () => {
+  assert.deepEqual(shellApi.localeSignals({ headers: {
+    Cookie: 'pz_promo_locale=en',
+    'Accept-Language': 'en-US,en;q=0.9',
+  } }), { preferenceLocale: '', acceptLanguage: '' });
+  const projection = pubcfg.projectPublicDocument(publishedDocument(), 'demo-promo', []);
+  const localized = shellApi.localizeProjection(projection, shellApi.localeSignals({ headers: {} }), {
+    languageSelectorEnabled: true,
+  });
+  assert.equal(localized.locale.effective, 'es');
+  assert.equal(localized.locale.source, 'default');
+  assert.equal(localized.selector.enabled, true);
+
+  const englishBase = pubcfg.projectPublicDocument(publishedDocument(), 'demo-promo', []);
+  englishBase.locales.default = 'en';
+  const forcedSpanish = shellApi.localizeProjection(
+    englishBase,
+    shellApi.localeSignals({ headers: { 'Accept-Language': 'en' } }),
+    { languageSelectorEnabled: false },
+  );
+  assert.equal(forcedSpanish.locale.effective, 'es');
+  assert.equal(forcedSpanish.locale.default, 'es');
 });
 
 test('SHELL registra solo GET públicos acotados y consume DOM/PUBCFG/I18N server-side', () => {

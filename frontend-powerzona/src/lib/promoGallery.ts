@@ -564,6 +564,8 @@ export function promoGalleryErrorMessage(code: unknown) {
     promo_capability_denied: 'La cuota o capacidad necesaria no está disponible para esta tienda.',
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de guardar.',
+    promo_translation_unavailable: 'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.',
+    promo_translation_invalid_response: 'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.',
     invalid_promo_document: 'Revisa las galerías, portadas, trabajos y metadatos accesibles.',
     incomplete_promo_locale: 'Completa las traducciones de cada producto, trabajo y descripción accesible antes de guardar.',
     invalid_promo_media_reference: 'Selecciona un medio listo y del tipo correcto para esta ubicación.',

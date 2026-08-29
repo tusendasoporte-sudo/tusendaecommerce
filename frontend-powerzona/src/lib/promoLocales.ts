@@ -537,6 +537,8 @@ export function promoLocalesErrorMessage(code: unknown) {
     promo_permission_denied: 'Tu sesión no tiene todos los permisos requeridos para guardar idiomas.',
     promo_draft_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
     promo_live_conflict: 'La página cambió en otra sesión. Recárgala antes de volver a guardar.',
+    promo_translation_unavailable: 'La traducción automática no está disponible. No se guardó ningún cambio; intenta nuevamente.',
+    promo_translation_invalid_response: 'La traducción automática devolvió contenido incompleto o no permitido. No se guardó ningún cambio.',
     incomplete_promo_locale: 'Completa todos los requisitos de ese idioma antes de mostrarlo o usarlo como predeterminado.',
     promo_default_locale_required: 'El idioma predeterminado no se puede retirar ni excluir.',
     promo_locale_already_enabled: 'Ese idioma ya está habilitado.',

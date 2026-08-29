@@ -75,7 +75,7 @@ const logoPlacement = ({
       </nav>
 
       <div class="promo-shell-utilities">
-        <nav class="promo-shell-locales" aria-label={selector.label}>
+        {selector.enabled && selector.options.length > 1 && <nav class="promo-shell-locales" aria-label={selector.label}>
           <span class="promo-shell-locales__label">{system.messages['locale.current']}</span>
           <ul>
             {selector.options.map((option) => (
@@ -92,7 +92,7 @@ const logoPlacement = ({
               </li>
             ))}
           </ul>
-        </nav>
+        </nav>}
       </div>
     </header>
 

@@ -297,6 +297,7 @@ export type PromoPublicProfile = Readonly<{
     canonical_path: string;
   }>;
   selector: Readonly<{
+    enabled: boolean;
     label: string;
     options: readonly Readonly<{ locale: string; label: string; aria_label: string; href: string; active: boolean }>[];
   }>;
@@ -969,7 +970,8 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
   const slug = safePattern(site.public_slug, PUBLIC_SLUG_PATTERN);
   const expectedCanonical = source === 'platform' ? `/promo/${slug}/${effective}` : `/${effective}`;
   if (locale.canonical_path !== expectedCanonical) fail();
-  const selector = exactRecord(profile.selector, ['label', 'options']);
+  const selector = exactRecord(profile.selector, ['enabled', 'label', 'options']);
+  if (typeof selector.enabled !== 'boolean') fail();
   if (!Array.isArray(selector.options) || !selector.options.length || selector.options.length > 10) fail();
   const options = selector.options.map((raw: unknown) => {
     const option = exactRecord(raw, ['locale', 'label', 'aria_label', 'href', 'active']);
@@ -1128,7 +1130,7 @@ function normalizeProfile(value: unknown, source: 'platform' | 'custom'): PromoP
       effective, default: defaultLocale, source: locale.source, lang: effective,
       direction: locale.direction, canonical_path: expectedCanonical,
     },
-    selector: { label: safeText(selector.label, 80, true), options },
+    selector: { enabled: selector.enabled, label: safeText(selector.label, 80, true), options },
     theme: {
       theme_id: themeId,
       version: themeVersion,

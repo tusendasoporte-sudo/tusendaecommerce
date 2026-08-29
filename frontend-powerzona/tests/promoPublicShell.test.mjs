@@ -69,6 +69,7 @@ function shellEnvelope(source = 'platform') {
         canonical_path: `${basePath}/es`,
       },
       selector: {
+        enabled: false,
         label: 'Idioma',
         options: [{ locale: 'es', label: 'Español', aria_label: 'Ver en español', href: `${basePath}/es`, active: true }],
       },
@@ -943,4 +944,11 @@ test('cliente SHELL conserva no-store y no mezcla transporte ANALYTICS en su con
   assert.match(client, /CONTACT_ACTION_CONTRACT = 'promo\.contact\.action\.v1'/);
   assert.match(client, /safeContactHref/);
   assert.doesNotMatch(client, /Cloudflare|Coolify|analytics|contact\.activate/i);
+});
+
+test('selector de idioma público se renderiza solo cuando Master lo habilita', () => {
+  const theme = read('../src/components/promo-public/PromoBlackGoldTheme.astro');
+  const detail = read('../src/components/promo-public/PromoServiceDetail.astro');
+  assert.match(theme, /selector\.enabled && selector\.options\.length > 1/);
+  assert.match(detail, /selector\.enabled && localizedSelector\.length > 1/);
 });
