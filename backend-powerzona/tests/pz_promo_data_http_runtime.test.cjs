@@ -1120,6 +1120,20 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       json: { identity: reviewMaster.email, password: reviewUserPassword },
     });
     assertStatus(reviewMasterAuth, 200, 'autenticar Master efímero para moderación');
+    const privateReviewRequest = await reviewRequest('/api/pz/promo/private/v1/reviews/requests/create', {
+      token: reviewMasterAuth.data.token,
+      headers: { 'X-PZ-Promo-Store': reviewStore.id },
+      json: {
+        contract: 'promo.review-requests.create.v2',
+        locale: 'es',
+        customer_label: '',
+        work_label: 'Solicitud sin fotos creada por soporte Master',
+        expires_days: 30,
+      },
+    });
+    assertStatus(privateReviewRequest, 201, 'Master crea solicitud de reseña sin fotos');
+    assert.equal(privateReviewRequest.data.contract, 'promo.review-requests.created.v2');
+    assert.match(privateReviewRequest.data.token, /^[A-Za-z0-9_-]{43,96}$/);
     const moderatedReview = await reviewRequest('/api/pz/promo/private/v1/reviews/moderate', {
       token: reviewMasterAuth.data.token,
       headers: { 'X-PZ-Promo-Store': reviewStore.id },
@@ -1137,8 +1151,11 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       { token: reviewSuperToken },
     );
     assertStatus(reviewAuditRows, 200, 'superuser verifica auditoría de aprobación Promo');
-    assert.equal(reviewAuditRows.data.totalItems, 1);
-    assert.equal(reviewAuditRows.data.items[0].action, 'promo.reviews.moderate');
+    assert.equal(reviewAuditRows.data.totalItems, 2);
+    assert.deepEqual(reviewAuditRows.data.items.map((event) => event.action).sort(), [
+      'promo.reviews.moderate',
+      'promo.reviews.request.create',
+    ]);
     await stopPocketBase(runtime);
     runtime = null;
 

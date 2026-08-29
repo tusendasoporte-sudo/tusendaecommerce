@@ -23,6 +23,7 @@ const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PUBLIC_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,96}$/;
 const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
+const DIGEST_PATTERN = /^[a-f0-9]{64}$/;
 const URL_PATTERN = /(?:\b(?:https?|ftp):\/\/|\bwww\.|\b[a-z0-9.-]+\.(?:com|net|org|io|co|app|dev|xyz|info|biz)(?:\b|\/))/i;
 
 class PromoReviewRequestError extends Error {
