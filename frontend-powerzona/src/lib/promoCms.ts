@@ -761,6 +761,26 @@ export function isPromoCmsWorkGalleryReady(value: unknown) {
     ));
 }
 
+export function prunePromoCmsHiddenFooterLinks(document: JsonRecord) {
+  const visibleSectionKeys = new Set(document.sections
+    .filter((section: JsonRecord) => section.visible === true && section.type !== 'footer')
+    .map((section: JsonRecord) => String(section.key || '')));
+  document.sections
+    .filter((section: JsonRecord) => section.type === 'footer')
+    .forEach((section: JsonRecord) => {
+      const config = isRecord(section.config) ? section.config : {};
+      if (!Array.isArray(config.navigation_section_keys)) return;
+      const navigationSectionKeys = config.navigation_section_keys.filter((sectionKey: unknown) => (
+        visibleSectionKeys.has(String(sectionKey || ''))
+      ));
+      section.config = {
+        ...config,
+        navigation_section_keys: navigationSectionKeys,
+      };
+    });
+  return document;
+}
+
 export function buildPromoCmsContentDocument(
   value: unknown,
   patch: PromoCmsContentPatch,
@@ -931,18 +951,20 @@ export function buildPromoCmsContentDocument(
         qr_heading: safeText(sectionPatch.qrHeading || '', PROMO_CMS_TEXT_LIMITS.heading),
       };
     } else if (section.type === 'footer') {
-      const navigationSectionKeys = Array.isArray(sectionPatch.navigationSectionKeys)
+      const requestedNavigationSectionKeys = Array.isArray(sectionPatch.navigationSectionKeys)
         ? sectionPatch.navigationSectionKeys.map((sectionKey) => key(sectionKey))
         : [];
-      if (navigationSectionKeys.length > PROMO_CMS_FOOTER_MAX_LINKS
-        || new Set(navigationSectionKeys).size !== navigationSectionKeys.length
-        || navigationSectionKeys.some((targetKey) => {
+      if (requestedNavigationSectionKeys.length > PROMO_CMS_FOOTER_MAX_LINKS
+        || new Set(requestedNavigationSectionKeys).size !== requestedNavigationSectionKeys.length
+        || requestedNavigationSectionKeys.some((targetKey) => {
           const target = sectionMap.get(targetKey);
-          const targetPatch = patchSections.get(targetKey);
-          return !target || target.type === 'footer' || !targetPatch?.visible;
+          return !target || target.type === 'footer';
         })) {
         fail('invalid_promo_document');
       }
+      const navigationSectionKeys = requestedNavigationSectionKeys.filter((targetKey) => (
+        patchSections.get(targetKey)?.visible === true
+      ));
       const socialProfiles = footerSocialProfiles(sectionPatch.socialProfiles || []);
       section.config = {
         navigation_section_keys: navigationSectionKeys,
@@ -960,7 +982,7 @@ export function buildPromoCmsContentDocument(
 
   const effectiveMax = Number.isSafeInteger(maxServices) && maxServices >= 0 ? maxServices : 0;
   if (serviceCount > effectiveMax) fail('promo_capability_denied', 403);
-  return document;
+  return prunePromoCmsHiddenFooterLinks(document);
 }
 
 function actionConfig(type: string, destination: string) {
@@ -1049,7 +1071,7 @@ export function buildPromoCmsContactDocument(value: unknown, patch: PromoCmsCont
   contactSection.config.action_keys = actions.filter((action: JsonRecord) => action.enabled)
     .map((action: JsonRecord) => action.key);
   localized.contact = nextText;
-  return document;
+  return prunePromoCmsHiddenFooterLinks(document);
 }
 
 export function promoCmsErrorMessage(code: unknown) {

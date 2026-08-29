@@ -313,6 +313,20 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
   }, protectedBefore);
 });
 
+test('ocultar una sección elimina automáticamente su enlace del footer', () => {
+  const original = normalizePromoCmsDocument(completeDocument());
+  const patch = contentPatch(original);
+  patch.sections.find((section) => section.key === 'footer-main').navigationSectionKeys = [
+    'hero-main', 'owner-main', 'contact-main',
+  ];
+  const updated = buildPromoCmsContentDocument(original, patch, 4);
+  assert.equal(updated.sections.find((section) => section.key === 'owner-main').visible, false);
+  assert.deepEqual(
+    updated.sections.find((section) => section.key === 'footer-main').config.navigation_section_keys,
+    ['hero-main', 'contact-main'],
+  );
+});
+
 test('portada limita cuatro especialidades, dos botones y diseños aprobados', () => {
   const original = completeDocument();
   const tooManyHighlights = contentPatch(original);
@@ -416,6 +430,31 @@ test('contacto actualiza canales tipados sin alterar las otras facetas del tenan
       label: 'Contacto', ariaLabel: 'Contactar', message: '',
     }],
   }), /No se pudo completar/);
+});
+
+test('ocultar contacto elimina automáticamente su enlace del footer', () => {
+  const original = normalizePromoCmsDocument(completeDocument());
+  original.sections.find((section) => section.key === 'footer-main').config.navigation_section_keys = [
+    'hero-main', 'contact-main',
+  ];
+  const updated = buildPromoCmsContactDocument(original, {
+    enabled: true,
+    primaryActionKey: 'call-main',
+    secondaryActionKeys: [],
+    section: {
+      key: 'contact-main', visible: false, navigationLabel: 'Contacto',
+      heading: 'Hablemos', summary: 'Solicita información',
+    },
+    actions: [{
+      key: 'call-main', type: 'phone', enabled: true, destination: '',
+      label: '', ariaLabel: '', message: '', preserve: true,
+    }],
+  });
+  assert.equal(updated.sections.find((section) => section.key === 'contact-main').visible, false);
+  assert.deepEqual(
+    updated.sections.find((section) => section.key === 'footer-main').config.navigation_section_keys,
+    ['hero-main'],
+  );
 });
 
 test('envelopes, tenant slug y origen fallan cerrados ante campos o señales ambiguas', () => {

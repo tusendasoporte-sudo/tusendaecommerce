@@ -62,6 +62,22 @@ test('configuración añade una sección default localizada antes del footer y p
   assert.equal(document.sections[0].type, 'hero');
 });
 
+test('desactivar reseñas elimina automáticamente su enlace del footer', () => {
+  const enabled = buildPromoReviewsDisplayDocument(documentFixture(), {
+    enabled: true, heading: 'Clientes que confían en nosotros',
+  });
+  enabled.sections.find((section) => section.type === 'footer').config.navigation_section_keys = [
+    'hero-main', 'store-rating-main',
+  ];
+  const disabled = buildPromoReviewsDisplayDocument(enabled, {
+    enabled: false, heading: 'Clientes que confían en nosotros',
+  });
+  assert.deepEqual(
+    disabled.sections.find((section) => section.type === 'footer').config.navigation_section_keys,
+    ['hero-main'],
+  );
+});
+
 test('DTO privado acepta solo campos allowlisted de reseña de tienda y CAS', () => {
   const page = normalizePromoReviewsPage(pageFixture());
   assert.equal(page.summary.approvedAverage, 5);

@@ -1,4 +1,4 @@
-import { normalizePromoCmsDocument } from './promoCms.ts';
+import { normalizePromoCmsDocument, prunePromoCmsHiddenFooterLinks } from './promoCms.ts';
 
 export const PROMO_REVIEWS_API_PATH = '/api/admin/promo-reviews';
 export const PROMO_REVIEWS_LIST_CONTRACT = 'promo.reviews.page.v1';
@@ -194,7 +194,7 @@ export function buildPromoReviewsDisplayDocument(
         : String(localized.sections[section.key]?.heading || copy.heading),
     };
   }
-  return document;
+  return prunePromoCmsHiddenFooterLinks(document);
 }
 
 export function promoReviewsErrorMessage(code: unknown) {
