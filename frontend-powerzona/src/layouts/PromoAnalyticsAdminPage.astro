@@ -1,12 +1,12 @@
 ---
 import Layout from './Layout.astro';
 import type { AdminStoreContext } from '../lib/storeContext';
-import type { PromoAccessContext } from '../lib/promoAccess';
+import { hasPromoCapability, type PromoAccessContext } from '../lib/promoAccess';
 import { getPromoAdminSectionPath } from '../lib/promoAdminShell';
 import {
-  normalizePromoAdminLocale,
   PROMO_ADMIN_LOCALE_COOKIE,
   promoAdminText,
+  resolvePromoAdminLocale,
 } from '../lib/promoAdminI18n';
 import '../styles/promo-analytics.css';
 
@@ -20,7 +20,10 @@ const storeSlug = String(accessContext.store.slug || adminContext.store.slug || 
 const storeName = String(accessContext.store.name || adminContext.store.name || 'Tienda Promo').trim();
 const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
 const contextLabel = adminContext.isMasterSupport ? `Soporte Master · ${storeName}` : storeName;
-const adminLocale = normalizePromoAdminLocale(Astro.cookies.get(PROMO_ADMIN_LOCALE_COOKIE)?.value);
+const adminLocale = resolvePromoAdminLocale(
+  Astro.cookies.get(PROMO_ADMIN_LOCALE_COOKIE)?.value,
+  hasPromoCapability(accessContext, 'language_selector_enabled'),
+);
 const t = (value: unknown) => promoAdminText(adminLocale, value);
 ---
 

@@ -2,11 +2,11 @@
 import Layout from '../../../layouts/Layout.astro';
 import type { AdminStoreContext } from '../../../lib/storeContext';
 import { getAdminSupportContact } from '../../../lib/adminSupport';
-import { hasPromoAction, type PromoAccessContext } from '../../../lib/promoAccess';
+import { hasPromoAction, hasPromoCapability, type PromoAccessContext } from '../../../lib/promoAccess';
 import {
-  normalizePromoAdminLocale,
   PROMO_ADMIN_LOCALE_COOKIE,
   promoAdminText,
+  resolvePromoAdminLocale,
 } from '../../../lib/promoAdminI18n';
 import PromoAppearanceEditor from './PromoAppearanceEditor.astro';
 import PromoCmsEditor from './PromoCmsEditor.astro';
@@ -37,7 +37,11 @@ const {
 const storeSlug = String(accessContext.store.slug || adminContext.store.slug || '').trim().toLowerCase();
 const storeName = String(accessContext.store.name || adminContext.store.name || 'Tienda Promo').trim() || 'Tienda Promo';
 const userName = String(accessContext.user.display_name || 'Usuario').trim() || 'Usuario';
-const adminLocale = normalizePromoAdminLocale(Astro.cookies.get(PROMO_ADMIN_LOCALE_COOKIE)?.value);
+const languageSelectorEnabled = hasPromoCapability(accessContext, 'language_selector_enabled');
+const adminLocale = resolvePromoAdminLocale(
+  Astro.cookies.get(PROMO_ADMIN_LOCALE_COOKIE)?.value,
+  languageSelectorEnabled,
+);
 const t = (value: unknown) => promoAdminText(adminLocale, value);
 const homePath = getPromoAdminSectionPath(storeSlug, 'overview');
 const visibleModules = visiblePromoAdminModules(accessContext);
@@ -212,14 +216,14 @@ function initials(value: string) {
       </nav>
 
       <div class="pz-promo-admin__sidebar-footer">
-        <label class="pz-promo-admin__language" for="promo-admin-language">
+        {languageSelectorEnabled && <label class="pz-promo-admin__language" for="promo-admin-language">
           <span>{adminLocale === 'en' ? 'Admin language' : 'Idioma del panel'}</span>
           <select id="promo-admin-language" data-promo-admin-locale-select aria-label={adminLocale === 'en' ? 'Admin language' : 'Idioma del panel'}>
             <option value="es" selected={adminLocale === 'es'}>Español</option>
             <option value="en" selected={adminLocale === 'en'}>English</option>
           </select>
           <small>{adminLocale === 'en' ? 'Only changes this administration panel.' : 'Solo cambia este panel de administración.'}</small>
-        </label>
+        </label>}
         <div class="pz-promo-admin__sidebar-actions" aria-label="Acciones de la Tienda Promo">
           {publicPagePath ? (
             <a href={publicPagePath} target="_blank" rel="noopener noreferrer">{t('Ver mi página')} <span aria-hidden="true">↗</span></a>

@@ -5,6 +5,7 @@ import {
   normalizePromoAdminLocale,
   PROMO_ADMIN_LOCALE_COOKIE,
   promoAdminText,
+  resolvePromoAdminLocale,
 } from '../../frontend-powerzona/src/lib/promoAdminI18n.ts';
 
 test('idioma del Admin Promo queda cerrado a español o inglés', () => {
@@ -13,6 +14,9 @@ test('idioma del Admin Promo queda cerrado a español o inglés', () => {
   assert.equal(normalizePromoAdminLocale('EN'), 'en');
   assert.equal(normalizePromoAdminLocale('fr'), 'es');
   assert.equal(normalizePromoAdminLocale(undefined), 'es');
+  assert.equal(resolvePromoAdminLocale('en', true), 'en');
+  assert.equal(resolvePromoAdminLocale('en', false), 'es');
+  assert.equal(resolvePromoAdminLocale(undefined, true), 'es');
 });
 
 test('traducción cubre shell, editores y textos dinámicos sin alterar contenido desconocido', () => {
@@ -41,6 +45,9 @@ test('traducción cubre shell, editores y textos dinámicos sin alterar contenid
 test('shell guarda la preferencia sin tocar idioma público ni usar storage del navegador', () => {
   const shell = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
   assert.match(shell, /data-promo-admin-locale-select/);
+  assert.match(shell, /hasPromoCapability\(accessContext, 'language_selector_enabled'\)/);
+  assert.match(shell, /languageSelectorEnabled && <label class="pz-promo-admin__language"/);
+  assert.match(shell, /resolvePromoAdminLocale/);
   assert.match(shell, /Max-Age=31536000; SameSite=Lax/);
   assert.match(shell, /window\.location\.reload\(\)/);
   assert.doesNotMatch(shell, /localStorage|sessionStorage/);
@@ -53,6 +60,8 @@ test('analíticas y contenido dinámico respetan el idioma administrativo y prot
   const reviews = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoReviewsEditor.astro', import.meta.url), 'utf8');
   const i18n = readFileSync(new URL('../../frontend-powerzona/src/lib/promoAdminI18n.ts', import.meta.url), 'utf8');
   assert.match(analytics, /htmlLang=\{adminLocale\}/);
+  assert.match(analytics, /hasPromoCapability\(accessContext, 'language_selector_enabled'\)/);
+  assert.match(analytics, /resolvePromoAdminLocale/);
   assert.match(analytics, /observePromoAdminTranslations\(analyticsRoot, adminLocale\)/);
   assert.match(analytics, /new Intl\.NumberFormat\(adminLocale\)/);
   assert.match(i18n, /attributeFilter: \['aria-label', 'title', 'placeholder'\]/);

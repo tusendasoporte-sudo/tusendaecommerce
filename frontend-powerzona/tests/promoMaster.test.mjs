@@ -79,7 +79,7 @@ test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo 
   assert.match(view, /release\.allowed_next_statuses/);
   assert.match(view, /aria-live="polite"/);
   assert.match(view, /promo_capability_denied/);
-  assert.match(view, /language_selector_enabled', 'Selector público de idioma/);
+  assert.match(view, /language_selector_enabled', 'Selector de idioma público y Admin Promo/);
   assert.match(view, /BOOLEAN_CAPABILITIES[\s\S]*language_selector_enabled/);
   assert.match(view, /verification_evidence_sha256/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);

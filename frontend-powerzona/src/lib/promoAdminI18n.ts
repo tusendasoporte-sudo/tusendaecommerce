@@ -605,6 +605,13 @@ export function normalizePromoAdminLocale(value: unknown): PromoAdminLocale {
   return String(value || '').trim().toLowerCase() === 'en' ? 'en' : 'es';
 }
 
+export function resolvePromoAdminLocale(
+  value: unknown,
+  languageSelectorEnabled: boolean,
+): PromoAdminLocale {
+  return languageSelectorEnabled ? normalizePromoAdminLocale(value) : 'es';
+}
+
 export function promoAdminText(locale: PromoAdminLocale, value: unknown) {
   const text = String(value ?? '');
   if (locale !== 'en') return text;
