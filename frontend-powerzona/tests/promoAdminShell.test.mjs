@@ -14,7 +14,7 @@ function read(relativePath) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 }
 
-function context(actions) {
+function context(actions, capabilityOverrides = {}) {
   return {
     ok: true,
     user: { display_name: 'Ada', role: 'store_admin' },
@@ -43,6 +43,7 @@ function context(actions) {
       max_locales: 0,
       max_videos: 0,
       max_storage_bytes: 0,
+      ...capabilityOverrides,
     },
   };
 }
@@ -79,6 +80,17 @@ test('módulos visibles y rutas directas nunca amplían allowed_actions del back
   assert.equal(canOpenPromoAdminSection(access, 'gallery'), true);
   assert.deepEqual(visiblePromoAdminModules(context(['promo.content.manage'])), []);
   assert.equal(canOpenPromoAdminSection(context(['promo.content.manage']), 'overview'), false);
+});
+
+test('módulo de idiomas exige que el selector esté activado por Master', () => {
+  const actions = ['promo.site.view', 'promo.translations.manage'];
+  const selectorDisabled = context(actions);
+  const selectorEnabled = context(actions, { language_selector_enabled: true });
+
+  assert.equal(visiblePromoAdminModules(selectorDisabled).some((module) => module.section === 'languages'), false);
+  assert.equal(canOpenPromoAdminSection(selectorDisabled, 'languages'), false);
+  assert.equal(visiblePromoAdminModules(selectorEnabled).some((module) => module.section === 'languages'), true);
+  assert.equal(canOpenPromoAdminSection(selectorEnabled, 'languages'), true);
 });
 
 test('solo store_not_promo 404 habilita el shell Commerce; capability y fallos quedan cerrados', async () => {

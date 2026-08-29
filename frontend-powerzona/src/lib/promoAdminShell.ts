@@ -1,6 +1,7 @@
 import {
   getPromoAccessContext,
   hasPromoAction,
+  hasPromoCapability,
   PromoAccessApiError,
   type PromoAccessClientOptions,
   type PromoAccessContext,
@@ -104,6 +105,8 @@ export function canOpenPromoAdminModule(
   context: PromoAccessContext | null | undefined,
   module: PromoAdminModule,
 ) {
+  if (module.section === 'languages'
+    && !hasPromoCapability(context, 'language_selector_enabled')) return false;
   return module.actions.some((action) => hasPromoAction(context, action));
 }
 
