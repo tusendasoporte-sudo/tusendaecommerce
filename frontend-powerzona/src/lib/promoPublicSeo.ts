@@ -2,7 +2,7 @@ import {
   PromoPublicShellError,
   requestPromoPublicJson,
 } from './promoPublicShell.ts';
-import { applyPromoSecurityHeaders, promoRequestAuthority } from './promoSecurity.ts';
+import { applyPromoSecurityHeaders } from './promoSecurity.ts';
 
 export const PROMO_PUBLIC_SEO_RESOURCE_CONTRACT = 'promo.public.seo.resource.v1';
 export type PromoSeoResource = 'robots' | 'sitemap';
@@ -126,11 +126,6 @@ export function normalizePromoSeoResource(
   };
 }
 
-function hostFromRequest(request: Request) {
-  const authority = promoRequestAuthority(request);
-  return { host: authority.authority, hostname: authority.hostname };
-}
-
 export async function readPlatformPromoSeo(
   request: Request,
   publicSlug: string,
@@ -142,16 +137,6 @@ export async function readPlatformPromoSeo(
     request,
   });
   return normalizePromoSeoResource(body, { resource, publicSlug });
-}
-
-export async function readCustomHostPromoSeo(request: Request, resource: PromoSeoResource) {
-  const { host, hostname } = hostFromRequest(request);
-  const body = await requestPromoPublicJson({
-    endpoint: `/api/pz/promo/public/v1/seo/host/${resource}`,
-    request,
-    host,
-  });
-  return normalizePromoSeoResource(body, { resource, customHostname: hostname });
 }
 
 function xmlEscape(value: string) {
@@ -207,10 +192,4 @@ export function promoSeoResourceResponse(result: PromoSeoResourceResult) {
       ...(result.route.source === 'custom' ? { Vary: 'Host' } : {}),
     },
   }));
-}
-
-export function customPromoSeoResource(pathname: string): PromoSeoResource | null {
-  if (pathname === '/sitemap.xml') return 'sitemap';
-  if (pathname === '/robots.txt') return 'robots';
-  return null;
 }

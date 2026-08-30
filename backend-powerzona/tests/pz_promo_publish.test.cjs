@@ -57,9 +57,9 @@ test('PUBLISH fija contratos versionados exactos sin tenant, actor ni filtros ap
 });
 
 test('canonical, motivos e idempotencia son allowlists cerradas', () => {
-  assert.deepEqual(publish.canonicalTarget({
+  assert.equal(publish.canonicalTarget({
     mode: 'custom', primary_binding_id: 'bindingaaaaaaaa',
-  }), { mode: 'custom', primaryBindingId: 'bindingaaaaaaaa' });
+  }), null);
   for (const invalid of [
     { mode: 'platform', primary_binding_id: 'bindingaaaaaaaa' },
     { mode: 'custom' },
@@ -189,14 +189,14 @@ test('máquina de estados permite primera/posterior, rollback, pausa, resume y u
 
 test('hook registra solo POST privados autenticados y no crea serving alternativo', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_publish.pb.js'), 'utf8');
-  assert.equal((source.match(/routerAdd\(/g) || []).length, 9);
-  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 9);
-  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 9);
+  assert.equal((source.match(/routerAdd\(/g) || []).length, 8);
+  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 8);
+  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 8);
   assert.doesNotMatch(source, /"GET"|\/public\/|Cloudflare|Coolify|DNS/);
   for (const route of [
-    'candidates/create', 'preview', 'preview/context', 'publish', 'rollback', 'unpublish',
-    'canonical/switch', 'pause', 'resume',
+    'candidates/create', 'preview', 'preview/context', 'publish', 'rollback', 'unpublish', 'pause', 'resume',
   ]) assert.match(source, new RegExp(route.replace('/', '\\/')));
+  assert.doesNotMatch(source, /canonical\/switch/);
 });
 
 test('migración focal permite generation cero sin debilitar el guard server-side ni el down seguro', () => {

@@ -11,7 +11,6 @@ const { storeId, overview } = Astro.props;
 const booleanCapabilities = [
   ['promo_site_enabled', 'Sitio Promo habilitado'],
   ['publish_enabled', 'Página pública habilitada'],
-  ['custom_domain_enabled', 'Dominio personalizado'],
   ['theme_customization_enabled', 'Personalización de tema'],
   ['multilanguage_enabled', 'Múltiples idiomas'],
   ['language_selector_enabled', 'Selector de idioma público y Admin Promo'],
@@ -44,7 +43,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
     <div>
       <div class="promo-master__eyebrow"><span class="master-pill master-pill--warning">PROMO</span><span>Contrato {overview.site.contract_version}</span></div>
       <h2>{overview.store.name || 'Tienda Promo'}</h2>
-      <p>Control central de lifecycle, capacidades, acceso, origen canónico, dominios y catálogo de temas. El contenido se administra directamente en el panel Admin Promo.</p>
+      <p>Control central de lifecycle, capacidades, acceso, publicación en Tu Senda 84 y catálogo de temas. El contenido se administra directamente en el panel Admin Promo.</p>
     </div>
     <a class="master-btn master-btn--secondary" href="/master/stores">Volver a tiendas</a>
   </header>
@@ -62,7 +61,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
     <article class="master-kpi"><span class="master-kpi__label">Lifecycle</span><strong class="master-kpi__value promo-master__kpi-value">{label(overview.site.status)}</strong><span class="master-kpi__meta">/{overview.site.public_slug}</span></article>
     <article class="master-kpi"><span class="master-kpi__label">Entitlement</span><strong class="master-kpi__value promo-master__kpi-value">{overview.entitlement.capabilities.promo_site_enabled === true ? 'Habilitado' : 'Cerrado'}</strong><span class="master-kpi__meta">Fuente: {overview.entitlement.source || 'unassigned'}</span></article>
     <article class="master-kpi"><span class="master-kpi__label">Página en vivo</span><strong class="master-kpi__value promo-master__kpi-value">{label(overview.publication.state)}</strong><span class="master-kpi__meta">Actualización {overview.publication.generation}</span></article>
-    <article class="master-kpi"><span class="master-kpi__label">Canónico</span><strong class="master-kpi__value promo-master__kpi-value">{overview.publication.canonical.mode === 'custom' ? 'Dominio propio' : 'Plataforma'}</strong><span class="master-kpi__meta">{label(overview.publication.health.state)}</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Canónico</span><strong class="master-kpi__value promo-master__kpi-value">Tu Senda 84</strong><span class="master-kpi__meta">{label(overview.publication.health.state)}</span></article>
   </div>
 
   <div class="promo-master__grid">
@@ -89,10 +88,10 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
       <div class="promo-master__card-body">
         <dl class="promo-master__facts">
           <div><dt>Configuración actual</dt><dd>v{overview.draft.version || 0} · {label(overview.draft.readiness.state)}</dd></div>
-          <div><dt>Origen canónico</dt><dd>{overview.publication.canonical.mode === 'custom' ? 'Dominio propio' : 'Plataforma'}</dd></div>
+          <div><dt>Origen canónico</dt><dd>Tu Senda 84</dd></div>
           <div><dt>Salud pública</dt><dd>{label(overview.publication.health.state)}</dd></div>
         </dl>
-        <p class="master-notice">El estado canónico es informativo. Cualquier cambio permanece dentro del flujo de dominios aprobado y fail-closed.</p>
+        <p class="master-notice">Todas las Tiendas Promo se publican bajo el dominio de Tu Senda 84.</p>
       </div>
     </section>
   </div>
@@ -124,43 +123,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
   </section>
 
   <div class="promo-master__grid">
-    <section class="master-card promo-master__card" aria-labelledby="promo-domains-title">
-      <header class="master-card-header"><div><h3 id="promo-domains-title" class="master-card-title">Dominios</h3><span class="master-muted">Bindings privados; la resolución Host permanece en DOM-CORE</span></div></header>
-      <div class="promo-master__card-body">
-        {overview.operations.domains_manage ? (
-          <form class="promo-master__form promo-master__inline-form" data-domain-create-form>
-            <div class="master-field"><label for="promo-domain-host">Hostname</label><input id="promo-domain-host" name="hostname" type="text" maxlength="253" required autocomplete="off" placeholder="www.ejemplo.com" /></div>
-            <div class="master-field"><label for="promo-domain-role">Rol</label><select id="promo-domain-role" name="role"><option value="primary">Primario</option><option value="alias">Alias</option></select></div>
-            <button class="master-btn master-btn--secondary" type="submit">Registrar binding</button>
-          </form>
-        ) : <p class="master-notice">Capability de dominio personalizado ausente. Los controles permanecen cerrados.</p>}
-
-        <div class="promo-master__domain-list">
-          {overview.domains.length ? overview.domains.map((binding) => (
-            <article data-domain-binding data-binding-id={binding.binding_id} data-binding-status={binding.status} data-binding-version={binding.state_version}>
-              <div><strong>{binding.hostname_display || binding.hostname_ascii}</strong><span class="master-pill">{binding.role} · {label(binding.status)}</span>{binding.is_current && <span class="master-pill master-pill--success">Vigente</span>}</div>
-              <span>Versión de estado {binding.state_version} · verificación {binding.verification_method || 'pendiente'}</span>
-              {overview.operations.domains_manage && (
-                <div>
-                  {binding.verification_available && (
-                    <form class="promo-master__verify-form" data-domain-verify-form>
-                      <div class="master-field"><label for={`promo-domain-method-${binding.binding_id}`}>Método</label><select id={`promo-domain-method-${binding.binding_id}`} name="verification_method"><option value="manual">Manual</option><option value="dns">DNS</option><option value="http">HTTP</option></select></div>
-                      <div class="master-field"><label for={`promo-domain-evidence-${binding.binding_id}`}>SHA-256 de evidencia verificada</label><input id={`promo-domain-evidence-${binding.binding_id}`} name="verification_evidence_sha256" type="text" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" autocomplete="off" spellcheck="false" required /></div>
-                      <button class="master-btn master-btn--secondary" type="submit">Verificar binding</button>
-                    </form>
-                  )}
-                  <div class="promo-master__actions">
-                  {binding.allowed_next_statuses.map((status) => <button class="master-btn master-btn--secondary" type="button" data-domain-status={status}>{label(status)}</button>)}
-                  </div>
-                </div>
-              )}
-            </article>
-          )) : <p class="master-empty">No hay bindings registrados.</p>}
-        </div>
-      </div>
-    </section>
-
-    <section class="master-card promo-master__card" aria-labelledby="promo-theme-title">
+    <section class="master-card promo-master__card promo-master__card--wide" aria-labelledby="promo-theme-title">
       <header class="master-card-header"><div><h3 id="promo-theme-title" class="master-card-title">Theme</h3><span class="master-muted">Registry compilado y releases persistidos</span></div></header>
       <div class="promo-master__card-body">
         <dl class="promo-master__facts">
@@ -191,15 +154,12 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
 <script>
   import { pb } from '../../lib/pocketbase';
   import {
-    createPromoDomain,
-    updatePromoDomainStatus,
     updatePromoEntitlements,
     updatePromoLifecycle,
     updatePromoThemeRelease,
-    verifyPromoDomain,
   } from '../../lib/promoMaster';
 
-  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'language_selector_enabled', 'video_enabled', 'analytics_enabled'];
+  const BOOLEAN_CAPABILITIES = ['promo_site_enabled', 'publish_enabled', 'theme_customization_enabled', 'multilanguage_enabled', 'language_selector_enabled', 'video_enabled', 'analytics_enabled'];
   const NUMERIC_CAPABILITIES = ['max_services', 'max_locales', 'max_videos', 'max_storage_bytes'];
 
   function errorCode(error: any) {
@@ -211,7 +171,6 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
     const messages: Record<string, string> = {
       promo_lifecycle_conflict: 'El lifecycle cambió en otra sesión. Recarga antes de repetir.',
       promo_entitlements_conflict: 'Los entitlements cambiaron en otra sesión. Recarga antes de repetir.',
-      promo_domain_state_conflict: 'El binding cambió en otra sesión. Recarga antes de repetir.',
       promo_theme_release_conflict: 'El release cambió en otra sesión. Recarga antes de repetir.',
       promo_capability_denied: 'La capability necesaria no está habilitada.',
       invalid_payload: 'La operación no cumple el contrato esperado.',
@@ -283,40 +242,6 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
         capabilities,
         reason: String(values.get('reason') || ''),
       }), 'Entitlements actualizados.');
-    });
-
-    root.querySelector<HTMLFormElement>('[data-domain-create-form]')?.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const form = event.currentTarget as HTMLFormElement;
-      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-      if (!button || !form.reportValidity()) return;
-      const values = new FormData(form);
-      void execute(button, () => createPromoDomain(pb, storeId, String(values.get('hostname') || ''), String(values.get('role') || '')), 'Binding registrado.');
-    });
-
-    root.querySelectorAll<HTMLElement>('[data-domain-binding]').forEach((row) => {
-      const bindingId = String(row.dataset.bindingId || '');
-      const expectedStatus = String(row.dataset.bindingStatus || '');
-      const expectedVersion = Number(row.dataset.bindingVersion || 0);
-      row.querySelector<HTMLFormElement>('[data-domain-verify-form]')?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const form = event.currentTarget as HTMLFormElement;
-        const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-        if (!button || !form.reportValidity()) return;
-        const values = new FormData(form);
-        const evidence = String(values.get('verification_evidence_sha256') || '').trim().toLowerCase();
-        const method = String(values.get('verification_method') || '');
-        void execute(button, () => verifyPromoDomain(pb, storeId, {
-          binding_id: bindingId, expected_state_version: expectedVersion, expected_status: expectedStatus,
-          verification_method: method, verification_evidence_sha256: evidence,
-        }), 'Binding verificado.');
-      });
-      row.querySelectorAll<HTMLButtonElement>('[data-domain-status]').forEach((button) => button.addEventListener('click', () => {
-        void execute(button, () => updatePromoDomainStatus(pb, storeId, {
-          binding_id: bindingId, expected_state_version: expectedVersion,
-          expected_status: expectedStatus, next_status: String(button.dataset.domainStatus || ''),
-        }), 'Estado de dominio actualizado.');
-      }));
     });
 
     root.querySelectorAll<HTMLElement>('[data-theme-release]').forEach((row) => {

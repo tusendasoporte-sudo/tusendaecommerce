@@ -167,7 +167,7 @@ test('proyecciones Master no exponen records, filtros, actor o contenido Promo c
   assert.match(source, /assertDraftTheme/);
   assert.match(source, /assertEntitlementMetrics/);
   assert.match(source, /resolvePublicProjectionForSite/);
-  assert.match(source, /domainPrivateProjection/);
+  assert.doesNotMatch(source, /domainPrivateProjection|domains_manage|promo_domain_bindings/);
   assert.match(source, /entitlementResponse/);
   assert.match(source, /mapAuditRecord/);
   assert.doesNotMatch(source, /e\.json\([^\n]+decision|e\.json\([^\n]+record/);

@@ -78,7 +78,6 @@ const PROMO_ASSIGNABLE_PERMISSION_KEYS = Object.freeze([
 const PROMO_RESERVED_PERMISSION_KEYS = Object.freeze([
   "promo.site.lifecycle.manage",
   "promo.entitlements.manage",
-  "promo.domains.manage",
   "promo.theme_releases.manage",
   "promo.publication.rollback",
   "promo.support.access",
@@ -127,7 +126,6 @@ const PROMO_PERMISSION_LABELS = Object.freeze({
   "promo.publish": "Publicar Tienda Promo",
   "promo.site.lifecycle.manage": "Gestionar ciclo de vida Promo",
   "promo.entitlements.manage": "Gestionar capacidades Promo",
-  "promo.domains.manage": "Gestionar dominios Promo",
   "promo.theme_releases.manage": "Gestionar releases de temas Promo",
   "promo.publication.rollback": "Revertir publicación Promo",
   "promo.support.access": "Acceder a soporte Promo",
@@ -192,10 +190,6 @@ const PROMO_ACTION_CATALOG = Object.freeze({
     storeStatuses: MASTER_RECOVERY_STORE_STATES,
   }),
   "promo.master.entitlements.manage": action("promo.entitlements.manage", [], MASTER_RECOVERY_SITE_STATES, {
-    scope: "master",
-    storeStatuses: MASTER_RECOVERY_STORE_STATES,
-  }),
-  "promo.master.domains.manage": action("promo.domains.manage", ["promo_site_enabled", "custom_domain_enabled"], ["draft", "active", "paused"], {
     scope: "master",
     storeStatuses: MASTER_RECOVERY_STORE_STATES,
   }),

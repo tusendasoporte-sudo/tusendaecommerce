@@ -10,16 +10,11 @@ export const PROMO_MASTER_CONTRACTS = Object.freeze({
   overview: 'promo.master.overview.v1',
   lifecycleUpdate: 'promo.master.lifecycle.update.v1',
   entitlementUpdate: 'promo.entitlements.update.v1',
-  domainList: 'promo.domain.list.read.v1',
-  domainCreate: 'promo.domain.create.v1',
-  domainVerify: 'promo.domain.verify.v1',
-  domainStatus: 'promo.domain.status.update.v1',
   themeRelease: 'promo.theme.release.update.v1',
   candidateCreate: 'promo.candidate.create.v1',
   publish: 'promo.publication.publish.v1',
   rollback: 'promo.publication.rollback.v1',
   unpublish: 'promo.publication.unpublish.v1',
-  canonicalSwitch: 'promo.publication.canonical.switch.v1',
   pause: 'promo.publication.pause.v1',
   resume: 'promo.publication.resume.v1',
 });
@@ -29,7 +24,7 @@ export type PromoMasterCatalogItem = {
   type: 'promo';
   site: { public_slug: string; status: string };
   entitlement_state: 'enabled' | 'disabled' | 'missing';
-  publication: { state: string; generation: number; canonical: { mode: 'platform' | 'custom' } };
+  publication: { state: string; generation: number; canonical: { mode: 'platform' } };
 };
 
 export type PromoMasterCatalogResult = {
@@ -61,7 +56,7 @@ export type PromoMasterOverview = {
   publication: {
     state: string;
     generation: number;
-    canonical: { mode: 'platform' | 'custom'; primary_binding_id?: string };
+    canonical: { mode: 'platform' };
     revision_id: string;
     published_at: string;
     updated: string;
@@ -80,21 +75,6 @@ export type PromoMasterOverview = {
     locales: { default: string; published: string[] };
     publish_readiness: { state: string; code: string };
     rollback_readiness: { state: string; code: string };
-  }>;
-  domains: Array<{
-    binding_id: string;
-    hostname_ascii: string;
-    hostname_display: string;
-    role: 'primary' | 'alias';
-    status: string;
-    is_current: boolean;
-    verification_method: string;
-    state_version: number;
-    verified_at: string;
-    activated_at: string;
-    retired_at: string;
-    allowed_next_statuses: string[];
-    verification_available: boolean;
   }>;
   theme: {
     draft: { theme_id: string; version: string } | null;
@@ -193,7 +173,8 @@ export async function getPromoMasterCatalog(
     const storeId = recordId(raw?.store_id);
     const generation = Number(raw?.publication?.generation);
     if (!storeId || raw?.type !== 'promo' || map.has(storeId)
-      || !Number.isSafeInteger(generation) || generation < 0) {
+      || !Number.isSafeInteger(generation) || generation < 0
+      || raw?.publication?.canonical?.mode !== 'platform') {
       return unavailableCatalog(503, 'promo_catalog_incoherent');
     }
     const item: PromoMasterCatalogItem = {
@@ -207,7 +188,7 @@ export async function getPromoMasterCatalog(
       publication: {
         state: text(raw?.publication?.state, 40),
         generation,
-        canonical: { mode: raw?.publication?.canonical?.mode === 'custom' ? 'custom' : 'platform' },
+        canonical: { mode: 'platform' },
       },
     };
     items.push(item);
@@ -256,14 +237,12 @@ function validOverviewPayload(payload: any): payload is PromoMasterOverview & { 
     ))
     || !Number.isSafeInteger(payload.publication.generation)
     || payload.publication.generation < 0
-    || !['platform', 'custom'].includes(payload.publication.canonical?.mode)
-    || !Array.isArray(payload.revisions) || !Array.isArray(payload.domains)
+    || payload.publication.canonical?.mode !== 'platform'
+    || !Array.isArray(payload.revisions)
     || !payload.theme || !Array.isArray(payload.theme.releases)
     || !Array.isArray(payload.activity) || !payload.health || !Array.isArray(payload.health.issues)) return false;
   if (payload.revisions.some((item: any) => !recordId(item?.revision_id)
     || !item?.publish_readiness || !item?.rollback_readiness)) return false;
-  if (payload.domains.some((item: any) => !recordId(item?.binding_id)
-    || !Array.isArray(item?.allowed_next_statuses))) return false;
   return true;
 }
 
@@ -316,29 +295,6 @@ export async function updatePromoEntitlements(client: PocketBase, storeId: strin
   return client.send('/api/pz/promo/master/entitlements/update', supportOptions(storeId, input));
 }
 
-export async function createPromoDomain(client: PocketBase, storeId: string, hostname: string, role: string) {
-  return client.send('/api/pz/promo/private/v1/domains/create', supportOptions(storeId, {
-    contract: PROMO_MASTER_CONTRACTS.domainCreate, hostname, role,
-  }));
-}
-
-export async function verifyPromoDomain(client: PocketBase, storeId: string, input: {
-  binding_id: string; expected_state_version: number; expected_status: string;
-  verification_method: string; verification_evidence_sha256: string;
-}) {
-  return client.send('/api/pz/promo/private/v1/domains/verify', supportOptions(storeId, {
-    contract: PROMO_MASTER_CONTRACTS.domainVerify, ...input,
-  }));
-}
-
-export async function updatePromoDomainStatus(client: PocketBase, storeId: string, input: {
-  binding_id: string; expected_state_version: number; expected_status: string; next_status: string;
-}) {
-  return client.send('/api/pz/promo/private/v1/domains/status/update', supportOptions(storeId, {
-    contract: PROMO_MASTER_CONTRACTS.domainStatus, ...input,
-  }));
-}
-
 export async function updatePromoThemeRelease(client: PocketBase, storeId: string, input: {
   theme_id: string; version: string; expected_status: string; next_status: string;
 }) {
@@ -354,13 +310,12 @@ export async function createPromoCandidate(client: PocketBase, storeId: string, 
   }));
 }
 
-export type PromoPublicationOperation = 'publish' | 'rollback' | 'unpublish' | 'binding_switch' | 'pause' | 'resume';
+export type PromoPublicationOperation = 'publish' | 'rollback' | 'unpublish' | 'pause' | 'resume';
 
 const PUBLICATION_ENDPOINTS: Record<PromoPublicationOperation, string> = {
   publish: '/api/pz/promo/private/v1/publication/publish',
   rollback: '/api/pz/promo/private/v1/publication/rollback',
   unpublish: '/api/pz/promo/private/v1/publication/unpublish',
-  binding_switch: '/api/pz/promo/private/v1/publication/canonical/switch',
   pause: '/api/pz/promo/private/v1/publication/pause',
   resume: '/api/pz/promo/private/v1/publication/resume',
 };
@@ -369,7 +324,6 @@ const PUBLICATION_CONTRACTS: Record<PromoPublicationOperation, string> = {
   publish: PROMO_MASTER_CONTRACTS.publish,
   rollback: PROMO_MASTER_CONTRACTS.rollback,
   unpublish: PROMO_MASTER_CONTRACTS.unpublish,
-  binding_switch: PROMO_MASTER_CONTRACTS.canonicalSwitch,
   pause: PROMO_MASTER_CONTRACTS.pause,
   resume: PROMO_MASTER_CONTRACTS.resume,
 };
@@ -379,11 +333,11 @@ export async function transitionPromoPublication(client: PocketBase, storeId: st
   expected_generation: number;
   reason_code: string;
   candidate_revision_id?: string;
-  canonical?: { mode: 'platform' } | { mode: 'custom'; primary_binding_id: string };
+  canonical?: { mode: 'platform' };
   idempotency_key?: string;
 }) {
   const withRevision = input.operation === 'publish' || input.operation === 'rollback';
-  const withCanonical = withRevision || input.operation === 'binding_switch';
+  const withCanonical = withRevision;
   const body: Record<string, unknown> = {
     contract: PUBLICATION_CONTRACTS[input.operation],
     expected_generation: input.expected_generation,

@@ -173,7 +173,7 @@ test('rutas son Promo-only, acotadas y sin integración externa', () => {
   const routes = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_promo_analytics.pb.js'), 'utf8');
   const api = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_promo_analytics_api_lib.js'), 'utf8');
   assert.match(routes, /analytics\/sites\/\{publicSlug\}\/events/);
-  assert.match(routes, /analytics\/host\/events/);
+  assert.doesNotMatch(routes, /analytics\/host\/events/);
   assert.match(routes, /private\/v1\/analytics\/summary/);
   assert.match(routes, /bodyLimit\(1024\)/);
   assert.match(api, /promo\.analytics\.view/);

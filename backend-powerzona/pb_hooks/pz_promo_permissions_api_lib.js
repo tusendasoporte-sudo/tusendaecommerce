@@ -439,7 +439,9 @@ function handlePermissionsUpdate(e) {
 function rawEntitlementSnapshot(record) {
   const result = {};
   promo.PROMO_CAPABILITY_KEYS.forEach((key) => {
-    result[key] = promo.PROMO_NUMERIC_CAPABILITY_KEYS.includes(key)
+    result[key] = key === "custom_domain_enabled"
+      ? false
+      : promo.PROMO_NUMERIC_CAPABILITY_KEYS.includes(key)
       ? (promo.recordInteger(record, key) || 0)
       : promo.recordBool(record, key);
   });
@@ -454,6 +456,7 @@ function normalizeCapabilityChanges(value) {
   const changes = {};
   keys.forEach((key) => {
     if (!promo.isPromoCapabilityKey(key)) throw codedError("unknown_promo_capability", 400);
+    if (key === "custom_domain_enabled") throw codedError("invalid_promo_capability", 400);
     if (promo.PROMO_BOOLEAN_CAPABILITY_KEYS.includes(key)) {
       if (typeof input[key] !== "boolean") throw codedError("invalid_promo_capability", 400);
       changes[key] = input[key];
@@ -528,6 +531,7 @@ function handleEntitlementsUpdate(e) {
       const previous = entitlementResponse(entitlement);
       entitlement.set("source", parsed.source);
       Object.keys(parsed.capabilities).forEach((key) => entitlement.set(key, parsed.capabilities[key]));
+      entitlement.set("custom_domain_enabled", false);
       try { promoData.assertEntitlementLimits(entitlement); } catch (_) {
         throw codedError("invalid_promo_capability", 400);
       }

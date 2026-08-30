@@ -53,14 +53,14 @@ test('cliente público conserva payload exacto y rechaza atribución o PII', () 
   assert.throws(() => normalizePromoAnalyticsEvent(event('contact_activate', { action_type: 'sms' })));
 });
 
-test('endpoint depende del canonical servido y el dominio propio usa same-origin', () => {
+test('endpoint acepta únicamente el canonical de Tu Senda 84', () => {
   const profile = { site: { public_slug: 'demo-promo' } };
   assert.equal(promoPublicAnalyticsEndpoint(profile, {
     canonical_url: 'https://tusenda84.com/promo/demo-promo/es',
   }), '/api/promo/analytics/sites/demo-promo');
-  assert.equal(promoPublicAnalyticsEndpoint(profile, {
+  assert.throws(() => promoPublicAnalyticsEndpoint(profile, {
     canonical_url: 'https://promo.example.test/es',
-  }), '/api/promo/analytics/host');
+  }));
   assert.throws(() => promoPublicAnalyticsEndpoint(profile, {
     canonical_url: 'https://tusenda84.com/promo/other/es',
   }));
@@ -95,7 +95,7 @@ test('instrumentación cuenta una visita diaria local sin identificar el navegad
   assert.match(layout, /window\.localStorage\.setItem\(storageKey, utcDay\)/);
   assert.match(layout, /if \(claimDailyPromoVisit\(\)\) sendPromoEvent\('page_view'\)/);
   assert.doesNotMatch(layout, /sessionStorage|document\.cookie|visitor[_-]?id|fingerprint|utm_/i);
-  assert.match(middleware, /pathname === PROMO_CUSTOM_ANALYTICS_PATH/);
+  assert.doesNotMatch(middleware, /PROMO_CUSTOM_ANALYTICS_PATH|analytics\/host/);
   assert.match(admin, /Visitantes diarios/);
   assert.match(admin, /Cada navegador cuenta una vez por tienda y día/);
   assert.doesNotMatch(admin, /Aperturas Landing QR|landing_qr_opens/);

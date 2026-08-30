@@ -4,7 +4,6 @@ import { request as nodeHttpsRequest } from 'node:https';
 import {
   applyPromoSecurityHeaders,
   isPromoPlatformHostRequest,
-  promoRequestAuthority,
 } from './promoSecurity.ts';
 import { isPromoServiceIconKey } from './promoServiceIcons.ts';
 
@@ -1441,19 +1440,8 @@ export function promoPlatformEndpoint(publicSlug: string, locale?: string) {
     : `/api/pz/promo/public/v1/shell/sites/${slug}`;
 }
 
-export function promoHostEndpoint(locale?: string) {
-  return locale
-    ? `/api/pz/promo/public/v1/shell/host/locales/${encodeURIComponent(locale)}`
-    : '/api/pz/promo/public/v1/shell/host';
-}
-
 export async function readPlatformPromoShell(request: Request, publicSlug: string, locale?: string) {
   return requestContract({ endpoint: promoPlatformEndpoint(publicSlug, locale), request });
-}
-
-export async function readCustomHostPromoShell(request: Request, locale?: string) {
-  const host = promoRequestAuthority(request).authority;
-  return requestContract({ endpoint: promoHostEndpoint(locale), request, host });
 }
 
 export async function readPromoCommerceBridge(request: Request, storeSlug: string) {
@@ -1464,19 +1452,6 @@ export async function readPromoCommerceBridge(request: Request, storeSlug: strin
     contract: 'route',
   });
   return result.route.action === 'redirect' ? result.route.location || '' : '';
-}
-
-export function customPromoPublicPath(pathname: string) {
-  if (pathname === '/') return { allowed: true as const, locale: undefined };
-  const match = pathname.match(/^\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)(?:\/servicios\/([a-z][a-z0-9_-]{0,119}))?\/?$/);
-  const reserved = new Set(['admin', 'master', 'api', 't', 'checkout']);
-  return match && !reserved.has(match[1].toLowerCase())
-    ? {
-      allowed: true as const,
-      locale: match[1],
-      ...(match[2] ? { serviceKey: match[2] } : {}),
-    }
-    : { allowed: false as const, locale: undefined };
 }
 
 export function isPromoPlatformRequest(request: Request) {

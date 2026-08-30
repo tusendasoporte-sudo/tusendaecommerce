@@ -10,14 +10,6 @@ routerAdd(
 
 routerAdd(
   "POST",
-  "/api/pz/promo/public/v1/analytics/host/events",
-  (e) => require(`${__hooks}/pz_promo_analytics_api_lib.js`).handleCollect(e, "custom"),
-  $apis.bodyLimit(1024),
-  $apis.skipSuccessActivityLog(),
-);
-
-routerAdd(
-  "POST",
   "/api/pz/promo/private/v1/analytics/summary",
   (e) => require(`${__hooks}/pz_promo_analytics_api_lib.js`).handleSummary(e),
   (e) => require(`${__hooks}/pz_promo_analytics_api_lib.js`).requireAuthenticatedUser(e),

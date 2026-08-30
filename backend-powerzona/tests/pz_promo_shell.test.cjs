@@ -136,10 +136,10 @@ test('SHELL neutral ignora cookie y navegador para entrar siempre al idioma base
 test('SHELL registra solo GET públicos acotados y consume DOM/PUBCFG/I18N server-side', () => {
   const hook = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_shell.pb.js'), 'utf8');
   const api = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_shell_api_lib.js'), 'utf8');
-  assert.equal((hook.match(/routerAdd\(/g) || []).length, 5);
-  assert.equal((hook.match(/"GET"/g) || []).length, 5);
+  assert.equal((hook.match(/routerAdd\(/g) || []).length, 3);
+  assert.equal((hook.match(/"GET"/g) || []).length, 3);
   assert.match(hook, /shell\/sites\/\{publicSlug\}/);
-  assert.match(hook, /shell\/host/);
+  assert.doesNotMatch(hook, /shell\/host/);
   assert.match(hook, /shell\/stores\/\{storeSlug\}/);
   assert.doesNotMatch(hook, /requireAuth|POST|PATCH|DELETE/);
   assert.match(api, /domain\.resolveHostContext/);

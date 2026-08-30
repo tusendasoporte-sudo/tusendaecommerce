@@ -372,70 +372,11 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     assert.ok(masterContext.data.access.reserved_permissions.includes('promo.entitlements.manage'));
     assert.ok(masterContext.data.access.allowed_actions.includes('promo.master.entitlements.manage'));
 
-    const bindingA = await create('promo_domain_bindings', {
-      site: siteA.id,
-      hostname_ascii: 'domain-a.example.test',
-      hostname_display: 'domain-a.example.test',
-      role: 'primary',
-      status: 'pending',
-      is_current: true,
-      verification_method: '',
-      state_version: 1,
-    });
-    const simulateBody = (operation) => ({
-      binding_id: bindingA.id,
-      contract: 'promo.domain.cloudflare.simulate.v1',
-      expected_state_version: 1,
-      expected_status: 'pending',
-      mode: 'simulation',
-      operation,
-    });
-    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
-      token: primaryToken,
-      json: simulateBody('prepare'),
-    }), 403, 'Admin Promo no recibe integración Cloudflare reservada');
-    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
-      token: masterToken,
-      json: simulateBody('prepare'),
-    }), 403, 'Master sin tenant explícito no simula Cloudflare');
-    assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
-      token: masterToken,
-      headers: { 'X-PZ-Promo-Store': storeB.id },
-      json: simulateBody('prepare'),
-    }), 404, 'binding A no puede simularse bajo contexto B');
     assertStatus(await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
       token: masterToken,
       headers: { 'X-PZ-Promo-Store': storeA.id },
-      json: { ...simulateBody('prepare'), zone_id: 'client-controlled' },
-    }), 400, 'cliente no aporta zona o configuración de proveedor');
-    const simulations = {};
-    for (const operation of ['prepare', 'inspect', 'remove']) {
-      const result = await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
-        token: masterToken,
-        headers: { 'X-PZ-Promo-Store': storeA.id },
-        json: simulateBody(operation),
-      });
-      assertStatus(result, 200, `simulación Cloudflare ${operation}`);
-      assert.equal(result.data.contract, 'promo.domain.cloudflare.simulation.v1');
-      assert.equal(result.data.mode, 'simulation');
-      assert.equal(result.data.operation, operation);
-      assert.equal(Object.values(result.data.provider_state).every((value) => value === 'not_executed'), true);
-      assert.equal(Object.values(result.data.deferred).every(Boolean), true);
-      assert.equal(result.data.audit.recorded, true);
-      const serialized = JSON.stringify(result.data);
-      for (const forbidden of [
-        siteA.id, storeA.id, 'provider_reference', 'validation_records', 'Authorization', 'Bearer ',
-      ]) assert.equal(serialized.includes(forbidden), false, `simulación excluye ${forbidden}`);
-      simulations[operation] = result.data;
-    }
-    const simulationReplay = await request('/api/pz/promo/private/v1/domains/cloudflare/simulate', {
-      token: masterToken,
-      headers: { 'X-PZ-Promo-Store': storeA.id },
-      json: simulateBody('prepare'),
-    });
-    assertStatus(simulationReplay, 200, 'replay Cloudflare determinista e idempotente');
-    assert.equal(simulationReplay.data.simulation_reference, simulations.prepare.simulation_reference);
-    assert.equal(simulationReplay.data.request_fingerprint, simulations.prepare.request_fingerprint);
+      json: {},
+    }), 404, 'la simulación Cloudflare permanece retirada');
 
     const staffContext = await request('/api/pz/promo/access/context', { token: staffToken, json: {} });
     assertStatus(staffContext, 403, 'staff sin concesión');
@@ -515,6 +456,16 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     });
     assertStatus(unknownCapability, 400, 'capacidad unknown');
     assert.equal(unknownCapability.data.error, 'unknown_promo_capability');
+    const retiredDomainCapability = await request('/api/pz/promo/master/entitlements/update', {
+      token: masterToken,
+      headers: { 'X-PZ-Promo-Store': storeA.id },
+      json: {
+        expected_updated: entitlementA.updated, source: 'contract',
+        capabilities: { custom_domain_enabled: true }, reason: 'Capacidad retirada runtime',
+      },
+    });
+    assertStatus(retiredDomainCapability, 400, 'la capacidad general de dominio no puede reactivarse');
+    assert.equal(retiredDomainCapability.data.error, 'invalid_promo_capability');
 
     const disableAnalytics = await request('/api/pz/promo/master/entitlements/update', {
       token: masterToken,
@@ -539,11 +490,8 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       token: primaryToken, json: auditListBody,
     });
     assertStatus(primaryAudit, 200, 'principal lee actividad Promo crítica');
-    assert.equal(primaryAudit.data.events.length, 5);
+    assert.equal(primaryAudit.data.events.length, 2);
     assert.deepEqual(primaryAudit.data.events.map((event) => event.action).sort(), [
-      'promo.domain.cloudflare.inspect.simulate',
-      'promo.domain.cloudflare.prepare.simulate',
-      'promo.domain.cloudflare.remove.simulate',
       'promo.entitlements.update',
       'promo.team.permissions.update',
     ]);

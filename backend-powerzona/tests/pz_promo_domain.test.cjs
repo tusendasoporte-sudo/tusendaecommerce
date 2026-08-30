@@ -287,12 +287,8 @@ test('DOM-CORE no pausa, revoca o libera el primary que aún gobierna el slot cu
   assert.doesNotThrow(() => api.assertNotCanonicalInUse(app, alias));
 });
 
-test('DOM-CORE registra solo rutas privadas Master y no implementa Cloudflare, DNS, publish o shell', () => {
+test('DOM-CORE conserva su núcleo histórico pero no registra rutas HTTP', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_domain.pb.js'), 'utf8');
-  assert.match(source, /\/api\/pz\/promo\/private\/v1\/domains\/list/);
-  assert.match(source, /\/api\/pz\/promo\/private\/v1\/domains\/create/);
-  assert.match(source, /\/api\/pz\/promo\/private\/v1\/domains\/verify/);
-  assert.match(source, /\/api\/pz\/promo\/private\/v1\/domains\/status\/update/);
-  assert.equal((source.match(/routerAdd\(/g) || []).length, 4);
-  assert.doesNotMatch(source, /public\/v1|Cloudflare|Coolify|DNS|publish|rollback|shell/i);
+  assert.equal((source.match(/routerAdd\(/g) || []).length, 0);
+  assert.doesNotMatch(source, /\/api\/pz\/promo\/|\$apis\./);
 });

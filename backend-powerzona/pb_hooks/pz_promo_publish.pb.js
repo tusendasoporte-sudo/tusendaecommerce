@@ -62,16 +62,6 @@ routerAdd(
 
 routerAdd(
   "POST",
-  "/api/pz/promo/private/v1/publication/canonical/switch",
-  (e) => require(`${__hooks}/pz_promo_publish_api_lib.js`).handleBindingSwitch(e),
-  (e) => require(`${__hooks}/pz_promo_publish_api_lib.js`).requireAuthenticatedUser(e),
-  $apis.requireAuth(),
-  $apis.bodyLimit(4096),
-  $apis.skipSuccessActivityLog()
-);
-
-routerAdd(
-  "POST",
   "/api/pz/promo/private/v1/publication/pause",
   (e) => require(`${__hooks}/pz_promo_publish_api_lib.js`).handlePause(e),
   (e) => require(`${__hooks}/pz_promo_publish_api_lib.js`).requireAuthenticatedUser(e),

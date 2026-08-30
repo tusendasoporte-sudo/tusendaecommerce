@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createServer } from 'node:http';
 import test from 'node:test';
 
 import {
-  customPromoPublicPath,
   isPromoPlatformRequest,
   normalizePromoPublicShellResponse,
   promoQuoteHref,
@@ -12,9 +10,7 @@ import {
   PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
   platformPromoPublicPath,
-  promoHostEndpoint,
   promoPlatformEndpoint,
-  readCustomHostPromoShell,
 } from '../src/lib/promoPublicShell.ts';
 
 function read(relativePath) {
@@ -700,65 +696,15 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
   assert.throws(() => normalizePromoPublicShellResponse(wrongPurpose), PromoPublicShellError);
 });
 
-test('rutas públicas separan plataforma, Host y paths custom allowlisted', () => {
+test('rutas públicas exponen únicamente la plataforma de Tu Senda 84', () => {
   assert.equal(promoPlatformEndpoint('demo-promo'), '/api/pz/promo/public/v1/shell/sites/demo-promo');
   assert.equal(promoPlatformEndpoint('demo-promo', 'es'), '/api/pz/promo/public/v1/shell/sites/demo-promo/locales/es');
-  assert.equal(promoHostEndpoint(), '/api/pz/promo/public/v1/shell/host');
-  assert.equal(promoHostEndpoint('en'), '/api/pz/promo/public/v1/shell/host/locales/en');
-  assert.deepEqual(customPromoPublicPath('/'), { allowed: true, locale: undefined });
-  assert.deepEqual(customPromoPublicPath('/es'), { allowed: true, locale: 'es' });
-  assert.deepEqual(customPromoPublicPath('/es/servicios/service-clean'), {
-    allowed: true, locale: 'es', serviceKey: 'service-clean',
-  });
   assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/es/servicios/service-clean'), {
     publicSlug: 'demo-promo', locale: 'es', serviceKey: 'service-clean',
   });
-  assert.equal(customPromoPublicPath('/es/servicios').allowed, false);
-  assert.equal(customPromoPublicPath('/es/servicios/Service-Clean').allowed, false);
-  assert.equal(customPromoPublicPath('/admin').allowed, false);
-  assert.equal(customPromoPublicPath('/api/pz').allowed, false);
   assert.equal(isPromoPlatformRequest(new Request('https://tusenda84.com/promo/demo-promo')), true);
   assert.equal(isPromoPlatformRequest(new Request('https://unknown.91.99.99.83.sslip.io/')), false);
   assert.equal(isPromoPlatformRequest(new Request('https://unknown.example.test/')), false);
-});
-
-test('salto SSR a PocketBase conserva el Host original con transporte Node', async () => {
-  let observedHost = '';
-  let observedPath = '';
-  const server = createServer((request, response) => {
-    observedHost = request.headers.host || '';
-    observedPath = request.url || '';
-    response.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Content-Language': 'es',
-      'Cache-Control': 'private, no-store, max-age=0',
-      'X-PZ-Promo-Cache-Contract': 'promo.public.cache.v1',
-      'X-PZ-Promo-Cache-Key': 'a'.repeat(64),
-    });
-    response.end(JSON.stringify(shellEnvelope('custom')));
-  });
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const address = server.address();
-  assert.equal(typeof address, 'object');
-  const previous = process.env.PZ_POCKETBASE_INTERNAL_URL;
-  process.env.PZ_POCKETBASE_INTERNAL_URL = `http://127.0.0.1:${address.port}`;
-  try {
-    const result = await readCustomHostPromoShell(new Request('https://primary.example.test/', {
-      headers: { Host: 'primary.example.test', 'Accept-Language': 'es' },
-    }));
-    assert.equal(result.profile.content.identity.name, 'Negocio demo');
-    assert.equal(result.response.contentLanguage, 'es');
-    assert.equal(result.response.cacheKey, 'a'.repeat(64));
-    assert.equal(observedHost, 'primary.example.test');
-    assert.equal(observedPath, '/api/pz/promo/public/v1/shell/host');
-  } finally {
-    if (previous === undefined) delete process.env.PZ_POCKETBASE_INTERNAL_URL;
-    else process.env.PZ_POCKETBASE_INTERNAL_URL = previous;
-    await new Promise((resolve) => server.close(resolve));
-  }
 });
 
 test('shell SSR es independiente de Layout y solo hidrata analítica Promo allowlisted', () => {
@@ -819,8 +765,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   assert.doesNotMatch(combined, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
   assert.match(localized, /Astro\.url\.search/);
-  assert.match(middleware, /readCustomHostPromoShell/);
-  assert.match(middleware, /customPromoPublicPath/);
+  assert.doesNotMatch(middleware, /readCustomHostPromoShell|customPromoPublicPath|shell\/host/);
   assert.match(middleware, /promoPublicUnavailable\(404\)/);
   assert.ok(commerce.indexOf('readPromoCommerceBridge') < commerce.indexOf("import('../../../components/public-store/PublicStoreHome.astro')"));
   assert.doesNotMatch(commerce, /storeSlug[^\n]*toLowerCase/);
@@ -914,7 +859,7 @@ test('HERO reutiliza exclusivamente el CTA principal compilado por CONTACT', () 
   assert.doesNotMatch(hero, /href=\{`#\$\{sectionId\}-media-/);
   assert.doesNotMatch(hero, /id=\{`\$\{sectionId\}-media-/);
   assert.doesNotMatch(contactStyles, /url\(|@import|https?:/i);
-  assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}\n${contactStyles}`, 'utf8') <= 50 * 1024,
+  assert.ok(Buffer.byteLength(`${read('../src/styles/promo-black-gold.css')}\n${heroStyles}\n${contactStyles}`.replace(/\r\n/g, '\n'), 'utf8') <= 50 * 1024,
     'CSS combinado ALADDIN/HERO/CONTACT excede el budget Theme de 50 KiB');
 });
 
@@ -971,7 +916,7 @@ test('SECTIONS enlaza categorías a su página de opciones, deriva destacados y 
   assert.doesNotMatch(`${sections}\n${media}`, /<script|<form|tel:|mailto:|wa\.me|onclick|addEventListener/i);
   assert.doesNotMatch(`${sections}\n${media}\n${sectionStyles}`, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.doesNotMatch(sectionStyles, /url\(|@import|https?:/i);
-  assert.ok(Buffer.byteLength(allThemeStyles, 'utf8') <= 50 * 1024,
+  assert.ok(Buffer.byteLength(allThemeStyles.replace(/\r\n/g, '\n'), 'utf8') <= 50 * 1024,
     'CSS combinado ALADDIN/HERO/SECTIONS excede el budget Theme de 50 KiB');
 });
 

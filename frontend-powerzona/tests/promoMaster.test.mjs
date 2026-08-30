@@ -21,18 +21,15 @@ test('cliente Master Promo usa exclusivamente POST privados, contexto header y c
     '/api/pz/promo/master/v1/overview',
     '/api/pz/promo/master/v1/lifecycle/update',
     '/api/pz/promo/master/entitlements/update',
-    '/api/pz/promo/private/v1/domains/create',
-    '/api/pz/promo/private/v1/domains/verify',
-    '/api/pz/promo/private/v1/domains/status/update',
     '/api/pz/promo/private/v1/themes/releases/update',
     '/api/pz/promo/private/v1/publication/candidates/create',
     '/api/pz/promo/private/v1/publication/publish',
     '/api/pz/promo/private/v1/publication/rollback',
     '/api/pz/promo/private/v1/publication/unpublish',
-    '/api/pz/promo/private/v1/publication/canonical/switch',
     '/api/pz/promo/private/v1/publication/pause',
     '/api/pz/promo/private/v1/publication/resume',
   ]) assert.match(client, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(client, /\/domains\/|canonical\/switch|mode: 'custom'/);
   assert.match(client, /'X-PZ-Promo-Store'/);
   assert.match(client, /idempotency_key/);
   assert.match(client, /expected_generation/);
@@ -78,17 +75,16 @@ test('rutas Master específicas de Commerce fallan cerradas para Promo o clasifi
   assert.match(planPage, /MasterStorePlanView/);
 });
 
-test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo editorial', () => {
+test('UI limita Master a lifecycle, capacidades y catálogo sin dominios ni flujo editorial', () => {
   assert.match(view, /El Admin guarda directamente/);
-  assert.match(view, /estado canónico es informativo/i);
+  assert.match(view, /Todas las Tiendas Promo se publican bajo el dominio de Tu Senda 84/);
   assert.match(view, /overview\.site\.allowed_next_statuses/);
-  assert.match(view, /binding\.allowed_next_statuses/);
   assert.match(view, /release\.allowed_next_statuses/);
   assert.match(view, /aria-live="polite"/);
   assert.match(view, /promo_capability_denied/);
   assert.match(view, /language_selector_enabled', 'Selector de idioma público y Admin Promo/);
   assert.match(view, /BOOLEAN_CAPABILITIES[\s\S]*language_selector_enabled/);
-  assert.match(view, /verification_evidence_sha256/);
+  assert.doesNotMatch(view, /custom_domain_enabled|data-domain|verification_evidence_sha256|Dominio personalizado/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
   assert.doesNotMatch(view, /\['landing_qr_bridge_enabled',|Landing QR/);

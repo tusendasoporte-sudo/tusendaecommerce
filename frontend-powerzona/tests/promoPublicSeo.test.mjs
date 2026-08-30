@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  customPromoSeoResource,
   normalizePromoSeoResource,
   promoSeoResourceResponse,
   renderPromoRobots,
@@ -82,7 +81,7 @@ test('recursos SEO sirven tipos correctos y aliases redirigen permanentemente', 
   assert.equal(response.headers.get('vary'), 'Host');
 });
 
-test('SSR materializa canonical, OG/Twitter, sitemap y recursos custom sin tocar Commerce', () => {
+test('SSR materializa canonical, OG/Twitter y recursos de plataforma sin tocar Commerce', () => {
   const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
   const layout = read('../src/layouts/PromoPublicLayout.astro');
   const middleware = read('../src/middleware.ts');
@@ -95,14 +94,10 @@ test('SSR materializa canonical, OG/Twitter, sitemap y recursos custom sin tocar
   assert.match(layout, /hreflang="x-default"/);
   assert.match(layout, /property="og:title"/);
   assert.match(layout, /name="twitter:card"/);
-  assert.match(middleware, /customPromoSeoResource/);
-  assert.match(middleware, /readCustomHostPromoSeo/);
+  assert.doesNotMatch(middleware, /customPromoSeoResource|readCustomHostPromoSeo|seo\/host/);
   assert.match(`${sitemapRoute}\n${robotsRoute}`, /readPlatformPromoSeo/);
-  assert.equal(customPromoSeoResource('/sitemap.xml'), 'sitemap');
   assert.match(platformPage, /seo=\{resolved\.seo\}/);
   assert.match(localizedPage, /seo=\{resolved\.seo\}/);
   assert.match(`${platformPage}\n${localizedPage}`, /Astro\.redirect\(resolved\.route\.location, 308\)/);
-  assert.equal(customPromoSeoResource('/robots.txt'), 'robots');
-  assert.equal(customPromoSeoResource('/checkout'), null);
   assert.doesNotMatch(`${layout}\n${seoClient}\n${sitemapRoute}\n${robotsRoute}`, /products|orders|inventory|price|stock|Cloudflare|Coolify/i);
 });

@@ -165,18 +165,14 @@ test('AUDIT registra las tres simulaciones con snapshot allowlisted sin hostname
   }
 });
 
-test('hook registra una sola ruta privada POST y el módulo no contiene transporte externo o secretos', () => {
+test('hook de Cloudflare queda inactivo y sin superficie HTTP', () => {
   const hooks = path.join(__dirname, '..', 'pb_hooks');
   const route = fs.readFileSync(path.join(hooks, 'pz_promo_cloudflare.pb.js'), 'utf8');
   const lib = fs.readFileSync(path.join(hooks, 'pz_promo_cloudflare_lib.js'), 'utf8');
   const apiSource = fs.readFileSync(path.join(hooks, 'pz_promo_cloudflare_api_lib.js'), 'utf8');
-  assert.deepEqual(
-    [...route.matchAll(/"(\/api\/pz\/promo\/[^\"]+)"/g)].map((match) => match[1]),
-    ['/api/pz/promo/private/v1/domains/cloudflare/simulate'],
-  );
-  assert.equal((route.match(/\$apis\.requireAuth\(\)/g) || []).length, 1);
-  assert.equal((route.match(/\$apis\.bodyLimit\(/g) || []).length, 1);
-  assert.doesNotMatch(route, /routerAdd\(\s*"(?:GET|PATCH|DELETE)"|\/public\//);
+  assert.deepEqual([...route.matchAll(/"(\/api\/pz\/promo\/[^\"]+)"/g)].map((match) => match[1]), []);
+  assert.equal((route.match(/routerAdd\(/g) || []).length, 0);
+  assert.doesNotMatch(route, /\/api\/pz\/promo\/|\$apis\./);
   assert.match(apiSource, /"promo\.master\.domains\.manage"|domainApi\.domainDecision/);
   assert.match(apiSource, /createPromoAudit/);
   assert.doesNotMatch(`${lib}\n${apiSource}`, /\bfetch\s*\(|XMLHttpRequest|https\.request|process\.env|\$os\.getenv|Authorization\s*:/);

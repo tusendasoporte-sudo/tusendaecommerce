@@ -29,24 +29,16 @@ import {
 } from './lib/promoAdminShell';
 import {
   applyPromoPublicHeaders,
-  customPromoPublicPath,
   platformPromoPublicPath,
   PROMO_PUBLIC_INTERNAL_PATH,
   PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
   promoPublicUnavailable,
-  readCustomHostPromoShell,
   readPlatformPromoShell,
 } from './lib/promoPublicShell';
 import { findPromoService } from './lib/promoServiceCatalog';
 import { servePromoPublicRepresentation } from './lib/promoPerformance';
 import { promoPublicMediaPath, proxyPromoPublicMedia } from './lib/promoPublicMediaProxy';
-import {
-  customPromoSeoResource,
-  promoSeoResourceResponse,
-  readCustomHostPromoSeo,
-} from './lib/promoPublicSeo';
-import { PROMO_CUSTOM_ANALYTICS_PATH } from './lib/promoPublicAnalytics';
 import {
   applyPromoSecurityHeaders,
   promoSecurityUnavailable,
@@ -248,46 +240,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (!promoSecurityDecision.platform) {
-    if (pathname === PROMO_CUSTOM_ANALYTICS_PATH) return applyPromoSecurityHeaders(await next());
-    if (context.request.method !== 'GET' && context.request.method !== 'HEAD') return promoPublicUnavailable(404);
-    const seoResource = customPromoSeoResource(pathname);
-    if (seoResource) {
-      if (context.url.search) return promoPublicUnavailable(404);
-      try {
-        return promoSeoResourceResponse(await readCustomHostPromoSeo(context.request, seoResource));
-      } catch (error) {
-        const status = error instanceof PromoPublicShellError ? error.status : 421;
-        return promoPublicUnavailable(status === 404 ? 404 : 421);
-      }
-    }
-    const publicPath = customPromoPublicPath(pathname);
-    let resolved;
-    try {
-      resolved = await readCustomHostPromoShell(
-        context.request,
-        publicPath.allowed && !context.url.search ? publicPath.locale : undefined,
-      );
-    } catch (error) {
-      const status = error instanceof PromoPublicShellError ? error.status : 421;
-      return promoPublicUnavailable(status === 404 && publicPath.allowed ? 404 : 421);
-    }
-    if (!publicPath.allowed || context.url.search) return promoPublicUnavailable(404);
-    if (resolved.route.action === 'redirect' && resolved.route.location) {
-      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
-    }
-    if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(421);
-    if (publicPath.serviceKey && !findPromoService(resolved.profile, publicPath.serviceKey)) {
-      return promoPublicUnavailable(404);
-    }
-    context.locals.promoPublicProfile = resolved.profile;
-    context.locals.promoPublicSeo = resolved.seo;
-    context.locals.promoPublicServiceKey = publicPath.serviceKey;
-    const response = await servePromoPublicRepresentation(
-      context.request,
-      resolved,
-      () => context.rewrite(publicPath.serviceKey ? PROMO_PUBLIC_SERVICE_INTERNAL_PATH : PROMO_PUBLIC_INTERNAL_PATH),
-    );
-    return applyPromoPublicHeaders(response, resolved);
+    return promoPublicUnavailable(404);
   }
 
   const platformPromoPath = platformPromoPublicPath(pathname);

@@ -173,9 +173,11 @@ function fixture() {
 
 test('catálogos Promo quedan separados de los 29 permisos, cinco reservados y nueve capacidades Commerce vigentes', () => {
   assert.equal(promo.PROMO_ASSIGNABLE_PERMISSION_KEYS.length, 10);
-  assert.equal(promo.PROMO_RESERVED_PERMISSION_KEYS.length, 6);
+  assert.equal(promo.PROMO_RESERVED_PERMISSION_KEYS.length, 5);
   assert.equal(promo.PROMO_CAPABILITY_KEYS.length, 14);
-  assert.equal(promo.PROMO_ACTION_KEYS.length, 18);
+  assert.equal(promo.PROMO_ACTION_KEYS.length, 17);
+  assert.equal(promo.PROMO_RESERVED_PERMISSION_KEYS.includes('promo.domains.manage'), false);
+  assert.equal(promo.PROMO_ACTION_KEYS.includes('promo.master.domains.manage'), false);
   assert.equal(commercePermissions.ASSIGNABLE_PERMISSION_KEYS.length, 29);
   assert.equal(commercePermissions.RESERVED_PERMISSIONS.length, 5);
   assert.equal(Object.keys(commercePermissions.PERMISSION_TEMPLATES).length, 6);
