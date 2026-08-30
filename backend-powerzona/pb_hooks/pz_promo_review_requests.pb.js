@@ -46,8 +46,28 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/promo/private/v1/reviews/requests/reveal",
+  (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handlePrivateReveal(e),
+  (e) => require(`${__hooks}/pz_promo_reviews_api_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/promo/private/v1/reviews/requests/revoke",
   (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handlePrivateRevoke(e),
+  (e) => require(`${__hooks}/pz_promo_reviews_api_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/promo/private/v1/reviews/requests/delete",
+  (e) => require(`${__hooks}/pz_promo_review_requests_api_lib.js`).handlePrivateDelete(e),
   (e) => require(`${__hooks}/pz_promo_reviews_api_lib.js`).requireAuthenticatedUser(e),
   $apis.requireAuth(),
   $apis.bodyLimit(2048),

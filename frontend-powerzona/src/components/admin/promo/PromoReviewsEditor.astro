@@ -70,12 +70,15 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
         <button type="submit" data-review-request-create disabled={!canModerate}>Generar enlace privado</button>
       </form>
       <section class="pz-promo-reviews-admin__generated" data-review-request-generated hidden aria-labelledby="review-generated-title">
-        <h4 id="review-generated-title">Enlace creado</h4>
+        <div class="pz-promo-reviews-admin__generated-heading">
+          <h4 id="review-generated-title">Enlace creado</h4>
+          <button type="button" data-review-close-link aria-label="Cerrar enlace creado">×</button>
+        </div>
         <input type="text" readonly data-review-request-link aria-label="Enlace privado de reseña" />
         <div class="pz-promo-reviews-admin__generated-actions">
           <button type="button" data-review-copy-link>Copiar enlace</button>
           <button type="button" data-review-share-link>Compartir</button>
-          <a data-review-whatsapp-link target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
+          <button type="button" data-review-whatsapp-link>Enviar por WhatsApp</button>
         </div>
         <p>WhatsApp y el menú Compartir enviarán el enlace privado al cliente.</p>
         <img data-review-request-qr alt="Código QR del enlace privado de reseña" width="220" height="220" />
@@ -127,6 +130,8 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
   import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
   import {
     normalizePromoReviewRequestCreated,
+    normalizePromoReviewRequestDeleted,
+    normalizePromoReviewRequestRevealed,
     normalizePromoReviewRequestRevoked,
     normalizePromoReviewRequestsPage,
     promoPublicPageLink,
@@ -178,6 +183,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
     let generatedLink = '';
     let generatedPublicLink = '';
     let generatedShareText = '';
+    let generatedRequestId = '';
     let configDirty = false;
     let requestDirty = false;
     const requestByReviewId = new Map<string, ReturnType<typeof normalizePromoReviewRequestsPage>['requests'][number]>();
@@ -223,6 +229,16 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       return ({ pending: 'Pendiente de uso', received: 'Reseña recibida', expired: 'Vencida', revoked: 'Revocada' } as Record<string, string>)[status] || status;
     }
 
+    function requestActionButton(label: string, dataKey: string, requestId: string, tone = '') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.dataset[dataKey] = requestId;
+      if (tone) button.dataset.tone = tone;
+      button.disabled = !canModerate;
+      return button;
+    }
+
     function renderRequestCard(item: ReturnType<typeof normalizePromoReviewRequestsPage>['requests'][number]) {
       const article = document.createElement('article'); article.className = 'pz-promo-reviews-admin__request-card';
       const header = document.createElement('header');
@@ -239,9 +255,21 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
         work.dataset.promoAdminNoTranslate = '';
         article.append(work);
       }
-      if (item.status === 'pending') {
-        const revoke = document.createElement('button'); revoke.type = 'button'; revoke.textContent = 'Revocar enlace'; revoke.dataset.requestRevoke = item.id; revoke.dataset.tone = 'danger'; revoke.disabled = !canModerate; article.append(revoke);
+      const actions = document.createElement('div'); actions.className = 'pz-promo-reviews-admin__request-actions';
+      if (item.status === 'pending' && item.shareable) {
+        actions.append(
+          requestActionButton('Copiar enlace', 'requestCopy', item.id),
+          requestActionButton('Enviar por WhatsApp', 'requestWhatsapp', item.id),
+        );
+      } else if (item.status === 'pending') {
+        const legacy = document.createElement('p'); legacy.className = 'pz-promo-reviews-admin__request-legacy';
+        legacy.textContent = 'Este enlace anterior no puede recuperarse. Crea uno nuevo para volver a compartirlo.';
+        article.append(legacy);
       }
+      if (item.status === 'pending') actions.append(requestActionButton('Revocar enlace', 'requestRevoke', item.id, 'danger'));
+      if (item.status === 'received' && item.reviewId) actions.append(requestActionButton('Ver reseña', 'requestReview', item.reviewId));
+      actions.append(requestActionButton('Borrar', 'requestDelete', item.id, 'danger'));
+      article.append(actions);
       return article;
     }
 
@@ -259,13 +287,54 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       clearStaleError();
     }
 
-    async function displayGeneratedLink(token: string, locale: string) {
-      generatedPublicLink = promoPublicPageLink(publicSlug, locale, window.location.origin);
-      generatedLink = promoReviewRequestLink(publicSlug, locale, token, window.location.origin);
-      generatedShareText = `Hola. Gracias por confiar en ${storeName}.\n\nConoce nuestra página: ${generatedPublicLink}\n\nDeja tu reseña privada de este trabajo aquí: ${generatedLink}`;
+    function shareDetails(token: string, locale: string) {
+      const publicLink = promoPublicPageLink(publicSlug, locale, window.location.origin);
+      const reviewLink = promoReviewRequestLink(publicSlug, locale, token, window.location.origin);
+      return {
+        publicLink,
+        reviewLink,
+        text: `Hola. Gracias por confiar en ${storeName}.\n\nConoce nuestra página: ${publicLink}\n\nDeja tu reseña privada de este trabajo aquí: ${reviewLink}`,
+      };
+    }
+
+    function clearGeneratedLink() {
+      generatedLink = '';
+      generatedPublicLink = '';
+      generatedShareText = '';
+      generatedRequestId = '';
+      if (requestLink) requestLink.value = '';
+      if (requestQr) { requestQr.removeAttribute('src'); requestQr.hidden = true; }
+      if (requestGenerated) requestGenerated.hidden = true;
+    }
+
+    function whatsappRecipient() {
+      const value = window.prompt(adminLocale === 'en'
+        ? 'Enter the customer’s WhatsApp number with country code. Example: 13055550184'
+        : 'Escribe el número de WhatsApp del cliente con código de país. Ejemplo: 13055550184');
+      if (value === null) return '';
+      const digits = value.replace(/\D/g, '');
+      if (!/^[1-9]\d{7,14}$/.test(digits)) {
+        show('Escribe un número válido con código de país, sin extensiones.', 'error');
+        return '';
+      }
+      return digits;
+    }
+
+    function openWhatsapp(recipient: string, message: string, popup?: Window | null) {
+      const url = `https://wa.me/${recipient}?text=${encodeURIComponent(message)}`;
+      if (popup && !popup.closed) { popup.location.href = url; return; }
+      const opened = window.open(url, '_blank');
+      if (opened) opened.opener = null;
+      else show('Permite ventanas emergentes para abrir WhatsApp.', 'error');
+    }
+
+    async function displayGeneratedLink(token: string, locale: string, requestId: string) {
+      const details = shareDetails(token, locale);
+      generatedPublicLink = details.publicLink;
+      generatedLink = details.reviewLink;
+      generatedShareText = details.text;
+      generatedRequestId = requestId;
       if (requestLink) requestLink.value = generatedLink;
-      const whatsapp = root.querySelector<HTMLAnchorElement>('[data-review-whatsapp-link]');
-      if (whatsapp) whatsapp.href = `https://wa.me/?text=${encodeURIComponent(generatedShareText)}`;
       if (requestQr) {
         try {
           requestQr.src = await QRCode.toDataURL(generatedLink, { width: 220, margin: 1, errorCorrectionLevel: 'M' });
@@ -292,15 +361,90 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
             expires_days: Number(requestExpiry?.value || 30),
           }),
         })));
-        await displayGeneratedLink(result.token, result.request.locale);
+        await displayGeneratedLink(result.token, result.request.locale, result.request.id);
         requestDirty = false;
         if (requestCustomer) requestCustomer.value = ''; if (requestWork) requestWork.value = '';
-        show('Solicitud creada. El token solo se muestra en este enlace.', 'success');
+        show('Solicitud creada y enlace protegido.', 'success');
         await loadRequests();
       } catch (error) {
         const candidate = error as { code?: string; message?: string };
         show(promoReviewRequestsErrorMessage(candidate.code || candidate.message), 'error');
       } finally { requestCreate.disabled = !canModerate; requestCreate.textContent = 'Generar enlace privado'; }
+    }
+
+    async function revealRequest(requestId: string) {
+      return normalizePromoReviewRequestRevealed(await responseJson(await fetch(requestEndpoint(), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId }),
+      })));
+    }
+
+    async function copyStoredRequest(button: HTMLButtonElement) {
+      button.disabled = true;
+      try {
+        const result = await revealRequest(String(button.dataset.requestCopy || ''));
+        const details = shareDetails(result.token, result.request.locale);
+        await navigator.clipboard.writeText(details.reviewLink);
+        show('Enlace copiado.', 'success');
+      } catch (error) {
+        show(promoReviewRequestsErrorMessage((error as { code?: string })?.code), 'error');
+      } finally { button.disabled = !canModerate; }
+    }
+
+    async function whatsappStoredRequest(button: HTMLButtonElement) {
+      const recipient = whatsappRecipient();
+      if (!recipient) return;
+      const popup = window.open('about:blank', '_blank');
+      if (!popup) { show('Permite ventanas emergentes para abrir WhatsApp.', 'error'); return; }
+      popup.opener = null;
+      button.disabled = true;
+      try {
+        const result = await revealRequest(String(button.dataset.requestWhatsapp || ''));
+        const details = shareDetails(result.token, result.request.locale);
+        openWhatsapp(recipient, details.text, popup);
+      } catch (error) {
+        popup.close();
+        show(promoReviewRequestsErrorMessage((error as { code?: string })?.code), 'error');
+      } finally { button.disabled = !canModerate; }
+    }
+
+    async function mutateRequest(button: HTMLButtonElement, action: 'revoke' | 'delete') {
+      const requestId = String(action === 'delete' ? button.dataset.requestDelete : button.dataset.requestRevoke || '');
+      const confirmation = action === 'delete'
+        ? (adminLocale === 'en'
+          ? 'Permanently delete this record? The link will stop working and any submitted review will remain.'
+          : '¿Borrar definitivamente este registro? El enlace dejará de funcionar y la reseña recibida, si existe, se conservará.')
+        : (adminLocale === 'en'
+          ? 'Revoke this link? The record will remain, but the customer will no longer be able to use it.'
+          : '¿Revocar este enlace? El registro se conservará, pero el cliente ya no podrá usarlo.');
+      if (!requestId || !window.confirm(confirmation)) return;
+      button.disabled = true;
+      try {
+        const value = await responseJson(await fetch(requestEndpoint(), {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, request_id: requestId }),
+        }));
+        if (action === 'delete') normalizePromoReviewRequestDeleted(value);
+        else normalizePromoReviewRequestRevoked(value);
+        if (generatedRequestId === requestId) clearGeneratedLink();
+        show(action === 'delete' ? 'Registro del enlace eliminado.' : 'Enlace revocado.', 'success');
+        await loadRequests();
+        if (action === 'delete') await loadReviews();
+      } catch (error) {
+        show(promoReviewRequestsErrorMessage((error as { code?: string })?.code), 'error');
+        button.disabled = false;
+      }
+    }
+
+    async function viewRequestReview(reviewId: string) {
+      if (!reviewId) return;
+      if (filter) filter.value = 'all';
+      currentPage = 1;
+      await loadReviews();
+      const card = Array.from(root.querySelectorAll<HTMLElement>('[data-review-id]'))
+        .find((candidate) => candidate.dataset.reviewId === reviewId);
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else show('La reseña está guardada. Usa la paginación para localizarla.', 'info');
     }
 
     function statusLabel(status: string) {
@@ -501,6 +645,12 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       if (!generatedLink) return;
       void navigator.clipboard.writeText(generatedLink).then(() => show('Enlace copiado.', 'success')).catch(() => show('No se pudo copiar el enlace.', 'error'));
     });
+    root.querySelector('[data-review-close-link]')?.addEventListener('click', clearGeneratedLink);
+    root.querySelector('[data-review-whatsapp-link]')?.addEventListener('click', () => {
+      if (!generatedShareText) return;
+      const recipient = whatsappRecipient();
+      if (recipient) openWhatsapp(recipient, generatedShareText);
+    });
     root.querySelector('[data-review-share-link]')?.addEventListener('click', () => {
       if (!generatedLink || typeof navigator.share !== 'function') {
         void navigator.clipboard.writeText(generatedLink).then(() => show('Enlace copiado para compartir.', 'success'));
@@ -520,14 +670,17 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       })();
     });
     requestList?.addEventListener('click', (event) => {
-      const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-request-revoke]') : null;
-      if (!button) return;
-      button.disabled = true;
-      void fetch(requestEndpoint(), {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: button.dataset.requestRevoke }),
-      }).then(responseJson).then((value) => {
-        normalizePromoReviewRequestRevoked(value); show('Enlace revocado.', 'success'); return loadRequests();
-      }).catch((error) => { show(promoReviewRequestsErrorMessage(error?.code), 'error'); button.disabled = false; });
+      const target = event.target instanceof Element ? event.target : null;
+      const copy = target?.closest<HTMLButtonElement>('[data-request-copy]');
+      if (copy) { void copyStoredRequest(copy); return; }
+      const whatsapp = target?.closest<HTMLButtonElement>('[data-request-whatsapp]');
+      if (whatsapp) { void whatsappStoredRequest(whatsapp); return; }
+      const revoke = target?.closest<HTMLButtonElement>('[data-request-revoke]');
+      if (revoke) { void mutateRequest(revoke, 'revoke'); return; }
+      const remove = target?.closest<HTMLButtonElement>('[data-request-delete]');
+      if (remove) { void mutateRequest(remove, 'delete'); return; }
+      const review = target?.closest<HTMLButtonElement>('[data-request-review]');
+      if (review) void viewRequestReview(String(review.dataset.requestReview || ''));
     });
 
     void loadWorkspace().catch((error) => show(promoReviewsErrorMessage(error?.code), 'error'));

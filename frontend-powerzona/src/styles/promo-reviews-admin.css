@@ -92,8 +92,11 @@
 .pz-promo-reviews-admin__field input { width: 100%; border: 1px solid #d0d5dd; background: #fff; color: #101828; padding: .65rem .75rem; }
 .pz-promo-reviews-admin__field small { color: #667085; font-weight: 500; }
 .pz-promo-reviews-admin__generated { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; border: 1px solid #bbf7d0; border-radius: 14px; background: #ecfdf3; padding: 1rem; }
-.pz-promo-reviews-admin__generated h4,
+.pz-promo-reviews-admin__generated-heading,
 .pz-promo-reviews-admin__generated p { grid-column: 1 / -1; margin: 0; }
+.pz-promo-reviews-admin__generated-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.pz-promo-reviews-admin__generated-heading h4 { margin: 0; }
+.pz-promo-reviews-admin__generated-heading button { min-height: 36px; border-color: #86efac; background: #fff; color: #166534; padding: .35rem .7rem; font-size: 1.25rem; line-height: 1; }
 .pz-promo-reviews-admin__generated > input { width: 100%; border: 1px solid #86efac; background: #fff; padding: .7rem; }
 .pz-promo-reviews-admin__generated-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
 .pz-promo-reviews-admin__generated-actions button,
@@ -108,7 +111,10 @@
 .pz-promo-reviews-admin__request-card header span[data-status="received"] { background: #ecfdf3; color: #166534; }
 .pz-promo-reviews-admin__request-card header span[data-status="revoked"] { background: #fff1f2; color: #991b1b; }
 .pz-promo-reviews-admin__request-card p { margin: 0; color: #667085; }
-.pz-promo-reviews-admin__request-card > button { width: fit-content; min-height: 36px; background: #fff; color: #b42318; padding: .45rem .7rem; }
+.pz-promo-reviews-admin__request-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.pz-promo-reviews-admin__request-actions button { width: fit-content; min-height: 36px; border-color: #d0d5dd; background: #fff; color: #344054; padding: .45rem .7rem; font-size: .75rem; }
+.pz-promo-reviews-admin__request-actions button[data-tone="danger"] { border-color: #fecaca; color: #b42318; }
+.pz-promo-reviews-admin__request-legacy { border-inline-start: 3px solid #f5c451; padding-inline-start: .65rem; font-size: .78rem; }
 
 @media (max-width: 760px) {
   .pz-promo-reviews-admin__request-form { grid-template-columns: minmax(0, 1fr); }

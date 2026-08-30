@@ -151,5 +151,7 @@ test('Admin usa módulo Promo dedicado, permisos granulares y DOM seguro', () =>
   assert.match(component, /if \(!canConfigure \|\| !configDirty/);
   assert.match(component, /window\.addEventListener\('beforeunload'[\s\S]*?!configDirty && !requestDirty/);
   assert.match(requestProxy, /promo\.review-requests\.create\.v2/);
+  assert.match(requestProxy, /promo\.review-requests\.reveal\.v1/);
+  assert.match(requestProxy, /promo\.review-requests\.delete\.v1/);
   assert.doesNotMatch(`${component}\n${proxy}\n${requestProxy}`, /\/orders|\/products|checkout|cart|innerHTML/);
 });

@@ -20,6 +20,15 @@ test('solicitud privada no acepta campos de fotos ni tenant enviados por el clie
     contract: 'promo.review-requests.create.v2', locale: 'es', customer_label: '', work_label: '',
     expires_days: 30, site_id: 'siteaaaaaaaaaaa',
   }), /invalid_payload/);
+  assert.equal(contracts.parsePrivateReveal({
+    contract: 'promo.review-requests.reveal.v1', request_id: 'requestaaaaaaaa',
+  }).requestId, 'requestaaaaaaaa');
+  assert.equal(contracts.parsePrivateDelete({
+    contract: 'promo.review-requests.delete.v1', request_id: 'requestaaaaaaaa',
+  }).requestId, 'requestaaaaaaaa');
+  assert.throws(() => contracts.parsePrivateDelete({
+    contract: 'promo.review-requests.delete.v1', request_id: 'requestaaaaaaaa', store_id: 'storeaaaaaaaaaa',
+  }), /invalid_payload/);
 });
 
 test('envío público es exacto, moderado, con honeypot, tiempo mínimo y texto sin URL', () => {
@@ -65,6 +74,9 @@ test('rutas separan público y acciones Admin autenticadas sin endpoints de foto
   assert.doesNotMatch(hook, /request-photo|\/photos\//);
   assert.match(hook, /reviews\/requests\/create[\s\S]*?\$apis\.requireAuth\(\)/);
   assert.match(api, /record\.set\("token_sha256", secret\.digest\)/);
+  assert.match(api, /record\.set\("token_encrypted", encryptToken\(secret\.token\)\)/);
+  assert.match(hook, /reviews\/requests\/reveal[\s\S]*?\$apis\.requireAuth\(\)/);
+  assert.match(hook, /reviews\/requests\/delete[\s\S]*?\$apis\.requireAuth\(\)/);
   assert.doesNotMatch(api, /record\.set\("token"/);
   assert.doesNotMatch(api, /photo_assets|photo_consent|review_photo_not_found/);
   assert.match(api, /RATE_MAX_SUBMISSIONS = 3/);
@@ -74,6 +86,7 @@ test('rutas separan público y acciones Admin autenticadas sin endpoints de foto
 test('migración final conserva solicitudes y elimina campos y propósito de fotos de reseña', () => {
   const migration = fs.readFileSync(path.join(__dirname, '../pb_migrations/1787698800_promo_review_requests.js'), 'utf8');
   const removal = fs.readFileSync(path.join(__dirname, '../pb_migrations/1787699300_promo_reviews_without_photos.js'), 'utf8');
+  const secureSharing = fs.readFileSync(path.join(__dirname, '../pb_migrations/1787699400_promo_review_request_secure_sharing.js'), 'utf8');
   assert.match(migration, /"promo_review_requests"/);
   assert.match(migration, /listRule: null, viewRule: null, createRule: null, updateRule: null, deleteRule: null/);
   assert.match(migration, /UNIQUE INDEX `ux_promo_review_request_token`/);
@@ -81,6 +94,9 @@ test('migración final conserva solicitudes y elimina campos y propósito de fot
   assert.match(removal, /fields\.removeById\(photoConsent\.id\)/);
   assert.match(removal, /purpose\.values\.filter\(\(value\) => value !== REVIEW_MEDIA_PURPOSE\)/);
   assert.match(removal, /app\.delete\(record\)/);
+  assert.match(secureSharing, /name: FIELD_NAME/);
+  assert.match(secureSharing, /hidden: true/);
+  assert.match(secureSharing, /unsafe_rollback_promo_review_request_secure_sharing/);
 });
 
 test('migración de logo añade un propósito reversible y bloquea rollback con assets usados', () => {
@@ -91,8 +107,11 @@ test('migración de logo añade un propósito reversible y bloquea rollback con 
   assert.match(migration, /purpose\.values\.filter/);
 });
 
-test('crear y revocar solicitudes dejan auditoría saneada sin token ni cliente', () => {
-  for (const action of ['promo.reviews.request.create', 'promo.reviews.request.revoke']) {
+test('crear, recuperar, revocar y borrar solicitudes dejan auditoría saneada sin token ni cliente', () => {
+  for (const action of [
+    'promo.reviews.request.create', 'promo.reviews.request.reveal',
+    'promo.reviews.request.revoke', 'promo.reviews.request.delete',
+  ]) {
     assert.deepEqual(audit.ACTION_CATALOG[action].resources, ['promo_review_request']);
   }
   const values = audit.buildPromoAuditValues({

@@ -14,6 +14,10 @@ const PRIVATE_LIST_CONTRACT = "promo.review-requests.list.v2";
 const PRIVATE_PAGE_CONTRACT = "promo.review-requests.page.v2";
 const PRIVATE_REVOKE_CONTRACT = "promo.review-requests.revoke.v2";
 const PRIVATE_REVOKED_CONTRACT = "promo.review-requests.revoked.v2";
+const PRIVATE_REVEAL_CONTRACT = "promo.review-requests.reveal.v1";
+const PRIVATE_REVEALED_CONTRACT = "promo.review-requests.revealed.v1";
+const PRIVATE_DELETE_CONTRACT = "promo.review-requests.delete.v1";
+const PRIVATE_DELETED_CONTRACT = "promo.review-requests.deleted.v1";
 
 const PUBLIC_PAGE_SIZE = 12;
 const PRIVATE_PAGE_SIZE = 20;
@@ -189,6 +193,21 @@ function parsePrivateRevoke(value) {
   return Object.freeze({ requestId: id });
 }
 
+function parsePrivateRequestId(value, contract) {
+  const body = exactPayload(value, ["contract", "request_id"]);
+  const id = body && String(body.request_id || "");
+  if (!body || body.contract !== contract || !RECORD_ID_PATTERN.test(id)) fail("invalid_payload", 400);
+  return Object.freeze({ requestId: id });
+}
+
+function parsePrivateReveal(value) {
+  return parsePrivateRequestId(value, PRIVATE_REVEAL_CONTRACT);
+}
+
+function parsePrivateDelete(value) {
+  return parsePrivateRequestId(value, PRIVATE_DELETE_CONTRACT);
+}
+
 function sha256(value) {
   try {
     const digest = String($security.sha256(String(value || "")) || "").toLowerCase();
@@ -231,6 +250,7 @@ function requestDescriptor(record) {
     review_id: relationId(record, "review"),
     expires_at: recordString(record, "expires_at", 80),
     created: recordString(record, "created", 80),
+    shareable: status === "pending" && Boolean(recordString(record, "token_encrypted", 1024)),
   });
 }
 
@@ -257,8 +277,12 @@ module.exports = {
   MAX_REQUEST_DAYS,
   PRIVATE_CREATE_CONTRACT,
   PRIVATE_CREATED_CONTRACT,
+  PRIVATE_DELETE_CONTRACT,
+  PRIVATE_DELETED_CONTRACT,
   PRIVATE_LIST_CONTRACT,
   PRIVATE_PAGE_CONTRACT,
+  PRIVATE_REVEAL_CONTRACT,
+  PRIVATE_REVEALED_CONTRACT,
   PRIVATE_PAGE_SIZE,
   PRIVATE_REVOKE_CONTRACT,
   PRIVATE_REVOKED_CONTRACT,
@@ -277,7 +301,9 @@ module.exports = {
   exactPayload,
   fail,
   parsePrivateCreate,
+  parsePrivateDelete,
   parsePrivateList,
+  parsePrivateReveal,
   parsePrivateRevoke,
   parsePublicList,
   parsePublicSubmission,

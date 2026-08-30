@@ -14,6 +14,9 @@ const pubcfgApi = typeof __hooks === "undefined"
 const contracts = typeof __hooks === "undefined"
   ? require("./pz_promo_review_requests_lib.js")
   : require(`${__hooks}/pz_promo_review_requests_lib.js`);
+const secrets = typeof __hooks === "undefined"
+  ? require("./pz_security_secret_contract.js")
+  : require(`${__hooks}/pz_security_secret_contract.js`);
 
 const RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const RATE_MAX_SUBMISSIONS = 3;
@@ -25,6 +28,7 @@ const SAFE_ERROR_CODES = new Set([
   "promo_capability_denied", "promo_permission_denied", "invalid_payload", "invalid_origin",
   "unsafe_review_content", "review_submission_too_fast", "review_rate_limited",
   "invalid_review_request", "review_request_used", "review_request_expired", "review_request_revoked",
+  "review_request_link_unavailable",
   "promo_reviews_unavailable",
 ]);
 
@@ -46,7 +50,7 @@ function errorStatus(error) {
   const code = errorCode(error);
   if (["invalid_payload", "unsafe_review_content"].includes(code)) return 400;
   if (["invalid_review_request", "promo_not_found"].includes(code)) return 404;
-  if (["review_request_used", "review_request_expired", "review_request_revoked"].includes(code)) return 409;
+  if (["review_request_used", "review_request_expired", "review_request_revoked", "review_request_link_unavailable"].includes(code)) return 409;
   if (["review_submission_too_fast", "review_rate_limited"].includes(code)) return 429;
   if (code === "promo_reviews_unavailable") return 503;
   return 403;
@@ -89,7 +93,7 @@ function collectionsReady(app) {
     const requests = app.findCollectionByNameOrId("promo_review_requests");
     const reviews = app.findCollectionByNameOrId("reviews");
     return [
-      "site", "store", "token_sha256", "status", "locale", "review",
+      "site", "store", "token_sha256", "token_encrypted", "status", "locale", "review",
       "created_by", "expires_at", "received_at", "revoked_at", "created", "updated",
     ].every((field) => !!requests.fields.getByName(field))
       && ["store", "type", "rating", "customer_name", "comment", "status", "source", "featured", "approved_at"]
@@ -311,6 +315,31 @@ function createToken(app) {
   throw codedError("promo_reviews_unavailable", 503);
 }
 
+function encryptToken(token) {
+  const key = secrets.getValidAesKey();
+  if (!key) throw codedError("promo_reviews_unavailable", 503);
+  try {
+    const encrypted = String($security.encrypt(String(token || ""), key) || "");
+    if (encrypted && encrypted !== token && encrypted.length <= 1024) return encrypted;
+  } catch (_) {}
+  throw codedError("promo_reviews_unavailable", 503);
+}
+
+function decryptToken(record) {
+  const encrypted = contracts.recordString(record, "token_encrypted", 1024);
+  if (!encrypted) throw codedError("review_request_link_unavailable", 409);
+  const key = secrets.getValidAesKey();
+  if (!key) throw codedError("promo_reviews_unavailable", 503);
+  try {
+    const token = String($security.decrypt(encrypted, key) || "");
+    const digest = contracts.recordString(record, "token_sha256", 64);
+    if (contracts.TOKEN_PATTERN.test(token) && contracts.sha256(token) === digest) return token;
+  } catch (error) {
+    if (error && error.code === "promo_reviews_unavailable") throw error;
+  }
+  throw codedError("promo_reviews_unavailable", 503);
+}
+
 function handlePrivateCreate(e) {
   let context;
   let parsed;
@@ -327,6 +356,7 @@ function handlePrivateCreate(e) {
       record.set("site", siteId);
       record.set("store", contracts.recordId(context.decision.store));
       record.set("token_sha256", secret.digest);
+      record.set("token_encrypted", encryptToken(secret.token));
       record.set("status", "pending");
       record.set("locale", parsed.locale);
       record.set("customer_label", parsed.customerLabel);
@@ -354,6 +384,48 @@ function handlePrivateCreate(e) {
       };
     });
     return e.json(201, response);
+  } catch (error) { return sendError(e, error, true); }
+}
+
+function handlePrivateReveal(e) {
+  let context;
+  let parsed;
+  try {
+    context = privateContext(e);
+    parsed = contracts.parsePrivateReveal(context.info.body || {});
+  } catch (error) { return sendError(e, error, true); }
+  try {
+    let response;
+    e.app.runInTransaction((app) => {
+      const siteId = contracts.recordId(context.decision.site);
+      let record = findRecord(app, "promo_review_requests", parsed.requestId);
+      if (!record || contracts.relationId(record, "site") !== siteId) throw codedError("invalid_review_request", 404);
+      lockRequest(app, parsed.requestId);
+      record = findRecord(app, "promo_review_requests", parsed.requestId);
+      const state = contracts.requestState(record);
+      if (state !== "pending") throw codedError(state === "received" ? "review_request_used" : `review_request_${state}`, 409);
+      const token = decryptToken(record);
+      const accessedAt = new Date().toISOString();
+      promoAudit.createPromoAudit(app, context.decision, {
+        action: "promo.reviews.request.reveal",
+        resourceType: "promo_review_request",
+        resourceId: parsed.requestId,
+        changedPaths: [],
+        previousValues: {},
+        newValues: {},
+        sourceEventKey: `promo.reviews.request.reveal.${parsed.requestId}.${promoAudit.stableFingerprint({
+          accessed_at: accessedAt,
+          actor_id: contracts.recordId(context.decision.actor),
+        })}`,
+      });
+      response = {
+        ok: true,
+        contract: contracts.PRIVATE_REVEALED_CONTRACT,
+        token,
+        request: contracts.requestDescriptor(record),
+      };
+    });
+    return e.json(200, response);
   } catch (error) { return sendError(e, error, true); }
 }
 
@@ -435,6 +507,46 @@ function handlePrivateRevoke(e) {
   } catch (error) { return sendError(e, error, true); }
 }
 
+function handlePrivateDelete(e) {
+  let context;
+  let parsed;
+  try {
+    context = privateContext(e);
+    parsed = contracts.parsePrivateDelete(context.info.body || {});
+  } catch (error) { return sendError(e, error, true); }
+  try {
+    let response;
+    e.app.runInTransaction((app) => {
+      const siteId = contracts.recordId(context.decision.site);
+      let record = findRecord(app, "promo_review_requests", parsed.requestId);
+      if (!record || contracts.relationId(record, "site") !== siteId) throw codedError("invalid_review_request", 404);
+      lockRequest(app, parsed.requestId);
+      record = findRecord(app, "promo_review_requests", parsed.requestId);
+      const state = contracts.requestState(record);
+      promoAudit.createPromoAudit(app, context.decision, {
+        action: "promo.reviews.request.delete",
+        resourceType: "promo_review_request",
+        resourceId: parsed.requestId,
+        changedPaths: [],
+        previousValues: {
+          status: state,
+          locale: contracts.recordString(record, "locale", 12),
+          expires: Boolean(contracts.recordString(record, "expires_at", 80)),
+        },
+        newValues: {},
+        sourceEventKey: `promo.reviews.request.delete.${parsed.requestId}`,
+      });
+      app.delete(record);
+      response = {
+        ok: true,
+        contract: contracts.PRIVATE_DELETED_CONTRACT,
+        request_id: parsed.requestId,
+      };
+    });
+    return e.json(200, response);
+  } catch (error) { return sendError(e, error, true); }
+}
+
 module.exports = {
   SAFE_ERROR_CODES,
   collectionsReady,
@@ -442,7 +554,9 @@ module.exports = {
   errorCode,
   errorStatus,
   handlePrivateCreate,
+  handlePrivateDelete,
   handlePrivateList,
+  handlePrivateReveal,
   handlePrivateRevoke,
   handlePublicList,
   handlePublicSubmit,

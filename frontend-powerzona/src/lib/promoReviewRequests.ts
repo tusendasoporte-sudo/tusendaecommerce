@@ -5,6 +5,8 @@ export const PROMO_PUBLIC_REVIEW_REQUEST_CONTEXT_CONTRACT = 'promo.review-reques
 export const PROMO_REVIEW_REQUEST_CREATED_CONTRACT = 'promo.review-requests.created.v2';
 export const PROMO_REVIEW_REQUESTS_PAGE_CONTRACT = 'promo.review-requests.page.v2';
 export const PROMO_REVIEW_REQUEST_REVOKED_CONTRACT = 'promo.review-requests.revoked.v2';
+export const PROMO_REVIEW_REQUEST_REVEALED_CONTRACT = 'promo.review-requests.revealed.v1';
+export const PROMO_REVIEW_REQUEST_DELETED_CONTRACT = 'promo.review-requests.deleted.v1';
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43,96}$/;
@@ -41,6 +43,7 @@ export type PromoReviewRequest = Readonly<{
   reviewId: string;
   expiresAt: string;
   created: string;
+  shareable: boolean;
 }>;
 
 export type PromoReviewRequestsPage = Readonly<{
@@ -91,11 +94,12 @@ function int(value: unknown, minimum: number, maximum: number) {
 function requestValue(value: unknown): PromoReviewRequest {
   const item = record(value, [
     'id', 'status', 'locale', 'customer_label', 'work_label',
-    'review_id', 'expires_at', 'created',
+    'review_id', 'expires_at', 'created', 'shareable',
   ]);
   if (!RECORD_ID_PATTERN.test(String(item.id || '')) || !REQUEST_STATUSES.includes(item.status)
     || !LOCALE_PATTERN.test(String(item.locale || ''))
-    || (item.review_id && !RECORD_ID_PATTERN.test(String(item.review_id)))) fail();
+    || (item.review_id && !RECORD_ID_PATTERN.test(String(item.review_id)))
+    || typeof item.shareable !== 'boolean' || (item.status !== 'pending' && item.shareable)) fail();
   return Object.freeze({
     id: item.id,
     status: item.status,
@@ -105,6 +109,7 @@ function requestValue(value: unknown): PromoReviewRequest {
     reviewId: String(item.review_id || ''),
     expiresAt: stringValue(item.expires_at, 80, true),
     created: stringValue(item.created, 80, true),
+    shareable: item.shareable,
   });
 }
 
@@ -193,6 +198,22 @@ export function normalizePromoReviewRequestRevoked(value: unknown) {
   return request;
 }
 
+export function normalizePromoReviewRequestRevealed(value: unknown) {
+  const response = record(value, ['ok', 'contract', 'token', 'request']);
+  if (response.ok !== true || response.contract !== PROMO_REVIEW_REQUEST_REVEALED_CONTRACT
+    || !TOKEN_PATTERN.test(String(response.token || ''))) fail();
+  const request = requestValue(response.request);
+  if (request.status !== 'pending' || !request.shareable) fail();
+  return Object.freeze({ token: response.token as string, request });
+}
+
+export function normalizePromoReviewRequestDeleted(value: unknown) {
+  const response = record(value, ['ok', 'contract', 'request_id']);
+  if (response.ok !== true || response.contract !== PROMO_REVIEW_REQUEST_DELETED_CONTRACT
+    || !RECORD_ID_PATTERN.test(String(response.request_id || ''))) fail();
+  return Object.freeze({ requestId: response.request_id as string });
+}
+
 export function promoPublicReviewsPath(publicSlug: unknown, suffix = '') {
   const slug = String(publicSlug || '');
   if (!PUBLIC_SLUG_PATTERN.test(slug) || (suffix && suffix !== 'request')) fail();
@@ -229,6 +250,7 @@ export function promoReviewRequestsErrorMessage(code: unknown) {
     review_request_used: 'Este enlace ya fue utilizado.',
     review_request_expired: 'Este enlace de reseña venció.',
     review_request_revoked: 'Este enlace fue revocado.',
+    review_request_link_unavailable: 'Este enlace anterior no puede recuperarse. Revócalo o bórralo y crea uno nuevo.',
     promo_permission_denied: 'Tu sesión no tiene permiso para gestionar solicitudes.',
   };
   return messages[String(code || '')] || 'No se pudo completar la operación. Intenta nuevamente.';

@@ -39,6 +39,8 @@ test('traducción cubre shell, editores y textos dinámicos sin alterar contenid
   assert.equal(promoAdminText('en', 'Título SEO'), 'SEO title');
   assert.equal(promoAdminText('en', 'Estado visual de la página'), 'Page appearance status');
   assert.equal(promoAdminText('en', 'Cargando reseñas…'), 'Loading reviews…');
+  assert.equal(promoAdminText('en', 'Enviar por WhatsApp'), 'Send via WhatsApp');
+  assert.equal(promoAdminText('en', 'Borrar'), 'Delete');
   assert.equal(promoAdminText('en', 'No fue posible cargar las analíticas. Intenta nuevamente.'), 'Analytics could not be loaded. Try again.');
   assert.equal(promoAdminText('en', 'Productos de Limpieza de alfombras'), 'Products for Limpieza de alfombras');
   assert.equal(promoAdminText('en', 'La navegación de Apariencia está lista'), 'Appearance navigation is ready');

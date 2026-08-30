@@ -5,6 +5,8 @@ import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
 import { promoCmsSameOriginMutation } from '../../../lib/promoCms';
 import {
   normalizePromoReviewRequestCreated,
+  normalizePromoReviewRequestDeleted,
+  normalizePromoReviewRequestRevealed,
   normalizePromoReviewRequestRevoked,
   normalizePromoReviewRequestsPage,
   PromoReviewRequestsError,
@@ -14,12 +16,15 @@ import { promoReviewsStoreSlug } from '../../../lib/promoReviews';
 const CREATE_PATH = '/api/pz/promo/private/v1/reviews/requests/create';
 const LIST_PATH = '/api/pz/promo/private/v1/reviews/requests/list';
 const REVOKE_PATH = '/api/pz/promo/private/v1/reviews/requests/revoke';
+const REVEAL_PATH = '/api/pz/promo/private/v1/reviews/requests/reveal';
+const DELETE_PATH = '/api/pz/promo/private/v1/reviews/requests/delete';
 const SAFE_ERRORS = new Set([
   'unauthorized', 'session_revoked', 'user_inactive', 'blocked_by_plan', 'promo_not_found',
   'store_not_promo', 'store_inactive', 'promo_site_inactive', 'promo_store_context_required',
   'promo_capability_denied', 'promo_permission_denied', 'invalid_payload', 'invalid_origin',
   'unsafe_review_content', 'invalid_review_request', 'review_request_used', 'review_request_expired',
   'review_request_revoked', 'promo_reviews_unavailable',
+  'review_request_link_unavailable',
 ]);
 
 function json(payload: unknown, status = 200) {
@@ -133,16 +138,38 @@ export const POST: APIRoute = async ({ request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ request }) => {
+export const PATCH: APIRoute = async ({ request }) => {
   if (!promoCmsSameOriginMutation(request)) return json({ ok: false, error: 'invalid_origin' }, 403);
   try {
     const { pb, current } = await context(request, false);
     const body = await request.json();
     if (!exactObject(body, ['request_id'])) throw new PromoReviewRequestsError('invalid_payload', 400);
-    const result = await backend(REVOKE_PATH, pb.authStore.token, {
-      contract: 'promo.review-requests.revoke.v2', request_id: body.request_id,
+    const result = await backend(REVEAL_PATH, pb.authStore.token, {
+      contract: 'promo.review-requests.reveal.v1', request_id: body.request_id,
     }, current.isMasterSupport ? current.storeId : '');
-    normalizePromoReviewRequestRevoked(result);
+    normalizePromoReviewRequestRevealed(result);
+    return json(result);
+  } catch (error) {
+    if (error instanceof SyntaxError) return json({ ok: false, error: 'invalid_payload' }, 400);
+    return errorResponse(error);
+  }
+};
+
+export const DELETE: APIRoute = async ({ request }) => {
+  if (!promoCmsSameOriginMutation(request)) return json({ ok: false, error: 'invalid_origin' }, 403);
+  try {
+    const { pb, current } = await context(request, false);
+    const body = await request.json();
+    if (!exactObject(body, ['action', 'request_id']) || !['revoke', 'delete'].includes(body.action)) {
+      throw new PromoReviewRequestsError('invalid_payload', 400);
+    }
+    const deleting = body.action === 'delete';
+    const result = await backend(deleting ? DELETE_PATH : REVOKE_PATH, pb.authStore.token, {
+      contract: deleting ? 'promo.review-requests.delete.v1' : 'promo.review-requests.revoke.v2',
+      request_id: body.request_id,
+    }, current.isMasterSupport ? current.storeId : '');
+    if (deleting) normalizePromoReviewRequestDeleted(result);
+    else normalizePromoReviewRequestRevoked(result);
     return json(result);
   } catch (error) {
     if (error instanceof SyntaxError) return json({ ok: false, error: 'invalid_payload' }, 400);

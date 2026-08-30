@@ -30,6 +30,7 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787699100_promo_translation_state.js',
   '1787699200_promo_language_selector.js',
   '1787699300_promo_reviews_without_photos.js',
+  '1787699400_promo_review_request_secure_sharing.js',
 ];
 
 function runtimeEnvironment() {

@@ -39,6 +39,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787699100_promo_translation_state.js',
   '1787699200_promo_language_selector.js',
   '1787699300_promo_reviews_without_photos.js',
+  '1787699400_promo_review_request_secure_sharing.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -1134,6 +1135,48 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     assertStatus(privateReviewRequest, 201, 'Master crea solicitud de reseña sin fotos');
     assert.equal(privateReviewRequest.data.contract, 'promo.review-requests.created.v2');
     assert.match(privateReviewRequest.data.token, /^[A-Za-z0-9_-]{43,96}$/);
+    assert.equal(privateReviewRequest.data.request.shareable, true);
+    const storedReviewSecret = sqliteValue(
+      reviewRuntimeDirectory,
+      `SELECT token_sha256, token_encrypted FROM promo_review_requests WHERE id = '${privateReviewRequest.data.request.id}'`,
+    );
+    assert.equal(storedReviewSecret.token_sha256, createHash('sha256').update(privateReviewRequest.data.token).digest('hex'));
+    assert.notEqual(storedReviewSecret.token_encrypted, privateReviewRequest.data.token);
+    assert.equal(String(storedReviewSecret.token_encrypted || '').includes(privateReviewRequest.data.token), false);
+    const listedReviewRequests = await reviewRequest('/api/pz/promo/private/v1/reviews/requests/list', {
+      token: reviewMasterAuth.data.token,
+      headers: { 'X-PZ-Promo-Store': reviewStore.id },
+      json: { contract: 'promo.review-requests.list.v2', page: 1 },
+    });
+    assertStatus(listedReviewRequests, 200, 'listado privado indica disponibilidad sin exponer secretos');
+    assert.equal(listedReviewRequests.data.requests[0].shareable, true);
+    assert.equal(listedReviewRequests.raw.includes(privateReviewRequest.data.token), false);
+    assert.equal(listedReviewRequests.raw.includes(storedReviewSecret.token_encrypted), false);
+    const revealedReviewRequest = await reviewRequest('/api/pz/promo/private/v1/reviews/requests/reveal', {
+      token: reviewMasterAuth.data.token,
+      headers: { 'X-PZ-Promo-Store': reviewStore.id },
+      json: {
+        contract: 'promo.review-requests.reveal.v1',
+        request_id: privateReviewRequest.data.request.id,
+      },
+    });
+    assertStatus(revealedReviewRequest, 200, 'Master recupera solicitud cifrada sin exponerla en listado');
+    assert.equal(revealedReviewRequest.data.token, privateReviewRequest.data.token);
+    const deletedReviewRequest = await reviewRequest('/api/pz/promo/private/v1/reviews/requests/delete', {
+      token: reviewMasterAuth.data.token,
+      headers: { 'X-PZ-Promo-Store': reviewStore.id },
+      json: {
+        contract: 'promo.review-requests.delete.v1',
+        request_id: privateReviewRequest.data.request.id,
+      },
+    });
+    assertStatus(deletedReviewRequest, 200, 'Master elimina físicamente solicitud de reseña');
+    assert.equal(deletedReviewRequest.data.request_id, privateReviewRequest.data.request.id);
+    const deletedRequestRow = await reviewRequest(
+      `/api/collections/promo_review_requests/records/${privateReviewRequest.data.request.id}`,
+      { token: reviewSuperToken },
+    );
+    assertStatus(deletedRequestRow, 404, 'solicitud eliminada ya no existe en PocketBase');
     const moderatedReview = await reviewRequest('/api/pz/promo/private/v1/reviews/moderate', {
       token: reviewMasterAuth.data.token,
       headers: { 'X-PZ-Promo-Store': reviewStore.id },
@@ -1151,10 +1194,12 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       { token: reviewSuperToken },
     );
     assertStatus(reviewAuditRows, 200, 'superuser verifica auditoría de aprobación Promo');
-    assert.equal(reviewAuditRows.data.totalItems, 2);
+    assert.equal(reviewAuditRows.data.totalItems, 4);
     assert.deepEqual(reviewAuditRows.data.items.map((event) => event.action).sort(), [
       'promo.reviews.moderate',
       'promo.reviews.request.create',
+      'promo.reviews.request.delete',
+      'promo.reviews.request.reveal',
     ]);
     await stopPocketBase(runtime);
     runtime = null;
