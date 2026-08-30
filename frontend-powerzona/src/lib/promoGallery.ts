@@ -2,6 +2,7 @@ import {
   ensurePromoWorkGallerySection,
   normalizePromoCmsDocument,
   normalizePromoCmsDraftResponse,
+  PROMO_CMS_HERO_DEFAULT_COLORS,
   promoCmsStoreSlug,
   PromoCmsError,
 } from './promoCms.ts';
@@ -187,7 +188,14 @@ function ensureSection(document: JsonRecord, locale: string, type: 'hero' | 'fea
     variant: 'default',
     visible: type !== 'gallery',
     config: type === 'hero'
-      ? { media_use_key: '', action_key: '', layout: 'immersive', button_targets: ['primary-contact'] }
+      ? {
+        media_use_key: '', action_key: '', layout: 'immersive', button_targets: ['primary-contact'],
+        contrast_mode: 'auto',
+        title_color: PROMO_CMS_HERO_DEFAULT_COLORS.title,
+        body_color: PROMO_CMS_HERO_DEFAULT_COLORS.body,
+        accent_color: PROMO_CMS_HERO_DEFAULT_COLORS.accent,
+        overlay_strength: 'medium',
+      }
       : (type === 'featured_work'
         ? { item_keys: [] }
         : (type === 'owner'

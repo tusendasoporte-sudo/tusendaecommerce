@@ -116,6 +116,8 @@ test('preview localizado acepta solo proyección privada allowlisted y aplica te
   const normalized = normalizePromoPreviewResponse(previewResponse(), 'either');
   assert.equal(normalized.preview.locale.effective, 'es');
   assert.equal(normalized.preview.content.identity.name, 'Negocio demo');
+  assert.equal(normalized.preview.sections[0].config.contrast_mode, 'auto');
+  assert.equal(normalized.preview.sections[0].config.overlay_strength, 'medium');
   assert.equal(JSON.stringify(normalized).includes('Demo business'), false, 'no mezcla el locale inglés');
   assert.equal(JSON.stringify(normalized).includes('+15551234567'), false, 'no contiene destino de contacto');
   const theme = promoPreviewThemeStyle(normalized.preview.theme);

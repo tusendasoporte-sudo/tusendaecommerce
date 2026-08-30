@@ -372,6 +372,20 @@ test('cliente SHELL acepta únicamente la proyección localized allowlisted', ()
   assert.equal(normalized.profile.content.identity.name, 'Negocio demo');
   assert.equal(normalized.profile.content.identity.contact_cta_label, 'Escríbeme por WhatsApp');
   assert.equal(normalized.profile.theme.renderer_key, 'promo.black-gold');
+  assert.deepEqual(normalized.profile.sections[0].config, {
+    media_use_key: '', action_key: '', layout: 'immersive', button_targets: ['primary-contact'],
+    contrast_mode: 'auto', title_color: '#ffffff', body_color: '#e2e8f0',
+    accent_color: '#93c5fd', overlay_strength: 'medium',
+  });
+  const customContrast = shellEnvelope();
+  Object.assign(customContrast.profile.sections[0].config, {
+    contrast_mode: 'custom', title_color: '#fafafa', body_color: '#e5e7eb',
+    accent_color: '#60a5fa', overlay_strength: 'strong',
+  });
+  assert.equal(normalizePromoPublicShellResponse(customContrast).profile.sections[0].config.title_color, '#fafafa');
+  const invalidContrastColor = structuredClone(customContrast);
+  invalidContrastColor.profile.sections[0].config.title_color = 'red';
+  assert.throws(() => normalizePromoPublicShellResponse(invalidContrastColor), PromoPublicShellError);
   const hostile = structuredClone(shellEnvelope());
   hostile.profile.theme.tokens.accent = '#ff00ff';
   assert.throws(() => normalizePromoPublicShellResponse(hostile), PromoPublicShellError);

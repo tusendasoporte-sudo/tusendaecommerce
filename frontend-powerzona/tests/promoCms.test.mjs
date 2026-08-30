@@ -113,6 +113,11 @@ function contentPatch(document) {
         intro: 'Experiencia premium',
         summary: 'Mensaje principal',
         heroLayout: 'editorial',
+        heroContrastMode: 'custom',
+        heroTitleColor: '#fafafa',
+        heroBodyColor: '#e5e7eb',
+        heroAccentColor: '#60a5fa',
+        heroOverlayStrength: 'strong',
         highlights: ['Alfombras', 'Pisos', 'Escaleras', 'Acabados'],
         buttons: [
           { target: 'primary-contact', label: 'Solicitar estimado' },
@@ -253,6 +258,7 @@ test('normalización acepta documentos vivos anteriores al campo aditivo del log
   assert.equal(normalized.contract, 'promo.site.v2');
   assert.equal(normalized.contact.logo_media_use_key, '');
   assert.equal(normalized.contact.qr_media_use_key, '');
+  assert.equal(normalized.sections.find((section) => section.type === 'hero').config.contrast_mode, 'auto');
 });
 
 test('edición de contenido preserva tema, media, galería, contacto, adapters y locales ajenos', () => {
@@ -277,6 +283,11 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
     action_key: 'call-main',
     layout: 'editorial',
     button_targets: ['primary-contact', 'work-section'],
+    contrast_mode: 'custom',
+    title_color: '#fafafa',
+    body_color: '#e5e7eb',
+    accent_color: '#60a5fa',
+    overlay_strength: 'strong',
   });
   assert.deepEqual(updated.content_by_locale.es.sections['hero-main'], {
     heading: 'Nueva portada',
@@ -354,6 +365,29 @@ test('portada limita cuatro especialidades, dos botones y diseños aprobados', (
     () => buildPromoCmsContentDocument(original, invalidLayout, 4),
     (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
   );
+
+  const invalidContrast = contentPatch(original);
+  invalidContrast.sections.find((section) => section.key === 'hero-main').heroContrastMode = 'arbitrary-css';
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, invalidContrast, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+
+  const invalidColor = contentPatch(original);
+  invalidColor.sections.find((section) => section.key === 'hero-main').heroTitleColor = 'url(https://example.test/a)';
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, invalidColor, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+
+  const editor = read('../src/components/admin/promo/PromoCmsEditor.astro');
+  const hero = read('../src/components/promo-public/PromoHero.astro');
+  const heroStyles = read('../src/styles/promo-hero.css');
+  assert.match(editor, /dataset\.cmsHeroContrast/);
+  assert.match(editor, /'cmsHeroTitleColor'/);
+  assert.match(editor, /Legibilidad sobre la fotografía/);
+  assert.match(hero, /data-hero-contrast=\{heroContrastMode\}/);
+  assert.match(heroStyles, /--promo-hero-title-color/);
 });
 
 test('servicios respetan cuota efectiva y el documento no acepta contenido activo', () => {

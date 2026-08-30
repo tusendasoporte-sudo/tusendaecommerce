@@ -8,6 +8,7 @@ function read(relativePath) {
 
 const shellStyles = read('../src/styles/promo-public-shell.css');
 const themeStyles = read('../src/styles/promo-black-gold.css');
+const variantStyles = read('../src/styles/promo-theme-variants.css');
 const heroStyles = read('../src/styles/promo-hero.css');
 const sectionStyles = read('../src/styles/promo-sections.css');
 const reviewStyles = read('../src/styles/promo-reviews.css');
@@ -55,6 +56,16 @@ test('RESP aplica reflujo aprobado a Hero, secciones, reseñas y footer', () => 
   assert.match(reviewStyles, /@media \(max-width: 420px\)[\s\S]*?\.promo-reviews__card \{ padding: 1\.25rem/);
   assert.match(footerStyles, /@media \(max-width: 640px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(footerStyles, /@media \(max-width: 360px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+});
+
+test('RESP muestra los servicios de Vibrante Moderna en tres columnas uniformes en escritorio', () => {
+  assert.match(sectionStyles, /\.promo-sections__services-list \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(sectionStyles, /@media \(max-width: 1000px\)[\s\S]*?\.promo-sections__services-list \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
+  assert.match(sectionStyles, /@media \(max-width: 720px\)[\s\S]*?\.promo-sections__services-list \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.doesNotMatch(
+    variantStyles,
+    /data-promo-theme-renderer="promo\.vibrant"[^\n]*promo-sections__services-list[^\{]*\{[^\}]*grid-column:\s*span/,
+  );
 });
 
 test('RESP mantiene teclado, foco, zoom de texto y strings largos sin ocultar funciones', () => {

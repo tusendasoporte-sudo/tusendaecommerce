@@ -33,6 +33,7 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const THEME_PATTERN = /^[a-z][a-z0-9.-]{0,79}$/;
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
 const TOKEN_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
 const MEDIA_VARIANT_PATTERN = /^(?:original|w[0-9]{2,4})$/;
 const LOCALE_PATH_PATTERN = /^\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)$/;
 const SECTION_TYPES = new Set([
@@ -679,13 +680,26 @@ function normalizeSection(value: unknown): PromoPublicSection {
   const optionalKey = (raw: unknown) => raw === '' ? '' : safePattern(raw, KEY_PATTERN);
   const config: JsonRecord = {};
   if (type === 'hero') {
-    const source = subsetRecord(section.config, ['media_use_key', 'action_key', 'layout', 'button_targets']);
+    const source = subsetRecord(section.config, [
+      'media_use_key', 'action_key', 'layout', 'button_targets',
+      'contrast_mode', 'title_color', 'body_color', 'accent_color', 'overlay_strength',
+    ]);
     config.media_use_key = optionalKey(source.media_use_key);
     config.action_key = optionalKey(source.action_key);
     config.layout = source.layout === undefined ? 'immersive' : safePattern(source.layout, KEY_PATTERN);
     config.button_targets = source.button_targets === undefined ? ['primary-contact'] : list(source.button_targets, 2);
+    config.contrast_mode = source.contrast_mode === undefined ? 'auto' : safePattern(source.contrast_mode, KEY_PATTERN);
+    config.title_color = source.title_color === undefined ? '#ffffff' : String(source.title_color).toLowerCase();
+    config.body_color = source.body_color === undefined ? '#e2e8f0' : String(source.body_color).toLowerCase();
+    config.accent_color = source.accent_color === undefined ? '#93c5fd' : String(source.accent_color).toLowerCase();
+    config.overlay_strength = source.overlay_strength === undefined ? 'medium' : safePattern(source.overlay_strength, KEY_PATTERN);
     if (!HERO_LAYOUTS.has(config.layout)
-      || config.button_targets.some((target: string) => !HERO_BUTTON_TARGETS.has(target))) fail();
+      || config.button_targets.some((target: string) => !HERO_BUTTON_TARGETS.has(target))
+      || !['auto', 'light', 'dark', 'custom'].includes(config.contrast_mode)
+      || !['soft', 'medium', 'strong'].includes(config.overlay_strength)
+      || !HEX_COLOR_PATTERN.test(config.title_color)
+      || !HEX_COLOR_PATTERN.test(config.body_color)
+      || !HEX_COLOR_PATTERN.test(config.accent_color)) fail();
   } else if (type === 'services') {
     const source = subsetRecord(section.config, ['item_keys', 'gallery_keys', 'icon_keys']);
     config.item_keys = list(source.item_keys);

@@ -189,10 +189,6 @@ body[data-promo-theme-renderer="promo.vibrant"] .promo-shell-section h2 {
   text-transform: uppercase;
 }
 
-body[data-promo-theme-renderer="promo.vibrant"] .promo-sections__services-list > li:nth-child(3n + 1) {
-  grid-column: span 2;
-}
-
 body[data-promo-theme-renderer="promo.vibrant"] .promo-sections__service-card,
 body[data-promo-theme-renderer="promo.vibrant"] .promo-sections__work-card {
   border-width: 2px;
@@ -369,12 +365,6 @@ body[data-promo-theme-renderer="promo.portfolio"] .promo-sections__work-copy {
 body[data-promo-theme-renderer="promo.portfolio"] .promo-sections__service-card,
 body[data-promo-theme-renderer="promo.portfolio"] .promo-sections__featured-card {
   border-color: var(--promo-border);
-}
-
-@media (max-width: 1000px) {
-  body[data-promo-theme-renderer="promo.vibrant"] .promo-sections__services-list > li:nth-child(3n + 1) {
-    grid-column: auto;
-  }
 }
 
 @media (max-width: 720px) {

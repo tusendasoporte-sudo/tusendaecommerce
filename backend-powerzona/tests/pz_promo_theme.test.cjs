@@ -60,6 +60,8 @@ function publicDocument(tokens = {}) {
       config: {
         media_use_key: '', action_key: '', layout: 'immersive',
         button_targets: ['primary-contact'],
+        contrast_mode: 'auto', title_color: '#ffffff', body_color: '#e2e8f0',
+        accent_color: '#93c5fd', overlay_strength: 'medium',
       },
       media_use_keys: [],
     }],
@@ -142,6 +144,7 @@ test('PUBCFG valida manifest, variantes y proyecta únicamente tokens efectivos 
   assert.equal(projection.theme.tokens.radius, 'soft');
   assert.equal(projection.theme.tokens.motion, 'reduced');
   assert.equal(projection.theme.tokens.surface, 'obsidian');
+  assert.equal(projection.sections[0].config.contrast_mode, 'auto');
   assert.equal(Object.keys(projection.theme.tokens).length, Object.keys(theme.BLACK_GOLD_TOKEN_SCHEMA).length);
   const invalidVariant = structuredClone(document);
   invalidVariant.sections[0].variant = 'tenant-component';

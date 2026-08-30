@@ -32,6 +32,7 @@ const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,119}$/;
 const BUSINESS_KEY_PATTERN = /^(?:[a-z][a-z0-9._-]{0,99})?$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
 
 const SECTION_TYPES = Object.freeze([
   "hero", "services", "featured_work", "gallery", "owner", "store_rating", "contact", "footer",
@@ -44,6 +45,13 @@ const CONTACT_TYPES = Object.freeze([
 ]);
 const PUBLIC_THEME_STATUSES = promoTheme.PUBLIC_RELEASE_STATUSES;
 const HERO_LAYOUTS = Object.freeze(["immersive", "split", "centered", "editorial"]);
+const HERO_CONTRAST_MODES = Object.freeze(["auto", "light", "dark", "custom"]);
+const HERO_OVERLAY_STRENGTHS = Object.freeze(["soft", "medium", "strong"]);
+const HERO_DEFAULT_COLORS = Object.freeze({
+  title: "#ffffff",
+  body: "#e2e8f0",
+  accent: "#93c5fd",
+});
 const HERO_BUTTON_TARGETS = Object.freeze([
   "primary-contact", "contact-section", "services-section", "work-section",
 ]);
@@ -65,7 +73,10 @@ const SECTION_CONFIG_KEYS = Object.freeze({
   footer: ["navigation_section_keys", "social_profiles"],
 });
 const LIVE_SECTION_CONFIG_KEYS = Object.freeze({
-  hero: ["media_use_key", "action_key", "layout", "button_targets"],
+  hero: [
+    "media_use_key", "action_key", "layout", "button_targets",
+    "contrast_mode", "title_color", "body_color", "accent_color", "overlay_strength",
+  ],
   services: ["item_keys", "gallery_keys", "icon_keys"],
   featured_work: ["item_keys"],
   gallery: ["item_keys", "cover_media_use_key", "items"],
@@ -329,6 +340,13 @@ function validateSectionConfig(section, knownActions, knownMedia, liveDocument, 
     assertKey(config.action_key, KEY_PATTERN, true);
     if (liveDocument) {
       if (!HERO_LAYOUTS.includes(config.layout)) fail("invalid_promo_document", 400);
+      if (!HERO_CONTRAST_MODES.includes(config.contrast_mode)
+        || !HERO_OVERLAY_STRENGTHS.includes(config.overlay_strength)
+        || !HEX_COLOR_PATTERN.test(config.title_color)
+        || !HEX_COLOR_PATTERN.test(config.body_color)
+        || !HEX_COLOR_PATTERN.test(config.accent_color)) {
+        fail("invalid_promo_document", 400);
+      }
       if (!Array.isArray(config.button_targets) || config.button_targets.length > HERO_MAX_BUTTONS
         || new Set(config.button_targets).size !== config.button_targets.length
         || config.button_targets.some((target) => !HERO_BUTTON_TARGETS.includes(target))) {
@@ -788,6 +806,15 @@ function upgradeHeroPresentation(document) {
       action_key: String(config.action_key || ""),
       layout: HERO_LAYOUTS.includes(config.layout) ? config.layout : "immersive",
       button_targets: Array.from(new Set(rawTargets)).slice(0, HERO_MAX_BUTTONS),
+      contrast_mode: HERO_CONTRAST_MODES.includes(config.contrast_mode) ? config.contrast_mode : "auto",
+      title_color: HEX_COLOR_PATTERN.test(String(config.title_color || "").toLowerCase())
+        ? String(config.title_color).toLowerCase() : HERO_DEFAULT_COLORS.title,
+      body_color: HEX_COLOR_PATTERN.test(String(config.body_color || "").toLowerCase())
+        ? String(config.body_color).toLowerCase() : HERO_DEFAULT_COLORS.body,
+      accent_color: HEX_COLOR_PATTERN.test(String(config.accent_color || "").toLowerCase())
+        ? String(config.accent_color).toLowerCase() : HERO_DEFAULT_COLORS.accent,
+      overlay_strength: HERO_OVERLAY_STRENGTHS.includes(config.overlay_strength)
+        ? config.overlay_strength : "medium",
     };
   });
   Object.values(document.content_by_locale || {}).forEach((localized) => {

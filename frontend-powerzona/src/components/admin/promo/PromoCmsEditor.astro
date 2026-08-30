@@ -257,9 +257,12 @@ const isContent = scope === 'content';
     PROMO_CMS_FOOTER_MAX_LINKS,
     PROMO_CMS_FOOTER_SOCIAL_NETWORKS,
     PROMO_CMS_HERO_BUTTON_TARGETS,
+    PROMO_CMS_HERO_CONTRAST_MODES,
+    PROMO_CMS_HERO_DEFAULT_COLORS,
     PROMO_CMS_HERO_LAYOUTS,
     PROMO_CMS_HERO_MAX_BUTTONS,
     PROMO_CMS_HERO_MAX_HIGHLIGHTS,
+    PROMO_CMS_HERO_OVERLAY_STRENGTHS,
     PROMO_CMS_WORK_GALLERY_KEY,
     promoCmsErrorMessage,
   } from '../../../lib/promoCms';
@@ -558,11 +561,124 @@ const isContent = scope === 'content';
       fields.append(navigation.label);
 
       if (section.type === 'hero') {
-        fields.append(
-          inputField('Introducción de portada', sectionContent.intro || '', { max: 120, data: 'intro' }).label,
-          inputField('Título de portada', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
-          inputField('Resumen corto', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
+        const introField = inputField('Introducción de portada', sectionContent.intro || '', { max: 120, data: 'intro' });
+        const headingField = inputField('Título de portada', sectionContent.heading || '', { max: 160, data: 'heading' });
+        const summaryField = inputField('Resumen corto', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' });
+        fields.append(introField.label, headingField.label, summaryField.label);
+
+        const contrastGroup = element('section', 'pz-promo-cms__hero-group pz-promo-cms__hero-contrast');
+        const contrastHeading = element('div', 'pz-promo-cms__hero-contrast-heading');
+        const contrastHeadingCopy = element('div');
+        contrastHeadingCopy.append(
+          element('strong', '', 'Legibilidad sobre la fotografía'),
+          element('small', '', 'El modo automático protege el texto según el diseño de portada. Personalizado permite elegir cada grupo de texto.'),
         );
+        const resetContrast = element('button', 'pz-promo-cms__secondary-button', 'Restaurar tema');
+        resetContrast.type = 'button';
+        contrastHeading.append(contrastHeadingCopy, resetContrast);
+
+        const contrastControls = element('div', 'pz-promo-cms__hero-contrast-controls');
+        const contrastModeLabel = element('label', 'pz-promo-cms__field');
+        contrastModeLabel.append(element('span', '', 'Modo de contraste'));
+        const contrastMode = element('select');
+        contrastMode.dataset.cmsHeroContrast = '';
+        const contrastLabels: Record<string, string> = {
+          auto: 'Automático (recomendado)', light: 'Texto claro', dark: 'Texto oscuro', custom: 'Personalizado',
+        };
+        PROMO_CMS_HERO_CONTRAST_MODES.forEach((value) => {
+          const option = element('option', '', contrastLabels[value]);
+          option.value = value;
+          option.selected = value === (section.config.contrast_mode || 'auto');
+          contrastMode.append(option);
+        });
+        contrastModeLabel.append(contrastMode);
+
+        const overlayLabel = element('label', 'pz-promo-cms__field');
+        overlayLabel.append(element('span', '', 'Protección sobre la fotografía'));
+        const overlayStrength = element('select');
+        overlayStrength.dataset.cmsHeroOverlayStrength = '';
+        const overlayLabels: Record<string, string> = { soft: 'Suave', medium: 'Media', strong: 'Fuerte' };
+        PROMO_CMS_HERO_OVERLAY_STRENGTHS.forEach((value) => {
+          const option = element('option', '', overlayLabels[value]);
+          option.value = value;
+          option.selected = value === (section.config.overlay_strength || 'medium');
+          overlayStrength.append(option);
+        });
+        overlayLabel.append(overlayStrength);
+        contrastControls.append(contrastModeLabel, overlayLabel);
+
+        const colorGrid = element('div', 'pz-promo-cms__hero-color-grid');
+        const colorField = (labelText: string, value: string, dataName: string) => {
+          const label = element('label', 'pz-promo-cms__field pz-promo-cms__color-field');
+          label.append(element('span', '', labelText));
+          const input = element('input');
+          input.type = 'color';
+          input.value = /^#[0-9a-f]{6}$/i.test(value) ? value : PROMO_CMS_HERO_DEFAULT_COLORS.title;
+          input.dataset[dataName] = '';
+          label.append(input);
+          colorGrid.append(label);
+          return input;
+        };
+        const titleColor = colorField('Título', section.config.title_color || PROMO_CMS_HERO_DEFAULT_COLORS.title, 'cmsHeroTitleColor');
+        const bodyColor = colorField('Descripción y especialidades', section.config.body_color || PROMO_CMS_HERO_DEFAULT_COLORS.body, 'cmsHeroBodyColor');
+        const accentColor = colorField('Introducción y slogan', section.config.accent_color || PROMO_CMS_HERO_DEFAULT_COLORS.accent, 'cmsHeroAccentColor');
+
+        const contrastPreview = element('article', 'pz-promo-cms__hero-contrast-preview');
+        const previewIntro = element('span', 'pz-promo-cms__hero-preview-intro', introField.control.value || 'INICIO');
+        const previewTitle = element('strong', 'pz-promo-cms__hero-preview-title', headingField.control.value || 'Título de portada');
+        const previewSummary = element('span', 'pz-promo-cms__hero-preview-summary', summaryField.control.value || 'Resumen del negocio sobre la fotografía.');
+        contrastPreview.append(previewIntro, previewTitle, previewSummary);
+        const contrastStatus = element('small', 'pz-promo-cms__hero-contrast-status');
+
+        const luminance = (hex: string) => {
+          const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255)
+            .map((channel) => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
+          return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+        };
+        const ratio = (first: string, second: string) => {
+          const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
+          return (values[0] + .05) / (values[1] + .05);
+        };
+        const syncContrastPreview = () => {
+          const mode = contrastMode.value;
+          const colors = mode === 'dark'
+            ? { title: '#0f2942', body: '#29445d', accent: '#075f9e' }
+            : mode === 'custom'
+              ? { title: titleColor.value, body: bodyColor.value, accent: accentColor.value }
+              : { title: '#ffffff', body: '#eef4fb', accent: '#a9d8ff' };
+          const lightOverlay = mode === 'dark' || (mode === 'custom' && luminance(colors.title) < .45);
+          const overlay = lightOverlay ? '#ffffff' : '#050f23';
+          const opacity: Record<string, string> = { soft: '58%', medium: '76%', strong: '92%' };
+          contrastPreview.style.setProperty('--promo-preview-title', colors.title);
+          contrastPreview.style.setProperty('--promo-preview-body', colors.body);
+          contrastPreview.style.setProperty('--promo-preview-accent', colors.accent);
+          contrastPreview.style.setProperty('--promo-preview-overlay', overlay);
+          contrastPreview.style.setProperty('--promo-preview-overlay-opacity', opacity[overlayStrength.value] || '76%');
+          [titleColor, bodyColor, accentColor].forEach((input) => { input.disabled = mode !== 'custom'; });
+          const titleRatio = ratio(colors.title, overlay);
+          const bodyRatio = ratio(colors.body, overlay);
+          contrastStatus.classList.toggle('is-warning', titleRatio < 4.5 || bodyRatio < 4.5);
+          contrastStatus.textContent = titleRatio < 4.5 || bodyRatio < 4.5
+            ? 'La combinación elegida puede ser difícil de leer. Ajusta los colores o aumenta la protección.'
+            : 'La vista previa mantiene contraste legible entre el texto y su fondo protector.';
+        };
+        contrastMode.addEventListener('change', syncContrastPreview);
+        overlayStrength.addEventListener('change', syncContrastPreview);
+        [titleColor, bodyColor, accentColor].forEach((input) => input.addEventListener('input', syncContrastPreview));
+        introField.control.addEventListener('input', () => { previewIntro.textContent = introField.control.value || 'INICIO'; });
+        headingField.control.addEventListener('input', () => { previewTitle.textContent = headingField.control.value || 'Título de portada'; });
+        summaryField.control.addEventListener('input', () => { previewSummary.textContent = summaryField.control.value || 'Resumen del negocio sobre la fotografía.'; });
+        resetContrast.addEventListener('click', () => {
+          contrastMode.value = 'auto';
+          overlayStrength.value = 'medium';
+          titleColor.value = PROMO_CMS_HERO_DEFAULT_COLORS.title;
+          bodyColor.value = PROMO_CMS_HERO_DEFAULT_COLORS.body;
+          accentColor.value = PROMO_CMS_HERO_DEFAULT_COLORS.accent;
+          syncContrastPreview();
+          setDirty();
+        });
+        syncContrastPreview();
+        contrastGroup.append(contrastHeading, contrastControls, colorGrid, contrastPreview, contrastStatus);
         const layouts = element('fieldset', 'pz-promo-cms__hero-layouts');
         layouts.append(element('legend', '', 'Diseño de portada'));
         const layoutLabels: Record<string, string> = {
@@ -640,7 +756,7 @@ const isContent = scope === 'content';
         });
         const buttonGroup = element('div', 'pz-promo-cms__hero-group');
         buttonGroup.append(element('strong', '', `Botones (máximo ${PROMO_CMS_HERO_MAX_BUTTONS})`), buttons, addButton);
-        fields.append(layouts, highlightGroup, buttonGroup,
+        fields.append(contrastGroup, layouts, highlightGroup, buttonGroup,
           element('p', 'pz-promo-cms__scope-note', 'Las imágenes del carrusel se administran en «Galería y productos» y siempre aparecen detrás del texto en los diseños superpuestos.'));
       } else if (section.type === 'services') {
         fields.append(
@@ -1124,6 +1240,11 @@ const isContent = scope === 'content';
           intro: field('intro'),
           summary: field('summary'),
           heroLayout: card.querySelector<HTMLInputElement>('[data-cms-hero-layout]:checked')?.value || 'immersive',
+          heroContrastMode: card.querySelector<HTMLSelectElement>('[data-cms-hero-contrast]')?.value || 'auto',
+          heroTitleColor: card.querySelector<HTMLInputElement>('[data-cms-hero-title-color]')?.value || PROMO_CMS_HERO_DEFAULT_COLORS.title,
+          heroBodyColor: card.querySelector<HTMLInputElement>('[data-cms-hero-body-color]')?.value || PROMO_CMS_HERO_DEFAULT_COLORS.body,
+          heroAccentColor: card.querySelector<HTMLInputElement>('[data-cms-hero-accent-color]')?.value || PROMO_CMS_HERO_DEFAULT_COLORS.accent,
+          heroOverlayStrength: card.querySelector<HTMLSelectElement>('[data-cms-hero-overlay-strength]')?.value || 'medium',
           highlights: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-hero-highlight]'))
             .map((input) => input.value.trim()).filter(Boolean),
           buttons: Array.from(card.querySelectorAll<HTMLElement>('[data-cms-hero-button-target]')).map((select) => ({

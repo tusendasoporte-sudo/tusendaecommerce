@@ -15,6 +15,7 @@ const USE_KEY_PATTERN = /^[a-z][a-z0-9_-]{0,79}$/;
 const THEME_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const TOKEN_VALUE_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
 const PRIVATE_MEDIA_PATH_PATTERN = /^\/api\/pz\/promo\/private\/v1\/media\/[a-z0-9]{15}\/[a-f0-9]{64}\/(?:original|w[0-9]+)\.(?:webp|mp4|webm)$/;
 const MEDIA_VARIANT_PATTERN = /^(?:original|w[0-9]+)$/;
 const SECTION_TYPES = new Set([
@@ -41,7 +42,10 @@ const SYSTEM_MESSAGE_KEYS = Object.freeze([
   'state.available', 'state.loading', 'state.unavailable',
 ]);
 const SECTION_CONFIG_KEYS: Record<string, readonly string[]> = Object.freeze({
-  hero: Object.freeze(['media_use_key', 'action_key', 'layout', 'button_targets']),
+  hero: Object.freeze([
+    'media_use_key', 'action_key', 'layout', 'button_targets',
+    'contrast_mode', 'title_color', 'body_color', 'accent_color', 'overlay_strength',
+  ]),
   services: Object.freeze(['item_keys', 'gallery_keys', 'icon_keys']),
   featured_work: Object.freeze(['item_keys']),
   gallery: Object.freeze(['item_keys']),
@@ -399,10 +403,25 @@ function normalizeSection(value: unknown) {
     normalizedConfig.layout = config.layout === undefined ? 'immersive' : safePattern(config.layout, KEY_PATTERN);
     normalizedConfig.button_targets = config.button_targets === undefined
       ? ['primary-contact'] : stringArray(config.button_targets, KEY_PATTERN, 2);
+    normalizedConfig.contrast_mode = config.contrast_mode === undefined
+      ? 'auto' : safePattern(config.contrast_mode, KEY_PATTERN);
+    normalizedConfig.title_color = config.title_color === undefined
+      ? '#ffffff' : String(config.title_color).toLowerCase();
+    normalizedConfig.body_color = config.body_color === undefined
+      ? '#e2e8f0' : String(config.body_color).toLowerCase();
+    normalizedConfig.accent_color = config.accent_color === undefined
+      ? '#93c5fd' : String(config.accent_color).toLowerCase();
+    normalizedConfig.overlay_strength = config.overlay_strength === undefined
+      ? 'medium' : safePattern(config.overlay_strength, KEY_PATTERN);
     if (!['immersive', 'split', 'centered', 'editorial'].includes(normalizedConfig.layout)
       || normalizedConfig.button_targets.some((target: string) => ![
         'primary-contact', 'contact-section', 'services-section', 'work-section',
-      ].includes(target))) fail('invalid_payload');
+      ].includes(target))
+      || !['auto', 'light', 'dark', 'custom'].includes(normalizedConfig.contrast_mode)
+      || !['soft', 'medium', 'strong'].includes(normalizedConfig.overlay_strength)
+      || !HEX_COLOR_PATTERN.test(normalizedConfig.title_color)
+      || !HEX_COLOR_PATTERN.test(normalizedConfig.body_color)
+      || !HEX_COLOR_PATTERN.test(normalizedConfig.accent_color)) fail('invalid_payload');
   } else if (type === 'owner') {
     normalizedConfig.media_use_key = config.media_use_key === '' ? '' : safePattern(config.media_use_key, USE_KEY_PATTERN);
   } else if (type === 'contact') {

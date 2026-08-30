@@ -43,6 +43,32 @@ const contactEnabled = Boolean(primaryActionKey && requestedActionKey === primar
 const heroLayout = ['immersive', 'split', 'centered', 'editorial'].includes(String(section.config.layout))
   ? String(section.config.layout)
   : 'immersive';
+const heroContrastMode = ['auto', 'light', 'dark', 'custom'].includes(String(section.config.contrast_mode))
+  ? String(section.config.contrast_mode)
+  : 'auto';
+const heroOverlayStrength = ['soft', 'medium', 'strong'].includes(String(section.config.overlay_strength))
+  ? String(section.config.overlay_strength)
+  : 'medium';
+const heroTitleColor = /^#[0-9a-f]{6}$/i.test(String(section.config.title_color))
+  ? String(section.config.title_color).toLowerCase()
+  : '#ffffff';
+const heroBodyColor = /^#[0-9a-f]{6}$/i.test(String(section.config.body_color))
+  ? String(section.config.body_color).toLowerCase()
+  : '#e2e8f0';
+const heroAccentColor = /^#[0-9a-f]{6}$/i.test(String(section.config.accent_color))
+  ? String(section.config.accent_color).toLowerCase()
+  : '#93c5fd';
+const colorLuminance = (hex: string) => {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255)
+    .map((channel) => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4);
+  return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+};
+const heroOverlayTone = heroContrastMode === 'dark'
+  ? 'light'
+  : (heroContrastMode === 'custom' && colorLuminance(heroTitleColor) < .45 ? 'light' : 'dark');
+const heroStyle = heroContrastMode === 'custom'
+  ? `--promo-hero-title-color:${heroTitleColor};--promo-hero-body-color:${heroBodyColor};--promo-hero-accent-color:${heroAccentColor}`
+  : undefined;
 const logoMediaKey = String(profile.contact.logo_media_use_key || '');
 const logoMedia = profile.media.find((media) => (
   media.key === logoMediaKey && media.kind === 'image' && media.purpose === 'logo'
@@ -88,6 +114,10 @@ const carouselControlLabels = profile.locale.lang.toLowerCase().startsWith('en')
   data-section-type="hero"
   data-section-variant={section.variant}
   data-hero-media-count={String(heroMedia.length)}
+  data-hero-contrast={heroContrastMode}
+  data-hero-overlay-strength={heroOverlayStrength}
+  data-hero-overlay-tone={heroOverlayTone}
+  style={heroStyle}
 >
   <div class="promo-shell-section__inner promo-hero__inner">
     <div class="promo-shell-section__copy promo-hero__copy">

@@ -15,6 +15,25 @@ export const PROMO_CMS_HERO_LAYOUTS = Object.freeze([
   'editorial',
 ] as const);
 
+export const PROMO_CMS_HERO_CONTRAST_MODES = Object.freeze([
+  'auto',
+  'light',
+  'dark',
+  'custom',
+] as const);
+
+export const PROMO_CMS_HERO_OVERLAY_STRENGTHS = Object.freeze([
+  'soft',
+  'medium',
+  'strong',
+] as const);
+
+export const PROMO_CMS_HERO_DEFAULT_COLORS = Object.freeze({
+  title: '#ffffff',
+  body: '#e2e8f0',
+  accent: '#93c5fd',
+});
+
 export const PROMO_CMS_HERO_BUTTON_TARGETS = Object.freeze([
   'primary-contact',
   'contact-section',
@@ -75,6 +94,7 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const STORE_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
 const E164_PATTERN = /^\+[1-9][0-9]{7,14}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 const FOOTER_SOCIAL_PATTERNS: Readonly<Record<string, RegExp>> = Object.freeze({
   instagram: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9._]{0,28}[a-z0-9_])?)$/,
   facebook: /^(?!.*\.\.)(?:[a-z0-9](?:[a-z0-9.]{0,48}[a-z0-9])?)$/,
@@ -107,6 +127,11 @@ export type PromoCmsContentPatch = Readonly<{
     qrHeading?: string;
     intro?: string;
     heroLayout?: string;
+    heroContrastMode?: string;
+    heroTitleColor?: string;
+    heroBodyColor?: string;
+    heroAccentColor?: string;
+    heroOverlayStrength?: string;
     highlights?: readonly string[];
     buttons?: readonly Readonly<{ target: string; label: string }>[];
     name?: string;
@@ -214,6 +239,12 @@ function serviceIconKey(value: unknown) {
   return fail('invalid_promo_document');
 }
 
+function heroColor(value: unknown) {
+  const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+  if (HEX_COLOR_PATTERN.test(normalized)) return normalized;
+  return fail('invalid_promo_document');
+}
+
 function emptyLocalizedContent(): JsonRecord {
   return {
     identity: {},
@@ -234,6 +265,11 @@ function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number
         action_key: '',
         layout: 'immersive',
         button_targets: ['primary-contact'],
+        contrast_mode: 'auto',
+        title_color: PROMO_CMS_HERO_DEFAULT_COLORS.title,
+        body_color: PROMO_CMS_HERO_DEFAULT_COLORS.body,
+        accent_color: PROMO_CMS_HERO_DEFAULT_COLORS.accent,
+        overlay_strength: 'medium',
       },
     },
     services: { key: 'services-main', config: { item_keys: [], gallery_keys: [], icon_keys: [] } },
@@ -296,11 +332,23 @@ function upgradeHeroPresentation(document: JsonRecord) {
     const targets = Array.isArray(config.button_targets)
       ? config.button_targets.filter((target: unknown) => PROMO_CMS_HERO_BUTTON_TARGETS.includes(target as any))
       : ['primary-contact'];
+    const contrastMode = PROMO_CMS_HERO_CONTRAST_MODES.includes(config.contrast_mode as any)
+      ? config.contrast_mode : 'auto';
+    const overlayStrength = PROMO_CMS_HERO_OVERLAY_STRENGTHS.includes(config.overlay_strength as any)
+      ? config.overlay_strength : 'medium';
     section.config = {
       media_use_key: String(config.media_use_key || ''),
       action_key: String(config.action_key || ''),
       layout,
       button_targets: Array.from(new Set(targets)).slice(0, PROMO_CMS_HERO_MAX_BUTTONS),
+      contrast_mode: contrastMode,
+      title_color: HEX_COLOR_PATTERN.test(String(config.title_color || ''))
+        ? String(config.title_color).toLowerCase() : PROMO_CMS_HERO_DEFAULT_COLORS.title,
+      body_color: HEX_COLOR_PATTERN.test(String(config.body_color || ''))
+        ? String(config.body_color).toLowerCase() : PROMO_CMS_HERO_DEFAULT_COLORS.body,
+      accent_color: HEX_COLOR_PATTERN.test(String(config.accent_color || ''))
+        ? String(config.accent_color).toLowerCase() : PROMO_CMS_HERO_DEFAULT_COLORS.accent,
+      overlay_strength: overlayStrength,
     };
   });
   Object.values(document.content_by_locale || {}).forEach((rawLocalized) => {
@@ -847,6 +895,11 @@ export function buildPromoCmsContentDocument(
     const current = isRecord(localized.sections[sectionKey]) ? localized.sections[sectionKey] : {};
     if (section.type === 'hero') {
       const heroLayout = String(sectionPatch.heroLayout || section.config.layout || 'immersive');
+      const heroContrastMode = String(sectionPatch.heroContrastMode || section.config.contrast_mode || 'auto');
+      const heroOverlayStrength = String(sectionPatch.heroOverlayStrength || section.config.overlay_strength || 'medium');
+      const heroTitleColor = heroColor(sectionPatch.heroTitleColor || section.config.title_color || PROMO_CMS_HERO_DEFAULT_COLORS.title);
+      const heroBodyColor = heroColor(sectionPatch.heroBodyColor || section.config.body_color || PROMO_CMS_HERO_DEFAULT_COLORS.body);
+      const heroAccentColor = heroColor(sectionPatch.heroAccentColor || section.config.accent_color || PROMO_CMS_HERO_DEFAULT_COLORS.accent);
       const highlights = Array.isArray(sectionPatch.highlights)
         ? sectionPatch.highlights
         : (Array.isArray(current.highlights) ? current.highlights : []);
@@ -857,6 +910,10 @@ export function buildPromoCmsContentDocument(
         ? sectionPatch.buttons
         : configuredTargets.map((target: string, index: number) => ({ target, label: existingLabels[index] || '' }));
       if (!PROMO_CMS_HERO_LAYOUTS.includes(heroLayout as any)) fail('invalid_promo_document');
+      if (!PROMO_CMS_HERO_CONTRAST_MODES.includes(heroContrastMode as any)
+        || !PROMO_CMS_HERO_OVERLAY_STRENGTHS.includes(heroOverlayStrength as any)) {
+        fail('invalid_promo_document');
+      }
       if (highlights.length > PROMO_CMS_HERO_MAX_HIGHLIGHTS
         || requestedButtons.length > PROMO_CMS_HERO_MAX_BUTTONS) {
         fail('invalid_promo_document');
@@ -879,6 +936,11 @@ export function buildPromoCmsContentDocument(
         action_key: String(section.config.action_key || ''),
         layout: heroLayout,
         button_targets: nextButtonTargets,
+        contrast_mode: heroContrastMode,
+        title_color: heroTitleColor,
+        body_color: heroBodyColor,
+        accent_color: heroAccentColor,
+        overlay_strength: heroOverlayStrength,
       };
       Object.entries(document.content_by_locale).forEach(([contentLocale, rawOtherLocalized]) => {
         if (contentLocale === locale || !isRecord(rawOtherLocalized)) return;
