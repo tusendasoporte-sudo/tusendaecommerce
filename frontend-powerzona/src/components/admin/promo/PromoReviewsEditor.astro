@@ -55,10 +55,10 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
     )}
   </section>
 
-  <details class="pz-promo-reviews-admin__requests" open>
+  <details class="pz-promo-reviews-admin__requests" data-promo-accordion-key="review-requests">
     <summary>
       <span><span class="pz-promo-reviews-admin__section-label">Después de un trabajo</span><strong>Solicitar una reseña</strong></span>
-      <span>Enlace privado de un solo uso</span>
+      <span class="pz-promo-reviews-admin__summary-meta"><span>Enlace privado de un solo uso</span><span class="pz-promo-reviews-admin__summary-chevron" aria-hidden="true">⌄</span></span>
     </summary>
     <div class="pz-promo-reviews-admin__request-body">
       <p>Crea un enlace de un solo uso para que el cliente deje una reseña del trabajo realizado.</p>
@@ -88,41 +88,43 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
     </div>
   </details>
 
-  <section class="pz-promo-reviews-admin__moderation" aria-labelledby="promo-reviews-moderation-title">
-    <div class="pz-promo-reviews-admin__toolbar">
-      <div>
-        <span class="pz-promo-reviews-admin__section-label">Datos operativos</span>
-        <h3 id="promo-reviews-moderation-title">Moderación</h3>
+  <details class="pz-promo-reviews-admin__moderation" data-promo-accordion-key="review-moderation" aria-labelledby="promo-reviews-moderation-title">
+    <summary>
+      <span><span class="pz-promo-reviews-admin__section-label">Datos operativos</span><strong id="promo-reviews-moderation-title">Moderación</strong></span>
+      <span class="pz-promo-reviews-admin__summary-meta"><span>10 reseñas por página</span><span class="pz-promo-reviews-admin__summary-chevron" aria-hidden="true">⌄</span></span>
+    </summary>
+    <div class="pz-promo-reviews-admin__moderation-body">
+      <div class="pz-promo-reviews-admin__toolbar">
+        <label>
+          <span>Estado</span>
+          <select data-reviews-filter disabled={!canModerate}>
+            <option value="all">Todas</option>
+            <option value="pending">Pendientes</option>
+            <option value="approved">Aprobadas</option>
+            <option value="hidden">Ocultas</option>
+            <option value="rejected">Rechazadas</option>
+          </select>
+        </label>
       </div>
-      <label>
-        <span>Estado</span>
-        <select data-reviews-filter disabled={!canModerate}>
-          <option value="all">Todas</option>
-          <option value="pending">Pendientes</option>
-          <option value="approved">Aprobadas</option>
-          <option value="hidden">Ocultas</option>
-          <option value="rejected">Rechazadas</option>
-        </select>
-      </label>
+
+      <dl class="pz-promo-reviews-admin__metrics" data-reviews-metrics>
+        <div><dt>Promedio aprobado</dt><dd data-review-metric="average">—</dd></div>
+        <div><dt>Pendientes</dt><dd data-review-metric="pending">—</dd></div>
+        <div><dt>Aprobadas</dt><dd data-review-metric="approved">—</dd></div>
+        <div><dt>Total tienda</dt><dd data-review-metric="total">—</dd></div>
+      </dl>
+
+      <div class="pz-promo-reviews-admin__list" data-reviews-list aria-live="polite">
+        <p class="pz-promo-reviews-admin__empty">Cargando reseñas…</p>
+      </div>
+
+      <nav class="pz-promo-reviews-admin__pagination" aria-label="Paginación de reseñas">
+        <button type="button" data-reviews-previous disabled>Anterior</button>
+        <span data-reviews-page>1 de 1</span>
+        <button type="button" data-reviews-next disabled>Siguiente</button>
+      </nav>
     </div>
-
-    <dl class="pz-promo-reviews-admin__metrics" data-reviews-metrics>
-      <div><dt>Promedio aprobado</dt><dd data-review-metric="average">—</dd></div>
-      <div><dt>Pendientes</dt><dd data-review-metric="pending">—</dd></div>
-      <div><dt>Aprobadas</dt><dd data-review-metric="approved">—</dd></div>
-      <div><dt>Total tienda</dt><dd data-review-metric="total">—</dd></div>
-    </dl>
-
-    <div class="pz-promo-reviews-admin__list" data-reviews-list aria-live="polite">
-      <p class="pz-promo-reviews-admin__empty">Cargando reseñas…</p>
-    </div>
-
-    <nav class="pz-promo-reviews-admin__pagination" aria-label="Paginación de reseñas">
-      <button type="button" data-reviews-previous disabled>Anterior</button>
-      <span data-reviews-page>1 de 1</span>
-      <button type="button" data-reviews-next disabled>Siguiente</button>
-    </nav>
-  </section>
+  </details>
 </section>
 
 <script>
@@ -455,6 +457,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = label;
+      button.setAttribute('role', 'menuitem');
       button.dataset.reviewAction = action;
       button.dataset.reviewId = review.id;
       button.dataset.reviewUpdated = review.updated;
@@ -500,15 +503,34 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
       const footer = document.createElement('footer');
       const date = document.createElement('time');
       date.textContent = review.created ? new Intl.DateTimeFormat(adminLocale, { dateStyle: 'medium' }).format(new Date(review.created)) : 'Sin fecha';
+      const actionMenu = document.createElement('details');
+      actionMenu.className = 'pz-promo-reviews-admin__action-menu';
+      const actionTrigger = document.createElement('summary');
+      actionTrigger.className = 'pz-promo-reviews-admin__action-trigger';
+      actionTrigger.setAttribute('aria-label', 'Acciones de la reseña');
+      actionTrigger.setAttribute('title', 'Acciones de la reseña');
+      for (let index = 0; index < 3; index += 1) {
+        const line = document.createElement('span');
+        line.setAttribute('aria-hidden', 'true');
+        actionTrigger.append(line);
+      }
       const actions = document.createElement('div');
       actions.className = 'pz-promo-reviews-admin__actions';
+      actions.setAttribute('role', 'menu');
       if (review.status !== 'approved') actions.append(actionButton('Aprobar', 'approve', review));
       if (review.status !== 'rejected') actions.append(actionButton('Rechazar', 'reject', review, 'danger'));
       if (review.status === 'approved') {
         actions.append(actionButton('Ocultar', 'hide', review));
         actions.append(actionButton(review.featured ? 'Quitar destacado' : 'Destacar', review.featured ? 'unfeature' : 'feature', review));
       }
-      footer.append(date, actions);
+      actionMenu.append(actionTrigger, actions);
+      actionMenu.addEventListener('toggle', () => {
+        if (!actionMenu.open) return;
+        root.querySelectorAll<HTMLDetailsElement>('.pz-promo-reviews-admin__action-menu[open]').forEach((candidate) => {
+          if (candidate !== actionMenu) candidate.open = false;
+        });
+      });
+      footer.append(date, actionMenu);
       article.append(footer);
       return article;
     }
@@ -635,7 +657,11 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
     heading?.addEventListener('input', () => setConfigDirty());
     list?.addEventListener('click', (event) => {
       const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('[data-review-action]') : null;
-      if (button) void moderate(button);
+      if (button) {
+        const actionMenu = button.closest<HTMLDetailsElement>('.pz-promo-reviews-admin__action-menu');
+        if (actionMenu) actionMenu.open = false;
+        void moderate(button);
+      }
     });
 
     requestForm?.addEventListener('input', () => setRequestDirty());

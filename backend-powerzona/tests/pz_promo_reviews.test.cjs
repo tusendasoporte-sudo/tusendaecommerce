@@ -71,6 +71,7 @@ test('moderación soporta aprobar, rechazar, ocultar y destacar solo reseñas ap
 });
 
 test('contratos privados son exactos y no aceptan tenant, filtros PocketBase ni payloads Commerce', () => {
+  assert.equal(reviews.PRIVATE_PAGE_SIZE, 10);
   assert.deepEqual(reviews.parseList({ contract: 'promo.reviews.list.v1', status: 'pending', page: 1 }), {
     status: 'pending', page: 1,
   });

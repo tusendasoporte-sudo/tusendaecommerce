@@ -38,7 +38,7 @@ function documentFixture() {
 
 function pageFixture() {
   return {
-    ok: true, contract: 'promo.reviews.page.v1', filter: 'all', page: 1, per_page: 20,
+    ok: true, contract: 'promo.reviews.page.v1', filter: 'all', page: 1, per_page: 10,
     total_items: 1, total_pages: 1,
     summary: { total: 1, pending: 0, approved: 1, hidden: 0, rejected: 0, approved_average: 5 },
     reviews: [{
@@ -140,10 +140,16 @@ test('Admin usa módulo Promo dedicado, permisos granulares y DOM seguro', () =>
   const shell = read('../src/components/admin/promo/PromoAdminShell.astro');
   const proxy = read('../src/pages/api/admin/promo-reviews.ts');
   const requestProxy = read('../src/pages/api/admin/promo-review-requests.ts');
+  const destructiveActions = read('../src/lib/promoDestructiveActions.ts');
   assert.match(shell, /section === 'reviews'[\s\S]*?<PromoReviewsEditor/);
   assert.match(shell, /promo\.reviews\.manage/);
   assert.match(component, /textContent = review\.comment/);
   assert.match(component, /data-review-action/);
+  assert.match(component, /data-promo-accordion-key="review-requests"/);
+  assert.match(component, /data-promo-accordion-key="review-moderation"/);
+  assert.match(component, /pz-promo-reviews-admin__action-menu/);
+  assert.match(component, /10 reseñas por página/);
+  assert.match(destructiveActions, /button\.closest<HTMLDetailsElement>\('\.pz-promo-reviews-admin__action-menu'\)/);
   assert.match(proxy, /promo\.reviews\.list\.v1/);
   assert.match(proxy, /promoCmsSameOriginMutation/);
   assert.doesNotMatch(component, /data-review-request-photo-slots|selectReviewPhoto|photo_asset_ids|purpose', 'review'/);

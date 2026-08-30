@@ -232,6 +232,8 @@ const ENGLISH_COPY: Readonly<Record<string, string>> = Object.freeze({
   'Procesar y subir': 'Process and upload',
   'Reseñas de tienda': 'Store reviews',
   'Presentación pública y moderación': 'Public presentation and moderation',
+  '10 reseñas por página': '10 reviews per page',
+  'Acciones de la reseña': 'Review actions',
   'Solo se gestionan reseñas generales de esta tienda. Productos y pedidos permanecen fuera de Promo.': 'Only general reviews for this store are managed. Products and orders remain outside Promo.',
   'Sección de reseñas': 'Reviews section',
   'Al guardar, la sección y su título se actualizan automáticamente en la página pública.': 'When saved, the section and its title update automatically on the public page.',

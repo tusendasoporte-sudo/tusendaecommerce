@@ -277,10 +277,15 @@ function enhanceReviewButtons(scope: ParentNode = document) {
     if (!reference?.dataset.reviewUpdated) return;
     const button = document.createElement('button');
     button.type = 'button';
+    button.setAttribute('role', 'menuitem');
     button.dataset.reviewDelete = 'true';
     button.dataset.tone = 'danger';
     button.textContent = copy('Eliminar', 'Delete');
-    button.addEventListener('click', () => { void permanentlyDeleteReview(button); });
+    button.addEventListener('click', () => {
+      const menu = button.closest<HTMLDetailsElement>('.pz-promo-reviews-admin__action-menu');
+      if (menu) menu.open = false;
+      void permanentlyDeleteReview(button);
+    });
     actions.append(button);
   });
 }
