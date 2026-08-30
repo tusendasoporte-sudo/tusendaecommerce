@@ -153,6 +153,13 @@
   content: "";
 }
 
+.pz-promo-cms__footer-contrast-preview {
+  min-height: 10rem;
+  background: #080808;
+}
+
+.pz-promo-cms__footer-contrast-preview::before { display: none; }
+
 .pz-promo-cms__hero-preview-intro {
   color: var(--promo-preview-accent, #a9d8ff);
   font-size: .72rem;

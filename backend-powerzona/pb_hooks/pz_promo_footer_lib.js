@@ -7,6 +7,13 @@ const RESERVED_BRAND_NAME = "Tu Senda 84";
 const MAX_NAVIGATION_LINKS = 8;
 const MAX_SOCIAL_PROFILES = 4;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/;
+const CONTRAST_MODES = Object.freeze(["auto", "light", "dark", "custom"]);
+const DEFAULT_COLORS = Object.freeze({
+  title: "#ffffff",
+  body: "#e2e8f0",
+  accent: "#d8b25c",
+});
 
 const SOCIAL_NETWORKS = Object.freeze({
   instagram: Object.freeze({
@@ -85,7 +92,10 @@ function normalizeSocialProfile(value) {
 }
 
 function normalizeFooterConfig(value) {
-  const config = onlyKeys(value, ["navigation_section_keys", "social_profiles"]);
+  const config = onlyKeys(value, [
+    "navigation_section_keys", "social_profiles", "contrast_mode",
+    "title_color", "body_color", "accent_color",
+  ]);
   const navigationSectionKeys = Object.prototype.hasOwnProperty.call(config, "navigation_section_keys")
     ? safeStringArray(config.navigation_section_keys, MAX_NAVIGATION_LINKS)
     : [];
@@ -97,7 +107,23 @@ function normalizeFooterConfig(value) {
     ? config.social_profiles.map(normalizeSocialProfile)
     : [];
   if (new Set(socialProfiles.map((profile) => profile.network)).size !== socialProfiles.length) fail();
-  return { navigation_section_keys: navigationSectionKeys, social_profiles: socialProfiles };
+  const contrastMode = Object.prototype.hasOwnProperty.call(config, "contrast_mode")
+    ? String(config.contrast_mode || "") : "auto";
+  const color = (key, fallback) => {
+    const normalized = Object.prototype.hasOwnProperty.call(config, key)
+      ? String(config[key] || "").toLowerCase() : fallback;
+    if (!HEX_COLOR_PATTERN.test(normalized)) fail();
+    return normalized;
+  };
+  if (!CONTRAST_MODES.includes(contrastMode)) fail();
+  return {
+    navigation_section_keys: navigationSectionKeys,
+    social_profiles: socialProfiles,
+    contrast_mode: contrastMode,
+    title_color: color("title_color", DEFAULT_COLORS.title),
+    body_color: color("body_color", DEFAULT_COLORS.body),
+    accent_color: color("accent_color", DEFAULT_COLORS.accent),
+  };
 }
 
 function socialHref(network, handle) {
@@ -188,6 +214,8 @@ function attachPublicFooter(localizedValue) {
 }
 
 module.exports = {
+  CONTRAST_MODES,
+  DEFAULT_COLORS,
   FOOTER_CONTRACT,
   MAX_NAVIGATION_LINKS,
   MAX_SOCIAL_PROFILES,

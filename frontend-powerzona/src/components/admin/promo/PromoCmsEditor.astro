@@ -254,6 +254,8 @@ const isContent = scope === 'content';
     normalizePromoCmsDraftResponse,
     PROMO_CMS_API_PATH,
     PROMO_CMS_CONTACT_TYPES,
+    PROMO_CMS_FOOTER_CONTRAST_MODES,
+    PROMO_CMS_FOOTER_DEFAULT_COLORS,
     PROMO_CMS_FOOTER_MAX_LINKS,
     PROMO_CMS_FOOTER_SOCIAL_NETWORKS,
     PROMO_CMS_HERO_BUTTON_TARGETS,
@@ -817,13 +819,88 @@ const isContent = scope === 'content';
           element('p', 'pz-promo-cms__scope-note', 'El número, el enlace y la imagen QR se reutilizan desde Contacto. Los iconos de teléfono, consulta y WhatsApp permanecen fijos.'),
         );
       } else if (section.type === 'footer') {
+        const headingField = inputField('Título del pie', sectionContent.heading || '', { max: 160, data: 'heading' });
+        const summaryField = inputField('Resumen del pie', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' });
         fields.append(
-          inputField('Título del pie', sectionContent.heading || '', { max: 160, data: 'heading' }).label,
-          inputField('Resumen del pie', sectionContent.summary || '', { textarea: true, max: 600, data: 'summary' }).label,
-          inputField('Texto legal o de cierre', sectionContent.text || '', {
-            textarea: true, max: 4000, data: 'text',
-          }).label,
+          headingField.label,
+          summaryField.label,
         );
+
+        const contrastGroup = element('section', 'pz-promo-cms__hero-group pz-promo-cms__hero-contrast');
+        const contrastHeading = element('div', 'pz-promo-cms__hero-contrast-heading');
+        const contrastHeadingCopy = element('div');
+        contrastHeadingCopy.append(
+          element('strong', '', 'Legibilidad del pie del sitio'),
+          element('small', '', 'Automático usa texto claro sobre el fondo oscuro del pie. Personalizado permite elegir cada grupo de texto.'),
+        );
+        const resetContrast = element('button', 'pz-promo-cms__secondary-button', 'Restaurar tema');
+        resetContrast.type = 'button';
+        contrastHeading.append(contrastHeadingCopy, resetContrast);
+
+        const contrastControls = element('div', 'pz-promo-cms__hero-contrast-controls');
+        const contrastModeLabel = element('label', 'pz-promo-cms__field');
+        contrastModeLabel.append(element('span', '', 'Modo de contraste'));
+        const contrastMode = element('select');
+        contrastMode.dataset.cmsFooterContrast = '';
+        const contrastLabels: Record<string, string> = {
+          auto: 'Automático (recomendado)', light: 'Texto claro', dark: 'Texto oscuro', custom: 'Personalizado',
+        };
+        PROMO_CMS_FOOTER_CONTRAST_MODES.forEach((value) => {
+          const option = element('option', '', contrastLabels[value]);
+          option.value = value;
+          option.selected = value === (section.config.contrast_mode || 'auto');
+          contrastMode.append(option);
+        });
+        contrastModeLabel.append(contrastMode);
+        contrastControls.append(contrastModeLabel);
+
+        const colorGrid = element('div', 'pz-promo-cms__hero-color-grid');
+        const colorField = (labelText: string, value: string, dataName: string, fallback: string) => {
+          const label = element('label', 'pz-promo-cms__field pz-promo-cms__color-field');
+          label.append(element('span', '', labelText));
+          const input = element('input');
+          input.type = 'color';
+          input.value = /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+          input.dataset[dataName] = '';
+          label.append(input);
+          colorGrid.append(label);
+          return input;
+        };
+        const titleColor = colorField('Título', section.config.title_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.title, 'cmsFooterTitleColor', PROMO_CMS_FOOTER_DEFAULT_COLORS.title);
+        const bodyColor = colorField('Resumen y enlaces', section.config.body_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.body, 'cmsFooterBodyColor', PROMO_CMS_FOOTER_DEFAULT_COLORS.body);
+        const accentColor = colorField('Detalles y separadores', section.config.accent_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.accent, 'cmsFooterAccentColor', PROMO_CMS_FOOTER_DEFAULT_COLORS.accent);
+
+        const contrastPreview = element('article', 'pz-promo-cms__hero-contrast-preview pz-promo-cms__footer-contrast-preview');
+        const previewAccent = element('span', 'pz-promo-cms__hero-preview-intro', 'PIE DEL SITIO');
+        const previewTitle = element('strong', 'pz-promo-cms__hero-preview-title', headingField.control.value || 'Nombre del negocio');
+        const previewSummary = element('span', 'pz-promo-cms__hero-preview-summary', summaryField.control.value || 'Resumen y enlaces del negocio.');
+        contrastPreview.append(previewAccent, previewTitle, previewSummary);
+        const syncContrastPreview = () => {
+          const colors = contrastMode.value === 'dark'
+            ? { title: '#0f2942', body: '#29445d', accent: '#075f9e' }
+            : contrastMode.value === 'custom'
+              ? { title: titleColor.value, body: bodyColor.value, accent: accentColor.value }
+              : PROMO_CMS_FOOTER_DEFAULT_COLORS;
+          contrastPreview.style.setProperty('--promo-preview-title', colors.title);
+          contrastPreview.style.setProperty('--promo-preview-body', colors.body);
+          contrastPreview.style.setProperty('--promo-preview-accent', colors.accent);
+          [titleColor, bodyColor, accentColor].forEach((input) => { input.disabled = contrastMode.value !== 'custom'; });
+        };
+        contrastMode.addEventListener('change', syncContrastPreview);
+        [titleColor, bodyColor, accentColor].forEach((input) => input.addEventListener('input', syncContrastPreview));
+        headingField.control.addEventListener('input', () => { previewTitle.textContent = headingField.control.value || 'Nombre del negocio'; });
+        summaryField.control.addEventListener('input', () => { previewSummary.textContent = summaryField.control.value || 'Resumen y enlaces del negocio.'; });
+        resetContrast.addEventListener('click', () => {
+          contrastMode.value = 'auto';
+          titleColor.value = PROMO_CMS_FOOTER_DEFAULT_COLORS.title;
+          bodyColor.value = PROMO_CMS_FOOTER_DEFAULT_COLORS.body;
+          accentColor.value = PROMO_CMS_FOOTER_DEFAULT_COLORS.accent;
+          syncContrastPreview();
+          setDirty();
+        });
+        syncContrastPreview();
+        contrastGroup.append(contrastHeading, contrastControls, colorGrid, contrastPreview);
+        fields.append(contrastGroup);
 
         const footerLinks = element('fieldset', 'pz-promo-cms__footer-options');
         const linksLegend = element('legend', '', `Enlaces internos (máximo ${PROMO_CMS_FOOTER_MAX_LINKS})`);
@@ -1265,7 +1342,11 @@ const isContent = scope === 'content';
         if (type === 'footer') Object.assign(result, {
           heading: field('heading'),
           summary: field('summary'),
-          text: field('text'),
+          text: '',
+          footerContrastMode: card.querySelector<HTMLSelectElement>('[data-cms-footer-contrast]')?.value || 'auto',
+          footerTitleColor: card.querySelector<HTMLInputElement>('[data-cms-footer-title-color]')?.value || PROMO_CMS_FOOTER_DEFAULT_COLORS.title,
+          footerBodyColor: card.querySelector<HTMLInputElement>('[data-cms-footer-body-color]')?.value || PROMO_CMS_FOOTER_DEFAULT_COLORS.body,
+          footerAccentColor: card.querySelector<HTMLInputElement>('[data-cms-footer-accent-color]')?.value || PROMO_CMS_FOOTER_DEFAULT_COLORS.accent,
           navigationSectionKeys: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-link]:checked'))
             .map((input) => input.value),
           socialProfiles: Array.from(card.querySelectorAll<HTMLInputElement>('[data-cms-footer-social]'))

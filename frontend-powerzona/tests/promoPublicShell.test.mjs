@@ -857,6 +857,9 @@ test('FOOTER renderiza datos localizados, navegación, redes y marca Master sin 
   assert.match(footer, /aria-label=\{footer\.social_label\}/);
   assert.match(footer, /aria-label=\{link\.aria_label\}/);
   assert.match(footer, /footer\.branding\.name/);
+  assert.match(footer, /data-footer-contrast=\{footerContrastMode\}/);
+  assert.doesNotMatch(footer, /localized\.text/);
+  assert.match(styles, /--promo-footer-title-color/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1\.5fr\)/);
   assert.match(styles, /min-height: 44px/);
   assert.match(styles, /@media \(max-width: 640px\)/);

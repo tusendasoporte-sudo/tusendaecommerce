@@ -142,7 +142,11 @@ function contentPatch(document) {
       ...(section.type === 'footer' ? {
         heading: 'Conecta con nosotros',
         summary: 'Enlaces oficiales del negocio',
-        text: 'Texto legal y de cierre.',
+        text: '',
+        footerContrastMode: 'custom',
+        footerTitleColor: '#fefefe',
+        footerBodyColor: '#d1d5db',
+        footerAccentColor: '#f59e0b',
         navigationSectionKeys: ['hero-main', 'contact-main'],
         socialProfiles: [
           { network: 'instagram', handle: 'negocio.demo' },
@@ -305,8 +309,13 @@ test('edición de contenido preserva tema, media, galería, contacto, adapters y
       { network: 'instagram', handle: 'negocio.demo' },
       { network: 'linkedin', handle: 'negocio-demo' },
     ],
+    contrast_mode: 'custom',
+    title_color: '#fefefe',
+    body_color: '#d1d5db',
+    accent_color: '#f59e0b',
   });
   assert.equal(updated.content_by_locale.es.sections['footer-main'].heading, 'Conecta con nosotros');
+  assert.equal(updated.content_by_locale.es.sections['footer-main'].text, '');
   assert.deepEqual(updated.content_by_locale.es.sections['contact-main'], {
     heading: 'Hagamos realidad tu visión',
     consultation_heading: 'Consulta sin compromiso',
@@ -388,6 +397,36 @@ test('portada limita cuatro especialidades, dos botones y diseños aprobados', (
   assert.match(editor, /Legibilidad sobre la fotografía/);
   assert.match(hero, /data-hero-contrast=\{heroContrastMode\}/);
   assert.match(heroStyles, /--promo-hero-title-color/);
+});
+
+test('pie elimina el texto de demostración y valida contraste configurable', () => {
+  const original = completeDocument();
+  const patch = contentPatch(original);
+  const footerPatch = patch.sections.find((section) => section.key === 'footer-main');
+  footerPatch.footerContrastMode = 'custom';
+  footerPatch.footerTitleColor = '#ffffff';
+  footerPatch.footerBodyColor = '#e2e8f0';
+  footerPatch.footerAccentColor = '#d8b25c';
+  const updated = buildPromoCmsContentDocument(original, patch, 4);
+  assert.equal(updated.content_by_locale.es.sections['footer-main'].text, '');
+
+  footerPatch.footerAccentColor = 'var(--unsafe)';
+  assert.throws(
+    () => buildPromoCmsContentDocument(original, patch, 4),
+    (error) => error instanceof PromoCmsError && error.code === 'invalid_promo_document',
+  );
+
+  const editor = read('../src/components/admin/promo/PromoCmsEditor.astro');
+  const preview = read('../src/components/admin/promo/PromoPreviewEditor.astro');
+  const footer = read('../src/components/promo-public/PromoFooter.astro');
+  const footerStyles = read('../src/styles/promo-footer.css');
+  assert.match(editor, /Legibilidad del pie del sitio/);
+  assert.match(editor, /dataset\.cmsFooterContrast/);
+  assert.doesNotMatch(editor, /Texto legal o de cierre/);
+  assert.doesNotMatch(preview, /if \(localized\.text\)/);
+  assert.doesNotMatch(footer, /localized\.text/);
+  assert.match(footer, /data-footer-contrast=\{footerContrastMode\}/);
+  assert.match(footerStyles, /--promo-footer-title-color/);
 });
 
 test('servicios respetan cuota efectiva y el documento no acepta contenido activo', () => {

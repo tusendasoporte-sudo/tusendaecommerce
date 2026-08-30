@@ -83,7 +83,10 @@ const LIVE_SECTION_CONFIG_KEYS = Object.freeze({
   owner: ["media_use_key"],
   store_rating: [],
   contact: ["action_keys"],
-  footer: ["navigation_section_keys", "social_profiles"],
+  footer: [
+    "navigation_section_keys", "social_profiles", "contrast_mode",
+    "title_color", "body_color", "accent_color",
+  ],
 });
 const SECTION_MEDIA_PURPOSES = Object.freeze({
   hero: Object.freeze(["hero"]),
@@ -843,6 +846,20 @@ function upgradeHeroPresentation(document) {
   return document;
 }
 
+function upgradeFooterPresentation(document) {
+  const footers = Array.isArray(document.sections)
+    ? document.sections.filter((section) => section && section.type === "footer")
+    : [];
+  footers.forEach((section) => {
+    try { section.config = promoFooter.normalizeFooterConfig(section.config || {}); }
+    catch (error) {
+      if (error instanceof promoFooter.PromoFooterError) fail("invalid_promo_document", 400);
+      throw error;
+    }
+  });
+  return document;
+}
+
 function upgradeServiceIcons(document) {
   const sections = Array.isArray(document.sections)
     ? document.sections.filter((section) => section && section.type === "services")
@@ -875,7 +892,7 @@ function upgradePromoDocument(input) {
         current.contact.qr_media_use_key = "";
       }
     }
-    return enforceFixedSectionOrder(upgradeHeroPresentation(upgradeServiceIcons(current)));
+    return enforceFixedSectionOrder(upgradeFooterPresentation(upgradeHeroPresentation(upgradeServiceIcons(current))));
   }
   if (document.contract !== DOCUMENT_CONTRACT) fail("unknown_promo_contract", 400);
   const next = normalizeJson(document);
@@ -1005,7 +1022,7 @@ function upgradePromoDocument(input) {
       contact_cta_label: String(localized.identity.contact_cta_label || ""),
     };
   });
-  return enforceFixedSectionOrder(upgradeHeroPresentation(upgradeServiceIcons(next)));
+  return enforceFixedSectionOrder(upgradeFooterPresentation(upgradeHeroPresentation(upgradeServiceIcons(next))));
 }
 
 function validatePromoDocument(input, options) {

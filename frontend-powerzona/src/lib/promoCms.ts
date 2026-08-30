@@ -65,6 +65,19 @@ export const PROMO_CMS_FOOTER_SOCIAL_NETWORKS = Object.freeze([
   Object.freeze({ key: 'youtube', label: 'YouTube' }),
 ] as const);
 
+export const PROMO_CMS_FOOTER_CONTRAST_MODES = Object.freeze([
+  'auto',
+  'light',
+  'dark',
+  'custom',
+] as const);
+
+export const PROMO_CMS_FOOTER_DEFAULT_COLORS = Object.freeze({
+  title: '#ffffff',
+  body: '#e2e8f0',
+  accent: '#d8b25c',
+});
+
 export const PROMO_CMS_FOOTER_MAX_LINKS = 8;
 
 export const PROMO_CMS_TEXT_LIMITS = Object.freeze({
@@ -137,6 +150,10 @@ export type PromoCmsContentPatch = Readonly<{
     name?: string;
     bio?: string;
     text?: string;
+    footerContrastMode?: string;
+    footerTitleColor?: string;
+    footerBodyColor?: string;
+    footerAccentColor?: string;
     navigationSectionKeys?: readonly string[];
     socialProfiles?: readonly Readonly<{ network: string; handle: string }>[];
     items?: readonly Readonly<{
@@ -239,7 +256,7 @@ function serviceIconKey(value: unknown) {
   return fail('invalid_promo_document');
 }
 
-function heroColor(value: unknown) {
+function promoColor(value: unknown) {
   const normalized = typeof value === 'string' ? value.toLowerCase() : '';
   if (HEX_COLOR_PATTERN.test(normalized)) return normalized;
   return fail('invalid_promo_document');
@@ -275,7 +292,17 @@ function sectionDefinition(type: (typeof PROMO_CMS_MANAGED_SECTION_TYPES)[number
     services: { key: 'services-main', config: { item_keys: [], gallery_keys: [], icon_keys: [] } },
     owner: { key: 'owner-main', config: { media_use_key: '' } },
     contact: { key: 'contact-main', config: { action_keys: [] } },
-    footer: { key: 'footer-main', config: { navigation_section_keys: [], social_profiles: [] } },
+    footer: {
+      key: 'footer-main',
+      config: {
+        navigation_section_keys: [],
+        social_profiles: [],
+        contrast_mode: 'auto',
+        title_color: PROMO_CMS_FOOTER_DEFAULT_COLORS.title,
+        body_color: PROMO_CMS_FOOTER_DEFAULT_COLORS.body,
+        accent_color: PROMO_CMS_FOOTER_DEFAULT_COLORS.accent,
+      },
+    },
   };
   return definitions[type];
 }
@@ -374,6 +401,28 @@ function upgradeHeroPresentation(document: JsonRecord) {
   return document;
 }
 
+function upgradeFooterPresentation(document: JsonRecord) {
+  if (!Array.isArray(document.sections)) return document;
+  document.sections.filter((section: JsonRecord) => section?.type === 'footer')
+    .forEach((section: JsonRecord) => {
+      const config = isRecord(section.config) ? section.config : {};
+      section.config = {
+        navigation_section_keys: Array.isArray(config.navigation_section_keys)
+          ? config.navigation_section_keys.slice() : [],
+        social_profiles: Array.isArray(config.social_profiles) ? clone(config.social_profiles) : [],
+        contrast_mode: PROMO_CMS_FOOTER_CONTRAST_MODES.includes(config.contrast_mode as any)
+          ? config.contrast_mode : 'auto',
+        title_color: HEX_COLOR_PATTERN.test(String(config.title_color || ''))
+          ? String(config.title_color).toLowerCase() : PROMO_CMS_FOOTER_DEFAULT_COLORS.title,
+        body_color: HEX_COLOR_PATTERN.test(String(config.body_color || ''))
+          ? String(config.body_color).toLowerCase() : PROMO_CMS_FOOTER_DEFAULT_COLORS.body,
+        accent_color: HEX_COLOR_PATTERN.test(String(config.accent_color || ''))
+          ? String(config.accent_color).toLowerCase() : PROMO_CMS_FOOTER_DEFAULT_COLORS.accent,
+      };
+    });
+  return document;
+}
+
 function upgradeServiceIcons(document: JsonRecord) {
   if (!Array.isArray(document.sections)) return document;
   document.sections.filter((section: JsonRecord) => section && section.type === 'services')
@@ -404,7 +453,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'logo_media_use_key')) next.contact.logo_media_use_key = '';
       if (!Object.prototype.hasOwnProperty.call(next.contact, 'qr_media_use_key')) next.contact.qr_media_use_key = '';
     }
-    return upgradeHeroPresentation(upgradeServiceIcons(next));
+    return upgradeFooterPresentation(upgradeHeroPresentation(upgradeServiceIcons(next)));
   }
   if (next.contract !== PROMO_CMS_LEGACY_DOCUMENT_CONTRACT) fail('invalid_payload');
   if (!Array.isArray(next.sections) || !Array.isArray(next.section_order)
@@ -539,7 +588,7 @@ function upgradeLegacyPromoCmsDocument(value: JsonRecord) {
       contact_cta_label: String(localized.identity.contact_cta_label || ''),
     };
   });
-  return upgradeHeroPresentation(upgradeServiceIcons(next));
+  return upgradeFooterPresentation(upgradeHeroPresentation(upgradeServiceIcons(next)));
 }
 
 export function normalizePromoCmsDocument(value: unknown) {
@@ -897,9 +946,9 @@ export function buildPromoCmsContentDocument(
       const heroLayout = String(sectionPatch.heroLayout || section.config.layout || 'immersive');
       const heroContrastMode = String(sectionPatch.heroContrastMode || section.config.contrast_mode || 'auto');
       const heroOverlayStrength = String(sectionPatch.heroOverlayStrength || section.config.overlay_strength || 'medium');
-      const heroTitleColor = heroColor(sectionPatch.heroTitleColor || section.config.title_color || PROMO_CMS_HERO_DEFAULT_COLORS.title);
-      const heroBodyColor = heroColor(sectionPatch.heroBodyColor || section.config.body_color || PROMO_CMS_HERO_DEFAULT_COLORS.body);
-      const heroAccentColor = heroColor(sectionPatch.heroAccentColor || section.config.accent_color || PROMO_CMS_HERO_DEFAULT_COLORS.accent);
+      const heroTitleColor = promoColor(sectionPatch.heroTitleColor || section.config.title_color || PROMO_CMS_HERO_DEFAULT_COLORS.title);
+      const heroBodyColor = promoColor(sectionPatch.heroBodyColor || section.config.body_color || PROMO_CMS_HERO_DEFAULT_COLORS.body);
+      const heroAccentColor = promoColor(sectionPatch.heroAccentColor || section.config.accent_color || PROMO_CMS_HERO_DEFAULT_COLORS.accent);
       const highlights = Array.isArray(sectionPatch.highlights)
         ? sectionPatch.highlights
         : (Array.isArray(current.highlights) ? current.highlights : []);
@@ -1029,6 +1078,19 @@ export function buildPromoCmsContentDocument(
         qr_heading: safeText(sectionPatch.qrHeading || '', PROMO_CMS_TEXT_LIMITS.heading),
       };
     } else if (section.type === 'footer') {
+      const footerContrastMode = String(sectionPatch.footerContrastMode || section.config.contrast_mode || 'auto');
+      if (!PROMO_CMS_FOOTER_CONTRAST_MODES.includes(footerContrastMode as any)) {
+        fail('invalid_promo_document');
+      }
+      const footerTitleColor = promoColor(
+        sectionPatch.footerTitleColor || section.config.title_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.title,
+      );
+      const footerBodyColor = promoColor(
+        sectionPatch.footerBodyColor || section.config.body_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.body,
+      );
+      const footerAccentColor = promoColor(
+        sectionPatch.footerAccentColor || section.config.accent_color || PROMO_CMS_FOOTER_DEFAULT_COLORS.accent,
+      );
       const requestedNavigationSectionKeys = Array.isArray(sectionPatch.navigationSectionKeys)
         ? sectionPatch.navigationSectionKeys.map((sectionKey) => key(sectionKey))
         : [];
@@ -1047,12 +1109,16 @@ export function buildPromoCmsContentDocument(
       section.config = {
         navigation_section_keys: navigationSectionKeys,
         social_profiles: socialProfiles,
+        contrast_mode: footerContrastMode,
+        title_color: footerTitleColor,
+        body_color: footerBodyColor,
+        accent_color: footerAccentColor,
       };
       localized.sections[sectionKey] = {
         ...current,
         heading: safeText(sectionPatch.heading || '', PROMO_CMS_TEXT_LIMITS.heading),
         summary: safeText(sectionPatch.summary || '', PROMO_CMS_TEXT_LIMITS.shortSummary),
-        text: safeText(sectionPatch.text || '', PROMO_CMS_TEXT_LIMITS.body),
+        text: '',
       };
     }
     return section;

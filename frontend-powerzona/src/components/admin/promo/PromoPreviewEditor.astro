@@ -403,7 +403,6 @@ const { storeSlug, canPrepare } = Astro.props;
           block.append(actions);
         } else if (section.type === 'footer') {
           block.append(sectionTitle(localized));
-          if (localized.text) block.append(element('p', '', localized.text));
           const footerLinks = element('div', 'pz-promo-site__footer-links');
           (section.config.navigation_section_keys || []).forEach((targetKey: string) => {
             footerLinks.append(element('span', '', preview.content.navigation[targetKey] || targetKey));

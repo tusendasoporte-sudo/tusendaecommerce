@@ -64,7 +64,8 @@ function documentFixture() {
 
 test('FOOTER valida enlaces internos y perfiles sociales tipados sin URL libre', () => {
   assert.deepEqual(footer.normalizeFooterConfig({}), {
-    navigation_section_keys: [], social_profiles: [],
+    navigation_section_keys: [], social_profiles: [], contrast_mode: 'auto',
+    title_color: '#ffffff', body_color: '#e2e8f0', accent_color: '#d8b25c',
   });
   assert.deepEqual(footer.normalizeFooterConfig({
     navigation_section_keys: ['hero-main'],
@@ -72,6 +73,14 @@ test('FOOTER valida enlaces internos y perfiles sociales tipados sin URL libre',
   }), {
     navigation_section_keys: ['hero-main'],
     social_profiles: [{ network: 'linkedin', handle: 'demo-business' }],
+    contrast_mode: 'auto',
+    title_color: '#ffffff', body_color: '#e2e8f0', accent_color: '#d8b25c',
+  });
+  assert.deepEqual(footer.normalizeFooterConfig({
+    contrast_mode: 'custom', title_color: '#fafafa', body_color: '#d1d5db', accent_color: '#f59e0b',
+  }), {
+    navigation_section_keys: [], social_profiles: [], contrast_mode: 'custom',
+    title_color: '#fafafa', body_color: '#d1d5db', accent_color: '#f59e0b',
   });
   assert.equal(footer.socialHref('instagram', 'demo.business'), 'https://www.instagram.com/demo.business/');
   assert.throws(() => footer.normalizeFooterConfig({ social_profiles: [
@@ -81,6 +90,8 @@ test('FOOTER valida enlaces internos y perfiles sociales tipados sin URL libre',
     { network: 'unknown', handle: 'demo' },
   ] }), footer.PromoFooterError);
   assert.throws(() => footer.normalizeFooterConfig({ admin_url: '/admin' }), footer.PromoFooterError);
+  assert.throws(() => footer.normalizeFooterConfig({ contrast_mode: 'unsafe-css' }), footer.PromoFooterError);
+  assert.throws(() => footer.normalizeFooterConfig({ title_color: 'url(https://attacker.test)' }), footer.PromoFooterError);
 });
 
 test('PUBCFG conserva config footer compatible y bloquea targets ocultos o Commerce', () => {
@@ -89,6 +100,11 @@ test('PUBCFG conserva config footer compatible y bloquea targets ocultos o Comme
   const legacy = documentFixture();
   legacy.sections[1].config = {};
   assert.doesNotThrow(() => pubcfg.validatePromoDocument(legacy, { publicRevision: true }));
+  const upgraded = pubcfg.upgradePromoDocument(legacy);
+  assert.deepEqual(upgraded.sections[1].config, {
+    navigation_section_keys: [], social_profiles: [], contrast_mode: 'auto',
+    title_color: '#ffffff', body_color: '#e2e8f0', accent_color: '#d8b25c',
+  });
 
   const hidden = documentFixture();
   hidden.sections[0].visible = false;

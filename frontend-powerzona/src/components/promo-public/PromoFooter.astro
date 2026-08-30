@@ -13,6 +13,17 @@ const { profile, section, localized, basePath = '' } = Astro.props;
 const footer = profile.footer.sections.find((entry) => entry.key === section.key);
 const sectionId = `promo-section-${section.key}`;
 const footerHref = (href: string) => basePath && href.startsWith('#') ? `${basePath}${href}` : href;
+const footerContrastMode = ['auto', 'light', 'dark', 'custom'].includes(String(section.config.contrast_mode))
+  ? String(section.config.contrast_mode) : 'auto';
+const footerTitleColor = /^#[0-9a-f]{6}$/i.test(String(section.config.title_color))
+  ? String(section.config.title_color).toLowerCase() : '#ffffff';
+const footerBodyColor = /^#[0-9a-f]{6}$/i.test(String(section.config.body_color))
+  ? String(section.config.body_color).toLowerCase() : '#e2e8f0';
+const footerAccentColor = /^#[0-9a-f]{6}$/i.test(String(section.config.accent_color))
+  ? String(section.config.accent_color).toLowerCase() : '#d8b25c';
+const footerStyle = footerContrastMode === 'custom'
+  ? `--promo-footer-title-color:${footerTitleColor};--promo-footer-body-color:${footerBodyColor};--promo-footer-accent-color:${footerAccentColor}`
+  : undefined;
 ---
 
 {footer && (
@@ -22,13 +33,14 @@ const footerHref = (href: string) => basePath && href.startsWith('#') ? `${baseP
     aria-label={profile.content.navigation[section.key]}
     data-section-type="footer"
     data-section-variant={section.variant}
+    data-footer-contrast={footerContrastMode}
+    style={footerStyle}
   >
     <div class="promo-footer__inner">
       <div class="promo-footer__identity">
         <span class="promo-shell-footer__mark" aria-hidden="true"></span>
         {localized.heading && <h2>{localized.heading}</h2>}
         {localized.summary && <p class="promo-footer__summary">{localized.summary}</p>}
-        {localized.text && <p class="promo-footer__text">{localized.text}</p>}
       </div>
 
       {footer.navigation_links.length > 0 && (
