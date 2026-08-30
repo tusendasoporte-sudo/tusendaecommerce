@@ -370,6 +370,7 @@ function initials(value: string) {
   </div>
 
   <script>
+    import { observePromoAdminFeedback } from '../../../lib/promoAdminFeedback';
     import {
       normalizePromoAdminLocale,
       observePromoAdminTranslations,
@@ -378,7 +379,10 @@ function initials(value: string) {
 
     const root = document.querySelector('[data-promo-admin-root]');
     const adminLocale = normalizePromoAdminLocale(root instanceof HTMLElement ? root.dataset.promoAdminLocale : 'es');
-    if (root instanceof HTMLElement) observePromoAdminTranslations(root, adminLocale);
+    if (root instanceof HTMLElement) {
+      observePromoAdminTranslations(root, adminLocale);
+      observePromoAdminFeedback(root);
+    }
     const accordionHashPrefix = '#promo-admin-open=';
     const savedAccordionKeys = window.location.hash.startsWith(accordionHashPrefix)
       ? decodeURIComponent(window.location.hash.slice(accordionHashPrefix.length)).split(',').filter(Boolean)

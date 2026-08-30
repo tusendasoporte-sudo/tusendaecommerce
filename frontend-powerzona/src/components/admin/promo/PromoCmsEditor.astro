@@ -43,7 +43,6 @@ const isContent = scope === 'content';
     </div>
     <div class="pz-promo-cms__draft-meta" aria-label="Estado de la página">
       <span data-cms-locale>Idioma base: —</span>
-      <span data-cms-version>Versión: —</span>
     </div>
   </header>
 
@@ -58,7 +57,7 @@ const isContent = scope === 'content';
     </div>
   )}
 
-  <div class="pz-promo-cms__notice" role="status" aria-live="polite" data-cms-status>
+  <div class="pz-promo-cms__notice" role="status" aria-live="polite" data-cms-status data-promo-feedback>
     <span class="pz-promo-cms__spinner" aria-hidden="true"></span>
     <span>Cargando la página segura…</span>
   </div>
@@ -402,9 +401,7 @@ const isContent = scope === 'content';
 
     function updateMeta() {
       const localeNode = root.querySelector<HTMLElement>('[data-cms-locale]');
-      const versionNode = root.querySelector<HTMLElement>('[data-cms-version]');
       if (localeNode) localeNode.textContent = `Idioma base: ${locale || '—'}`;
-      if (versionNode) versionNode.textContent = `Versión: ${version || '—'}`;
     }
 
     function serviceTotal() {

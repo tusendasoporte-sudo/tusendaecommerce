@@ -7,6 +7,10 @@ import {
   promoAdminText,
   resolvePromoAdminLocale,
 } from '../../frontend-powerzona/src/lib/promoAdminI18n.ts';
+import {
+  PROMO_ADMIN_FEEDBACK_SELECTOR,
+  PROMO_ADMIN_FEEDBACK_TIMEOUT_MS,
+} from '../../frontend-powerzona/src/lib/promoAdminFeedback.ts';
 
 test('idioma del Admin Promo queda cerrado a español o inglés', () => {
   assert.equal(PROMO_ADMIN_LOCALE_COOKIE, 'pz_promo_admin_locale');
@@ -58,6 +62,25 @@ test('shell guarda la preferencia sin tocar idioma público ni usar storage del 
   assert.match(shell, /window\.location\.reload\(\)/);
   assert.doesNotMatch(shell, /localStorage|sessionStorage/);
   assert.match(shell, /attributeFilter: \['aria-label', 'title', 'placeholder'\]|observePromoAdminTranslations/);
+});
+
+test('avisos transitorios del Admin Promo comparten la regla global de seis segundos', () => {
+  const shell = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoAdminShell.astro', import.meta.url), 'utf8');
+  const feedback = readFileSync(new URL('../../frontend-powerzona/src/lib/promoAdminFeedback.ts', import.meta.url), 'utf8');
+  const reviews = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoReviewsEditor.astro', import.meta.url), 'utf8');
+  assert.equal(PROMO_ADMIN_FEEDBACK_TIMEOUT_MS, 6000);
+  assert.equal(PROMO_ADMIN_FEEDBACK_SELECTOR, '[data-promo-feedback]');
+  assert.match(shell, /observePromoAdminFeedback\(root\)/);
+  assert.match(feedback, /element\.hidden = true/);
+  assert.match(feedback, /schedule\(feedback, true\)/);
+  assert.match(reviews, /data-reviews-alert data-promo-feedback/);
+});
+
+test('editores Promo no muestran el número interno de versión', () => {
+  const cms = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoCmsEditor.astro', import.meta.url), 'utf8');
+  const locales = readFileSync(new URL('../../frontend-powerzona/src/components/admin/promo/PromoLocalesEditor.astro', import.meta.url), 'utf8');
+  assert.doesNotMatch(cms, /data-cms-version|Versión:/);
+  assert.doesNotMatch(locales, /data-locales-version|Versión:/);
 });
 
 test('analíticas y contenido dinámico respetan el idioma administrativo y protegen texto editorial', () => {

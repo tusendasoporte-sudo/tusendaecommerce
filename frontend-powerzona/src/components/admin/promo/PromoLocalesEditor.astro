@@ -32,7 +32,6 @@ const canSave = canManageContent && canManageTranslations;
       <p>Administra los idiomas visibles y sus traducciones. Al guardar, los cambios válidos se reflejan automáticamente en la página.</p>
     </div>
     <div class="pz-promo-locales__draft-meta" aria-label="Estado de la página">
-      <span data-locales-version>Versión: —</span>
       <span data-locales-quota>Idiomas: —</span>
     </div>
   </header>
@@ -48,7 +47,7 @@ const canSave = canManageContent && canManageTranslations;
     </div>
   )}
 
-  <div class="pz-promo-locales__notice" role="status" aria-live="polite" data-locales-status>
+  <div class="pz-promo-locales__notice" role="status" aria-live="polite" data-locales-status data-promo-feedback>
     <span class="pz-promo-locales__spinner" aria-hidden="true"></span>
     <span>Cargando la página y sus idiomas…</span>
   </div>
@@ -805,9 +804,7 @@ const canSave = canManageContent && canManageTranslations;
     }
 
     function updateMeta() {
-      const versionNode = root.querySelector<HTMLElement>('[data-locales-version]');
       const quotaNode = root.querySelector<HTMLElement>('[data-locales-quota]');
-      if (versionNode) versionNode.textContent = `Versión: ${version || '—'}`;
       if (quotaNode && documentValue) quotaNode.textContent = `Idiomas: ${Object.keys(documentValue.content_by_locale).length}/${Math.max(0, maxLocales)}`;
     }
 
