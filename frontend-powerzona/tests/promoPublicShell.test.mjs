@@ -132,6 +132,10 @@ function shellEnvelopeWithFooter() {
         { network: 'instagram', handle: 'demo.business' },
         { network: 'linkedin', handle: 'demo-business' },
       ],
+      contrast_mode: 'custom',
+      title_color: '#fafafa',
+      body_color: '#e5e7eb',
+      accent_color: '#d8b25c',
     },
     media_use_keys: [],
   });
@@ -489,6 +493,17 @@ test('CONTACT acepta solo la acción principal compilada, allowlisted y localize
 
 test('FOOTER acepta solo enlaces compilados, redes tipadas y branding reservado', () => {
   const normalized = normalizePromoPublicShellResponse(shellEnvelopeWithFooter());
+  assert.deepEqual(normalized.profile.sections[1].config, {
+    navigation_section_keys: ['hero-main'],
+    social_profiles: [
+      { network: 'instagram', handle: 'demo.business' },
+      { network: 'linkedin', handle: 'demo-business' },
+    ],
+    contrast_mode: 'custom',
+    title_color: '#fafafa',
+    body_color: '#e5e7eb',
+    accent_color: '#d8b25c',
+  });
   const footer = normalized.profile.footer.sections[0];
   assert.deepEqual(footer.navigation_links, [{
     section_key: 'hero-main', label: 'Inicio', href: '#promo-section-hero-main',
@@ -505,6 +520,9 @@ test('FOOTER acepta solo enlaces compilados, redes tipadas y branding reservado'
   const reserved = shellEnvelopeWithFooter();
   reserved.profile.footer.sections[0].branding.name = 'Marca del tenant';
   assert.throws(() => normalizePromoPublicShellResponse(reserved), PromoPublicShellError);
+  const invalidContrast = shellEnvelopeWithFooter();
+  invalidContrast.profile.sections[1].config.title_color = 'white';
+  assert.throws(() => normalizePromoPublicShellResponse(invalidContrast), PromoPublicShellError);
   const commerce = shellEnvelopeWithFooter();
   commerce.profile.sections[1].config.navigation_section_keys = ['checkout'];
   assert.throws(() => normalizePromoPublicShellResponse(commerce), PromoPublicShellError);

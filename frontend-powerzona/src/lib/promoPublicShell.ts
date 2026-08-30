@@ -748,7 +748,10 @@ function normalizeSection(value: unknown): PromoPublicSection {
     const source = exactRecord(section.config, ['action_keys']);
     config.action_keys = list(source.action_keys, 32);
   } else if (type === 'footer') {
-    const source = subsetRecord(section.config, ['navigation_section_keys', 'social_profiles']);
+    const source = subsetRecord(section.config, [
+      'navigation_section_keys', 'social_profiles',
+      'contrast_mode', 'title_color', 'body_color', 'accent_color',
+    ]);
     config.navigation_section_keys = list(source.navigation_section_keys || [], 8);
     if (!Array.isArray(source.social_profiles) || source.social_profiles.length > 4) fail();
     config.social_profiles = source.social_profiles.map((item: unknown) => {
@@ -758,6 +761,14 @@ function normalizeSection(value: unknown): PromoPublicSection {
       if (!FOOTER_SOCIALS[network]?.handle.test(handle)) fail();
       return { network, handle };
     });
+    config.contrast_mode = source.contrast_mode === undefined ? 'auto' : safePattern(source.contrast_mode, KEY_PATTERN);
+    config.title_color = source.title_color === undefined ? '#ffffff' : String(source.title_color).toLowerCase();
+    config.body_color = source.body_color === undefined ? '#e2e8f0' : String(source.body_color).toLowerCase();
+    config.accent_color = source.accent_color === undefined ? '#d8b25c' : String(source.accent_color).toLowerCase();
+    if (!['auto', 'light', 'dark', 'custom'].includes(config.contrast_mode)
+      || !HEX_COLOR_PATTERN.test(config.title_color)
+      || !HEX_COLOR_PATTERN.test(config.body_color)
+      || !HEX_COLOR_PATTERN.test(config.accent_color)) fail();
     if (new Set(config.social_profiles.map((item: JsonRecord) => item.network)).size !== config.social_profiles.length) fail();
   } else {
     exactRecord(section.config, []);
