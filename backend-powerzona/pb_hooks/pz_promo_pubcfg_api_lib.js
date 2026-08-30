@@ -3,6 +3,9 @@
 const promo = typeof __hooks === "undefined"
   ? require("./pz_promo_permissions_lib.js")
   : require(`${__hooks}/pz_promo_permissions_lib.js`);
+const promoPlans = typeof __hooks === "undefined"
+  ? require("./pz_promo_plan_lib.js")
+  : require(`${__hooks}/pz_promo_plan_lib.js`);
 const data = typeof __hooks === "undefined"
   ? require("./pz_promo_data_lib.js")
   : require(`${__hooks}/pz_promo_data_lib.js`);
@@ -270,6 +273,7 @@ function assertEntitlementMetrics(entitlement, document, assets) {
   const metrics = contract.documentMetrics(document, assets);
   const checks = [
     ["max_services", metrics.services],
+    ["max_gallery_assets", metrics.images],
     ["max_locales", metrics.locales],
     ["max_videos", metrics.videos],
     ["max_storage_bytes", metrics.bytes],
@@ -406,6 +410,8 @@ function resolvePublicProjectionForSite(app, site, options) {
   const siteId = recordId(site);
   const store = findRecord(app, "stores", relationId(site, "store"));
   if (!store || recordString(store, "status") !== "active") throw codedError("promo_not_found", 404);
+  try { promoPlans.assertPromoPublicAccess(store); }
+  catch (_) { throw codedError("promo_not_found", 404); }
   const entitlement = findExact(app, "promo_site_entitlements", "site = {:site}", { site: siteId });
   if (!entitlement || !promo.resolvePromoCapabilityAccess(entitlement, "promo_site_enabled").allowed) {
     throw codedError("promo_not_found", 404);
@@ -535,6 +541,8 @@ function privateRequestContext(e) {
 function requireMasterOperationalAction(decision, actionKey) {
   const definition = promo.PROMO_ACTION_CATALOG[actionKey];
   if (!definition || definition.scope === "master") throw codedError("unknown_promo_action", 403);
+  try { promoPlans.assertPromoOperationalAccess(decision.store, actionKey); }
+  catch (_) { throw codedError("promo_plan_expired", 403); }
   if (!definition.store_statuses.includes(recordString(decision.store, "status"))
     || !definition.site_statuses.includes(recordString(decision.site, "status"))) {
     throw codedError("promo_site_inactive", 403);

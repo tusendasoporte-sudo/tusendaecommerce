@@ -5,6 +5,7 @@ const STORE_TYPES = Object.freeze(["commerce", "promo"]);
 const STORE_NAME_MAX_LENGTH = 140;
 const STORE_SLUG_MAX_LENGTH = 80;
 const OWNER_PHONE_MAX_LENGTH = 60;
+const PROMO_PLAN_CODES = Object.freeze(["free", "basic"]);
 const SYSTEM_CURRENCY_DEFAULTS = Object.freeze([
   Object.freeze({ code: "USD", name: "Dolar estadounidense", symbol: "$", active: true, isDefault: true, isBase: true }),
   Object.freeze({ code: "CUP", name: "Peso cubano", symbol: "CUP", active: false, isDefault: false, isBase: false }),
@@ -148,21 +149,37 @@ function normalizeStoreSlug(value) {
 function parseCreateStorePayload(body) {
   const legacyPayload = exactPayload(body, ["name", "slug", "status", "owner_phone"]);
   const typedPayload = exactPayload(body, ["name", "slug", "status", "owner_phone", "store_type"]);
-  if (!legacyPayload && !typedPayload) return null;
+  const promoPlanPayload = exactPayload(body, [
+    "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months",
+  ]);
+  if (!legacyPayload && !typedPayload && !promoPlanPayload) return null;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const rawSlug = typeof body.slug === "string" ? body.slug.trim() : "";
   const slug = normalizeStoreSlug(rawSlug);
   const status = typeof body.status === "string" ? body.status.trim().toLowerCase() : "";
   const ownerPhone = typeof body.owner_phone === "string" ? body.owner_phone.trim() : "";
-  const storeType = typedPayload && typeof body.store_type === "string"
+  const storeType = (typedPayload || promoPlanPayload) && typeof body.store_type === "string"
     ? body.store_type.trim().toLowerCase()
     : "commerce";
+  const promoPlan = promoPlanPayload && typeof body.promo_plan === "string"
+    ? body.promo_plan.trim().toLowerCase()
+    : "free";
+  const promoDurationMonths = promoPlanPayload ? Number(body.promo_duration_months) : 0;
   if (!name || name.length > STORE_NAME_MAX_LENGTH) return null;
   if (!rawSlug || slug !== rawSlug.toLowerCase() || slug.length > STORE_SLUG_MAX_LENGTH) return null;
   if (!STORE_STATUSES.includes(status)) return null;
   if (!STORE_TYPES.includes(storeType)) return null;
+  if (promoPlanPayload && (storeType !== "promo" || !PROMO_PLAN_CODES.includes(promoPlan))) return null;
+  if (storeType === "promo" && (
+    (promoPlan === "free" && promoDurationMonths !== 0)
+    || (promoPlan === "basic" && (!Number.isInteger(promoDurationMonths) || promoDurationMonths < 1 || promoDurationMonths > 12))
+  )) return null;
   if (ownerPhone.length > OWNER_PHONE_MAX_LENGTH) return null;
-  return { name, slug, status, ownerPhone, ...(typedPayload ? { storeType } : {}) };
+  return {
+    name, slug, status, ownerPhone,
+    ...((typedPayload || promoPlanPayload) ? { storeType } : {}),
+    ...(storeType === "promo" ? { promoPlan, promoDurationMonths } : {}),
+  };
 }
 
 function findRecord(app, collection, id) {
@@ -286,10 +303,14 @@ function createStoreForMaster(app, actorId, payload) {
   const actor = findRecord(app, "users", actorId);
   if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
   const store = createBaseStore(app, actor, payload);
+  const promoPlan = typeof __hooks === "undefined"
+    ? require("./pz_promo_plan_lib.js")
+    : require(`${__hooks}/pz_promo_plan_lib.js`);
+  promoPlan.assignInitialPromoPlan(app, store, actor, payload.promoPlan, payload.promoDurationMonths);
   const promoMaster = typeof __hooks === "undefined"
     ? require("./pz_promo_master_lib.js")
     : require(`${__hooks}/pz_promo_master_lib.js`);
-  const foundation = promoMaster.createPromoFoundation(app, actor, store, payload.slug);
+  const foundation = promoMaster.createPromoFoundation(app, actor, store, payload.slug, payload.promoPlan);
   return { store, currencies: [], settings: null, foundation, storeType: "promo" };
 }
 
@@ -385,6 +406,7 @@ function handleCreate(e) {
 module.exports = {
   SYSTEM_CURRENCY_CODES,
   SYSTEM_CURRENCY_DEFAULTS,
+  PROMO_PLAN_CODES,
   STORE_TYPES,
   createBaseStore,
   createDefaultStoreSettings,

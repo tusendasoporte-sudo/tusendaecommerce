@@ -85,7 +85,10 @@ function customProjectionFixture() {
     store: ids.store, public_slug: 'aladdin-carpet', status: 'active', contract_version: 1,
   });
   const collections = {
-    stores: [record(ids.store, { status: 'active' })],
+    stores: [record(ids.store, {
+      status: 'active', plan: 'basic', plan_started_at: '2026-01-01T00:00:00.000Z',
+      plan_expires_at: '2099-01-01T00:00:00.000Z', plan_duration_months: 12, plan_is_permanent: false,
+    })],
     promo_sites: [site],
     promo_site_entitlements: [record(ids.entitlement, {
       site: ids.site, source: 'contract', promo_site_enabled: true, custom_domain_enabled: true,
@@ -440,6 +443,27 @@ test('el límite legado de galería no restringe el documento Promo', () => {
     max_storage_bytes: 262144000,
   };
   assert.equal(api.assertEntitlementMetrics(entitlement, document, []).gallery, 25);
+});
+
+test('publicación respeta la cuota de fotos asignada a cada tienda Promo', () => {
+  const document = publishedDocument();
+  const entitlement = {
+    source: 'contract', promo_site_enabled: true,
+    multilanguage_enabled: false, video_enabled: false, landing_qr_bridge_enabled: false,
+    max_services: 50, max_gallery_assets: 150, max_locales: 10, max_videos: 0,
+    max_storage_bytes: 262144000, valid_from: '', valid_until: '',
+  };
+  const images = (count) => Array.from({ length: count }, (_, index) => ({
+    id: `image-${index}`, kind: 'image', bytes: 1024,
+  }));
+
+  assert.equal(api.assertEntitlementMetrics(entitlement, document, images(150)).images, 150);
+  assert.throws(
+    () => api.assertEntitlementMetrics(entitlement, document, images(151)),
+    (error) => error.code === 'promo_capability_denied',
+  );
+  entitlement.max_gallery_assets = 300;
+  assert.equal(api.assertEntitlementMetrics(entitlement, document, images(300)).images, 300);
 });
 
 test('acciones derivadas preservan permisos granulares para tema, traducciones, contacto, rating y QR', () => {

@@ -256,7 +256,7 @@ test('I18N adjunta alt/decorative del único locale efectivo sin mezclar idiomas
 test('cuotas se calculan por tenant y fallan cerradas al superar entitlement', () => {
   const entitlement = record('entitlement0001', {
     source: 'contract', promo_site_enabled: true, max_storage_bytes: 1000,
-    video_enabled: true, max_videos: 1, valid_from: '', valid_until: '',
+    max_gallery_assets: 2, video_enabled: true, max_videos: 1, valid_from: '', valid_until: '',
   });
   const decision = { entitlement };
   assert.deepEqual(api.assertQuota(decision, { images: 0, videos: 0, bytes: 0 }, {
@@ -265,6 +265,10 @@ test('cuotas se calculan por tenant y fallan cerradas al superar entitlement', (
   assert.throws(
     () => api.assertQuota(decision, { images: 1, videos: 0, bytes: 900 }, { kind: 'image', bytes: 101 }),
     (error) => error.code === 'promo_media_storage_exceeded',
+  );
+  assert.throws(
+    () => api.assertQuota(decision, { images: 2, videos: 0, bytes: 0 }, { kind: 'image', bytes: 100 }),
+    (error) => error.code === 'promo_media_count_exceeded',
   );
   assert.throws(
     () => api.assertQuota(decision, { images: 0, videos: 1, bytes: 0 }, { kind: 'video', bytes: 100 }),

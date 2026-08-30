@@ -12,6 +12,9 @@ const promoAudit = typeof __hooks === "undefined"
 const storePermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const promoPlans = typeof __hooks === "undefined"
+  ? require("./pz_promo_plan_lib.js")
+  : require(`${__hooks}/pz_promo_plan_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const ENTITLEMENT_SOURCES = Object.freeze(["unassigned", "contract", "addon", "master_override"]);
@@ -20,6 +23,8 @@ const SAFE_ERROR_CODES = new Set([
   "session_revoked",
   "user_inactive",
   "blocked_by_plan",
+  "promo_plan_expired",
+  "promo_plan_unconfigured",
   "promo_not_found",
   "store_not_promo",
   "store_inactive",
@@ -283,6 +288,7 @@ function handleAccessContext(e) {
         decision.site,
         decision.entitlement,
       );
+    const planState = promoPlans.resolvePromoPlanState(decision.store);
     return e.json(200, {
       ok: true,
       user: {
@@ -301,12 +307,25 @@ function handleAccessContext(e) {
       access: {
         is_master: master,
         is_primary_admin: decision.is_primary_admin,
-        blocked_by_plan: false,
+        blocked_by_plan: !planState.can_mutate,
         permissions: effectivePermissions,
         reserved_permissions: master ? promo.PROMO_RESERVED_PERMISSION_KEYS.slice() : [],
         allowed_actions: allowedActions(e.app, e.auth, recordId(decision.store)),
       },
       capabilities: promo.promoCapabilitySnapshot(decision.entitlement),
+      plan: {
+        code: planState.plan,
+        name: planState.plan_name,
+        state: planState.state,
+        days_remaining: planState.days_remaining,
+        expires_at: planState.plan_expires_at,
+        grace_expires_at: planState.grace_expires_at,
+        grace_days: planState.grace_days,
+        in_grace: planState.in_grace,
+        can_mutate: planState.can_mutate,
+        public_allowed: planState.public_allowed,
+        max_gallery_assets: planState.max_gallery_assets,
+      },
       ...(master ? { entitlement: entitlementResponse(decision.entitlement) } : {}),
     });
   } catch (error) {

@@ -1,0 +1,204 @@
+---
+import MasterDialog from './MasterDialog.astro';
+import MasterIcon from './MasterIcon.astro';
+import type { MasterPromoPlanAudit, MasterPromoPlanCode, MasterPromoStorePlan } from '../../lib/masterPromoPlans';
+
+interface Props { data: MasterPromoStorePlan }
+const { data } = Astro.props;
+const { store, plan, definitions, last_change: lastChange, history } = data;
+const planNames: Record<MasterPromoPlanCode | '', string> = { '': 'Sin plan', free: 'Gratis', basic: 'Básico' };
+const freeUnavailable = store.free_trial_used && plan.plan !== 'free';
+
+function date(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(parsed)
+    : 'Sin fecha';
+}
+function dateTime(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed)
+    : 'Sin fecha';
+}
+function stateLabel(value: string) {
+  return ({ active: 'Activo', expiring: 'Próximo a vencer', critical: 'Vence pronto', grace: 'Periodo de gracia', expired: 'Vencido', unconfigured: 'Sin configurar' } as Record<string, string>)[value] || 'Sin configurar';
+}
+function stateTone(value: string) {
+  if (value === 'active') return 'master-pill--success';
+  if (value === 'expired' || value === 'unconfigured') return 'master-pill--danger';
+  return 'master-pill--warning';
+}
+function auditAction(entry: MasterPromoPlanAudit | null) {
+  if (!entry) return 'Sin registro';
+  return entry.action === 'plan_renewed' ? 'Plan renovado' : entry.action === 'trial_started' ? 'Prueba iniciada' : 'Plan asignado';
+}
+---
+
+<section
+  class="master-page master-plan-page"
+  data-promo-plan-page
+  data-store-id={store.id}
+  data-current-plan={plan.plan}
+  data-current-expiration={plan.plan_expires_at}
+>
+  <header class="master-plan-heading">
+    <div><h1>Plan y límites Promo</h1><p>Administra la vigencia y la cuota de imágenes sin mezclar capacidades de Commerce.</p></div>
+    <span class:list={['master-pill', stateTone(plan.state)]}>{stateLabel(plan.state)}</span>
+  </header>
+
+  {plan.legacy_contract && (
+    <section class="master-form-alert" role="status">
+      <strong>Contrato Promo legado.</strong> La tienda conserva acceso y 300 fotos, pero debes asignar Gratis o Básico para comenzar una vigencia controlada.
+    </section>
+  )}
+
+  <section class="master-plan-kpis">
+    <article class="master-store-kpi"><span class="master-store-kpi__label">Plan actual</span><strong class="master-store-kpi__value">{planNames[plan.plan]}</strong><span class="master-store-kpi__meta">{plan.plan_name}</span></article>
+    <article class="master-store-kpi"><span class="master-store-kpi__label">Vencimiento</span><strong class="master-store-kpi__value">{plan.plan_is_permanent ? 'Legado' : date(plan.plan_expires_at)}</strong><span class="master-store-kpi__meta">Aviso desde 7 días antes</span></article>
+    <article class="master-store-kpi"><span class="master-store-kpi__label">Fotos permitidas</span><strong class="master-store-kpi__value">{plan.max_gallery_assets}</strong><span class="master-store-kpi__meta">Cuota total de imágenes Promo</span></article>
+    <article class="master-store-kpi"><span class="master-store-kpi__label">Página pública</span><strong class="master-store-kpi__value">{plan.public_allowed ? 'Visible' : 'Pausada'}</strong><span class="master-store-kpi__meta">3 días de gracia sin edición</span></article>
+  </section>
+
+  <section class="master-card">
+    <header class="master-card-header">
+      <div><h3 class="master-card-title">Vigencia actual</h3><p class="master-card-subtitle">Durante la gracia el contenido se conserva y la página sigue visible, pero las nuevas modificaciones quedan bloqueadas.</p></div>
+      <div class="master-plan-summary__actions">
+        <button class="master-btn master-btn--secondary" type="button" data-open-promo-plan-change><MasterIcon name="edit" size={19} /> Cambiar plan</button>
+        {plan.plan === 'basic' && !plan.plan_is_permanent && <button class="master-btn master-btn--primary" type="button" data-open-promo-plan-renew><MasterIcon name="clock" size={19} /> Renovar</button>}
+      </div>
+    </header>
+    <div class="master-card-body master-plan-summary__grid">
+      <div><span>Tienda</span><strong>{store.name}</strong></div>
+      <div><span>Plan</span><strong>{planNames[plan.plan]}</strong></div>
+      <div><span>Inicio</span><strong>{date(plan.plan_started_at)}</strong></div>
+      <div><span>Vencimiento</span><strong>{plan.plan_is_permanent ? 'Contrato legado' : date(plan.plan_expires_at)}</strong></div>
+      <div><span>Días restantes</span><strong>{plan.days_remaining === null ? 'No aplica' : plan.days_remaining}</strong></div>
+    </div>
+  </section>
+
+  <div class="master-plan-bottom-grid">
+    <section class="master-card">
+      <header class="master-card-header"><div><h3 class="master-card-title">Planes Promo disponibles</h3><p class="master-card-subtitle">El plan define automáticamente la vigencia y el límite de fotos.</p></div></header>
+      <div class="master-card-body master-plan-options">
+        {definitions.map((definition) => {
+          const current = definition.code === plan.plan && !plan.legacy_contract;
+          const unavailable = definition.code === 'free' && freeUnavailable;
+          const duration = definition.code === 'free' ? '30 días' : '1 a 12 meses';
+          return (
+            <article class:list={['master-plan-option', { 'is-current': current }]}>
+              <div class="master-plan-option__heading"><div><h4>{planNames[definition.code]}</h4><strong>Precio por definir</strong><span>{duration}</span></div>{current && <span class="master-pill master-pill--info">Actual</span>}</div>
+              <ul>
+                <li><MasterIcon name="check" size={17} /> {definition.capabilities.max_gallery_assets} fotos</li>
+                <li><MasterIcon name="check" size={17} /> Aviso 7 días antes</li>
+                <li><MasterIcon name="check" size={17} /> 3 días de gracia sin perder contenido</li>
+              </ul>
+              <button class:list={['master-btn', current ? 'master-btn--secondary' : 'master-btn--primary']} type="button" data-promo-plan-target={definition.code} disabled={current || unavailable}>
+                {current ? 'Plan actual' : unavailable ? 'Gratis ya utilizado' : `Asignar ${planNames[definition.code]}`}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+
+    <section class="master-card master-plan-last-change">
+      <header class="master-card-header"><h3 class="master-card-title">Último movimiento</h3></header>
+      <div class="master-card-body">
+        {lastChange ? <dl class="master-plan-change-list">
+          <div><dt>Acción</dt><dd>{auditAction(lastChange)}</dd></div>
+          <div><dt>Actor</dt><dd>{lastChange.actor_name}</dd></div>
+          <div><dt>Cambio</dt><dd>{planNames[lastChange.previous_plan]} → {planNames[lastChange.new_plan]}</dd></div>
+          <div><dt>Duración</dt><dd>{lastChange.new_plan === 'free' ? '30 días' : `${lastChange.duration_months} ${lastChange.duration_months === 1 ? 'mes' : 'meses'}`}</dd></div>
+          <div><dt>Fecha</dt><dd>{dateTime(lastChange.created)}</dd></div>
+        </dl> : <p class="master-empty">Todavía no hay movimientos registrados.</p>}
+      </div>
+      <footer class="master-plan-card-footer"><button class="master-btn master-btn--secondary" type="button" data-open-promo-plan-history disabled={!history.length}><MasterIcon name="clock" size={19} /> Ver historial</button></footer>
+    </section>
+  </div>
+
+  <MasterDialog id="master-promo-plan-change-dialog" title="Cambiar plan Promo" description="Asigna Gratis por 30 días o Básico entre 1 y 12 meses." tone="primary">
+    <form class="master-form" data-promo-plan-change-form>
+      <div class="master-field"><label for="master-promo-plan-destination">Plan destino</label><select id="master-promo-plan-destination" name="plan" required><option value="free" disabled={freeUnavailable}>Gratis — 30 días · 150 fotos</option><option value="basic">Básico — 1 a 12 meses · 300 fotos</option></select></div>
+      <div class="master-field" data-promo-plan-months-field><label for="master-promo-plan-months">Duración</label><select id="master-promo-plan-months" name="duration_months">{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month}>{month} {month === 1 ? 'mes' : 'meses'}</option>)}</select></div>
+      <div class="master-field"><label for="master-promo-plan-reason">Motivo interno (opcional)</label><textarea id="master-promo-plan-reason" name="reason" maxlength="500"></textarea></div>
+      <aside class="master-plan-form-summary" data-promo-plan-change-summary aria-live="polite"></aside>
+      <p class="master-form-alert" data-promo-plan-change-alert role="alert" hidden></p>
+    </form>
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--primary" type="button" data-promo-plan-change-save><MasterIcon name="save" size={19} /> Confirmar cambio</button></div>
+  </MasterDialog>
+
+  {plan.plan === 'basic' && !plan.plan_is_permanent && <MasterDialog id="master-promo-plan-renew-dialog" title="Renovar plan Básico" description="Agrega entre 1 y 12 meses al vencimiento actual." tone="primary">
+    <form class="master-form" data-promo-plan-renew-form>
+      <div class="master-field"><label for="master-promo-renew-months">Meses a agregar</label><select id="master-promo-renew-months" name="months">{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month}>{month} {month === 1 ? 'mes' : 'meses'}</option>)}</select></div>
+      <div class="master-field"><label for="master-promo-renew-reason">Motivo interno (opcional)</label><textarea id="master-promo-renew-reason" name="reason" maxlength="500"></textarea></div>
+      <aside class="master-plan-form-summary" data-promo-plan-renew-summary aria-live="polite"></aside>
+      <p class="master-form-alert" data-promo-plan-renew-alert role="alert" hidden></p>
+    </form>
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--primary" type="button" data-promo-plan-renew-save><MasterIcon name="clock" size={19} /> Confirmar renovación</button></div>
+  </MasterDialog>}
+
+  <MasterDialog id="master-promo-plan-history-dialog" title="Historial de planes Promo" description="Últimos movimientos registrados para esta tienda." size="lg">
+    {history.length ? <div class="master-table-wrap"><table class="master-table master-plan-history-table"><thead><tr><th>Fecha</th><th>Acción</th><th>Cambio</th><th>Duración</th><th>Actor</th><th>Motivo</th></tr></thead><tbody>{history.map((entry) => <tr><td>{dateTime(entry.created)}</td><td>{auditAction(entry)}</td><td>{planNames[entry.previous_plan]} → {planNames[entry.new_plan]}</td><td>{entry.new_plan === 'free' ? '30 días' : `${entry.duration_months} meses`}</td><td>{entry.actor_name}</td><td>{entry.reason || 'Sin motivo'}</td></tr>)}</tbody></table></div> : <p class="master-empty">No hay movimientos registrados.</p>}
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button></div>
+  </MasterDialog>
+</section>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { changeMasterPromoPlan, getMasterPromoPlanErrorMessage, renewMasterPromoPlan, type MasterPromoPlanCode } from '../../lib/masterPromoPlans';
+  const root = document.querySelector<HTMLElement>('[data-promo-plan-page]');
+  if (root && root.dataset.planInitialized !== 'true') {
+    root.dataset.planInitialized = 'true';
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    const storeId = String(root.dataset.storeId || '');
+    const currentPlan = String(root.dataset.currentPlan || 'free') as MasterPromoPlanCode;
+    const currentExpiration = String(root.dataset.currentExpiration || '');
+    const changeForm = root.querySelector<HTMLFormElement>('[data-promo-plan-change-form]');
+    const changePlan = changeForm?.querySelector<HTMLSelectElement>('[name="plan"]');
+    const changeMonths = changeForm?.querySelector<HTMLSelectElement>('[name="duration_months"]');
+    const changeReason = changeForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
+    const changeMonthsField = changeForm?.querySelector<HTMLElement>('[data-promo-plan-months-field]');
+    const renewForm = root.querySelector<HTMLFormElement>('[data-promo-plan-renew-form]');
+    const renewMonths = renewForm?.querySelector<HTMLSelectElement>('[name="months"]');
+    const renewReason = renewForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
+    const setAlert = (target: HTMLElement | null, message = '') => { if (target) { target.textContent = message; target.hidden = !message; } };
+    const addMonths = (value: Date, months: number) => { const result = new Date(value); const day = result.getUTCDate(); result.setUTCDate(1); result.setUTCMonth(result.getUTCMonth() + months); const end = new Date(result); end.setUTCMonth(end.getUTCMonth() + 1); end.setUTCDate(0); result.setUTCDate(Math.min(day, end.getUTCDate())); return result; };
+    const formatDate = (value: Date) => new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(value);
+    function updateChangeSummary() {
+      if (!changePlan || !changeMonths) return;
+      const selected = changePlan.value as MasterPromoPlanCode;
+      const months = Math.max(1, Number(changeMonths.value || 1));
+      if (changeMonthsField) changeMonthsField.hidden = selected === 'free';
+      const expiration = selected === 'free' ? new Date(Date.now() + 30 * 86400000) : addMonths(new Date(), months);
+      const summary = root?.querySelector<HTMLElement>('[data-promo-plan-change-summary]');
+      if (summary) summary.innerHTML = `<span>Nuevo plan</span><strong>${selected === 'free' ? 'Gratis' : 'Básico'}</strong><span>Vigencia</span><strong>${selected === 'free' ? '30 días' : `${months} ${months === 1 ? 'mes' : 'meses'}`} · hasta ${formatDate(expiration)}</strong><span>Cuota</span><strong>${selected === 'free' ? 150 : 300} fotos</strong>`;
+    }
+    function updateRenewSummary() {
+      if (!renewMonths) return;
+      const months = Math.max(1, Number(renewMonths.value || 1));
+      const now = new Date(); const expiration = new Date(currentExpiration); const base = Number.isFinite(expiration.getTime()) && expiration > now ? expiration : now;
+      const summary = root?.querySelector<HTMLElement>('[data-promo-plan-renew-summary]');
+      if (summary) summary.innerHTML = `<span>Extensión</span><strong>${months} ${months === 1 ? 'mes' : 'meses'}</strong><span>Nuevo vencimiento</span><strong>${formatDate(addMonths(base, months))}</strong>`;
+    }
+    root.querySelectorAll<HTMLButtonElement>('[data-promo-plan-target]').forEach((button) => button.addEventListener('click', () => { if (changePlan) changePlan.value = String(button.dataset.promoPlanTarget || currentPlan); updateChangeSummary(); window.PZMasterDialog?.open('master-promo-plan-change-dialog', button); }));
+    root.querySelector<HTMLButtonElement>('[data-open-promo-plan-change]')?.addEventListener('click', (event) => { if (changePlan) changePlan.value = currentPlan; updateChangeSummary(); window.PZMasterDialog?.open('master-promo-plan-change-dialog', event.currentTarget as HTMLElement); });
+    root.querySelector<HTMLButtonElement>('[data-open-promo-plan-renew]')?.addEventListener('click', (event) => { updateRenewSummary(); window.PZMasterDialog?.open('master-promo-plan-renew-dialog', event.currentTarget as HTMLElement); });
+    root.querySelector<HTMLButtonElement>('[data-open-promo-plan-history]')?.addEventListener('click', (event) => window.PZMasterDialog?.open('master-promo-plan-history-dialog', event.currentTarget as HTMLElement));
+    changeForm?.addEventListener('change', updateChangeSummary); renewMonths?.addEventListener('change', updateRenewSummary);
+    root.querySelector<HTMLButtonElement>('[data-promo-plan-change-save]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement; const alert = root.querySelector<HTMLElement>('[data-promo-plan-change-alert]');
+      if (button.disabled || !changePlan || !changeMonths || !changeReason) return; button.disabled = true; setAlert(alert);
+      const selected = changePlan.value as MasterPromoPlanCode;
+      const result = await changeMasterPromoPlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, { store_id: storeId, plan: selected, duration_months: selected === 'free' ? 0 : Number(changeMonths.value), reason: changeReason.value.trim() });
+      if (result.available) window.location.reload(); else { setAlert(alert, getMasterPromoPlanErrorMessage(result.error)); button.disabled = false; }
+    });
+    root.querySelector<HTMLButtonElement>('[data-promo-plan-renew-save]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement; const alert = root.querySelector<HTMLElement>('[data-promo-plan-renew-alert]');
+      if (button.disabled || !renewMonths || !renewReason) return; button.disabled = true; setAlert(alert);
+      const result = await renewMasterPromoPlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, { store_id: storeId, months: Number(renewMonths.value), reason: renewReason.value.trim() });
+      if (result.available) window.location.reload(); else { setAlert(alert, getMasterPromoPlanErrorMessage(result.error)); button.disabled = false; }
+    });
+    updateChangeSummary(); updateRenewSummary();
+  }
+</script>

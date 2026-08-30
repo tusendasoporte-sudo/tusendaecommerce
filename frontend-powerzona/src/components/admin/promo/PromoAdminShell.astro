@@ -97,6 +97,26 @@ const canManagePromoTranslations = hasPromoAction(accessContext, 'promo.translat
 const maxLocales = Number(accessContext.capabilities.max_locales || 0);
 const canManagePromoReviews = hasPromoAction(accessContext, 'promo.reviews.manage');
 const canConfigurePromoReviews = canManagePromoReviews && hasPromoAction(accessContext, 'promo.content.manage');
+const planState = accessContext.plan?.state || 'unconfigured';
+const planNoticeVisible = ['expiring', 'critical', 'grace', 'expired', 'unconfigured'].includes(planState);
+const planDateFormatter = new Intl.DateTimeFormat(adminLocale, { dateStyle: 'medium' });
+const planExpirationDate = accessContext.plan?.expires_at && Number.isFinite(new Date(accessContext.plan.expires_at).getTime())
+  ? planDateFormatter.format(new Date(accessContext.plan.expires_at))
+  : '';
+const planGraceDate = accessContext.plan?.grace_expires_at && Number.isFinite(new Date(accessContext.plan.grace_expires_at).getTime())
+  ? planDateFormatter.format(new Date(accessContext.plan.grace_expires_at))
+  : '';
+const planNotice = adminLocale === 'en'
+  ? planState === 'grace'
+    ? { title: 'Your plan is in its grace period.', body: `Editing and new uploads are blocked. The public page remains visible until ${planGraceDate || 'the end of the grace period'}; your content is preserved.` }
+    : planState === 'expired' || planState === 'unconfigured'
+      ? { title: 'Your Promo plan is not active.', body: 'The public page and new changes are blocked. Your content remains stored and will return when the plan is renewed.' }
+      : { title: 'Your plan expires soon.', body: `${accessContext.plan.days_remaining ?? 0} day(s) remaining${planExpirationDate ? `, until ${planExpirationDate}` : ''}. Renew it to avoid blocking editing and the public page.` }
+  : planState === 'grace'
+    ? { title: 'Tu plan está en periodo de gracia.', body: `La edición y las nuevas cargas están bloqueadas. La página pública seguirá visible hasta ${planGraceDate || 'el final de la gracia'}; tu contenido se conserva.` }
+    : planState === 'expired' || planState === 'unconfigured'
+      ? { title: 'Tu plan Promo no está activo.', body: 'La página pública y los nuevos cambios están bloqueados. Tu contenido permanece guardado y volverá al renovar el plan.' }
+      : { title: 'Tu plan vence pronto.', body: `Quedan ${accessContext.plan.days_remaining ?? 0} día(s)${planExpirationDate ? `, hasta el ${planExpirationDate}` : ''}. Renuévalo para evitar el bloqueo de la edición y de la página pública.` };
 
 function modulePath(module: PromoAdminModule) {
   return getPromoAdminSectionPath(storeSlug, module.section);
@@ -276,6 +296,13 @@ function initials(value: string) {
             {adminLocale === 'en' ? 'Status' : 'Estado'}: {siteStatusLabel}
           </span>
         </header>
+
+        {planNoticeVisible && (
+          <section class:list={['pz-promo-admin__plan-notice', `is-${planState}`]} role="status">
+            <strong>{planNotice.title}</strong>
+            <p>{planNotice.body}</p>
+          </section>
+        )}
 
         {section === 'overview' ? (
           <>

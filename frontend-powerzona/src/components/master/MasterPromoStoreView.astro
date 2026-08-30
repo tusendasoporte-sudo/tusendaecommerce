@@ -105,6 +105,12 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
           <div class="promo-master__entitlement-grid">
             {booleanCapabilities.map(([key, title]) => <label class="master-switch"><span>{title}</span><input name={key} type="checkbox" checked={overview.entitlement.capabilities[key] === true} /></label>)}
             {numericCapabilities.map(([key, title]) => <div class="master-field"><label for={`promo-cap-${key}`}>{title}</label><input id={`promo-cap-${key}`} name={key} type="number" min="0" step="1" value={Math.max(0, Number(overview.entitlement.capabilities[key] || 0))} required /></div>)}
+            <div class="master-field">
+              <label>Límite de fotos Promo</label>
+              <strong>{Number(overview.entitlement.capabilities.max_gallery_assets) || 0} fotos</strong>
+              <input name="max_gallery_assets" type="hidden" value={String(Number(overview.entitlement.capabilities.max_gallery_assets) || 0)} />
+              <span class="master-muted">Se administra desde Plan y límites.</span>
+            </div>
           </div>
           <p class="master-notice">El selector permanece oculto en la página pública y en Admin Promo hasta activarlo. La entrada pública sin idioma y Admin Promo abren en español; una URL pública con idioma explícito conserva ese idioma.</p>
           <div class="master-field-grid">
@@ -266,7 +272,7 @@ const label = (value: string) => stateLabels[value] || value || 'No disponible';
       const capabilities: Record<string, boolean | number> = {};
       BOOLEAN_CAPABILITIES.forEach((key) => { capabilities[key] = values.get(key) === 'on'; });
       capabilities.landing_qr_bridge_enabled = false;
-      capabilities.max_gallery_assets = 150;
+      capabilities.max_gallery_assets = Math.max(0, Number(values.get('max_gallery_assets') || 0));
       NUMERIC_CAPABILITIES.forEach((key) => {
         const value = Math.max(0, Math.floor(Number(values.get(key) || 0)));
         capabilities[key] = key === 'max_videos' ? Math.min(3, value) : value;

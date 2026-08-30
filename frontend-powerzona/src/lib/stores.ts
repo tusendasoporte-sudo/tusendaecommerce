@@ -53,6 +53,8 @@ export type MasterStoreInput = {
   status?: string;
   owner_phone?: string;
   store_type?: 'commerce' | 'promo';
+  promo_plan?: 'free' | 'basic';
+  promo_duration_months?: number;
 };
 
 export type MasterStoresPage = {
@@ -367,7 +369,18 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   requireMasterClient(client);
   const basePayload = getMasterStorePayload(input);
   const storeType = input.store_type === 'promo' ? 'promo' : 'commerce';
-  const payload = { ...basePayload, store_type: storeType };
+  const promoPlan = input.promo_plan === 'basic' ? 'basic' : 'free';
+  const promoDurationMonths = promoPlan === 'basic'
+    ? Math.min(12, Math.max(1, Math.floor(Number(input.promo_duration_months || 1))))
+    : 0;
+  const payload = {
+    ...basePayload,
+    store_type: storeType,
+    ...(storeType === 'promo' ? {
+      promo_plan: promoPlan,
+      promo_duration_months: promoDurationMonths,
+    } : {}),
+  };
   await assertUniqueStoreSlug(payload.slug, '', client);
   try {
     const response = await client.send<{ ok: true; store: MasterStoreSummary }>(

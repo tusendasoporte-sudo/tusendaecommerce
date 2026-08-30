@@ -45,6 +45,20 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         <div class="master-field master-field--full"><label for="master-store-name">Nombre de tienda</label><input id="master-store-name" name="name" type="text" maxlength="140" autocomplete="off" required /></div>
         <div class="master-field"><label for="master-store-slug">Slug público</label><input id="master-store-slug" name="slug" type="text" maxlength="80" autocomplete="off" required /></div>
         <div class="master-field" data-store-commerce-only><label for="master-store-phone">WhatsApp</label><input id="master-store-phone" name="owner_phone" type="tel" maxlength="60" autocomplete="off" /></div>
+        <div class="master-field" data-store-promo-only hidden>
+          <label for="master-store-promo-plan">Plan Promo inicial</label>
+          <select id="master-store-promo-plan" name="promo_plan">
+            <option value="free">Gratis — 30 días · 150 fotos</option>
+            <option value="basic">Básico — 1 a 12 meses · 300 fotos</option>
+          </select>
+          <span class="master-muted">La prueba Gratis solo puede utilizarse una vez por tienda.</span>
+        </div>
+        <div class="master-field" data-store-promo-months hidden>
+          <label for="master-store-promo-months">Vigencia del plan Básico</label>
+          <select id="master-store-promo-months" name="promo_duration_months">
+            {Array.from({ length: 12 }, (_, index) => index + 1).map((months) => <option value={String(months)}>{months} {months === 1 ? 'mes' : 'meses'}</option>)}
+          </select>
+        </div>
         <div class="master-field master-field--full" data-store-status-field><label for="master-store-status">Estado</label><select id="master-store-status" name="status"><option value="active">Activa</option><option value="suspended">Suspendida</option></select></div>
       </div>
       <p class="master-form-alert" data-store-form-alert role="alert" hidden></p>
@@ -157,6 +171,15 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           if (!commerce) input.value = '';
         });
       });
+      const promo = !id && type === 'promo';
+      storeForm.querySelectorAll<HTMLElement>('[data-store-promo-only]').forEach((field) => {
+        field.hidden = !promo;
+        field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
+          input.disabled = !promo;
+          if (!promo) input.value = 'free';
+        });
+      });
+      syncCreatePromoPlan();
       const statusField = storeForm.querySelector<HTMLElement>('[data-store-status-field]');
       const statusInput = storeForm.elements.namedItem('status') as HTMLSelectElement | null;
       if (statusField) statusField.hidden = !commerce;
@@ -164,6 +187,20 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         statusInput.disabled = !commerce;
         if (!commerce) statusInput.value = 'active';
       }
+    }
+
+    function syncCreatePromoPlan() {
+      if (!storeForm) return;
+      const type = String((storeForm.elements.namedItem('store_type') as HTMLSelectElement | null)?.value || 'commerce');
+      const plan = String((storeForm.elements.namedItem('promo_plan') as HTMLSelectElement | null)?.value || 'free');
+      const basic = !storeForm.dataset.storeId && type === 'promo' && plan === 'basic';
+      storeForm.querySelectorAll<HTMLElement>('[data-store-promo-months]').forEach((field) => {
+        field.hidden = !basic;
+        field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
+          input.disabled = !basic;
+          if (!basic) input.value = '1';
+        });
+      });
     }
 
     function closeMenu(restoreFocus = false) {
@@ -514,6 +551,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       (event.currentTarget as HTMLInputElement).value = normalizeStoreSlug((event.currentTarget as HTMLInputElement).value);
     });
     storeForm?.querySelector<HTMLSelectElement>('[name="store_type"]')?.addEventListener('change', syncCreateStoreType);
+    storeForm?.querySelector<HTMLSelectElement>('[name="promo_plan"]')?.addEventListener('change', syncCreatePromoPlan);
 
     controller.querySelector<HTMLButtonElement>('[data-store-save]')?.addEventListener('click', async (event) => {
       if (!storeForm || !storeForm.reportValidity()) return;
@@ -524,10 +562,19 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       button.disabled = true;
       setAlert(alert);
       try {
+        const storeType = String(data.get('store_type') || 'commerce') === 'promo' ? 'promo' : 'commerce';
+        const promoPlan = String(data.get('promo_plan') || 'free') === 'basic' ? 'basic' : 'free';
+        const promoDurationMonths = promoPlan === 'basic'
+          ? Math.min(12, Math.max(1, Number(data.get('promo_duration_months') || 1)))
+          : 0;
         const payload = {
           name: String(data.get('name') || ''), slug: String(data.get('slug') || ''),
           owner_phone: String(data.get('owner_phone') || ''), status: String(data.get('status') || ''),
-          store_type: String(data.get('store_type') || 'commerce') as 'commerce' | 'promo',
+          store_type: storeType as 'commerce' | 'promo',
+          ...(storeType === 'promo' ? {
+            promo_plan: promoPlan as 'free' | 'basic',
+            promo_duration_months: promoDurationMonths,
+          } : {}),
         };
         if (id) await updateStoreFromMaster(id, payload);
         else await createStoreFromMaster(payload);

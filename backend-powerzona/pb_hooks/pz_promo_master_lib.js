@@ -591,12 +591,17 @@ function emptyDraftDocument() {
   };
 }
 
-function createPromoFoundation(app, actor, store, publicSlug) {
+function createPromoFoundation(app, actor, store, publicSlug, requestedPlan) {
   if (!actor || recordString(actor, "role") !== promo.MASTER_ROLE || recordString(actor, "status") !== "active") {
     throw codedError("unauthorized", 403);
   }
   const storeId = recordId(store);
   const slug = String(publicSlug || "").trim();
+  const promoPlan = typeof __hooks === "undefined"
+    ? require("./pz_promo_plan_lib.js")
+    : require(`${__hooks}/pz_promo_plan_lib.js`);
+  const planCode = requestedPlan === undefined ? "free" : String(requestedPlan || "").trim();
+  const imageQuota = promoPlan.imageLimitForPlan(planCode);
   if (!storeId) throw codedError("promo_master_unavailable", 503);
   try { data.assertPublicSlug(slug); } catch (_) { throw codedError("invalid_payload", 400); }
   if (findExact(app, "promo_sites", "store = {:store}", { store: storeId })) throw codedError("store_not_promo", 409);
@@ -613,9 +618,10 @@ function createPromoFoundation(app, actor, store, publicSlug) {
 
   const entitlement = new Record(app.findCollectionByNameOrId("promo_site_entitlements"), {});
   entitlement.set("site", recordId(site));
-  entitlement.set("source", "unassigned");
+  entitlement.set("source", "contract");
   promo.PROMO_BOOLEAN_CAPABILITY_KEYS.forEach((key) => entitlement.set(key, false));
   promo.PROMO_NUMERIC_CAPABILITY_KEYS.forEach((key) => entitlement.set(key, 0));
+  entitlement.set("max_gallery_assets", imageQuota);
   entitlement.set("updated_by", recordId(actor));
   app.save(entitlement);
 

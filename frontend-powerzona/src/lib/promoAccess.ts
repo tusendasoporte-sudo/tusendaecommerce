@@ -72,6 +72,20 @@ export type PromoActionKey = (typeof PROMO_ACTION_KEYS)[number];
 
 export type PromoCapabilityValues = Readonly<Record<PromoCapabilityKey, boolean | number>>;
 
+export type PromoAccessPlan = Readonly<{
+  code: 'free' | 'basic';
+  name: string;
+  state: 'unconfigured' | 'active' | 'expiring' | 'critical' | 'grace' | 'expired';
+  days_remaining: number | null;
+  expires_at: string;
+  grace_expires_at: string;
+  grace_days: number;
+  in_grace: boolean;
+  can_mutate: boolean;
+  public_allowed: boolean;
+  max_gallery_assets: number;
+}>;
+
 export type PromoAccessContext = Readonly<{
   ok: true;
   user: { display_name: string; role: string };
@@ -86,6 +100,7 @@ export type PromoAccessContext = Readonly<{
     allowed_actions: PromoActionKey[];
   };
   capabilities: PromoCapabilityValues;
+  plan: PromoAccessPlan;
   entitlement?: {
     source: 'unassigned' | 'contract' | 'addon' | 'master_override' | string;
     updated: string;
@@ -287,6 +302,9 @@ async function postPromo<T>(
 }
 
 function normalizeContext(value: any): PromoAccessContext {
+  const planStates: PromoAccessPlan['state'][] = ['unconfigured', 'active', 'expiring', 'critical', 'grace', 'expired'];
+  const planState = planStates.includes(value?.plan?.state) ? value.plan.state : 'unconfigured';
+  const planCode = value?.plan?.code === 'basic' ? 'basic' : 'free';
   return {
     ok: true,
     user: {
@@ -315,6 +333,19 @@ function normalizeContext(value: any): PromoAccessContext {
       allowed_actions: knownList(value?.access?.allowed_actions, KNOWN_ACTIONS, PROMO_ACTION_KEYS),
     },
     capabilities: normalizePromoCapabilities(value?.capabilities),
+    plan: {
+      code: planCode,
+      name: text(value?.plan?.name),
+      state: planState,
+      days_remaining: value?.plan?.days_remaining === null ? null : nonNegativeInteger(value?.plan?.days_remaining),
+      expires_at: text(value?.plan?.expires_at, 80),
+      grace_expires_at: text(value?.plan?.grace_expires_at, 80),
+      grace_days: nonNegativeInteger(value?.plan?.grace_days),
+      in_grace: value?.plan?.in_grace === true,
+      can_mutate: value?.plan?.can_mutate === true,
+      public_allowed: value?.plan?.public_allowed === true,
+      max_gallery_assets: nonNegativeInteger(value?.plan?.max_gallery_assets),
+    },
     ...(value?.entitlement ? {
       entitlement: {
         source: text(value.entitlement.source),

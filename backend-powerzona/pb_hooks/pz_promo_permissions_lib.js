@@ -6,6 +6,9 @@ const storePermissions = typeof __hooks === "undefined"
 const storeCapabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const promoPlans = typeof __hooks === "undefined"
+  ? require("./pz_promo_plan_lib.js")
+  : require(`${__hooks}/pz_promo_plan_lib.js`);
 
 const PROMO_ACCESS_FIELD = "promo_permissions_json";
 const PROMO_ACCESS_VERSION_FIELD = "promo_permissions_version";
@@ -37,9 +40,11 @@ const PROMO_CAPABILITY_KEYS = Object.freeze([
   ...PROMO_NUMERIC_CAPABILITY_KEYS,
 ]);
 
+const PROMO_IMAGE_QUOTA_OPTIONS = Object.freeze([150, 300]);
+
 const PROMO_CAPABILITY_LIMITS = Object.freeze({
   max_services: 50,
-  max_gallery_assets: 150,
+  max_gallery_assets: 300,
   max_locales: 10,
   max_videos: 3,
   max_storage_bytes: 250 * 1024 * 1024,
@@ -685,6 +690,13 @@ function requireCommerceBridge(app, context) {
 
 function requirePromoAction(app, sessionUser, actionKey, options) {
   const context = basePromoContext(app, sessionUser, actionKey, options || {});
+  if (context.action.scope !== "master") {
+    try { promoPlans.assertPromoOperationalAccess(context.store, actionKey, options && options.now); }
+    catch (error) {
+      const code = String(error && (error.code || error.message) || "promo_plan_expired");
+      throw new PromoAccessError(code, 403);
+    }
+  }
   requireActionCapabilities(context, options || {});
   const effectivePermissions = requireActionPermission(app, context, options || {});
   requireCommerceBridge(app, context);
@@ -723,6 +735,7 @@ module.exports = {
   PROMO_CAPABILITY_CATALOG,
   PROMO_CAPABILITY_KEYS,
   PROMO_CAPABILITY_LIMITS,
+  PROMO_IMAGE_QUOTA_OPTIONS,
   PROMO_NUMERIC_CAPABILITY_KEYS,
   PROMO_PERMISSION_CAPABILITIES,
   PROMO_PERMISSION_CATALOG,

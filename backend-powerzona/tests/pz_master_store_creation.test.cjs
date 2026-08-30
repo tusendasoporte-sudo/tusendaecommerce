@@ -82,7 +82,23 @@ test('valida un payload cerrado y normalizado para crear tiendas', () => {
     name: ' Mi Promo ', slug: 'mi-promo', status: 'active', owner_phone: '', store_type: 'promo',
   }), {
     name: 'Mi Promo', slug: 'mi-promo', status: 'active', ownerPhone: '', storeType: 'promo',
+    promoPlan: 'free', promoDurationMonths: 0,
   });
+  assert.deepEqual(creation.parseCreateStorePayload({
+    name: ' Mi Promo 300 ', slug: 'mi-promo-300', status: 'active', owner_phone: '', store_type: 'promo',
+    promo_plan: 'basic', promo_duration_months: 12,
+  }), {
+    name: 'Mi Promo 300', slug: 'mi-promo-300', status: 'active', ownerPhone: '', storeType: 'promo',
+    promoPlan: 'basic', promoDurationMonths: 12,
+  });
+  assert.equal(creation.parseCreateStorePayload({
+    name: 'Mi Promo', slug: 'mi-promo', status: 'active', owner_phone: '', store_type: 'promo',
+    promo_plan: 'basic', promo_duration_months: 13,
+  }), null);
+  assert.equal(creation.parseCreateStorePayload({
+    name: 'Commerce', slug: 'commerce', status: 'active', owner_phone: '', store_type: 'commerce',
+    promo_plan: 'free', promo_duration_months: 0,
+  }), null);
   assert.equal(creation.parseCreateStorePayload({
     name: 'Mi Promo', slug: 'mi-promo', status: 'active', owner_phone: '', store_type: 'unknown',
   }), null);
@@ -189,7 +205,8 @@ test('la ruta exige autenticaciÃ³n y ejecuta la operaciÃ³n dentro de una tra
   assert.match(source, /\$app\.runInTransaction/);
   assert.match(source, /createStoreForMaster\(txApp/);
   assert.match(source, /payload\.storeType !== "promo"/);
-  assert.match(source, /createPromoFoundation\(app, actor, store, payload\.slug\)/);
+  assert.match(source, /assignInitialPromoPlan\(app, store, actor, payload\.promoPlan, payload\.promoDurationMonths\)/);
+  assert.match(source, /createPromoFoundation\(app, actor, store, payload\.slug, payload\.promoPlan\)/);
   assert.match(source, /createDefaultStoreSettings\(app, store, currencies\[0\]\)/);
   assert.match(source, /created\.settings \? settingsResponse\(created\.settings\) : null/);
 });

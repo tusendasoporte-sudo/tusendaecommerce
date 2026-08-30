@@ -40,6 +40,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787699200_promo_language_selector.js',
   '1787699300_promo_reviews_without_photos.js',
   '1787699400_promo_review_request_secure_sharing.js',
+  '1787699500_promo_media_quota_300.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -435,7 +436,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     );
     const entitlementMax = (name) => entitlementMetadata.fields.find((field) => field.name === name).max;
     assert.equal(entitlementMax('max_services'), 50);
-    assert.equal(entitlementMax('max_gallery_assets'), 150);
+    assert.equal(entitlementMax('max_gallery_assets'), 300);
     assert.equal(entitlementMax('max_locales'), 10);
     assert.equal(entitlementMax('max_videos'), 3);
     assert.equal(entitlementMax('max_storage_bytes'), 250 * 1024 * 1024);
@@ -818,7 +819,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
       'invalid_promo_image',
       'imagen mayor de 100 KiB',
     );
-    for (let index = 1; index < 150; index += 1) {
+    for (let index = 1; index < 300; index += 1) {
       const uploaded = await createMedia({
         site: siteA.id,
         kind: 'image',
@@ -826,7 +827,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
         status: 'uploaded',
         created_by: master.id,
       }, WEBP, `image-a-${String(index).padStart(3, '0')}.webp`, 'image/webp');
-      assertStatus(uploaded, [200, 201], `crear imagen ${index + 1}/150`);
+      assertStatus(uploaded, [200, 201], `crear imagen ${index + 1}/300`);
     }
     assertValidation(
       await createMedia({
@@ -835,9 +836,9 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
         purpose: 'gallery',
         status: 'uploaded',
         created_by: master.id,
-      }, WEBP, 'image-a-151.webp', 'image/webp'),
+      }, WEBP, 'image-a-301.webp', 'image/webp'),
       'promo_image_count_exceeded',
-      'imagen 151 bloqueada',
+      'imagen 301 bloqueada',
     );
 
     for (let index = 1; index <= 3; index += 1) {
@@ -1207,7 +1208,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     t.diagnostic(`PocketBase ${version.stdout.trim().replace(/^pocketbase(?:\.exe)?\s+version\s+/i, '')}`);
     t.diagnostic(`migrate up idempotente: ${migrationsAfterFirstUp} entradas sin duplicados`);
     t.diagnostic(`colecciones Promo privadas: ${promoMetadata.length}; indices: ${runtimeIndexes.length}`);
-    t.diagnostic('aislamiento A/B, 150/151 imágenes, 3/4 videos y API directa negativa verificados');
+    t.diagnostic('aislamiento A/B, 300/301 imágenes, 3/4 videos y API directa negativa verificados');
     t.diagnostic('moderación de reseña y auditoría reviews verificadas en PocketBase efímero');
     t.diagnostic('rollback vacio aplicado; rollback con datos abortado sin perdida');
   } finally {

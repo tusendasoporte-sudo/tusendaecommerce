@@ -122,6 +122,12 @@ function assertQuota(decision, current, payload) {
   if (next.images > media.MAX_STORED_IMAGES || next.videos > media.MAX_STORED_VIDEOS) {
     throw codedError("promo_media_count_exceeded", 409);
   }
+  if (payload.kind === "image") {
+    const imageAccess = promo.resolvePromoCapabilityAccess(decision.entitlement, "max_gallery_assets", {
+      requiredAmount: next.images,
+    });
+    if (!imageAccess.allowed) throw codedError("promo_media_count_exceeded", 409);
+  }
   if (next.bytes > media.MAX_STORAGE_BYTES) throw codedError("promo_media_storage_exceeded", 409);
   const storageAccess = promo.resolvePromoCapabilityAccess(decision.entitlement, "max_storage_bytes", {
     requiredAmount: next.bytes,
@@ -408,7 +414,10 @@ function handleList(e) {
         max_image_bytes: media.MAX_IMAGE_BYTES,
         max_video_bytes: media.MAX_VIDEO_BYTES,
         max_video_duration_ms: media.MAX_VIDEO_DURATION_MS,
-        max_stored_images: media.MAX_STORED_IMAGES,
+        max_stored_images: Math.min(
+          media.MAX_STORED_IMAGES,
+          Number(context.decision.capabilities.max_gallery_assets) || 0,
+        ),
         max_stored_videos: media.MAX_STORED_VIDEOS,
         max_storage_bytes: Math.min(
           media.MAX_STORAGE_BYTES,

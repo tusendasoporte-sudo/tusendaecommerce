@@ -5,9 +5,11 @@ import Layout from '../../../../layouts/Layout.astro';
 import MasterShell from '../../../../components/master/MasterShell.astro';
 import MasterStoreActionsController from '../../../../components/master/MasterStoreActionsController.astro';
 import MasterStorePlanView from '../../../../components/master/MasterStorePlanView.astro';
+import MasterPromoStorePlanView from '../../../../components/master/MasterPromoStorePlanView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
 import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStorePlan } from '../../../../lib/masterStorePlans';
+import { getMasterPromoPlan } from '../../../../lib/masterPromoPlans';
 import { getMasterStoreKind } from '../../../../lib/promoMaster';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 import { getStoreSecuritySettings, SECURITY_STATUS_LABELS } from '../../../../lib/security';
@@ -25,18 +27,19 @@ if (!masterUser) return Astro.redirect('/master');
 
 const storeId = String(Astro.params.storeId || '').trim();
 if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
-if (await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId) !== 'commerce') {
-  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
-}
+const storeKind = await getMasterStoreKind(serverPocketBaseUrl(), authPb.authStore.token, storeId);
+if (storeKind === 'unknown') return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
 
-const [storeResult, planResult, securitySettings] = await Promise.all([
-  authPb.collection('stores').getOne(storeId, {
-    fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent,featured,protected,updated',
-    requestKey: null,
-  }).then((record) => ({ record, status: 200 })).catch((error) => ({ record: null, status: Number(error?.status || 0) })),
-  getMasterStorePlan(serverPocketBaseUrl(), authPb.authStore.token, storeId),
-  getStoreSecuritySettings(storeId, authPb),
-]);
+const storeResult = await authPb.collection('stores').getOne(storeId, {
+  fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent,featured,protected,updated',
+  requestKey: null,
+}).then((record) => ({ record, status: 200 })).catch((error) => ({ record: null, status: Number(error?.status || 0) }));
+const planResult = storeKind === 'promo'
+  ? await getMasterPromoPlan(serverPocketBaseUrl(), authPb.authStore.token, storeId)
+  : await getMasterStorePlan(serverPocketBaseUrl(), authPb.authStore.token, storeId);
+const securitySettings = storeKind === 'commerce'
+  ? await getStoreSecuritySettings(storeId, authPb)
+  : { exists: false, enabled: false, mode: 'disabled' as const };
 
 if (!storeResult.record || storeResult.status === 404 || planResult.status === 404) return Astro.redirect('/master/stores');
 
@@ -46,7 +49,10 @@ const currentStore = {
   name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
   slug: String(storeRecord.slug || '').trim(),
   status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
-  planPresentation: resolveStorePlanPresentation(planResult.data?.plan || storeRecord, planResult.data?.generated_at || new Date()),
+  storeType: storeKind,
+  planPresentation: storeKind === 'commerce'
+    ? resolveStorePlanPresentation(planResult.data?.plan || storeRecord, planResult.data?.generated_at || new Date())
+    : undefined,
 };
 const protectedStore = storeRecord.protected === true || currentStore.slug === DEFAULT_STORE_SLUG;
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
@@ -56,7 +62,12 @@ const securityLabel = SECURITY_STATUS_LABELS[securityMode];
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={currentStore.name} currentStore={currentStore}>
-    {planResult.data ? (
+    {planResult.data && storeKind === 'promo' ? (
+      <>
+        <MasterPromoStorePlanView data={planResult.data as any} />
+        <MasterStoreActionsController />
+      </>
+    ) : planResult.data && storeKind === 'commerce' ? (
       <>
         <MasterStorePlanView
           data={planResult.data}

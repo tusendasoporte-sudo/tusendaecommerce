@@ -594,6 +594,26 @@ html.pz-promo-admin-nav-open {
   color: #80601e;
 }
 
+.pz-promo-admin__plan-notice {
+  display: grid;
+  gap: 5px;
+  margin: -10px 0 26px;
+  border: 1px solid #f0cf80;
+  border-radius: 14px;
+  background: #fff8e7;
+  color: #6e5017;
+  padding: 14px 16px;
+}
+
+.pz-promo-admin__plan-notice strong { font-size: 14px; font-weight: 900; }
+.pz-promo-admin__plan-notice p { margin: 0; font-size: 13px; line-height: 1.55; }
+.pz-promo-admin__plan-notice.is-expired,
+.pz-promo-admin__plan-notice.is-unconfigured {
+  border-color: #f3b5ba;
+  background: #fff1f2;
+  color: #95242e;
+}
+
 .pz-promo-admin__summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

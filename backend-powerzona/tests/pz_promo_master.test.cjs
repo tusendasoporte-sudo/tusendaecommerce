@@ -128,18 +128,23 @@ test('foundation Promo crea tenant, entitlement cerrado, draft válido, slot gen
   try {
     const actor = mutableRecord('masterstore0001', { role: 'master_admin', status: 'active', name: 'Master' });
     const store = mutableRecord('storeaaaaaaaaaa', { name: 'Demo Promo', slug: 'demo-promo', status: 'active' });
-    const result = master.createPromoFoundation(fixture.app, actor, store, 'demo-promo');
+    const result = master.createPromoFoundation(fixture.app, actor, store, 'demo-promo', 'free');
     assert.equal(fixture.saved.length, 5);
     assert.equal(result.site.store, store.id);
     assert.equal(result.site.status, 'draft');
     assert.equal(result.site.contract_version, 1);
-    assert.equal(result.entitlement.source, 'unassigned');
+    assert.equal(result.entitlement.source, 'contract');
     for (const key of ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'language_selector_enabled']) {
       assert.equal(result.entitlement[key], false);
     }
-    for (const key of ['max_services', 'max_gallery_assets', 'max_locales', 'max_videos', 'max_storage_bytes']) {
+    for (const key of ['max_services', 'max_locales', 'max_videos', 'max_storage_bytes']) {
       assert.equal(result.entitlement[key], 0);
     }
+    assert.equal(result.entitlement.max_gallery_assets, 150);
+    const premiumQuota = master.createPromoFoundation(fixture.app, actor, mutableRecord('storebbbbbbbbbbb', {
+      name: 'Demo Promo 300', slug: 'demo-promo-300', status: 'active',
+    }), 'demo-promo-300', 'basic');
+    assert.equal(premiumQuota.entitlement.max_gallery_assets, 300);
     assert.deepEqual(pubcfg.validatePromoDocument(result.draft.document_json), master.emptyDraftDocument());
     assert.match(result.draft.document_sha256, /^[a-f0-9]{64}$/);
     assert.equal(result.slot.state, 'unpublished');

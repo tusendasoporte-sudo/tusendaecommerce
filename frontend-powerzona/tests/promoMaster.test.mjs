@@ -11,6 +11,9 @@ const detail = read('src/pages/master/stores/[storeId].astro');
 const list = read('src/components/master/MasterStoresView.astro');
 const view = read('src/components/master/MasterPromoStoreView.astro');
 const sidebar = read('src/components/master/MasterSidebar.astro');
+const planPage = read('src/pages/master/stores/[storeId]/plan.astro');
+const promoPlanView = read('src/components/master/MasterPromoStorePlanView.astro');
+const promoPlanClient = read('src/lib/masterPromoPlans.ts');
 
 test('cliente Master Promo usa exclusivamente POST privados, contexto header y contratos exactos', () => {
   for (const route of [
@@ -53,7 +56,6 @@ test('listado y sidebar separan Promo de acciones Commerce sin publicar shell fu
 
 test('rutas Master específicas de Commerce fallan cerradas para Promo o clasificación ausente', () => {
   for (const route of [
-    'src/pages/master/stores/[storeId]/plan.astro',
     'src/pages/master/stores/[storeId]/app.astro',
     'src/pages/master/stores/[storeId]/users/index.astro',
     'src/pages/master/stores/[storeId]/users/[userId].astro',
@@ -69,6 +71,11 @@ test('rutas Master específicas de Commerce fallan cerradas para Promo o clasifi
     assert.match(source, /!== 'commerce'/);
     assert.match(source, /\/master\/stores\/\$\{encodeURIComponent\(storeId\)\}/);
   }
+  assert.match(planPage, /storeKind === 'promo'/);
+  assert.match(planPage, /getMasterPromoPlan/);
+  assert.match(planPage, /MasterPromoStorePlanView/);
+  assert.match(planPage, /storeKind === 'commerce'/);
+  assert.match(planPage, /MasterStorePlanView/);
 });
 
 test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo editorial', () => {
@@ -86,6 +93,24 @@ test('UI limita Master a lifecycle, capacidades, dominios y catálogo sin flujo 
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
   assert.doesNotMatch(view, /\['landing_qr_bridge_enabled',|Landing QR/);
   assert.match(view, /capabilities\.landing_qr_bridge_enabled = false/);
-  assert.doesNotMatch(view, /Máximo de fotos en la página|\['max_gallery_assets',/);
-  assert.match(view, /capabilities\.max_gallery_assets = 150/);
+  assert.match(view, /Límite de fotos Promo/);
+  assert.match(view, /name="max_gallery_assets"/);
+  assert.match(view, /type="hidden"/);
+  assert.match(view, /Se administra desde Plan y límites/);
+  assert.doesNotMatch(view, /imageQuotaOptions/);
+  assert.doesNotMatch(view, /=== 300 \? 300 : 150/);
+});
+
+test('planes Promo tienen pantalla y cliente aislados de Commerce', () => {
+  for (const route of [
+    '/api/pz/promo/master/v1/plan',
+    '/api/pz/promo/master/v1/plan/change',
+    '/api/pz/promo/master/v1/plan/renew',
+  ]) assert.match(promoPlanClient, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(promoPlanView, /Gratis — 30 días · 150 fotos/);
+  assert.match(promoPlanView, /Básico — 1 a 12 meses · 300 fotos/);
+  assert.match(promoPlanView, /Gratis ya utilizado/);
+  assert.match(promoPlanView, /3 días de gracia/);
+  assert.doesNotMatch(promoPlanView, /Premium|App Android|Productos|Pedidos|Landing QR/);
+  assert.match(sidebar, /currentStore\.storeType === 'promo'[\s\S]*Plan y límites/);
 });

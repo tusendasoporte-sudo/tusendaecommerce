@@ -168,6 +168,14 @@ function initials(value: string, fallback: string) {
         >
           <MasterIcon name="users" size={20} /><span>Usuarios</span>
         </a>
+        {currentStore.storeType === 'promo' && (
+          <a
+            class:list={['master-sidebar__link', { 'is-active': isActive(`/master/stores/${currentStore.id}/plan`) }]}
+            href={`/master/stores/${encodeURIComponent(currentStore.id)}/plan`}
+          >
+            <MasterIcon name="plan" size={20} /><span>Plan y límites</span>
+          </a>
+        )}
         {currentStore.storeType !== 'promo' && (
           <>
             <a
