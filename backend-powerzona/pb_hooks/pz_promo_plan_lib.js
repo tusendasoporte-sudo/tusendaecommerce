@@ -212,7 +212,6 @@ function assignInitialPromoPlan(app, store, actor, requestedPlan, requestedDurat
     is_permanent: false,
     duration_months: requestedDurationMonths === undefined ? 0 : requestedDurationMonths,
   });
-  if (selection.plan === "free") return planSnapshot(store);
   const previous = planSnapshot(store);
   const values = plans.buildPlanChangeValues(store, selection, now === undefined ? new Date() : now, recordId(actor));
   Object.keys(values).forEach((key) => store.set(key, values[key]));

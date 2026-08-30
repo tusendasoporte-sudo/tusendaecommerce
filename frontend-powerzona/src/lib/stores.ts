@@ -55,6 +55,7 @@ export type MasterStoreInput = {
   store_type?: 'commerce' | 'promo';
   promo_plan?: 'free' | 'basic';
   promo_duration_months?: number;
+  promo_theme_id?: string;
 };
 
 export type MasterStoresPage = {
@@ -373,12 +374,14 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   const promoDurationMonths = promoPlan === 'basic'
     ? Math.min(12, Math.max(1, Math.floor(Number(input.promo_duration_months || 1))))
     : 0;
+  const promoThemeId = String(input.promo_theme_id || 'promo.black-gold').trim();
   const payload = {
     ...basePayload,
     store_type: storeType,
     ...(storeType === 'promo' ? {
       promo_plan: promoPlan,
       promo_duration_months: promoDurationMonths,
+      promo_theme_id: promoThemeId,
     } : {}),
   };
   await assertUniqueStoreSlug(payload.slug, '', client);

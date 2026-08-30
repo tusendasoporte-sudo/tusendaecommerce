@@ -43,6 +43,5 @@ test('contrato público legado solo acepta el estado deshabilitado y rechaza enl
 
 test('control Master oculta la capacidad y la fuerza inactiva en futuras actualizaciones', () => {
   const master = read('../src/components/master/MasterPromoStoreView.astro');
-  assert.doesNotMatch(master, /\['landing_qr_bridge_enabled',/);
-  assert.match(master, /capabilities\.landing_qr_bridge_enabled = false/);
+  assert.doesNotMatch(master, /landing_qr_bridge_enabled|Landing QR/);
 });

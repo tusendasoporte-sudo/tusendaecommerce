@@ -6,6 +6,10 @@ const STORE_NAME_MAX_LENGTH = 140;
 const STORE_SLUG_MAX_LENGTH = 80;
 const OWNER_PHONE_MAX_LENGTH = 60;
 const PROMO_PLAN_CODES = Object.freeze(["free", "basic"]);
+const PROMO_THEME_IDS = Object.freeze([
+  "promo.black-gold", "promo.minimal", "promo.artisan",
+  "promo.vibrant", "promo.professional", "promo.portfolio",
+]);
 const SYSTEM_CURRENCY_DEFAULTS = Object.freeze([
   Object.freeze({ code: "USD", name: "Dolar estadounidense", symbol: "$", active: true, isDefault: true, isBase: true }),
   Object.freeze({ code: "CUP", name: "Peso cubano", symbol: "CUP", active: false, isDefault: false, isBase: false }),
@@ -149,9 +153,13 @@ function normalizeStoreSlug(value) {
 function parseCreateStorePayload(body) {
   const legacyPayload = exactPayload(body, ["name", "slug", "status", "owner_phone"]);
   const typedPayload = exactPayload(body, ["name", "slug", "status", "owner_phone", "store_type"]);
-  const promoPlanPayload = exactPayload(body, [
+  const legacyPromoPlanPayload = exactPayload(body, [
     "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months",
   ]);
+  const themedPromoPlanPayload = exactPayload(body, [
+    "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months", "promo_theme_id",
+  ]);
+  const promoPlanPayload = legacyPromoPlanPayload || themedPromoPlanPayload;
   if (!legacyPayload && !typedPayload && !promoPlanPayload) return null;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const rawSlug = typeof body.slug === "string" ? body.slug.trim() : "";
@@ -165,6 +173,9 @@ function parseCreateStorePayload(body) {
     ? body.promo_plan.trim().toLowerCase()
     : "free";
   const promoDurationMonths = promoPlanPayload ? Number(body.promo_duration_months) : 0;
+  const promoThemeId = themedPromoPlanPayload && typeof body.promo_theme_id === "string"
+    ? body.promo_theme_id.trim()
+    : "promo.black-gold";
   if (!name || name.length > STORE_NAME_MAX_LENGTH) return null;
   if (!rawSlug || slug !== rawSlug.toLowerCase() || slug.length > STORE_SLUG_MAX_LENGTH) return null;
   if (!STORE_STATUSES.includes(status)) return null;
@@ -174,11 +185,12 @@ function parseCreateStorePayload(body) {
     (promoPlan === "free" && promoDurationMonths !== 0)
     || (promoPlan === "basic" && (!Number.isInteger(promoDurationMonths) || promoDurationMonths < 1 || promoDurationMonths > 12))
   )) return null;
+  if (storeType === "promo" && !PROMO_THEME_IDS.includes(promoThemeId)) return null;
   if (ownerPhone.length > OWNER_PHONE_MAX_LENGTH) return null;
   return {
     name, slug, status, ownerPhone,
     ...((typedPayload || promoPlanPayload) ? { storeType } : {}),
-    ...(storeType === "promo" ? { promoPlan, promoDurationMonths } : {}),
+    ...(storeType === "promo" ? { promoPlan, promoDurationMonths, promoThemeId } : {}),
   };
 }
 
@@ -310,7 +322,9 @@ function createStoreForMaster(app, actorId, payload) {
   const promoMaster = typeof __hooks === "undefined"
     ? require("./pz_promo_master_lib.js")
     : require(`${__hooks}/pz_promo_master_lib.js`);
-  const foundation = promoMaster.createPromoFoundation(app, actor, store, payload.slug, payload.promoPlan);
+  const foundation = promoMaster.createPromoFoundation(
+    app, actor, store, payload.slug, payload.promoPlan, payload.promoThemeId,
+  );
   return { store, currencies: [], settings: null, foundation, storeType: "promo" };
 }
 

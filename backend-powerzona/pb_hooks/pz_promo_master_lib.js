@@ -30,6 +30,25 @@ const OVERVIEW_READ_CONTRACT = "promo.master.overview.read.v1";
 const OVERVIEW_RESPONSE_CONTRACT = "promo.master.overview.v1";
 const LIFECYCLE_UPDATE_CONTRACT = "promo.master.lifecycle.update.v1";
 const LIFECYCLE_RESPONSE_CONTRACT = "promo.master.lifecycle.v1";
+const PREFERENCES_UPDATE_CONTRACT = "promo.master.preferences.update.v1";
+const PREFERENCES_RESPONSE_CONTRACT = "promo.master.preferences.v1";
+const DEFAULT_PROMO_THEME_ID = "promo.black-gold";
+const DEFAULT_PROMO_THEME_VERSION = "1.0.0";
+const DEFAULT_PROMO_CAPABILITIES = Object.freeze({
+  promo_site_enabled: true,
+  publish_enabled: true,
+  custom_domain_enabled: false,
+  theme_customization_enabled: true,
+  multilanguage_enabled: true,
+  language_selector_enabled: false,
+  video_enabled: false,
+  analytics_enabled: true,
+  landing_qr_bridge_enabled: false,
+  max_services: 12,
+  max_locales: 2,
+  max_videos: 0,
+  max_storage_bytes: 250 * 1024 * 1024,
+});
 const LIFECYCLE_REASON_CODES = Object.freeze([
   "administrative_request", "contract_change", "incident_recovery", "incident_response",
 ]);
@@ -50,7 +69,8 @@ const SAFE_ERRORS = new Set([
   "unauthorized", "session_revoked", "user_inactive", "promo_not_found", "store_not_promo",
   "store_inactive", "promo_site_inactive", "promo_store_context_required", "invalid_payload",
   "invalid_promo_site_transition", "promo_lifecycle_conflict", "promo_lifecycle_validation_failed",
-  "promo_capability_denied", "promo_master_unavailable",
+  "promo_capability_denied", "promo_master_unavailable", "promo_preferences_conflict",
+  "promo_theme_not_selectable", "unknown_promo_theme", "invalid_promo_document",
 ]);
 
 function codedError(code, status) {
@@ -332,8 +352,7 @@ function operationSnapshot(app, auth, storeId) {
   const can = (action) => promo.canPromoAction(app, auth, action, { requestedStoreId: storeId });
   return Object.freeze({
     lifecycle_update: can("promo.master.site.lifecycle"),
-    entitlements_update: can("promo.master.entitlements.manage"),
-    theme_releases_manage: can("promo.master.theme_releases.manage"),
+    preferences_update: can("promo.master.support"),
     candidate_create: false,
     publish: false,
     rollback: false,
@@ -385,6 +404,18 @@ function overviewResponse(app, auth, storeId) {
   const draft = draftProjection(app, decision);
   if (draft.state !== "available") issues.push("draft_unavailable");
   const health = publicationHealth(app, decision, slot);
+  const promoPlan = typeof __hooks === "undefined"
+    ? require("./pz_promo_plan_lib.js")
+    : require(`${__hooks}/pz_promo_plan_lib.js`);
+  const planState = promoPlan.resolvePromoPlanState(decision.store);
+  const photosUsed = allRows(
+    app,
+    "promo_media_assets",
+    "site = {:site} && kind = 'image' && status != 'deleted'",
+    "id",
+    { site: siteId },
+    1000,
+  ).length;
   issues.push(...health.issues);
   return Object.freeze({
     ok: true,
@@ -398,6 +429,15 @@ function overviewResponse(app, auth, storeId) {
     site: siteProjection(decision.site),
     operations,
     entitlement: permissionsApi.entitlementResponse(entitlement),
+    plan: Object.freeze({
+      code: String(planState.plan || "free"),
+      name: String(planState.plan_name || "Plan Promo"),
+      state: String(planState.state || "unconfigured"),
+      expires_at: String(planState.plan_expires_at || ""),
+      days_remaining: Number.isInteger(planState.days_remaining) ? planState.days_remaining : null,
+      photo_limit: Math.max(0, Number(planState.max_gallery_assets || 0)),
+    }),
+    media: Object.freeze({ photos_used: photosUsed, photo_limit: Math.max(0, Number(planState.max_gallery_assets || 0)) }),
     draft,
     publication: Object.freeze({
       ...publication,
@@ -547,12 +587,145 @@ function handleLifecycleUpdate(e) {
   } catch (error) { return sendError(e, error); }
 }
 
-function emptyDraftDocument() {
+function parsePreferencesUpdate(body) {
+  if (!body || !exactPayload(body, [
+    "contract", "expected_entitlement_updated", "expected_draft_version",
+    "language_selector_enabled", "theme_id",
+  ]) || body.contract !== PREFERENCES_UPDATE_CONTRACT) return null;
+  const expectedEntitlementUpdated = String(body.expected_entitlement_updated || "").trim();
+  const expectedDraftVersion = Number(body.expected_draft_version);
+  const themeId = String(body.theme_id || "").trim();
+  if (!expectedEntitlementUpdated || expectedEntitlementUpdated.length > 50
+    || !Number.isSafeInteger(expectedDraftVersion) || expectedDraftVersion < 1
+    || typeof body.language_selector_enabled !== "boolean"
+    || !theme.registryEntry(themeId, DEFAULT_PROMO_THEME_VERSION)) return null;
+  return {
+    expectedEntitlementUpdated,
+    expectedDraftVersion,
+    languageSelectorEnabled: body.language_selector_enabled,
+    themeId,
+  };
+}
+
+function entitlementPreferenceSnapshot(entitlement) {
+  return Object.freeze({
+    source: recordString(entitlement, "source"),
+    capabilities: Object.freeze({
+      language_selector_enabled: recordBool(entitlement, "language_selector_enabled"),
+    }),
+  });
+}
+
+function handlePreferencesUpdate(e) {
+  let context;
+  let input;
+  try {
+    context = requestContext(e);
+    input = parsePreferencesUpdate(context.body);
+    if (!input) throw codedError("invalid_payload", 400);
+    if (!/^[a-z0-9]{15}$/.test(context.storeId)) throw codedError("promo_store_context_required", 403);
+  } catch (error) { return sendError(e, error); }
+  try {
+    let response;
+    e.app.runInTransaction((app) => {
+      const decision = promo.requirePromoAction(app, e.auth, "promo.master.support", {
+        requestedStoreId: context.storeId,
+      });
+      const siteId = recordId(decision.site);
+      app.db().newQuery("UPDATE promo_site_entitlements SET id = id WHERE id = {:id}")
+        .bind({ id: recordId(decision.entitlement) }).execute();
+      const entitlement = findRecord(app, "promo_site_entitlements", recordId(decision.entitlement));
+      let draft = pubcfgApi.findDraft(app, siteId);
+      if (!entitlement || !draft) throw codedError("promo_master_unavailable", 503);
+      app.db().newQuery("UPDATE promo_draft_documents SET id = id WHERE id = {:id}")
+        .bind({ id: recordId(draft) }).execute();
+      draft = findRecord(app, "promo_draft_documents", recordId(draft));
+      if (!draft || relationId(draft, "site") !== siteId
+        || recordString(entitlement, "updated") !== input.expectedEntitlementUpdated
+        || recordInteger(draft, "version") !== input.expectedDraftVersion) {
+        throw codedError("promo_preferences_conflict", 409);
+      }
+
+      const previousEntitlement = entitlementPreferenceSnapshot(entitlement);
+      const previousDocument = pubcfgApi.validatedStoredDraft(draft);
+      const nextDocument = JSON.parse(JSON.stringify(previousDocument));
+      const themeChanged = nextDocument.theme.theme_id !== input.themeId
+        || nextDocument.theme.version !== DEFAULT_PROMO_THEME_VERSION;
+      nextDocument.theme = {
+        theme_id: input.themeId,
+        version: DEFAULT_PROMO_THEME_VERSION,
+        tokens: themeChanged ? {} : (nextDocument.theme.tokens || {}),
+      };
+      const siteIsActive = recordString(decision.site, "status") === "active";
+      const validatedDocument = pubcfg.validatePromoDocument(nextDocument, { publicRevision: siteIsActive });
+      pubcfgApi.assertDraftTheme(app, validatedDocument, { selectionChanged: themeChanged });
+      const assets = pubcfgApi.loadDocumentAssets(app, siteId, validatedDocument, { publicRevision: siteIsActive });
+      pubcfgApi.assertEntitlementMetrics(entitlement, validatedDocument, assets);
+
+      const selectorChanged = recordBool(entitlement, "language_selector_enabled") !== input.languageSelectorEnabled;
+      if (selectorChanged) {
+        entitlement.set("language_selector_enabled", input.languageSelectorEnabled);
+        entitlement.set("source", "contract");
+        entitlement.set("updated_by", recordId(decision.actor));
+        app.save(entitlement);
+        audit.createPromoAudit(app, decision, {
+          action: "promo.entitlements.update",
+          resourceType: "promo_site_entitlements",
+          resourceId: recordId(entitlement),
+          changedPaths: ["/capabilities/language_selector_enabled"],
+          previousValues: previousEntitlement,
+          newValues: entitlementPreferenceSnapshot(entitlement),
+          sourceEventKey: `promo.preferences.language.${recordId(entitlement)}.${recordString(entitlement, "updated")}`,
+        });
+      }
+
+      if (themeChanged) {
+        const previousDigest = pubcfg.digestDocument(previousDocument);
+        const nextDigest = pubcfg.digestDocument(validatedDocument);
+        const nextVersion = input.expectedDraftVersion + 1;
+        draft.set("document_json", validatedDocument);
+        draft.set("document_sha256", nextDigest);
+        draft.set("version", nextVersion);
+        draft.set("updated_by", recordId(decision.actor));
+        app.save(draft);
+        const slot = findExact(app, "promo_publication_slots", "site = {:site}", { site: siteId });
+        if (!slot) throw codedError("promo_master_unavailable", 503);
+        slot.set("state", siteIsActive ? "active" : "unpublished");
+        slot.set("published_revision", "");
+        slot.set("generation", Math.max(0, recordInteger(slot, "generation")) + 1);
+        app.save(slot);
+        audit.createPromoAudit(app, decision, {
+          action: "promo.theme.selection.update",
+          resourceType: "promo_draft_document",
+          resourceId: recordId(draft),
+          changedPaths: ["/theme"],
+          previousValues: { digest: previousDigest, version: input.expectedDraftVersion, theme: previousDocument.theme },
+          newValues: { digest: nextDigest, version: nextVersion, theme: validatedDocument.theme },
+          sourceEventKey: `promo.preferences.theme.${recordId(draft)}.${nextVersion}`,
+        });
+      }
+
+      response = {
+        ok: true,
+        contract: PREFERENCES_RESPONSE_CONTRACT,
+        changed: selectorChanged || themeChanged,
+        language_selector_enabled: recordBool(entitlement, "language_selector_enabled"),
+        theme: { theme_id: input.themeId, version: DEFAULT_PROMO_THEME_VERSION },
+        draft_version: recordInteger(draft, "version"),
+      };
+    });
+    return e.json(200, response);
+  } catch (error) { return sendError(e, error); }
+}
+
+function emptyDraftDocument(requestedThemeId) {
+  const themeId = String(requestedThemeId || DEFAULT_PROMO_THEME_ID).trim();
+  if (!theme.registryEntry(themeId, DEFAULT_PROMO_THEME_VERSION)) throw codedError("unknown_promo_theme", 400);
   return {
     contract: "promo.site.v2",
     system_catalog_version: "promo.system.v1",
     locales: { default: "", published: [] },
-    theme: { theme_id: "", version: "", tokens: {} },
+    theme: { theme_id: themeId, version: DEFAULT_PROMO_THEME_VERSION, tokens: {} },
     identity: { public_business_key: "" },
     section_order: [],
     sections: [],
@@ -570,7 +743,7 @@ function emptyDraftDocument() {
   };
 }
 
-function createPromoFoundation(app, actor, store, publicSlug, requestedPlan) {
+function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, requestedThemeId) {
   if (!actor || recordString(actor, "role") !== promo.MASTER_ROLE || recordString(actor, "status") !== "active") {
     throw codedError("unauthorized", 403);
   }
@@ -598,13 +771,20 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan) {
   const entitlement = new Record(app.findCollectionByNameOrId("promo_site_entitlements"), {});
   entitlement.set("site", recordId(site));
   entitlement.set("source", "contract");
-  promo.PROMO_BOOLEAN_CAPABILITY_KEYS.forEach((key) => entitlement.set(key, false));
+  promo.PROMO_BOOLEAN_CAPABILITY_KEYS.forEach((key) => entitlement.set(
+    key, Object.prototype.hasOwnProperty.call(DEFAULT_PROMO_CAPABILITIES, key)
+      ? DEFAULT_PROMO_CAPABILITIES[key]
+      : false,
+  ));
   promo.PROMO_NUMERIC_CAPABILITY_KEYS.forEach((key) => entitlement.set(key, 0));
+  ["max_services", "max_locales", "max_videos", "max_storage_bytes"].forEach((key) => {
+    entitlement.set(key, DEFAULT_PROMO_CAPABILITIES[key]);
+  });
   entitlement.set("max_gallery_assets", imageQuota);
   entitlement.set("updated_by", recordId(actor));
   app.save(entitlement);
 
-  const document = pubcfg.validatePromoDocument(emptyDraftDocument());
+  const document = pubcfg.validatePromoDocument(emptyDraftDocument(requestedThemeId));
   const draft = new Record(app.findCollectionByNameOrId("promo_draft_documents"), {});
   draft.set("site", recordId(site));
   draft.set("schema_version", 1);
@@ -643,8 +823,8 @@ function errorCode(error) {
 function errorStatus(error) {
   const code = errorCode(error);
   if (["store_not_promo", "promo_not_found"].includes(code)) return 404;
-  if (["promo_lifecycle_conflict", "promo_lifecycle_validation_failed"].includes(code)) return 409;
-  if (["invalid_payload", "invalid_promo_site_transition"].includes(code)) return 400;
+  if (["promo_lifecycle_conflict", "promo_lifecycle_validation_failed", "promo_preferences_conflict"].includes(code)) return 409;
+  if (["invalid_payload", "invalid_promo_site_transition", "unknown_promo_theme", "invalid_promo_document"].includes(code)) return 400;
   if (code === "promo_master_unavailable") return 503;
   if (Number.isInteger(error && error.status)) return error.status;
   return 403;
@@ -660,6 +840,8 @@ module.exports = {
   LIFECYCLE_REASON_CODES,
   LIFECYCLE_RESPONSE_CONTRACT,
   LIFECYCLE_UPDATE_CONTRACT,
+  PREFERENCES_RESPONSE_CONTRACT,
+  PREFERENCES_UPDATE_CONTRACT,
   OVERVIEW_READ_CONTRACT,
   OVERVIEW_RESPONSE_CONTRACT,
   REQUIRED_COLLECTIONS,
@@ -673,9 +855,11 @@ module.exports = {
   exactPayload,
   handleCatalogRead,
   handleLifecycleUpdate,
+  handlePreferencesUpdate,
   handleOverviewRead,
   overviewResponse,
   parseLifecycleUpdate,
+  parsePreferencesUpdate,
   requireAuthenticatedUser,
   sendError,
   siteProjection,

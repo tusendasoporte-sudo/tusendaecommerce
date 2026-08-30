@@ -22,6 +22,9 @@ const COUNT_KEYS = [
   "storefront_order_links", "push_media", "push_campaigns",
   "push_campaign_deliveries", "push_events", "push_daily_stats",
   "admin_app_release_events", "admin_app_download_tickets", "admin_app_release_assignments",
+  "promo_sites", "promo_entitlements", "promo_domain_bindings", "promo_drafts", "promo_media",
+  "promo_revisions", "promo_revision_media_refs", "promo_publication_slots", "promo_publication_events",
+  "promo_audit_events", "promo_analytics_events", "promo_analytics_daily", "promo_review_requests",
 ];
 const DIRECT_STORE_COLLECTIONS = [
   "automatic_promotions", "categories", "currencies", "gifts", "manual_coupons",
@@ -356,6 +359,40 @@ function buildCounts(app, storeId) {
     admin_app_download_tickets: nonNegativeInteger(row.adminAppDownloadTickets),
     admin_app_release_assignments: nonNegativeInteger(row.adminAppReleaseAssignments),
   };
+  const promoRow = queryOne(app, `
+    WITH target_sites AS (SELECT id FROM promo_sites WHERE store = {:storeId})
+    SELECT
+      (SELECT COUNT(*) FROM target_sites) AS promoSites,
+      (SELECT COUNT(*) FROM promo_site_entitlements WHERE site IN (SELECT id FROM target_sites)) AS promoEntitlements,
+      (SELECT COUNT(*) FROM promo_domain_bindings WHERE site IN (SELECT id FROM target_sites)) AS promoDomainBindings,
+      (SELECT COUNT(*) FROM promo_draft_documents WHERE site IN (SELECT id FROM target_sites)) AS promoDrafts,
+      (SELECT COUNT(*) FROM promo_media_assets WHERE site IN (SELECT id FROM target_sites)) AS promoMedia,
+      (SELECT COUNT(*) FROM promo_revisions WHERE site IN (SELECT id FROM target_sites)) AS promoRevisions,
+      (SELECT COUNT(*) FROM promo_revision_media_refs WHERE site IN (SELECT id FROM target_sites)) AS promoRevisionMediaRefs,
+      (SELECT COUNT(*) FROM promo_publication_slots WHERE site IN (SELECT id FROM target_sites)) AS promoPublicationSlots,
+      (SELECT COUNT(*) FROM promo_publication_events WHERE site IN (SELECT id FROM target_sites)) AS promoPublicationEvents,
+      (SELECT COUNT(*) FROM promo_audit_events WHERE site IN (SELECT id FROM target_sites)) AS promoAuditEvents,
+      (SELECT COUNT(*) FROM promo_analytics_events WHERE site IN (SELECT id FROM target_sites)) AS promoAnalyticsEvents,
+      (SELECT COUNT(*) FROM promo_analytics_daily WHERE site IN (SELECT id FROM target_sites)) AS promoAnalyticsDaily,
+      (SELECT COUNT(*) FROM promo_review_requests WHERE site IN (SELECT id FROM target_sites) OR store = {:storeId}) AS promoReviewRequests
+  `, { storeId }, {
+    promoSites: 0, promoEntitlements: 0, promoDomainBindings: 0, promoDrafts: 0, promoMedia: 0,
+    promoRevisions: 0, promoRevisionMediaRefs: 0, promoPublicationSlots: 0, promoPublicationEvents: 0,
+    promoAuditEvents: 0, promoAnalyticsEvents: 0, promoAnalyticsDaily: 0, promoReviewRequests: 0,
+  }) || {};
+  counts.promo_sites = nonNegativeInteger(promoRow.promoSites);
+  counts.promo_entitlements = nonNegativeInteger(promoRow.promoEntitlements);
+  counts.promo_domain_bindings = nonNegativeInteger(promoRow.promoDomainBindings);
+  counts.promo_drafts = nonNegativeInteger(promoRow.promoDrafts);
+  counts.promo_media = nonNegativeInteger(promoRow.promoMedia);
+  counts.promo_revisions = nonNegativeInteger(promoRow.promoRevisions);
+  counts.promo_revision_media_refs = nonNegativeInteger(promoRow.promoRevisionMediaRefs);
+  counts.promo_publication_slots = nonNegativeInteger(promoRow.promoPublicationSlots);
+  counts.promo_publication_events = nonNegativeInteger(promoRow.promoPublicationEvents);
+  counts.promo_audit_events = nonNegativeInteger(promoRow.promoAuditEvents);
+  counts.promo_analytics_events = nonNegativeInteger(promoRow.promoAnalyticsEvents);
+  counts.promo_analytics_daily = nonNegativeInteger(promoRow.promoAnalyticsDaily);
+  counts.promo_review_requests = nonNegativeInteger(promoRow.promoReviewRequests);
   counts.total_records = COUNT_KEYS.reduce((total, key) => total + counts[key], 1);
   return counts;
 }
@@ -711,6 +748,22 @@ function executeDeletionPlan(app, storeId, counts) {
     + ')',
   ].join(' || ');
 
+  // El grafo Promo se elimina explícitamente de hijos a padres. app.delete
+  // conserva la eliminación física de los archivos de promo_media_assets.
+  deleted += deleteExpected(app, "promo_analytics_daily", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_analytics_daily));
+  deleted += deleteExpected(app, "promo_analytics_events", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_analytics_events));
+  deleted += deleteExpected(app, "promo_audit_events", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_audit_events));
+  deleted += deleteExpected(app, "promo_review_requests", "site.store = {:storeId} || store = {:storeId}", storeId, nonNegativeInteger(counts.promo_review_requests));
+  deleted += deleteExpected(app, "promo_publication_events", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_publication_events));
+  deleted += deleteExpected(app, "promo_revision_media_refs", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_revision_media_refs));
+  deleted += deleteExpected(app, "promo_publication_slots", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_publication_slots));
+  deleted += deleteExpected(app, "promo_revisions", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_revisions));
+  deleted += deleteExpected(app, "promo_draft_documents", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_drafts));
+  deleted += deleteExpected(app, "promo_domain_bindings", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_domain_bindings));
+  deleted += deleteExpected(app, "promo_site_entitlements", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_entitlements));
+  deleted += deleteExpected(app, "promo_media_assets", "site.store = {:storeId}", storeId, nonNegativeInteger(counts.promo_media));
+  deleted += deleteExpected(app, "promo_sites", "store = {:storeId}", storeId, nonNegativeInteger(counts.promo_sites));
+
   // La familia pública se elimina de hijos a padres. No depende de cascadas y
   // nunca toca store_push_devices/store_notifications fuera de su inventario.
   deleted += deleteExpected(app, "admin_app_release_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.admin_app_release_events));
@@ -786,6 +839,10 @@ function verifyNoStoreOwnedRecords(app, storeId) {
     ) || {};
     if (nonNegativeInteger(row.remaining) !== 0) throw codedError("store_delete_incomplete");
   }
+  const promoRemaining = queryOne(app, `
+    SELECT COUNT(*) AS remaining FROM promo_sites WHERE store = {:storeId}
+  `, { storeId }, { remaining: 0 }) || {};
+  if (nonNegativeInteger(promoRemaining.remaining) !== 0) throw codedError("store_delete_incomplete");
 }
 
 function createCompletedAudit(app, store, actor, counts, preservedMasters, totalRecords) {
@@ -800,7 +857,7 @@ function createCompletedAudit(app, store, actor, counts, preservedMasters, total
     counts,
     preserved_master_users: preservedMasters,
     batch_size: BATCH_SIZE,
-    inventory_version: "PZ-APP-C02",
+    inventory_version: "PZ-APP-C03-PROMO",
   });
   audit.set("total_records", totalRecords);
   audit.set("status", "completed");

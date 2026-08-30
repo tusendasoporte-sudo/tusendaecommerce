@@ -16,6 +16,7 @@ const MIGRATIONS = [
   '1787699500_promo_media_quota_300.js',
   '1787699100_promo_translation_state.js',
   '1787699200_promo_language_selector.js',
+  '1787699600_promo_operational_defaults.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',

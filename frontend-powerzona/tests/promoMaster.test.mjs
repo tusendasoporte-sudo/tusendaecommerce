@@ -20,6 +20,7 @@ test('cliente Master Promo usa exclusivamente POST privados, contexto header y c
     '/api/pz/promo/master/v1/stores/catalog',
     '/api/pz/promo/master/v1/overview',
     '/api/pz/promo/master/v1/lifecycle/update',
+    '/api/pz/promo/master/v1/preferences/update',
     '/api/pz/promo/master/entitlements/update',
     '/api/pz/promo/private/v1/themes/releases/update',
     '/api/pz/promo/private/v1/publication/candidates/create',
@@ -75,26 +76,16 @@ test('rutas Master específicas de Commerce fallan cerradas para Promo o clasifi
   assert.match(planPage, /MasterStorePlanView/);
 });
 
-test('UI limita Master a lifecycle, capacidades y catálogo sin dominios ni flujo editorial', () => {
-  assert.match(view, /El Admin guarda directamente/);
-  assert.match(view, /Todas las Tiendas Promo se publican bajo el dominio de Tu Senda 84/);
-  assert.match(view, /overview\.site\.allowed_next_statuses/);
-  assert.match(view, /release\.allowed_next_statuses/);
+test('UI Master muestra solo resumen y preferencias comerciales de Promo', () => {
+  assert.match(view, /Configuración de la tienda Promo/);
+  assert.match(view, /Promo Black Gold/);
+  assert.match(view, /name="theme_id"/);
+  assert.match(view, /name="language_selector_enabled"/);
   assert.match(view, /aria-live="polite"/);
-  assert.match(view, /promo_capability_denied/);
-  assert.match(view, /language_selector_enabled', 'Selector de idioma público y Admin Promo/);
-  assert.match(view, /BOOLEAN_CAPABILITIES[\s\S]*language_selector_enabled/);
   assert.doesNotMatch(view, /custom_domain_enabled|data-domain|verification_evidence_sha256|Dominio personalizado/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
-  assert.doesNotMatch(view, /\['landing_qr_bridge_enabled',|Landing QR/);
-  assert.match(view, /capabilities\.landing_qr_bridge_enabled = false/);
-  assert.match(view, /Límite de fotos Promo/);
-  assert.match(view, /name="max_gallery_assets"/);
-  assert.match(view, /type="hidden"/);
-  assert.match(view, /Se administra desde Plan y límites/);
-  assert.doesNotMatch(view, /imageQuotaOptions/);
-  assert.doesNotMatch(view, /=== 300 \? 300 : 150/);
+  assert.doesNotMatch(view, /landing_qr_bridge_enabled|Landing QR|entitlements|CAS|Máximo de servicios|Almacenamiento máximo/);
 });
 
 test('planes Promo tienen pantalla y cliente aislados de Commerce', () => {

@@ -9,6 +9,7 @@ export const PROMO_MASTER_CONTRACTS = Object.freeze({
   overviewRead: 'promo.master.overview.read.v1',
   overview: 'promo.master.overview.v1',
   lifecycleUpdate: 'promo.master.lifecycle.update.v1',
+  preferencesUpdate: 'promo.master.preferences.update.v1',
   entitlementUpdate: 'promo.entitlements.update.v1',
   themeRelease: 'promo.theme.release.update.v1',
   candidateCreate: 'promo.candidate.create.v1',
@@ -45,6 +46,15 @@ export type PromoMasterOverview = {
     updated: string;
     capabilities: Record<string, boolean | number>;
   };
+  plan: {
+    code: string;
+    name: string;
+    state: string;
+    expires_at: string;
+    days_remaining: number | null;
+    photo_limit: number;
+  };
+  media: { photos_used: number; photo_limit: number };
   draft: {
     state: string;
     version: number;
@@ -229,6 +239,10 @@ function validOverviewPayload(payload: any): payload is PromoMasterOverview & { 
     || Object.values(payload.operations).some((value) => typeof value !== 'boolean')
     || !payload.entitlement || typeof payload.entitlement.updated !== 'string'
     || !payload.entitlement.capabilities || typeof payload.entitlement.capabilities !== 'object'
+    || !payload.plan || typeof payload.plan.code !== 'string'
+    || !Number.isSafeInteger(payload.plan.photo_limit) || payload.plan.photo_limit < 0
+    || !payload.media || !Number.isSafeInteger(payload.media.photos_used) || payload.media.photos_used < 0
+    || !Number.isSafeInteger(payload.media.photo_limit) || payload.media.photo_limit < 0
     || !payload.draft || !payload.draft.readiness
     || !payload.publication || !payload.publication.controls || !payload.publication.reason_codes
     || Object.values(payload.publication.controls).some((value) => typeof value !== 'boolean')
@@ -282,6 +296,18 @@ export async function updatePromoLifecycle(client: PocketBase, storeId: string, 
 }) {
   return client.send('/api/pz/promo/master/v1/lifecycle/update', supportOptions(storeId, {
     contract: PROMO_MASTER_CONTRACTS.lifecycleUpdate,
+    ...input,
+  }));
+}
+
+export async function updatePromoPreferences(client: PocketBase, storeId: string, input: {
+  expected_entitlement_updated: string;
+  expected_draft_version: number;
+  language_selector_enabled: boolean;
+  theme_id: string;
+}) {
+  return client.send('/api/pz/promo/master/v1/preferences/update', supportOptions(storeId, {
+    contract: PROMO_MASTER_CONTRACTS.preferencesUpdate,
     ...input,
   }));
 }

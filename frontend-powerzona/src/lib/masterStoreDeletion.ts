@@ -45,6 +45,22 @@ export type MasterStoreDeleteCounts = {
   push_campaign_deliveries: number;
   push_events: number;
   push_daily_stats: number;
+  admin_app_release_events: number;
+  admin_app_download_tickets: number;
+  admin_app_release_assignments: number;
+  promo_sites: number;
+  promo_entitlements: number;
+  promo_domain_bindings: number;
+  promo_drafts: number;
+  promo_media: number;
+  promo_revisions: number;
+  promo_revision_media_refs: number;
+  promo_publication_slots: number;
+  promo_publication_events: number;
+  promo_audit_events: number;
+  promo_analytics_events: number;
+  promo_analytics_daily: number;
+  promo_review_requests: number;
   total_records: number;
 };
 
@@ -93,6 +109,10 @@ const COUNT_KEYS: Array<Exclude<keyof MasterStoreDeleteCounts, 'total_records'>>
   'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
   'storefront_order_links', 'push_media', 'push_campaigns',
   'push_campaign_deliveries', 'push_events', 'push_daily_stats',
+  'admin_app_release_events', 'admin_app_download_tickets', 'admin_app_release_assignments',
+  'promo_sites', 'promo_entitlements', 'promo_domain_bindings', 'promo_drafts', 'promo_media',
+  'promo_revisions', 'promo_revision_media_refs', 'promo_publication_slots', 'promo_publication_events',
+  'promo_audit_events', 'promo_analytics_events', 'promo_analytics_daily', 'promo_review_requests',
 ];
 
 function boundedString(value: unknown, maxLength: number) {

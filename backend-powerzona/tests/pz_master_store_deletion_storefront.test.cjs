@@ -19,6 +19,22 @@ const PUBLIC_COLLECTIONS = [
   'push_daily_stats',
 ];
 
+const PROMO_COLLECTIONS = [
+  ['promo_analytics_daily', 'promo_analytics_daily'],
+  ['promo_analytics_events', 'promo_analytics_events'],
+  ['promo_audit_events', 'promo_audit_events'],
+  ['promo_review_requests', 'promo_review_requests'],
+  ['promo_publication_events', 'promo_publication_events'],
+  ['promo_revision_media_refs', 'promo_revision_media_refs'],
+  ['promo_publication_slots', 'promo_publication_slots'],
+  ['promo_revisions', 'promo_revisions'],
+  ['promo_drafts', 'promo_draft_documents'],
+  ['promo_domain_bindings', 'promo_domain_bindings'],
+  ['promo_entitlements', 'promo_site_entitlements'],
+  ['promo_media', 'promo_media_assets'],
+  ['promo_sites', 'promo_sites'],
+];
+
 test('el inventario Master cuenta y verifica las ocho colecciones nuevas', () => {
   for (const collection of PUBLIC_COLLECTIONS) {
     assert.equal(deletion.COUNT_KEYS.includes(collection), true, collection);
@@ -74,4 +90,31 @@ test('la detección previa incluye referencias cruzadas de toda la familia públ
   }
   assert.match(section, /target_storefront_apps/);
   assert.match(section, /target_push_media/);
+});
+
+test('la eliminación Promo recorre todo su grafo de hijos a padres sin tocar otra tienda', () => {
+  const storeA = 'storedelete0001';
+  const storeB = 'storedelete0002';
+  const records = Object.fromEntries(PROMO_COLLECTIONS.map(([, collection]) => [collection, [
+    { id: `${collection}a`, collection, store: storeA },
+    { id: `${collection}b`, collection, store: storeB },
+  ]]));
+  const deleteOrder = [];
+  const app = {
+    findRecordsByFilter(collection, _filter, _sort, _limit, _offset, params) {
+      return (records[collection] || []).filter((record) => record.store === params.storeId);
+    },
+    delete(record) {
+      deleteOrder.push(record.collection);
+      records[record.collection] = records[record.collection].filter((item) => item !== record);
+    },
+  };
+  const counts = Object.fromEntries(deletion.COUNT_KEYS.map((key) => [key, 0]));
+  for (const [countKey] of PROMO_COLLECTIONS) counts[countKey] = 1;
+
+  assert.equal(deletion.executeDeletionPlan(app, storeA, counts), PROMO_COLLECTIONS.length);
+  assert.deepEqual(deleteOrder, PROMO_COLLECTIONS.map(([, collection]) => collection));
+  for (const [, collection] of PROMO_COLLECTIONS) {
+    assert.deepEqual(records[collection].map((record) => record.store), [storeB], collection);
+  }
 });

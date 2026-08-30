@@ -26,8 +26,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     <div class="master-action-menu__separator" data-promo-only aria-hidden="true"></div>
     <button class="master-action-menu__item" type="button" data-menu-status role="menuitem"><MasterIcon name="archive" size={19} /><span data-status-label>Suspender</span></button>
     <div class="master-action-menu__separator" data-commerce-only aria-hidden="true"></div>
-    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete data-commerce-only role="menuitem"><MasterIcon name="trash" size={19} /> Eliminar tienda</button>
-    <span class="master-action-menu__item" data-menu-protected data-commerce-only role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={19} /> Tienda protegida</span>
+    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete role="menuitem"><MasterIcon name="trash" size={19} /> Eliminar tienda</button>
+    <span class="master-action-menu__item" data-menu-protected role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={19} /> Tienda protegida</span>
   </MasterActionMenu>
 
   <MasterDialog id="master-store-dialog" title="Crear tienda" description="Datos principales para publicar y administrar la tienda." tone="primary">
@@ -58,6 +58,18 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           <select id="master-store-promo-months" name="promo_duration_months">
             {Array.from({ length: 12 }, (_, index) => index + 1).map((months) => <option value={String(months)}>{months} {months === 1 ? 'mes' : 'meses'}</option>)}
           </select>
+        </div>
+        <div class="master-field master-field--full" data-store-promo-only hidden>
+          <label for="master-store-promo-theme">Tema inicial</label>
+          <select id="master-store-promo-theme" name="promo_theme_id">
+            <option value="promo.black-gold" selected>Promo Black Gold</option>
+            <option value="promo.minimal">Minimal</option>
+            <option value="promo.artisan">Artesanal cálida</option>
+            <option value="promo.vibrant">Vibrante moderna</option>
+            <option value="promo.professional">Profesional corporativa</option>
+            <option value="promo.portfolio">Portafolio editorial</option>
+          </select>
+          <span class="master-muted">Black Gold es el tema predeterminado. El Admin Promo puede cambiarlo después.</span>
         </div>
         <div class="master-field master-field--full" data-store-status-field><label for="master-store-status">Estado</label><select id="master-store-status" name="status"><option value="active">Activa</option><option value="suspended">Suspendida</option></select></div>
       </div>
@@ -176,7 +188,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         field.hidden = !promo;
         field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
           input.disabled = !promo;
-          if (!promo) input.value = 'free';
+          if (!promo) input.value = input.name === 'promo_theme_id' ? 'promo.black-gold' : 'free';
         });
       });
       syncCreatePromoPlan();
@@ -290,8 +302,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       const statusLabel = statusButton?.querySelector<HTMLElement>('[data-status-label]');
       if (featuredLabel) featuredLabel.textContent = featured ? 'Quitar destacada' : 'Destacar';
       if (statusLabel) statusLabel.textContent = active ? 'Suspender' : 'Activar';
-      if (deleteButton) deleteButton.hidden = storeType !== 'commerce' || protectedStore;
-      if (protectedLabel) protectedLabel.hidden = storeType !== 'commerce' || !protectedStore;
+      if (deleteButton) deleteButton.hidden = protectedStore;
+      if (protectedLabel) protectedLabel.hidden = !protectedStore;
     }
 
     function syncSecurityMenu(context: HTMLElement) {
@@ -536,7 +548,11 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       const context = activeContext;
       const trigger = activeTrigger;
       if (!context || context.dataset.storeProtected === 'true') return;
-      const detail = { storeId: storeId(context), storeName: context.dataset.storeName || '', protected: false, trigger };
+      const detail = {
+        storeId: storeId(context), storeName: context.dataset.storeName || '',
+        storeType: context.dataset.storeType === 'promo' ? 'promo' : 'commerce',
+        protected: false, trigger,
+      };
       closeMenu();
       window.dispatchEvent(new CustomEvent('pz:master-store-delete-open', { detail }));
     });
@@ -567,6 +583,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         const promoDurationMonths = promoPlan === 'basic'
           ? Math.min(12, Math.max(1, Number(data.get('promo_duration_months') || 1)))
           : 0;
+        const promoThemeId = String(data.get('promo_theme_id') || 'promo.black-gold');
         const payload = {
           name: String(data.get('name') || ''), slug: String(data.get('slug') || ''),
           owner_phone: String(data.get('owner_phone') || ''), status: String(data.get('status') || ''),
@@ -574,6 +591,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           ...(storeType === 'promo' ? {
             promo_plan: promoPlan as 'free' | 'basic',
             promo_duration_months: promoDurationMonths,
+            promo_theme_id: promoThemeId,
           } : {}),
         };
         if (id) await updateStoreFromMaster(id, payload);

@@ -37,6 +37,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         <div><dt>Clientes y datos de Seguridad</dt><dd data-delete-count="customers_and_security">0</dd></div>
         <div><dt>Configuración y archivos</dt><dd data-delete-count="configuration_and_files">0</dd></div>
         <div><dt>App pública y campañas push</dt><dd data-delete-count="public_app_and_push">0</dd></div>
+        <div><dt>Contenido, medios y operación Promo</dt><dd data-delete-count="promo_data">0</dd></div>
         <div class="is-total"><dt>Total de registros</dt><dd data-delete-count="total_records">0</dd></div>
       </dl>
 
@@ -130,6 +131,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   type DeleteDialogRequest = {
     storeId?: string;
     storeName?: string;
+    storeType?: 'commerce' | 'promo';
     protected?: boolean;
     trigger?: HTMLElement | null;
   };
@@ -185,6 +187,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         customers_and_security: sum(counts, ['customers', 'customer_phones', 'customer_devices', 'customer_links', 'visitor_sessions', 'visitor_pageviews', 'security_events', 'security_blocks', 'security_audit', 'security_settings']),
         configuration_and_files: sum(counts, ['settings', 'categories', 'subcategories', 'currencies', 'shipping_zones', 'visual_items']),
         public_app_and_push: sum(counts, ['storefront_app_configs', 'storefront_installations', 'storefront_web_sessions', 'storefront_order_links', 'push_media', 'push_campaigns', 'push_campaign_deliveries', 'push_events', 'push_daily_stats']),
+        promo_data: sum(counts, ['promo_sites', 'promo_entitlements', 'promo_domain_bindings', 'promo_drafts', 'promo_media', 'promo_revisions', 'promo_revision_media_refs', 'promo_publication_slots', 'promo_publication_events', 'promo_audit_events', 'promo_analytics_events', 'promo_analytics_daily', 'promo_review_requests']),
         total_records: counts.total_records,
       };
     }

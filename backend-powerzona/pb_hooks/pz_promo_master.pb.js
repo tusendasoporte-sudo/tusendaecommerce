@@ -29,3 +29,13 @@ routerAdd(
   $apis.bodyLimit(2048),
   $apis.skipSuccessActivityLog()
 );
+
+routerAdd(
+  "POST",
+  "/api/pz/promo/master/v1/preferences/update",
+  (e) => require(`${__hooks}/pz_promo_master_lib.js`).handlePreferencesUpdate(e),
+  (e) => require(`${__hooks}/pz_promo_master_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);

@@ -17,6 +17,7 @@ test('crear tienda usa el endpoint atómico y conserva el aprovisionamiento Comm
   assert.match(createSource, /store_type: storeType/);
   assert.match(createSource, /promo_plan: promoPlan/);
   assert.match(createSource, /promo_duration_months: promoDurationMonths/);
+  assert.match(createSource, /promo_theme_id: promoThemeId/);
   assert.doesNotMatch(createSource, /collection\('stores'\)\.create/);
 });
 
@@ -26,6 +27,8 @@ test('crear Tienda Promo permite escoger Gratis 30/150 o Básico 1-12/300', () =
   assert.match(controller, /Gratis — 30 días · 150 fotos/);
   assert.match(controller, /Básico — 1 a 12 meses · 300 fotos/);
   assert.match(controller, /name="promo_duration_months"/);
+  assert.match(controller, /name="promo_theme_id"/);
+  assert.match(controller, /Promo Black Gold/);
   assert.match(controller, /data-store-promo-only/);
   assert.match(controller, /promo_duration_months: promoDurationMonths/);
   assert.doesNotMatch(controller, /promo_image_limit/);

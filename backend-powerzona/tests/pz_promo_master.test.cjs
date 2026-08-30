@@ -73,9 +73,10 @@ test('rutas Master Promo son POST privadas, autenticadas y contract-driven', () 
     '/api/pz/promo/master/v1/stores/catalog',
     '/api/pz/promo/master/v1/overview',
     '/api/pz/promo/master/v1/lifecycle/update',
+    '/api/pz/promo/master/v1/preferences/update',
   ]);
-  assert.equal((route.match(/\$apis\.requireAuth\(\)/g) || []).length, 3);
-  assert.equal((route.match(/\$apis\.bodyLimit\(/g) || []).length, 3);
+  assert.equal((route.match(/\$apis\.requireAuth\(\)/g) || []).length, 4);
+  assert.equal((route.match(/\$apis\.bodyLimit\(/g) || []).length, 4);
   assert.doesNotMatch(route, /PATCH|DELETE|filter|expand|realtime/);
 });
 
@@ -123,7 +124,37 @@ test('lifecycle exige payload exacto, CAS y reason code allowlisted', () => {
   }), null);
 });
 
-test('foundation Promo crea tenant, entitlement cerrado, draft válido, slot generación cero y auditoría saneada', () => {
+test('preferencias Master aceptan únicamente tema aprobado y selector de idioma', () => {
+  assert.deepEqual(master.parsePreferencesUpdate({
+    contract: master.PREFERENCES_UPDATE_CONTRACT,
+    expected_entitlement_updated: '2026-08-30 12:00:00.000Z',
+    expected_draft_version: 3,
+    language_selector_enabled: true,
+    theme_id: 'promo.black-gold',
+  }), {
+    expectedEntitlementUpdated: '2026-08-30 12:00:00.000Z',
+    expectedDraftVersion: 3,
+    languageSelectorEnabled: true,
+    themeId: 'promo.black-gold',
+  });
+  assert.equal(master.parsePreferencesUpdate({
+    contract: master.PREFERENCES_UPDATE_CONTRACT,
+    expected_entitlement_updated: '2026-08-30 12:00:00.000Z',
+    expected_draft_version: 3,
+    language_selector_enabled: false,
+    theme_id: 'promo.no-aprobado',
+  }), null);
+  assert.equal(master.parsePreferencesUpdate({
+    contract: master.PREFERENCES_UPDATE_CONTRACT,
+    expected_entitlement_updated: '2026-08-30 12:00:00.000Z',
+    expected_draft_version: 3,
+    language_selector_enabled: false,
+    theme_id: 'promo.black-gold',
+    max_services: 999,
+  }), null);
+});
+
+test('foundation Promo crea tenant operativo, Black Gold, slot sin publicar y auditoría saneada', () => {
   const fixture = foundationFixture();
   try {
     const actor = mutableRecord('masterstore0001', { role: 'master_admin', status: 'active', name: 'Master' });
@@ -134,13 +165,19 @@ test('foundation Promo crea tenant, entitlement cerrado, draft válido, slot gen
     assert.equal(result.site.status, 'draft');
     assert.equal(result.site.contract_version, 1);
     assert.equal(result.entitlement.source, 'contract');
-    for (const key of ['promo_site_enabled', 'publish_enabled', 'custom_domain_enabled', 'language_selector_enabled']) {
-      assert.equal(result.entitlement[key], false);
-    }
-    for (const key of ['max_services', 'max_locales', 'max_videos', 'max_storage_bytes']) {
-      assert.equal(result.entitlement[key], 0);
-    }
+    assert.equal(result.entitlement.promo_site_enabled, true);
+    assert.equal(result.entitlement.publish_enabled, true);
+    assert.equal(result.entitlement.theme_customization_enabled, true);
+    assert.equal(result.entitlement.multilanguage_enabled, true);
+    assert.equal(result.entitlement.analytics_enabled, true);
+    assert.equal(result.entitlement.custom_domain_enabled, false);
+    assert.equal(result.entitlement.language_selector_enabled, false);
+    assert.equal(result.entitlement.max_services, 12);
+    assert.equal(result.entitlement.max_locales, 2);
+    assert.equal(result.entitlement.max_videos, 0);
+    assert.equal(result.entitlement.max_storage_bytes, 250 * 1024 * 1024);
     assert.equal(result.entitlement.max_gallery_assets, 150);
+    assert.equal(result.draft.document_json.theme.theme_id, 'promo.black-gold');
     const premiumQuota = master.createPromoFoundation(fixture.app, actor, mutableRecord('storebbbbbbbbbbb', {
       name: 'Demo Promo 300', slug: 'demo-promo-300', status: 'active',
     }), 'demo-promo-300', 'basic');
