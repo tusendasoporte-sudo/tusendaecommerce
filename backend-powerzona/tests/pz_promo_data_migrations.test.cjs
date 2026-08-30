@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -17,6 +18,7 @@ const MIGRATIONS = [
   '1787699100_promo_translation_state.js',
   '1787699200_promo_language_selector.js',
   '1787699600_promo_operational_defaults.js',
+  '1787699700_promo_publish_empty_foundations.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',
@@ -66,6 +68,7 @@ function loadMigration(filename) {
     Collection: FakeCollection,
     Error,
     Field: FakeField,
+    require,
     migrate(forward, rollback) { up = forward; down = rollback; },
   }, { filename: migrationPath });
   return { filename, source, up, down };
@@ -85,10 +88,17 @@ function fixture() {
       for (const collection of collections.values()) if (collection.id === value) return collection;
       throw new Error(`collection_not_found:${value}`);
     },
-    findRecordsByFilter(name) { return rows.get(name) || []; },
-    save(collection) {
-      collections.set(collection.name, collection);
-      return collection;
+    findRecordsByFilter(name, _filter, _sort, _limit, _offset, params = {}) {
+      return (rows.get(name) || []).filter((record) => !params.site || record.site === params.site);
+    },
+    findRecordById(name, id) {
+      const record = (rows.get(name) || []).find((item) => item.id === id);
+      if (!record) throw new Error(`record_not_found:${name}:${id}`);
+      return record;
+    },
+    save(value) {
+      if (value && value.fields) collections.set(value.name, value);
+      return value;
     },
     delete(collection) { collections.delete(collection.name); },
   };
@@ -175,6 +185,68 @@ test('schema materializa límites aprobados, WebP protegido y canonical platform
     ['platform', 'custom'],
   );
   assert.equal(field('promo_sites', 'store').cascadeDelete, false);
+});
+
+test('backfill publica únicamente foundations Promo vacíos ya creados', () => {
+  const app = fixture();
+  const record = (id, values) => ({
+    id,
+    ...values,
+    get(key) { return this[key]; },
+    getString(key) { return String(this[key] || ''); },
+    set(key, next) { this[key] = next; },
+  });
+  const master = require('../pb_hooks/pz_promo_master_lib.js');
+  const empty = master.emptyDraftDocument('promo.black-gold');
+  const customized = structuredClone(empty);
+  customized.locales = { default: 'es', published: ['es'] };
+  const storeReady = record('store-ready', { name: 'Prueba 2', status: 'active' });
+  const storeCustomized = record('store-custom', { name: 'Personalizada', status: 'active' });
+  const siteReady = record('site-ready', {
+    store: storeReady.id, public_slug: 'prueba-2', status: 'draft',
+    created_by: 'master-1', updated_by: 'master-1',
+  });
+  const siteCustomized = record('site-custom', {
+    store: storeCustomized.id, public_slug: 'personalizada', status: 'draft',
+    created_by: 'master-1', updated_by: 'master-1',
+  });
+  const draftReady = record('draft-ready', {
+    site: siteReady.id, document_json: empty, document_sha256: '0'.repeat(64), version: 1,
+  });
+  const draftCustomized = record('draft-custom', {
+    site: siteCustomized.id, document_json: customized, document_sha256: '1'.repeat(64), version: 2,
+  });
+  const slotReady = record('slot-ready', {
+    site: siteReady.id, state: 'unpublished', canonical_mode: 'platform', generation: 1,
+  });
+  const slotCustomized = record('slot-custom', {
+    site: siteCustomized.id, state: 'unpublished', canonical_mode: 'platform', generation: 1,
+  });
+  app.rows.set('stores', [storeReady, storeCustomized]);
+  app.rows.set('promo_sites', [siteReady, siteCustomized]);
+  app.rows.set('promo_draft_documents', [draftReady, draftCustomized]);
+  app.rows.set('promo_publication_slots', [slotReady, slotCustomized]);
+
+  const previousSecurity = global.$security;
+  global.$security = {
+    sha256(material) { return createHash('sha256').update(material).digest('hex'); },
+  };
+  try {
+    loadMigration('1787699700_promo_publish_empty_foundations.js').up(app);
+  } finally {
+    global.$security = previousSecurity;
+  }
+
+  assert.equal(siteReady.status, 'active');
+  assert.equal(slotReady.state, 'active');
+  assert.equal(slotReady.generation, 2);
+  assert.equal(draftReady.version, 2);
+  assert.equal(draftReady.document_json.locales.default, 'es');
+  assert.equal(draftReady.document_json.content_by_locale.es.identity.name, 'Prueba 2');
+  assert.match(draftReady.document_sha256, /^[a-f0-9]{64}$/);
+  assert.equal(siteCustomized.status, 'draft');
+  assert.equal(slotCustomized.state, 'unpublished');
+  assert.equal(draftCustomized.version, 2);
 });
 
 test('índices críticos cubren tenant, hostname, revision, publicación e idempotencia', () => {

@@ -743,6 +743,82 @@ function emptyDraftDocument(requestedThemeId) {
   };
 }
 
+function safeInitialPublicName(value) {
+  const normalized = String(value || "")
+    .replace(/[\u0000-\u001f<>]/g, " ")
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S*/gi, " ")
+    .replace(/(?:javascript|vbscript|data\s*:\s*text\/html)\s*:\S*/gi, " ")
+    .replace(/(?:@import\s+|expression\s*\(|url\s*\(|=>|\bfunction\s*\()/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (normalized || "Tienda Promo").slice(0, 140).trim() || "Tienda Promo";
+}
+
+function initialPublishedDocument(storeName, publicSlug, requestedThemeId) {
+  const themeId = String(requestedThemeId || DEFAULT_PROMO_THEME_ID).trim();
+  if (!theme.registryEntry(themeId, DEFAULT_PROMO_THEME_VERSION)) throw codedError("unknown_promo_theme", 400);
+  const slug = String(publicSlug || "").trim().toLowerCase();
+  try { data.assertPublicSlug(slug); } catch (_) { throw codedError("invalid_payload", 400); }
+  const name = safeInitialPublicName(storeName);
+  const publicBusinessKey = (/^[a-z]/.test(slug) ? slug : `promo-${slug}`).slice(0, 100);
+  const description = `Página promocional de ${name}.`.slice(0, 170).trim();
+  return pubcfg.validatePromoDocument({
+    contract: "promo.site.v2",
+    system_catalog_version: "promo.system.v1",
+    locales: { default: "es", published: ["es"] },
+    theme: { theme_id: themeId, version: DEFAULT_PROMO_THEME_VERSION, tokens: {} },
+    identity: { public_business_key: publicBusinessKey },
+    section_order: [],
+    sections: [],
+    media_refs: {},
+    contact: {
+      enabled: false,
+      primary_action_key: "",
+      secondary_action_keys: [],
+      actions: [],
+      logo_media_use_key: "",
+      qr_media_use_key: "",
+    },
+    content_by_locale: {
+      es: {
+        identity: {
+          name,
+          slogan: "",
+          summary: "",
+          contact_cta_label: "",
+          owner_name: "",
+          owner_bio: "",
+        },
+        navigation: {},
+        sections: {},
+        contact: {},
+        media_alt: {},
+        seo: { title: name.slice(0, 70).trim(), description },
+      },
+    },
+    adapters: { store_rating: { enabled: false }, landing_qr_link: { enabled: false } },
+  }, { publicRevision: true });
+}
+
+function isUnconfiguredDraftDocument(input) {
+  let document;
+  try { document = pubcfg.normalizeJson(input); } catch (_) { return false; }
+  const locales = document && document.locales;
+  const contact = document && document.contact;
+  return !!document
+    && Array.isArray(document.sections) && document.sections.length === 0
+    && Array.isArray(document.section_order) && document.section_order.length === 0
+    && document.media_refs && typeof document.media_refs === "object"
+    && !Array.isArray(document.media_refs) && Object.keys(document.media_refs).length === 0
+    && locales && String(locales.default || "") === ""
+    && Array.isArray(locales.published) && locales.published.length === 0
+    && document.identity && String(document.identity.public_business_key || "") === ""
+    && document.content_by_locale && typeof document.content_by_locale === "object"
+    && !Array.isArray(document.content_by_locale) && Object.keys(document.content_by_locale).length === 0
+    && contact && contact.enabled === false
+    && Array.isArray(contact.actions) && contact.actions.length === 0;
+}
+
 function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, requestedThemeId) {
   if (!actor || recordString(actor, "role") !== promo.MASTER_ROLE || recordString(actor, "status") !== "active") {
     throw codedError("unauthorized", 403);
@@ -762,7 +838,7 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
   const site = new Record(app.findCollectionByNameOrId("promo_sites"), {});
   site.set("store", storeId);
   site.set("public_slug", slug);
-  site.set("status", "draft");
+  site.set("status", "active");
   site.set("contract_version", 1);
   site.set("created_by", recordId(actor));
   site.set("updated_by", recordId(actor));
@@ -784,7 +860,7 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
   entitlement.set("updated_by", recordId(actor));
   app.save(entitlement);
 
-  const document = pubcfg.validatePromoDocument(emptyDraftDocument(requestedThemeId));
+  const document = initialPublishedDocument(recordString(store, "name"), slug, requestedThemeId);
   const draft = new Record(app.findCollectionByNameOrId("promo_draft_documents"), {});
   draft.set("site", recordId(site));
   draft.set("schema_version", 1);
@@ -797,9 +873,12 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
 
   const slot = new Record(app.findCollectionByNameOrId("promo_publication_slots"), {});
   slot.set("site", recordId(site));
-  slot.set("state", "unpublished");
+  slot.set("state", "active");
   slot.set("canonical_mode", "platform");
-  slot.set("generation", 0);
+  slot.set("generation", 1);
+  slot.set("published_revision", "");
+  slot.set("published_by", recordId(actor));
+  slot.set("published_at", new Date().toISOString());
   app.save(slot);
 
   audit.createPromoAudit(app, { actor, site, is_master: true }, {
@@ -850,6 +929,8 @@ module.exports = {
   collectionsReady,
   createPromoFoundation,
   emptyDraftDocument,
+  initialPublishedDocument,
+  isUnconfiguredDraftDocument,
   errorCode,
   errorStatus,
   exactPayload,

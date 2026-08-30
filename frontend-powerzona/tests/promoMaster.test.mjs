@@ -8,6 +8,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const client = read('src/lib/promoMaster.ts');
 const detail = read('src/pages/master/stores/[storeId].astro');
+const storesPage = read('src/pages/master/stores/index.astro');
 const list = read('src/components/master/MasterStoresView.astro');
 const view = read('src/components/master/MasterPromoStoreView.astro');
 const sidebar = read('src/components/master/MasterSidebar.astro');
@@ -49,6 +50,8 @@ test('listado y sidebar separan Promo de acciones Commerce sin publicar shell fu
   assert.match(list, /store\.storeType === 'promo'/);
   assert.match(list, /Abrir control Promo/);
   assert.match(sidebar, /currentStore\.storeType !== 'promo'/);
+  assert.match(storesPage, /protected: store\.protected === true \|\| store\.slug === DEFAULT_STORE_SLUG/);
+  assert.doesNotMatch(storesPage, /protected: storeType !== 'commerce'/);
   assert.doesNotMatch(view, /\/t\/|\/admin|carrito|checkout|Productos|Pedidos|App Android/);
 });
 

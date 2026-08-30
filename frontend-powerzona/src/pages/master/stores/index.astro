@@ -60,7 +60,7 @@ const stores: MasterStoresViewItem[] = storesPage.items.map((store) => {
     slug: store.slug,
     status: store.status,
     featured: storeType === 'commerce' && store.featured === true,
-    protected: storeType !== 'commerce' || store.protected === true || store.slug === DEFAULT_STORE_SLUG,
+    protected: store.protected === true || store.slug === DEFAULT_STORE_SLUG,
     updated: store.updated,
     userCount: storeType === 'commerce' ? usersByStore.get(store.id) || 0 : 0,
     securityExists: storeType === 'commerce' && settings.exists,

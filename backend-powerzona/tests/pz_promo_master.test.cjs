@@ -154,7 +154,7 @@ test('preferencias Master aceptan únicamente tema aprobado y selector de idioma
   }), null);
 });
 
-test('foundation Promo crea tenant operativo, Black Gold, slot sin publicar y auditoría saneada', () => {
+test('foundation Promo crea tenant operativo y publicado en español con Black Gold', () => {
   const fixture = foundationFixture();
   try {
     const actor = mutableRecord('masterstore0001', { role: 'master_admin', status: 'active', name: 'Master' });
@@ -162,7 +162,7 @@ test('foundation Promo crea tenant operativo, Black Gold, slot sin publicar y au
     const result = master.createPromoFoundation(fixture.app, actor, store, 'demo-promo', 'free');
     assert.equal(fixture.saved.length, 5);
     assert.equal(result.site.store, store.id);
-    assert.equal(result.site.status, 'draft');
+    assert.equal(result.site.status, 'active');
     assert.equal(result.site.contract_version, 1);
     assert.equal(result.entitlement.source, 'contract');
     assert.equal(result.entitlement.promo_site_enabled, true);
@@ -178,15 +178,23 @@ test('foundation Promo crea tenant operativo, Black Gold, slot sin publicar y au
     assert.equal(result.entitlement.max_storage_bytes, 250 * 1024 * 1024);
     assert.equal(result.entitlement.max_gallery_assets, 150);
     assert.equal(result.draft.document_json.theme.theme_id, 'promo.black-gold');
+    assert.equal(result.draft.document_json.locales.default, 'es');
+    assert.deepEqual(result.draft.document_json.locales.published, ['es']);
+    assert.equal(result.draft.document_json.content_by_locale.es.identity.name, 'Demo Promo');
     const premiumQuota = master.createPromoFoundation(fixture.app, actor, mutableRecord('storebbbbbbbbbbb', {
       name: 'Demo Promo 300', slug: 'demo-promo-300', status: 'active',
     }), 'demo-promo-300', 'basic');
     assert.equal(premiumQuota.entitlement.max_gallery_assets, 300);
-    assert.deepEqual(pubcfg.validatePromoDocument(result.draft.document_json), master.emptyDraftDocument());
+    assert.deepEqual(
+      pubcfg.validatePromoDocument(result.draft.document_json, { publicRevision: true }),
+      result.draft.document_json,
+    );
     assert.match(result.draft.document_sha256, /^[a-f0-9]{64}$/);
-    assert.equal(result.slot.state, 'unpublished');
+    assert.equal(result.slot.state, 'active');
     assert.equal(result.slot.canonical_mode, 'platform');
-    assert.equal(result.slot.generation, 0);
+    assert.equal(result.slot.generation, 1);
+    assert.equal(result.slot.published_by, actor.id);
+    assert.match(result.slot.published_at, /^\d{4}-\d{2}-\d{2}T/);
     const event = fixture.saved.find((item) => item._collection?.name === 'promo_audit_events');
     assert.equal(event.action, 'promo.site.create');
     assert.equal(event.scope_key, `site:${result.site.id}`);
@@ -194,6 +202,26 @@ test('foundation Promo crea tenant operativo, Black Gold, slot sin publicar y au
   } finally {
     fixture.restore();
   }
+});
+
+test('publicación inicial usa una clave válida y la migración solo reconoce foundations vacíos', () => {
+  const empty = master.emptyDraftDocument('promo.black-gold');
+  assert.equal(master.isUnconfiguredDraftDocument(empty), true);
+  const published = master.initialPublishedDocument(
+    'Demo <b>Promo</b> https://example.com',
+    '2026-demo',
+    'promo.black-gold',
+  );
+  assert.equal(published.identity.public_business_key, 'promo-2026-demo');
+  assert.equal(published.content_by_locale.es.identity.name, 'Demo b Promo /b');
+  assert.equal(master.isUnconfiguredDraftDocument(published), false);
+  assert.deepEqual(
+    pubcfg.validatePromoDocument(published, { publicRevision: true }),
+    published,
+  );
+  const customized = structuredClone(empty);
+  customized.sections.push({ key: 'custom', type: 'hero' });
+  assert.equal(master.isUnconfiguredDraftDocument(customized), false);
 });
 
 test('proyecciones Master no exponen records, filtros, actor o contenido Promo completo', () => {
