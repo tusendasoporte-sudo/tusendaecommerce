@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { storefrontFirebaseProjects } from '../src/lib/storefrontFirebaseProjects.ts';
+import {
+  storefrontFirebaseProjectForPush,
+  storefrontFirebaseProjects,
+} from '../src/lib/storefrontFirebaseProjects.ts';
 
 function withEnvironment(values, callback) {
   const previous = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
@@ -71,5 +74,24 @@ test('fallback legacy permanece disponible para PowerZona sin registro nuevo', (
     assert.equal(legacy.projectId, 'tu-senda-84-storefront-staging');
     assert.equal(legacy.projectNumber, '');
     assert.equal(legacy.appIds.length, 0);
+  });
+});
+
+test('relay push acepta el proyecto explícito coincidente en modo Firebase legacy', () => {
+  withEnvironment({
+    PZ_STOREFRONT_FIREBASE_PROJECTS_JSON: undefined,
+    PZ_STOREFRONT_FIREBASE_PROJECT_ID: 'tu-senda-84-storefront-staging',
+    PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON: '{"project_id":"tu-senda-84-storefront-staging"}',
+  }, () => {
+    const legacy = storefrontFirebaseProjectForPush(
+      'tu-senda-84-storefront-staging',
+      '1:115337530324:android:8d3f78f8a93cdc1ea8e441',
+    );
+    assert.equal(legacy.projectId, 'tu-senda-84-storefront-staging');
+    assert.equal(legacy.appIds.length, 0);
+    assert.throws(() => storefrontFirebaseProjectForPush(
+      'otro-proyecto-storefront',
+      '1:115337530324:android:8d3f78f8a93cdc1ea8e441',
+    ), /firebase_project_not_allowed/);
   });
 });

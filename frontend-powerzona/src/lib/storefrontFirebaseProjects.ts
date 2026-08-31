@@ -119,12 +119,18 @@ export function storefrontFirebaseForAppCheckToken(token: string): { app: App; e
 }
 
 export function storefrontFirebaseForPush(projectId: string, firebaseAppId: string) {
+  const entry = storefrontFirebaseProjectForPush(projectId, firebaseAppId);
+  return namedAdminApp(entry, 'push');
+}
+
+export function storefrontFirebaseProjectForPush(projectId: string, firebaseAppId: string) {
   const entries = storefrontFirebaseProjects();
   if (!entries.length) throw new Error('firebase_not_configured');
   const entry = projectId
-    ? entries.find((candidate) => candidate.projectId === projectId && candidate.appIds.includes(firebaseAppId))
+    ? entries.find((candidate) => candidate.projectId === projectId
+      && (!candidate.appIds.length || candidate.appIds.includes(firebaseAppId)))
     : (entries.length === 1 ? entries[0] : null);
   if (!entry) throw new Error('firebase_project_not_allowed');
   if (entry.appIds.length && !entry.appIds.includes(firebaseAppId)) throw new Error('firebase_app_not_allowed');
-  return namedAdminApp(entry, 'push');
+  return entry;
 }
