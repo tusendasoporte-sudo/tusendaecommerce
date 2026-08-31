@@ -2837,6 +2837,31 @@ function handleStorefrontAppDownloadAlias(e) {
   }
 }
 
+function handleStorefrontAppDownloadMetadata(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
+  try {
+    const app = e.app || $app;
+    if (!managementReady(app)) return notFound();
+    const resolved = resolveStorefrontAppDownload(app, e.request.pathValue("storeSlug"));
+    if (!resolved) return notFound();
+    return e.json(200, {
+      ok: true,
+      app: {
+        display_name: recordString(resolved.profile, "display_name", 120)
+          || recordString(resolved.store, "name", 120),
+      },
+      artifact: {
+        bytes: recordNumber(resolved.artifact, "bytes"),
+        version_code: recordNumber(resolved.artifact, "version_code"),
+        version_name: recordString(resolved.artifact, "version_name", 40),
+      },
+    });
+  } catch (_) {
+    return notFound();
+  }
+}
+
 function parseRunnerArtifact(value) {
   if (!exactPayload(value, ["bytes", "file_name", "kind", "sha256", "storage_locator", "visibility"])) return null;
   const parsed = {
@@ -3034,6 +3059,7 @@ module.exports = {
   handleBrandAssetUpload,
   handleArtifactDownload,
   handleStorefrontAppDownloadAlias,
+  handleStorefrontAppDownloadMetadata,
   handleMasterArtifactDownload,
   handleRunnerHeartbeat,
   handleRunnerClaim,

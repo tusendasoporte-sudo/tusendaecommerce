@@ -502,6 +502,7 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/cancel/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-builds\/release-action/);
   assert.match(routes, /\/api\/pz\/master\/storefront-app-artifacts\/\{artifact\}\/\{filename\}/);
+  assert.match(routes, /\/api\/pz\/storefront-app-downloads\/by-store\/\{storeSlug\}\/metadata/);
   assert.match(routes, /\$apis\.requireAuth\(\)/);
   assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/claim/);
   assert.match(routes, /\/api\/pz\/internal\/storefront-app-builds\/brand-assets/);

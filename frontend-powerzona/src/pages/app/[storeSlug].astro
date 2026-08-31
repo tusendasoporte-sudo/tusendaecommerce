@@ -1,0 +1,142 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
+import {
+  formatStorefrontAppDownloadSize,
+  parseStorefrontAppDownloadMetadata,
+  storefrontAppDownloadMetadataUrl,
+} from '../../lib/storefrontAppDownload';
+
+const storeSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+if (storeSlug !== 'powerzona') return Astro.redirect('/');
+
+const metadataEndpoint = storefrontAppDownloadMetadataUrl(serverPocketBaseUrl(), storeSlug);
+let metadata: ReturnType<typeof parseStorefrontAppDownloadMetadata> = null;
+if (metadataEndpoint) {
+  const response = await fetch(metadataEndpoint, {
+    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8_000),
+  }).catch(() => null);
+  if (response?.ok) metadata = parseStorefrontAppDownloadMetadata(await response.json().catch(() => null));
+}
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
+
+const appName = metadata?.displayName || 'Power Zona';
+const versionLabel = metadata?.versionName || 'No disponible';
+const sizeLabel = metadata ? formatStorefrontAppDownloadSize(metadata.bytes) : 'No disponible';
+const downloadPath = `/app/${encodeURIComponent(storeSlug)}/descargar`;
+const canonical = `/app/${encodeURIComponent(storeSlug)}`;
+const description = 'Descarga Power Zona para Android y consulta el catálogo, las ofertas y tus pedidos desde el teléfono.';
+const seo = {
+  title: `Descargar ${appName} para Android`,
+  description,
+  image: '/brand/powerzona-app-icon-512.png',
+  imageAlt: 'Icono de Power Zona',
+  imageType: 'image/png',
+  imageWidth: 512,
+  imageHeight: 512,
+  canonical,
+  type: 'website',
+  siteName: 'Power Zona',
+};
+---
+
+<Layout seo={seo} hideStoreFloatingUi={true} preloadImage="/brand/powerzona-app-icon-512.png">
+  <section class="app-preview-shell" aria-labelledby="app-preview-title">
+    <div class="app-preview-glow" aria-hidden="true"></div>
+    <article class="app-preview-card">
+      <div class="app-preview-brand">
+        <img src="/brand/powerzona-app-icon-512.png" width="156" height="156" alt="Icono de Power Zona" />
+        <span>Aplicación para Android</span>
+      </div>
+
+      <div class="app-preview-copy">
+        <p class="app-preview-kicker">Power Zona en tu teléfono</p>
+        <h1 id="app-preview-title">Descarga {appName}</h1>
+        <p class="app-preview-description">{description}</p>
+
+        <dl class="app-preview-metadata">
+          <div><dt>Versión</dt><dd>{versionLabel}</dd></div>
+          <div><dt>Tamaño</dt><dd>{sizeLabel}</dd></div>
+        </dl>
+
+        {metadata ? (
+          <a class="app-preview-download" href={downloadPath}>
+            <span>Descargar APK</span>
+            <small>Instalación directa para Android</small>
+          </a>
+        ) : (
+          <p class="app-preview-unavailable" role="status">La descarga no está disponible temporalmente.</p>
+        )}
+
+        <a class="app-preview-store" href="/t/powerzona">Continuar en la tienda web</a>
+      </div>
+    </article>
+
+    <p class="app-preview-note">Al descargar, Android puede solicitar autorización para instalar aplicaciones desde el navegador.</p>
+  </section>
+</Layout>
+
+<style>
+  .app-preview-shell {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    min-height: calc(100vh - 3rem);
+    padding: clamp(20px, 5vw, 64px) 0;
+    overflow: hidden;
+  }
+  .app-preview-glow {
+    position: absolute;
+    z-index: -1;
+    width: min(86vw, 760px);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(74,141,255,.28), rgba(21,94,235,.10) 42%, transparent 70%);
+    filter: blur(12px);
+  }
+  .app-preview-card {
+    width: min(100%, 820px);
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+    border-radius: 34px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 34px 90px rgba(7,31,99,.16);
+  }
+  .app-preview-brand {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    padding: clamp(30px, 6vw, 52px);
+    color: #dbeafe;
+    background: radial-gradient(circle at 82% 8%, rgba(74,141,255,.58), transparent 34%), linear-gradient(145deg,#071f63,#155eeb);
+  }
+  .app-preview-brand img { width: 156px; height: 156px; border: 7px solid rgba(255,255,255,.88); border-radius: 34px; object-fit: cover; background: #fff; box-shadow: 0 22px 52px rgba(3,18,56,.34); }
+  .app-preview-brand span { font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+  .app-preview-copy { display: grid; justify-items: center; gap: 18px; padding: clamp(28px, 6vw, 52px); text-align: center; }
+  .app-preview-kicker { margin: 0; color: #155eeb; font-size: 13px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .app-preview-copy h1 { margin: -7px 0 0; color: #071f63; font-size: clamp(34px, 7vw, 58px); line-height: .98; letter-spacing: -.04em; }
+  .app-preview-description { max-width: 590px; margin: 0; color: #465574; font-size: clamp(15px, 2.4vw, 18px); line-height: 1.58; font-weight: 700; }
+  .app-preview-metadata { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 12px; width: min(100%, 430px); margin: 2px 0; }
+  .app-preview-metadata div { display: grid; gap: 4px; border: 1px solid #dbeafe; border-radius: 18px; padding: 15px; background: #f8fbff; }
+  .app-preview-metadata dt { color: #64748b; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+  .app-preview-metadata dd { margin: 0; color: #071f63; font-size: 16px; font-weight: 1000; }
+  .app-preview-download { display: grid; gap: 3px; width: min(100%, 430px); border-radius: 20px; padding: 16px 22px; color: #fff; background: linear-gradient(135deg,#155eeb,#0845bd); text-decoration: none; box-shadow: 0 18px 40px rgba(21,94,235,.28); }
+  .app-preview-download span { font-size: 17px; font-weight: 1000; }
+  .app-preview-download small { color: #dbeafe; font-size: 12px; font-weight: 750; }
+  .app-preview-download:hover { transform: translateY(-1px); box-shadow: 0 22px 48px rgba(21,94,235,.34); }
+  .app-preview-store { color: #155eeb; font-size: 14px; font-weight: 900; }
+  .app-preview-unavailable { width: min(100%, 430px); margin: 0; border: 1px solid #fed7aa; border-radius: 18px; padding: 14px; color: #9a3412; background: #fff7ed; font-weight: 850; }
+  .app-preview-note { max-width: 650px; margin: 18px auto 0; color: #64748b; font-size: 12px; line-height: 1.5; text-align: center; }
+  @media (max-width: 520px) {
+    .app-preview-card { border-radius: 25px; }
+    .app-preview-brand img { width: 124px; height: 124px; border-radius: 28px; }
+    .app-preview-metadata { grid-template-columns: 1fr 1fr; }
+  }
+</style>

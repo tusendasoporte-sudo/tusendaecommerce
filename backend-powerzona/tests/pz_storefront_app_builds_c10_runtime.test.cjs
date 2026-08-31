@@ -757,6 +757,17 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     });
     assert.equal(stableDownload.status, 307);
     assert.equal(stableDownload.headers.get('location'), preview.data.preview.download_url);
+    const stableMetadataUrl = `${stableDownloadUrl}/metadata`;
+    const stableMetadata = await request(`/api/pz/storefront-app-downloads/by-store/${store.slug}/metadata`);
+    assertStatus(stableMetadata, 200, 'consultar metadatos publicos de la APK');
+    assert.deepEqual(stableMetadata.data, {
+      ok: true,
+      app: { display_name: 'App Tienda C10 Runtime' },
+      artifact: {
+        bytes: APK_BYTES.length, version_code: 7, version_name: '1.4.0',
+      },
+    });
+    assert.doesNotMatch(JSON.stringify(stableMetadata.data), /sha|capability|download_url/i);
     const physicalApk = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
     assert.equal(physicalApk.status, 200);
     assert.equal(physicalApk.headers.get('x-pz-apk-sha256'), APK_SHA256);
@@ -767,6 +778,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       redirect: 'manual', signal: AbortSignal.timeout(20_000),
     });
     assert.equal(pausedStableDownload.status, 404);
+    const pausedStableMetadata = await fetch(stableMetadataUrl, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(pausedStableMetadata.status, 404);
     await update('storefront_app_artifacts', artifact.id, { update_delivery_status: 'active' });
 
     const wrongConfirmation = await request('/api/pz/master/storefront-app-builds/whatsapp/marked-sent', {
@@ -849,6 +862,8 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       redirect: 'manual', signal: AbortSignal.timeout(20_000),
     });
     assert.equal(withdrawnStableDownload.status, 404);
+    const withdrawnStableMetadata = await fetch(stableMetadataUrl, { signal: AbortSignal.timeout(20_000) });
+    assert.equal(withdrawnStableMetadata.status, 404);
 
     const reactivate = await request('/api/pz/master/storefront-app-builds/admin-action', {
       token: masterToken,

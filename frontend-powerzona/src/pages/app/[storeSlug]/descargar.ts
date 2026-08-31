@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 
-import { publicPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
-import { storefrontAppDownloadAliasUrl } from '../../lib/storefrontAppDownload';
+import { publicPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
+import { storefrontAppDownloadAliasUrl } from '../../../lib/storefrontAppDownload';
 
 function unavailable(status = 404) {
   return new Response(JSON.stringify({ ok: false, error: 'apk_not_found' }), {
