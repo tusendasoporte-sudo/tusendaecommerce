@@ -751,11 +751,23 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.ok(whatsappUrl.searchParams.get('text').includes('SHA-256'));
     assert.ok(whatsappUrl.searchParams.get('text').includes('Enlace permanente'));
 
+    const stableDownloadUrl = `${baseUrl}/api/pz/storefront-app-downloads/by-store/${store.slug}`;
+    const stableDownload = await fetch(stableDownloadUrl, {
+      redirect: 'manual', signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(stableDownload.status, 307);
+    assert.equal(stableDownload.headers.get('location'), preview.data.preview.download_url);
     const physicalApk = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
     assert.equal(physicalApk.status, 200);
     assert.equal(physicalApk.headers.get('x-pz-apk-sha256'), APK_SHA256);
     assert.equal(physicalApk.headers.get('content-disposition'), 'attachment; filename="tienda-c10-runtime-1.4.0.apk"');
     assert.deepEqual(Buffer.from(await physicalApk.arrayBuffer()), APK_BYTES);
+    await update('storefront_app_artifacts', artifact.id, { update_delivery_status: 'paused' });
+    const pausedStableDownload = await fetch(stableDownloadUrl, {
+      redirect: 'manual', signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(pausedStableDownload.status, 404);
+    await update('storefront_app_artifacts', artifact.id, { update_delivery_status: 'active' });
 
     const wrongConfirmation = await request('/api/pz/master/storefront-app-builds/whatsapp/marked-sent', {
       token: masterToken,
@@ -833,6 +845,10 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     assert.equal(blockedAfterWithdraw.data.error, 'app_distribution_withdrawn');
     const withdrawnDownload = await fetch(preview.data.preview.download_url, { signal: AbortSignal.timeout(20_000) });
     assert.equal(withdrawnDownload.status, 404);
+    const withdrawnStableDownload = await fetch(stableDownloadUrl, {
+      redirect: 'manual', signal: AbortSignal.timeout(20_000),
+    });
+    assert.equal(withdrawnStableDownload.status, 404);
 
     const reactivate = await request('/api/pz/master/storefront-app-builds/admin-action', {
       token: masterToken,

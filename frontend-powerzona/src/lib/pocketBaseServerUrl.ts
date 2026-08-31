@@ -30,3 +30,7 @@ export function serverPocketBaseUrl() {
     environmentValue('PUBLIC_POCKETBASE_URL'),
   );
 }
+
+export function publicPocketBaseUrl() {
+  return normalizedBaseUrl(environmentValue('PUBLIC_POCKETBASE_URL'));
+}

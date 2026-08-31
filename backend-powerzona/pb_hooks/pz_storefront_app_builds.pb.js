@@ -88,6 +88,14 @@ routerAdd(
 
 routerAdd(
   "GET",
+  "/api/pz/storefront-app-downloads/by-store/{storeSlug}",
+  (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleStorefrontAppDownloadAlias(e),
+  $apis.bodyLimit(0),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
   "/api/pz/storefront-app-downloads/{artifact}/{capability}/{filename}",
   (e) => require(`${__hooks}/pz_storefront_app_builds_lib.js`).handleArtifactDownload(e),
   $apis.bodyLimit(0),

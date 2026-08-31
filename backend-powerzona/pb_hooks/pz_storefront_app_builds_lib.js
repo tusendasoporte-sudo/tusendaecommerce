@@ -42,6 +42,7 @@ const BRAND_ASSET_MAX_BYTES = 8 * 1024 * 1024;
 const ARTIFACT_MAX_BYTES = 100 * 1024 * 1024;
 const DOWNLOAD_NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const DOWNLOAD_CAPABILITY_PATTERN = /^[a-f0-9]{64}$/;
+const STORE_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const BRAND_ASSET_PROFILES = Object.freeze({
   icon: Object.freeze({ width: 1024, height: 1024 }),
   splash: Object.freeze({ width: 1080, height: 1920 }),
@@ -2797,6 +2798,45 @@ function handleArtifactDownload(e) {
   }
 }
 
+function resolveStorefrontAppDownload(app, rawStoreSlug, options) {
+  const storeSlug = text(rawStoreSlug, 80).toLowerCase();
+  if (!STORE_SLUG_PATTERN.test(storeSlug)) return null;
+  const store = findFirst(app, "stores", "slug = {:slug} && status = 'active'", { slug: storeSlug });
+  if (!store) return null;
+  const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
+  if (!profile) return null;
+  try { appAdmin.assertDistributionAvailable(profile); } catch (_) { return null; }
+  const artifact = records(
+    app,
+    ARTIFACTS,
+    "profile = {:profile} && kind = 'apk' && visibility = 'store_delivery' && release_status = 'published' && lifecycle_status = 'available'",
+    "-version_code",
+    20,
+    { profile: profile.id },
+  ).find((candidate) => relationId(candidate, "store") === store.id
+    && artifactUpdateDeliveryStatus(candidate) === "active") || null;
+  if (!artifact) return null;
+  const job = findRecord(app, JOBS, relationId(artifact, "job"));
+  if (!job || recordString(job, "status", 30) !== "succeeded"
+    || relationId(job, "profile") !== profile.id) return null;
+  const downloadUrl = artifactDownloadUrl(artifact, profile, options);
+  return downloadUrl ? { artifact, download_url: downloadUrl, job, profile, store } : null;
+}
+
+function handleStorefrontAppDownloadAlias(e) {
+  setPrivateHeaders(e);
+  const notFound = () => e.json(404, { ok: false, error: "apk_not_found" });
+  try {
+    const app = e.app || $app;
+    if (!managementReady(app)) return notFound();
+    const resolved = resolveStorefrontAppDownload(app, e.request.pathValue("storeSlug"));
+    if (!resolved) return notFound();
+    return e.redirect(307, resolved.download_url);
+  } catch (_) {
+    return notFound();
+  }
+}
+
 function parseRunnerArtifact(value) {
   if (!exactPayload(value, ["bytes", "file_name", "kind", "sha256", "storage_locator", "visibility"])) return null;
   const parsed = {
@@ -2993,6 +3033,7 @@ module.exports = {
   handleBrandAssetFile,
   handleBrandAssetUpload,
   handleArtifactDownload,
+  handleStorefrontAppDownloadAlias,
   handleMasterArtifactDownload,
   handleRunnerHeartbeat,
   handleRunnerClaim,
@@ -3008,6 +3049,7 @@ module.exports = {
   parseWhatsappMarkedPayload,
   parseWhatsappPreviewPayload,
   parseWhatsappSettingsPayload,
+  resolveStorefrontAppDownload,
   parseRunnerCompletion,
   parseRunnerArtifactUpload,
   profileSnapshot,

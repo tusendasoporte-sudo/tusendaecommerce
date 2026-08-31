@@ -511,3 +511,60 @@ test('rutas Master y runner usan autenticación separada y body limits', () => {
   assert.match(implementation, /profile\.set\("display_name", displayName\)/);
   assert.match(implementation, /appConfig\.set\("display_name", displayName\)/);
 });
+
+test('alias estable resuelve solo la APK publicada con distribución activa', () => {
+  const store = record(STORE_ID, { name: 'Power Zona', slug: 'powerzona', status: 'active' });
+  const profileValues = {
+    store: STORE_ID,
+    distribution_status: 'active',
+    lifecycle_status: 'active',
+    status: 'provisioned',
+    download_nonce: 'n'.repeat(43),
+  };
+  const artifactValues = {
+    store: STORE_ID,
+    profile: PROFILE_ID,
+    job: JOB_ID,
+    kind: 'apk',
+    visibility: 'store_delivery',
+    file: 'powerzona-0.2.10-20-direct_x.apk',
+    file_name: 'powerzona-0.2.10-20-direct.apk',
+    sha256: 'a'.repeat(64),
+    bytes: 4096,
+    version_code: 20,
+    version_name: '0.2.10',
+    lifecycle_status: 'available',
+    release_status: 'published',
+    update_delivery_status: 'active',
+  };
+  const profile = record(PROFILE_ID, profileValues);
+  const artifact = record(ARTIFACT_ID, artifactValues);
+  const job = record(JOB_ID, { profile: PROFILE_ID, status: 'succeeded' });
+  const app = {
+    findFirstRecordByFilter(collection) {
+      if (collection === 'stores') return store;
+      if (collection === builds.PROFILES) return profile;
+      throw new Error('not_found');
+    },
+    findRecordsByFilter(collection) {
+      return collection === builds.ARTIFACTS ? [artifact] : [];
+    },
+    findRecordById(collection, id) {
+      if (collection === builds.JOBS && id === JOB_ID) return job;
+      throw new Error('not_found');
+    },
+  };
+  const options = {
+    origin: 'https://downloads.example.test',
+    security: { hs256: (value, secret) => createHmac('sha256', secret).update(value).digest('hex') },
+  };
+  const active = builds.resolveStorefrontAppDownload(app, 'PowerZona', options);
+  assert.match(active.download_url, /^https:\/\/downloads\.example\.test\/api\/pz\/storefront-app-downloads\//);
+  assert.match(active.download_url, /powerzona-0\.2\.10-20-direct\.apk$/);
+  artifactValues.update_delivery_status = 'paused';
+  assert.equal(builds.resolveStorefrontAppDownload(app, 'powerzona', options), null);
+  artifactValues.update_delivery_status = 'active';
+  profileValues.distribution_status = 'withdrawn';
+  assert.equal(builds.resolveStorefrontAppDownload(app, 'powerzona', options), null);
+  assert.equal(builds.resolveStorefrontAppDownload(app, '../powerzona', options), null);
+});
