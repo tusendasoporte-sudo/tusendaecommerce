@@ -2603,7 +2603,11 @@ function validateUploadedArtifact(file, parsed) {
   }
   if (policy.text && prefix.some((value) => value === 0)) throw new Error("artifact_upload_invalid");
   if (policy.json) {
-    const first = prefix.find((value) => ![0x09, 0x0a, 0x0d, 0x20].includes(value));
+    const jsonPrefix = prefix.length >= 3
+      && prefix[0] === 0xef && prefix[1] === 0xbb && prefix[2] === 0xbf
+      ? prefix.slice(3)
+      : prefix;
+    const first = jsonPrefix.find((value) => ![0x09, 0x0a, 0x0d, 0x20].includes(value));
     if (first !== 0x7b) throw new Error("artifact_upload_invalid");
   }
   return true;

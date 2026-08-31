@@ -474,7 +474,16 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       { kind: 'apk', visibility: 'store_delivery', fileName: 'tienda-c107-1.0.0-1-direct.apk', bytes: APK_BYTES, mime: 'application/vnd.android.package-archive' },
       { kind: 'checksums', visibility: 'store_delivery', fileName: 'SHA256SUMS.txt', bytes: Buffer.from(`${APK_SHA256}  tienda-c107-1.0.0-1-direct.apk\n`), mime: 'text/plain' },
       { kind: 'instructions', visibility: 'store_delivery', fileName: 'INSTRUCCIONES.txt', bytes: Buffer.from('Descarga, verifica SHA-256 e instala.\n'), mime: 'text/plain' },
-      { kind: 'build_manifest', visibility: 'master_only', fileName: 'build-manifest.json', bytes: Buffer.from('{"schema_version":1}\n'), mime: 'application/json' },
+      {
+        kind: 'build_manifest',
+        visibility: 'master_only',
+        fileName: 'build-manifest.json',
+        bytes: Buffer.concat([
+          Buffer.from([0xef, 0xbb, 0xbf]),
+          Buffer.from('{"schema_version":1}\n'),
+        ]),
+        mime: 'application/json',
+      },
     ].map((item) => ({
       ...item,
       sha256: createHash('sha256').update(item.bytes).digest('hex'),
