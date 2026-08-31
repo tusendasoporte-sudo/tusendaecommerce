@@ -9,6 +9,7 @@ const shell = read('../src/components/StorefrontAppShell.astro');
 const hubProxy = read('../src/pages/api/storefront/v1/customer-hub.ts');
 const assetLinks = read('../src/pages/.well-known/assetlinks.json.ts');
 const checkout = read('../src/pages/checkout.astro');
+const product = read('../src/pages/producto/[slug].astro');
 const manifest = read('../../mobile-storefront/app/src/main/AndroidManifest.xml');
 const activity = read('../../mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontActivity.java');
 const strings = read('../../mobile-storefront/app/src/main/res/values/strings.xml');
@@ -49,12 +50,22 @@ test('campana y cartera usan el hub privado y ofrecen su ciclo completo', () => 
 test('la APK sustituye el buscador superior por una campana solo cuando existen notificaciones', () => {
   assert.match(shell, /body\.pz-storefront-app \.public-search-shell/);
   assert.match(shell, /body\.pz-storefront-app \.public-mobile-search/);
-  assert.match(shell, /topSearch\.replaceWith\(inboxOpen\)/);
-  assert.match(shell, /inboxOpen\.hidden = state\.inbox\.length < 1/);
+  assert.match(shell, /const isHomeRoute = normalizePath\(window\.location\.pathname\) === normalizePath\(homePath\)/);
+  assert.match(shell, /if \(isHomeRoute && topSearch\?\.parentNode && inboxOpen\)/);
+  assert.match(shell, /inboxOpen\.hidden = !isHomeRoute \|\| state\.inbox\.length < 1/);
   assert.match(shell, /\.pz-native-inbox-open\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/);
   assert.match(shell, /\.pz-native-inbox-open svg[^}]+fill:\s*none[^}]+stroke:\s*currentColor/);
   assert.match(shell, /:global\(\.pz-native-notification\)/);
   assert.match(shell, /:global\(\.pz-native-coupon\)/);
+});
+
+test('la barra de compra flota sobre la navegación y responde al scroll en la APK', () => {
+  assert.match(shell, /body\.pz-storefront-app\.product-detail-page \.product-mobile-cta[^}]+bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(shell, /product-add-floating-active[^}]+padding-bottom:\s*calc\(168px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(product, /document\.querySelector\('\.pz-native-bottom-nav'\)/);
+  assert.match(product, /window\.innerHeight - bottomOcclusion/);
+  assert.match(product, /window\.addEventListener\('scroll', schedulePurchaseActionsVisibility, \{ passive: true \}\)/);
+  assert.match(product, /window\.visualViewport\?\.addEventListener\('resize', schedulePurchaseActionsVisibility\)/);
 });
 
 test('los enlaces HTTPS verificados abren únicamente la ruta de la tienda en la APK firmada', () => {

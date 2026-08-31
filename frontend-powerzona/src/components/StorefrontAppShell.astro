@@ -71,7 +71,8 @@ const nativePreviewEnabled = import.meta.env.DEV;
   :global(body.pz-storefront-app .public-search-shell),
   :global(body.pz-storefront-app .public-mobile-search),
   :global(body.pz-storefront-app a.product-top-icon-btn[aria-label="Buscar productos"]) { display: none !important; }
-  :global(body.pz-storefront-app.product-detail-page.product-add-floating-active) { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  :global(body.pz-storefront-app.product-detail-page .product-mobile-cta) { bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 37; padding-bottom: 10px; }
+  :global(body.pz-storefront-app.product-detail-page.product-add-floating-active) { padding-bottom: calc(168px + env(safe-area-inset-bottom)); }
   .pz-native-inbox-open { position: fixed; z-index: 39; top: calc(14px + env(safe-area-inset-top)); right: 16px; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(203,213,225,.9); border-radius: 18px; color: #071f63; background: rgba(255,255,255,.96); box-shadow: 0 12px 34px rgba(7,31,99,.18); backdrop-filter: blur(12px); }
   .pz-native-inbox-open[hidden] { display: none !important; }
   .pz-native-inbox-open.is-header-slot { position: relative; top: auto; right: auto; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 17px; box-shadow: 0 10px 26px rgba(7,31,99,.12); }
@@ -130,11 +131,16 @@ const nativePreviewEnabled = import.meta.env.DEV;
   @media (min-width: 760px) { .pz-native-bottom-nav { left: 50%; width: min(620px, 100%); right: auto; transform: translateX(-50%); border: 1px solid #cbd5e1; border-bottom: 0; border-radius: 24px 24px 0 0; } }
 </style>
 
-<script define:vars={{ storeId, nativePreviewEnabled }}>
+<script define:vars={{ storeId, nativePreviewEnabled, homePath }}>
   (() => {
     const isNative = /(?:^|\s)TuSenda84Storefront\/[0-9]/.test(navigator.userAgent || '')
       || (nativePreviewEnabled && new URLSearchParams(window.location.search).get('__pz_native_preview') === '1');
     if (!isNative) return;
+    const normalizePath = (value) => {
+      const normalized = String(value || '/').replace(/\/{2,}/g, '/');
+      return normalized.length > 1 ? normalized.replace(/\/+$/, '') : '/';
+    };
+    const isHomeRoute = normalizePath(window.location.pathname) === normalizePath(homePath);
     const shell = document.getElementById('pz-native-app-shell');
     const backdrop = document.getElementById('pz-native-sheet-backdrop');
     const inboxSheet = document.getElementById('pz-native-inbox-sheet');
@@ -156,7 +162,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
     document.body.classList.add('pz-storefront-app');
 
     const topSearch = document.querySelector('.public-mobile-search, a.product-top-icon-btn[aria-label="Buscar productos"]');
-    if (topSearch?.parentNode && inboxOpen) {
+    if (isHomeRoute && topSearch?.parentNode && inboxOpen) {
       topSearch.replaceWith(inboxOpen);
       inboxOpen.classList.add('is-header-slot');
     }
@@ -199,7 +205,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
       state.unread = Math.max(0, Number(payload?.inbox?.unread_count || 0));
       state.coupons = Array.isArray(payload?.coupons?.items) ? payload.coupons.items : [];
       state.selectedCode = normalizeCode(payload?.coupons?.selected_code || '');
-      if (inboxOpen) inboxOpen.hidden = state.inbox.length < 1;
+      if (inboxOpen) inboxOpen.hidden = !isHomeRoute || state.inbox.length < 1;
       inboxBadge.textContent = state.unread > 99 ? '99+' : String(state.unread);
       inboxBadge.hidden = state.unread < 1;
       syncLocalWallet();

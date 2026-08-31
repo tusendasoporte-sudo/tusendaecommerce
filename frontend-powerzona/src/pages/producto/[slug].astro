@@ -1483,6 +1483,7 @@ const variationItems = sellableVariations.map((variation) => {
 				let touchEndX = 0;
 				let selectedQuantity = 1;
 				let purchaseActionsVisible = false;
+				let purchaseVisibilityFrame = 0;
 				let shareStatusTimeout;
 				document.body.classList.add('product-detail-page');
 
@@ -1597,9 +1598,24 @@ const variationItems = sellableVariations.map((variation) => {
 				function refreshPurchaseActionsVisibility() {
 					if (!purchaseActions) return;
 					const rect = purchaseActions.getBoundingClientRect();
-					const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+					const nativeBottomNav = document.body.classList.contains('pz-storefront-app')
+						? document.querySelector('.pz-native-bottom-nav')
+						: null;
+					const bottomOcclusion = nativeBottomNav
+						? Math.max(0, nativeBottomNav.getBoundingClientRect().height)
+						: 0;
+					const visibleViewportBottom = Math.max(0, window.innerHeight - bottomOcclusion);
+					const visibleHeight = Math.min(rect.bottom, visibleViewportBottom) - Math.max(rect.top, 0);
 					purchaseActionsVisible = visibleHeight > Math.min(48, rect.height * 0.08);
 					updateFloatingCtaVisibility();
+				}
+
+				function schedulePurchaseActionsVisibility() {
+					if (purchaseVisibilityFrame) return;
+					purchaseVisibilityFrame = window.requestAnimationFrame(() => {
+						purchaseVisibilityFrame = 0;
+						refreshPurchaseActionsVisibility();
+					});
 				}
 
 				function updateGallery(index) {
@@ -1862,9 +1878,8 @@ const variationItems = sellableVariations.map((variation) => {
 				else updateQuantityUI();
 
 				if (purchaseActions && 'IntersectionObserver' in window) {
-					const purchaseObserver = new IntersectionObserver((entries) => {
-						purchaseActionsVisible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0.08);
-						updateFloatingCtaVisibility();
+					const purchaseObserver = new IntersectionObserver(() => {
+						schedulePurchaseActionsVisibility();
 					}, {
 						root: null,
 						threshold: [0, 0.08, 0.2],
@@ -1873,8 +1888,10 @@ const variationItems = sellableVariations.map((variation) => {
 					purchaseObserver.observe(purchaseActions);
 				}
 
-				window.addEventListener('resize', refreshPurchaseActionsVisibility);
-				refreshPurchaseActionsVisibility();
+				window.addEventListener('scroll', schedulePurchaseActionsVisibility, { passive: true });
+				window.addEventListener('resize', schedulePurchaseActionsVisibility);
+				window.visualViewport?.addEventListener('resize', schedulePurchaseActionsVisibility);
+				schedulePurchaseActionsVisibility();
 
 				mobileAddToCartBtn?.addEventListener('click', () => {
 					if (mobileAddToCartBtn.disabled) return;
