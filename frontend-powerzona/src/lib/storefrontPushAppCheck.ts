@@ -33,6 +33,21 @@ const JSON_HEADERS = Object.freeze({
   'X-Robots-Tag': 'noindex, nofollow, noarchive',
 });
 
+function logStorefrontGateway(
+  action: string,
+  status: number,
+  result: 'accepted' | 'rejected',
+  error = '',
+) {
+  const safeAction = /^[a-z0-9_]{1,80}$/.test(action) ? action : 'unknown';
+  const safeError = /^[a-z0-9_]{1,80}$/.test(error) ? error : '';
+  const fields = [`action=${safeAction}`, `status=${status}`, `result=${result}`];
+  if (safeError) fields.push(`error=${safeError}`);
+  const message = `[storefront_gateway] ${fields.join(' ')}`;
+  if (result === 'accepted') console.info(message);
+  else console.warn(message);
+}
+
 const ACTION_LIMITS = Object.freeze({
   installations_register: 12,
   installations_heartbeat: 60,
@@ -330,6 +345,7 @@ function publicGatewayError(status: number, payload?: Record<string, unknown>) {
 
 export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewayOptions<T>) {
   if (!storefrontGatewayTransportAllowed(options.request, options.clientAddress)) {
+    logStorefrontGateway(options.action, 400, 'rejected', 'https_required');
     return storefrontJson(400, { ok: false, error: 'https_required' });
   }
 
@@ -339,20 +355,27 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     options.allowEmptyBody === true,
   );
   if (!parsedJson.ok) {
-    return storefrontJson(parsedJson.error === 'payload_too_large' ? 413 : 400, {
+    const status = parsedJson.error === 'payload_too_large' ? 413 : 400;
+    logStorefrontGateway(options.action, status, 'rejected', parsedJson.error);
+    return storefrontJson(status, {
       ok: false,
       error: parsedJson.error,
     });
   }
   const payload = options.parsePayload(parsedJson.value);
-  if (!payload) return storefrontJson(400, { ok: false, error: 'invalid_payload' });
+  if (!payload) {
+    logStorefrontGateway(options.action, 400, 'rejected', 'invalid_payload');
+    return storefrontJson(400, { ok: false, error: 'invalid_payload' });
+  }
 
   const credential = storefrontInstallationCredential(options.request);
   const hasAuthorization = options.request.headers.has('authorization');
   if (options.credential === 'required' && !credential) {
+    logStorefrontGateway(options.action, 401, 'rejected', 'credential_required');
     return storefrontJson(401, { ok: false, error: 'credential_required' });
   }
   if (options.credential === 'optional' && hasAuthorization && !credential) {
+    logStorefrontGateway(options.action, 401, 'rejected', 'invalid_credential');
     return storefrontJson(401, { ok: false, error: 'invalid_credential' });
   }
 
@@ -360,11 +383,15 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     options.request,
     options.verifyAppCheckToken || defaultAppCheckVerifier,
   );
-  if (!appCheck.ok) return storefrontJson(appCheck.status, { ok: false, error: appCheck.error });
+  if (!appCheck.ok) {
+    logStorefrontGateway(options.action, appCheck.status, 'rejected', appCheck.error);
+    return storefrontJson(appCheck.status, { ok: false, error: appCheck.error });
+  }
 
   const client = trustedClientContext(options.request, options.clientAddress);
   const identity = rateIdentity(appCheck.appId, client.ip, credential, payload);
   if (!storefrontRateLimitAllowed(options.action, identity, options.now?.getTime())) {
+    logStorefrontGateway(options.action, 429, 'rejected', 'rate_limited');
     return storefrontJson(429, { ok: false, error: 'rate_limited' }, { 'Retry-After': '60' });
   }
 
@@ -383,11 +410,20 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     fetchImpl: options.fetchImpl,
     now: options.now,
   });
-  if (!internal.ok) return publicGatewayError(internal.status, internal.payload);
+  if (!internal.ok) {
+    const error = typeof internal.payload?.error === 'string'
+      ? internal.payload.error
+      : internal.error;
+    logStorefrontGateway(options.action, internal.status, 'rejected', error);
+    return publicGatewayError(internal.status, internal.payload);
+  }
   const mapped = options.mapSuccess ? options.mapSuccess(internal.payload) : internal.payload;
-  return mapped
-    ? storefrontJson(internal.status, mapped)
-    : storefrontJson(503, { ok: false, error: 'gateway_unavailable' });
+  if (!mapped) {
+    logStorefrontGateway(options.action, 503, 'rejected', 'gateway_unavailable');
+    return storefrontJson(503, { ok: false, error: 'gateway_unavailable' });
+  }
+  logStorefrontGateway(options.action, internal.status, 'accepted');
+  return storefrontJson(internal.status, mapped);
 }
 
 export function storefrontPublicHttpsOrigin(request: Request, clientAddress?: string) {
