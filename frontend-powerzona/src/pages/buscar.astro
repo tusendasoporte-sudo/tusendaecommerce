@@ -140,12 +140,12 @@ const searchItems = [
   </style>
 
   <div class="search-shell">
-    <div class="search-head">
-      <a class="search-brand" href={homePath} aria-label={`Volver a ${storeName}`}>
+    <div class="search-head" data-pz-inner-head>
+      <a class="search-brand" href={homePath} aria-label={`Volver a ${storeName}`} data-pz-inner-brand>
         <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
         <p class="search-store">INICIO</p>
       </a>
-      <a class="back-btn" href={homePath}>Volver</a>
+      <a class="back-btn" href={homePath} data-pz-inner-back>Volver</a>
     </div>
 
     <section class="search-panel">

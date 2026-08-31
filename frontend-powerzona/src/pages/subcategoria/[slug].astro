@@ -111,13 +111,13 @@ function getProductOfferView(product: any) {
     @media (max-width: 640px) { .subcategory-hero { border-radius: 28px; min-height: 210px; } .back-btn { padding: 10px 11px; } .top { align-items: flex-start; } .top-actions { flex-wrap: wrap; } }
   </style>
 
-  <div class="top">
-    <a class="brand-link" href={homePath}>
+  <div class="top" data-pz-inner-head>
+    <a class="brand-link" href={homePath} data-pz-inner-brand>
       <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <p class="brand-name">INICIO</p>
     </a>
-    <div class="top-actions">
-      <a class="back-btn" href={categoryBackPath}>← Volver</a>
+    <div class="top-actions" data-pz-inner-actions>
+      <a class="back-btn" href={categoryBackPath} data-pz-inner-back>← Volver</a>
       <PublicCategoryActions title={subcategorySeoTitle} text={subcategorySeoTitle} categories={categories} currentCategoryId={category?.id || ''} />
     </div>
   </div>

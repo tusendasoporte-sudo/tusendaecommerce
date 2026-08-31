@@ -138,13 +138,13 @@ function getProductOfferView(product: any) {
     }
   </style>
 
-  <div class="category-top">
-    <a class="brand-link" href={homePath}>
+  <div class="category-top" data-pz-inner-head>
+    <a class="brand-link" href={homePath} data-pz-inner-brand>
       <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <p class="brand-name">INICIO</p>
     </a>
-    <div class="category-top-actions">
-      <a class="back-btn" href={categoryAnchorPath}>← Categorías</a>
+    <div class="category-top-actions" data-pz-inner-actions>
+      <a class="back-btn" href={categoryAnchorPath} data-pz-inner-back>← Categorías</a>
       <PublicCategoryActions title={categorySeoTitle} text={categorySeoTitle} categories={categories} currentCategoryId={category.id} />
     </div>
   </div>

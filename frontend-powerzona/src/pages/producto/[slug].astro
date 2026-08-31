@@ -1088,13 +1088,13 @@ const variationItems = sellableVariations.map((variation) => {
 		</>
 	) : (
 		<>
-	<div class="product-public-top">
-		<a class="product-public-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
+	<div class="product-public-top" data-pz-inner-head>
+		<a class="product-public-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`} data-pz-inner-brand>
 			<div class="product-public-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
 			<p class="product-public-name">INICIO</p>
 		</a>
-		<div class="product-public-actions">
-			<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
+		<div class="product-public-actions" data-pz-inner-actions>
+			<a href={productBackHref} class="product-back-btn" data-pz-inner-back>{productBackLabel}</a>
 			<a href={searchPath} class="product-top-icon-btn" aria-label="Buscar productos" title="Buscar productos">
 				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
 					<path d="M10.8 18.1a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>

@@ -10,6 +10,10 @@ const hubProxy = read('../src/pages/api/storefront/v1/customer-hub.ts');
 const assetLinks = read('../src/pages/.well-known/assetlinks.json.ts');
 const checkout = read('../src/pages/checkout.astro');
 const product = read('../src/pages/producto/[slug].astro');
+const category = read('../src/pages/categoria/[slug].astro');
+const subcategory = read('../src/pages/subcategoria/[slug].astro');
+const search = read('../src/pages/buscar.astro');
+const gifts = read('../src/pages/regalos/index.astro');
 const manifest = read('../../mobile-storefront/app/src/main/AndroidManifest.xml');
 const activity = read('../../mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontActivity.java');
 const strings = read('../../mobile-storefront/app/src/main/res/values/strings.xml');
@@ -66,6 +70,18 @@ test('la barra de compra flota sobre la navegación y responde al scroll en la A
   assert.match(product, /window\.innerHeight - bottomOcclusion/);
   assert.match(product, /window\.addEventListener\('scroll', schedulePurchaseActionsVisibility, \{ passive: true \}\)/);
   assert.match(product, /window\.visualViewport\?\.addEventListener\('resize', schedulePurchaseActionsVisibility\)/);
+});
+
+test('la APK conserva la marca solo en Inicio y prioriza el regreso contextual en vistas internas', () => {
+  assert.match(shell, /body\.pz-storefront-app \[data-pz-inner-brand\][^}]+display:\s*none\s*!important/);
+  assert.match(shell, /body\.pz-storefront-app \[data-pz-inner-actions\][^}]+width:\s*100%/);
+  assert.match(shell, /body\.pz-storefront-app \[data-pz-inner-back\][^}]+margin-right:\s*auto/);
+  for (const page of [category, subcategory, product, search, gifts]) {
+    assert.match(page, /data-pz-inner-head/);
+    assert.match(page, /data-pz-inner-brand/);
+    assert.match(page, /data-pz-inner-back/);
+  }
+  for (const page of [category, subcategory, product]) assert.match(page, /data-pz-inner-actions/);
 });
 
 test('los enlaces HTTPS verificados abren únicamente la ruta de la tienda en la APK firmada', () => {

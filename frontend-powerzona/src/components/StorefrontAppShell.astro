@@ -71,6 +71,10 @@ const nativePreviewEnabled = import.meta.env.DEV;
   :global(body.pz-storefront-app .public-search-shell),
   :global(body.pz-storefront-app .public-mobile-search),
   :global(body.pz-storefront-app a.product-top-icon-btn[aria-label="Buscar productos"]) { display: none !important; }
+  :global(body.pz-storefront-app [data-pz-inner-brand]) { display: none !important; }
+  :global(body.pz-storefront-app [data-pz-inner-head]) { align-items: center; }
+  :global(body.pz-storefront-app [data-pz-inner-actions]) { width: 100%; min-width: 0; flex: 1 1 auto; flex-wrap: nowrap; }
+  :global(body.pz-storefront-app [data-pz-inner-back]) { margin-right: auto; }
   :global(body.pz-storefront-app.product-detail-page .product-mobile-cta) { bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 37; padding-bottom: 10px; }
   :global(body.pz-storefront-app.product-detail-page.product-add-floating-active) { padding-bottom: calc(168px + env(safe-area-inset-bottom)); }
   .pz-native-inbox-open { position: fixed; z-index: 39; top: calc(14px + env(safe-area-inset-top)); right: 16px; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(203,213,225,.9); border-radius: 18px; color: #071f63; background: rgba(255,255,255,.96); box-shadow: 0 12px 34px rgba(7,31,99,.18); backdrop-filter: blur(12px); }

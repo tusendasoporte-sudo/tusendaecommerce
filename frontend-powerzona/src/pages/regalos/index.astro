@@ -71,12 +71,12 @@ const giftsSeoUrl = getPublicPath('/regalos', currentStore, currentPathname);
     @media(max-width:520px){ .gift-page-head{align-items:flex-start;} .gift-brand-text{max-width:42vw;} .gift-grid { gap:10px; } .gift-body{padding:11px;} .gift-title{font-size:13px;} .gift-btn{font-size:11px;padding:10px 8px;} .gift-hero{border-radius:26px;aspect-ratio:16/9;min-height:0;} .gift-image{aspect-ratio:1/1;padding:0;} }
   </style>
 
-  <div class="gift-page-head">
-    <a class="gift-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
+  <div class="gift-page-head" data-pz-inner-head>
+    <a class="gift-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`} data-pz-inner-brand>
       <div class="gift-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <p class="gift-brand-text">INICIO</p>
     </a>
-    <a class="back-link" href={categoryAnchorPath}>Categorías</a>
+    <a class="back-link" href={categoryAnchorPath} data-pz-inner-back>Categorías</a>
   </div>
 
   <div class="gift-hero-copy">
