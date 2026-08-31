@@ -22,6 +22,7 @@ test('la experiencia nativa conserva el orden Buscar, Cupones, Inicio, Moneda y 
   const currency = shell.indexOf('data-pz-currency-menu');
   const cart = shell.indexOf('aria-label="Abrir carrito"');
   assert.ok(search >= 0 && search < coupons && coupons < home && home < currency && currency < cart);
+  assert.match(shell, /<path d="M8 3 4 7l4 4"\/><path d="M4 7h16"\/><path d="m16 21 4-4-4-4"\/><path d="M20 17H4"\/>/);
   assert.ok(shell.includes('TuSenda84Storefront\\/[0-9]'));
   assert.match(shell, /import\.meta\.env\.DEV/);
   assert.match(shell, /body\.pz-storefront-app #cart-floating-btn[^}]+display:\s*none/);
