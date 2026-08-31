@@ -10,6 +10,7 @@ const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore?.id || settings?.store || '';
 const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
 const homePath = getPublicPath('/', currentStore, Astro.url.pathname);
+const privacyPath = getPublicPath('/privacidad', currentStore, Astro.url.pathname);
 const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
 const whatsappRaw = settings?.whatsapp_number || currentStore?.owner_phone || '';
 const whatsappNumber = cleanPhone(whatsappRaw);
@@ -317,14 +318,13 @@ function iconSvg(name: string) {
       </section>
     )}
 
-    {(extraLinks.length > 0 || (aboutStoreText && contextualUtility?.id !== 'about')) && (
-      <nav class="pz-footer-secondary-links" aria-label="Más información">
+    <nav class="pz-footer-secondary-links" aria-label="Más información">
         {aboutStoreText && contextualUtility?.id !== 'about' && <button type="button" data-pz-footer-modal-open="about">Sobre la tienda</button>}
+        <a href={privacyPath}>Privacidad y eliminación de datos</a>
         {extraLinks.map((item) => (
           <a href={item.href} target="_blank" rel="noreferrer">{item.label}</a>
         ))}
-      </nav>
-    )}
+    </nav>
 
     {showPlatformCta && <section class="pz-footer-platform-cta" aria-label="Crear tienda en Tu Senda 84">
       <div class="pz-platform-copy">

@@ -56,3 +56,10 @@ mobile-admin/.gradle/
 mobile-admin/local.properties
 mobile-admin/**/build/
 mobile-admin/captures/
+
+# Local QA and Codex artifacts (kept on the workstation)
+/.codex-artifacts/
+/.tmp/
+/artifacts/
+/pz-*.png
+/scripts/generate-powerzona-google-play-assets.mjs

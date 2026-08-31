@@ -1,0 +1,162 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import { getStoreBySlug } from '../../../lib/stores';
+
+const storeSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+const currentStore = await getStoreBySlug(storeSlug);
+
+if (!currentStore) return Astro.redirect('/');
+
+const storeName = String(currentStore.name || 'Power Zona').trim();
+const isPowerZona = storeSlug === 'powerzona';
+const appName = isPowerZona ? 'Power Zona' : storeName;
+const appPackage = isPowerZona ? 'com.tusenda84.powerzona' : '';
+const homePath = `/t/${encodeURIComponent(storeSlug)}`;
+const canonical = `${Astro.url.origin}${homePath}/privacidad`;
+const privacyEmail = 'powerzona01@gmail.com';
+const privacyWhatsapp = isPowerZona ? 'https://wa.me/19543243882' : homePath;
+const lastUpdated = '31 de agosto de 2026';
+
+const seo = {
+  title: `Política de privacidad | ${appName}`,
+  description: `Cómo ${appName} recopila, utiliza, protege y elimina los datos de sus usuarios.`,
+  canonical,
+  type: 'website',
+  siteName: appName,
+};
+---
+
+<Layout seo={seo} hideStoreFloatingUi={true}>
+  <main class="privacy-page">
+    <a class="privacy-back" href={homePath}>← Volver a {storeName}</a>
+
+    <article class="privacy-shell">
+      <header class="privacy-hero">
+        <span class="privacy-kicker">Información legal</span>
+        <h1>Política de privacidad de {appName}</h1>
+        <p>Última actualización: {lastUpdated}</p>
+        {appPackage && <code>{appPackage}</code>}
+      </header>
+
+      <section>
+        <h2>1. Responsable y alcance</h2>
+        <p>
+          Esta política explica el tratamiento de datos realizado por {appName}, operada mediante la
+          plataforma Tu Senda 84, cuando utilizas la aplicación Android o la tienda web asociada.
+          No vendemos ni alquilamos datos personales.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Datos que podemos recopilar</h2>
+        <ul>
+          <li><strong>Pedidos y atención:</strong> nombre, teléfono, datos de entrega, productos solicitados, promociones aplicadas y mensajes necesarios para gestionar la compra.</li>
+          <li><strong>Reseñas:</strong> nombre mostrado, calificación, comentario y relación con una compra verificada cuando corresponda.</li>
+          <li><strong>Aplicación y dispositivo:</strong> identificadores de instalación, token de notificaciones, versión de la app, versión de Android, modelo del dispositivo, idioma, zona horaria y estado del permiso de notificaciones.</li>
+          <li><strong>Uso y seguridad:</strong> apertura de notificaciones, visualización de destinos, sesión técnica, dirección IP y señales de integridad necesarias para prevenir abuso y proteger el servicio.</li>
+          <li><strong>Carrito local:</strong> los artículos del carrito pueden almacenarse localmente en el dispositivo hasta que los elimines o completes el pedido.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. Para qué utilizamos los datos</h2>
+        <ul>
+          <li>Mostrar el catálogo y procesar, coordinar y dar seguimiento a los pedidos.</li>
+          <li>Enviar notificaciones solicitadas sobre ofertas, novedades o información relacionada con la tienda.</li>
+          <li>Aplicar cupones, regalos y promociones disponibles.</li>
+          <li>Responder consultas y moderar reseñas.</li>
+          <li>Medir el funcionamiento de la aplicación y protegerla frente a fraude, abuso o accesos no autorizados.</li>
+          <li>Cumplir obligaciones legales y resolver reclamaciones.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Servicios utilizados y comunicación de datos</h2>
+        <p>
+          Utilizamos infraestructura de Tu Senda 84 y servicios de Google Firebase y Google Play para
+          notificaciones, identificadores de instalación, integridad de la aplicación y distribución.
+          Estos proveedores procesan únicamente los datos necesarios para prestar y proteger sus servicios.
+          Si decides abrir WhatsApp, sus propias condiciones y política de privacidad se aplicarán a esa comunicación.
+        </p>
+        <p>
+          Los datos de un pedido se ponen a disposición del personal autorizado de Power Zona y de quienes
+          intervienen en su preparación, atención o entrega. No utilizamos redes publicitarias dentro de la aplicación.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. Seguridad y conservación</h2>
+        <p>
+          Los datos se transmiten mediante conexiones HTTPS y se limitan mediante controles de acceso.
+          Conservamos los pedidos mientras sean necesarios para atender la compra, el soporte, la contabilidad,
+          la seguridad o las obligaciones aplicables. El contenido visible de campañas se conserva normalmente
+          durante 7 días y la evidencia técnica asociada puede conservarse hasta 90 días. Otros registros de
+          seguridad se eliminan o anonimizan según su finalidad y los plazos configurados.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Tus opciones</h2>
+        <ul>
+          <li>Puedes rechazar o revocar las notificaciones desde los ajustes de Android.</li>
+          <li>Puedes borrar el carrito eliminando sus artículos o limpiando los datos de la aplicación.</li>
+          <li>Puedes solicitar acceso, corrección o eliminación de tus datos mediante los canales indicados abajo.</li>
+        </ul>
+      </section>
+
+      <section id="eliminacion" class="privacy-deletion">
+        <span class="privacy-kicker">Solicitud de eliminación</span>
+        <h2>7. Cómo solicitar que eliminemos tus datos</h2>
+        <ol>
+          <li>Escribe a <a href={`mailto:${privacyEmail}?subject=${encodeURIComponent(`Eliminar datos de ${appName}`)}`}>{privacyEmail}</a> con el asunto “Eliminar datos de {appName}”, o contacta por <a href={privacyWhatsapp} target="_blank" rel="noreferrer">WhatsApp</a>.</li>
+          <li>Indica únicamente la información mínima para localizar tus datos, como teléfono utilizado en el pedido y número de orden, si existe.</li>
+          <li>Podemos pedir una comprobación razonable para evitar que otra persona elimine tus datos sin autorización.</li>
+          <li>Eliminaremos o anonimizaremos los datos vinculados a pedidos, reseñas e instalación que no debamos conservar por seguridad, prevención de fraude, contabilidad o requisitos legales. Confirmaremos el resultado normalmente dentro de 30 días.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>8. Menores y cambios</h2>
+        <p>
+          La aplicación no está dirigida a menores. Podemos actualizar esta política cuando cambien las funciones,
+          los proveedores o las obligaciones aplicables; la fecha de actualización aparecerá al inicio de esta página.
+        </p>
+      </section>
+
+      <section class="privacy-contact">
+        <h2>9. Contacto</h2>
+        <p><strong>{appName}</strong></p>
+        <p>Correo de privacidad: <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a></p>
+        <p>Sitio web: <a href={homePath}>{Astro.url.origin}{homePath}</a></p>
+      </section>
+    </article>
+  </main>
+</Layout>
+
+<style>
+  .privacy-page { width: min(100%, 980px); margin: 0 auto; padding: clamp(20px, 5vw, 56px) 0 72px; color: #0f172a; }
+  .privacy-back { display: inline-flex; margin-bottom: 18px; color: #1d4ed8; font-size: 14px; font-weight: 900; text-decoration: none; }
+  .privacy-shell { overflow: hidden; border: 1px solid #dbeafe; border-radius: 26px; background: #fff; box-shadow: 0 26px 70px rgba(15, 23, 42, .10); }
+  .privacy-hero { padding: clamp(28px, 6vw, 54px); color: #fff; background: radial-gradient(circle at 90% 12%, rgba(74, 141, 255, .48), transparent 32%), linear-gradient(135deg, #071f63, #155eeb); }
+  .privacy-kicker { display: block; margin-bottom: 9px; color: #93c5fd; font-size: 12px; font-weight: 1000; letter-spacing: .10em; text-transform: uppercase; }
+  .privacy-hero h1 { max-width: 760px; margin: 0; font-size: clamp(34px, 7vw, 58px); line-height: 1; letter-spacing: -.035em; }
+  .privacy-hero p { margin: 16px 0 0; color: #dbeafe; font-weight: 750; }
+  .privacy-hero code { display: inline-block; margin-top: 12px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 7px 11px; background: rgba(7,31,99,.45); color: #fff; font-size: 12px; }
+  .privacy-shell > section { padding: 26px clamp(22px, 5vw, 48px); border-top: 1px solid #e2e8f0; }
+  .privacy-shell h2 { margin: 0 0 12px; color: #071f63; font-size: clamp(21px, 3vw, 28px); line-height: 1.15; }
+  .privacy-shell p, .privacy-shell li { color: #334155; font-size: 15px; line-height: 1.72; }
+  .privacy-shell p { margin: 0; }
+  .privacy-shell p + p { margin-top: 12px; }
+  .privacy-shell ul, .privacy-shell ol { display: grid; gap: 9px; margin: 0; padding-left: 22px; }
+  .privacy-shell a { color: #1d4ed8; font-weight: 850; }
+  .privacy-deletion { scroll-margin-top: 20px; background: linear-gradient(135deg, #eff6ff, #f8fafc); }
+  .privacy-deletion .privacy-kicker { color: #1d4ed8; }
+  .privacy-contact { background: #f8fafc; }
+  @media (max-width: 640px) {
+    .privacy-page { padding-top: 14px; }
+    .privacy-shell { border-radius: 20px; }
+    .privacy-shell > section { padding-block: 22px; }
+  }
+</style>
