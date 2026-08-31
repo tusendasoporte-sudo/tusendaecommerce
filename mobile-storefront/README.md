@@ -155,6 +155,8 @@ Retirar o reactivar distribución no llega al runner y nunca elimina archivos. L
 
 El motor `1.3.0` permite que una marca versionada reemplace el icono pequeño de las notificaciones. PowerZona usa su monograma `PZ` monocromático y conserva el icono completo a color de la aplicación.
 
+El motor `1.3.2` mantiene App Set ID como señal antifraude opcional. Si Google Play services no lo entrega a tiempo, la aplicación registra igualmente su FID ya aceptado por FCM y deja una traza técnica segura sin exponer identificadores ni credenciales.
+
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 
 - `app_key` y `applicationId`;

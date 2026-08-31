@@ -70,6 +70,24 @@ public final class StorefrontRegistrationPayloadTest {
     }
 
     @Test
+    public void appSetIdIsOptionalWhenGooglePlayServicesCannotReturnIt() {
+        String json = StorefrontRegistrationPayload.register(
+                "abcdefghijklmnop", "", "0.1.0-staging", 1,
+                "16", "Google Pixel 9", "es-US", "America/New_York", "granted"
+        );
+        assertEquals(
+                "{\"fid\":\"abcdefghijklmnop\",\"app_version\":\"0.1.0-staging\","
+                        + "\"app_version_code\":1,\"android_version\":\"16\","
+                        + "\"device_model\":\"Google Pixel 9\",\"locale\":\"es-US\","
+                        + "\"timezone\":\"America/New_York\",\"notification_permission\":\"granted\"}",
+                json
+        );
+        assertTrue(!json.contains("app_set_id"));
+        assertTrue(StorefrontRegistrationPayload.validOptionalAppSetId(""));
+        assertTrue(!StorefrontRegistrationPayload.validOptionalAppSetId("unsafe:app-set-id-value"));
+    }
+
+    @Test
     public void emitsExactHeartbeatAndPermissionContracts() {
         assertEquals(
                 "{\"app_version\":\"0.1.0-staging\",\"app_version_code\":1,"

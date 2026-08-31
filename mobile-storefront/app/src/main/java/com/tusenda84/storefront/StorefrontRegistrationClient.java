@@ -175,6 +175,7 @@ final class StorefrontRegistrationClient {
     private static final Pattern CAMPAIGN_PATTERN = Pattern.compile("^[a-z0-9]{15}$");
     private static final Pattern UPDATE_TICKET_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{43}$");
     private static final int RESPONSE_LIMIT = 65_536;
+    private static final long APP_SET_TIMEOUT_SECONDS = 5;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -314,13 +315,24 @@ final class StorefrontRegistrationClient {
             Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
         }
         String fid = Tasks.await(FirebaseInstallations.getInstance().getId(), 30, TimeUnit.SECONDS);
-        AppSetIdInfo appSetInfo = Tasks.await(
-                AppSet.getClient(context).getAppSetIdInfo(),
-                30,
-                TimeUnit.SECONDS
+        AppSetIdInfo appSetInfo = null;
+        try {
+            appSetInfo = Tasks.await(
+                    AppSet.getClient(context).getAppSetIdInfo(),
+                    APP_SET_TIMEOUT_SECONDS,
+                    TimeUnit.SECONDS
+            );
+        } catch (Exception ignored) {
+            // App Set ID mejora la correlación antifraude, pero no es un requisito de FCM.
+        }
+        String appSetId = clean(appSetInfo == null ? "" : appSetInfo.getId());
+        if (!StorefrontRegistrationPayload.validOptionalAppSetId(appSetId)) appSetId = "";
+        logRegistration(
+                "register_identifiers_ready app_set_scope="
+                        + (appSetInfo == null || appSetId.isEmpty()
+                            ? "unavailable"
+                            : String.valueOf(appSetInfo.getScope()))
         );
-        logRegistration("register_identifiers_ready app_set_scope=" + appSetInfo.getScope());
-        String appSetId = appSetInfo.getId();
         String permission = permissionState();
         String invalidField = StorefrontRegistrationPayload.invalidRegisterField(
                 fid,
@@ -822,7 +834,7 @@ final class StorefrontRegistrationClient {
     }
 
     private static void logRegistration(String message) {
-        if ("staging".equals(BuildConfig.BUILD_TYPE)) Log.i(REGISTRATION_LOG_TAG, message);
+        Log.i(REGISTRATION_LOG_TAG, message);
     }
 
     static String normalizedTimezone(String raw) {

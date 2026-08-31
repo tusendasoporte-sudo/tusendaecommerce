@@ -38,7 +38,7 @@ final class StorefrontRegistrationPayload {
         ).isEmpty()) throw new IllegalArgumentException("invalid_payload");
         return "{"
                 + "\"fid\":" + quote(fid)
-                + ",\"app_set_id\":" + quote(appSetId)
+                + (appSetId.isEmpty() ? "" : ",\"app_set_id\":" + quote(appSetId))
                 + ",\"app_version\":" + quote(appVersion)
                 + ",\"app_version_code\":" + appVersionCode
                 + ",\"android_version\":" + quote(androidVersion)
@@ -61,7 +61,7 @@ final class StorefrontRegistrationPayload {
             String permission
     ) {
         if (!validValue(fid, 255, FID)) return "fid";
-        if (!validValue(appSetId, 150, APP_SET_ID)) return "app_set_id";
+        if (!validOptionalAppSetId(appSetId)) return "app_set_id";
         if (!validValue(appVersion, 40, VERSION)) return "app_version";
         if (appVersionCode < 1) return "app_version_code";
         if (!validValue(androidVersion, 40, ANDROID)) return "android_version";
@@ -72,6 +72,10 @@ final class StorefrontRegistrationPayload {
             return "notification_permission";
         }
         return "";
+    }
+
+    static boolean validOptionalAppSetId(String value) {
+        return value != null && (value.isEmpty() || validValue(value, 150, APP_SET_ID));
     }
 
     static String heartbeat(
