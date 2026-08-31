@@ -127,6 +127,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     type MasterStoreDeleteCounts,
     type MasterStoreDeletePreview,
   } from '../../lib/masterStoreDeletion';
+  import { navigateToMasterStoreList } from '../../lib/masterStoreNavigation';
 
   type DeleteDialogRequest = {
     storeId?: string;
@@ -325,7 +326,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       if (result.available && result.data) {
         const requestedPage = Math.max(1, Math.floor(Number(new URL(window.location.href).searchParams.get('stores_page')) || 1));
         const targetPage = Math.max(1, Math.min(requestedPage, result.data.suggested_page));
-        window.location.assign(`/master/stores?stores_page=${targetPage}#tiendas-registradas`);
+        navigateToMasterStoreList(targetPage);
         return;
       }
       executing = false;

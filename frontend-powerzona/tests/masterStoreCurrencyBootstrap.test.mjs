@@ -31,5 +31,8 @@ test('crear Tienda Promo permite escoger Gratis 30/150 o Básico 1-12/300', () =
   assert.match(controller, /Promo Black Gold/);
   assert.match(controller, /data-store-promo-only/);
   assert.match(controller, /promo_duration_months: promoDurationMonths/);
+  assert.match(controller, /navigateToMasterStoreList\(1\)/);
+  assert.match(controller, /if \(id\) window\.location\.reload\(\)/);
+  assert.doesNotMatch(controller, /window\.location\.assign\(id \? window\.location\.href/);
   assert.doesNotMatch(controller, /promo_image_limit/);
 });

@@ -137,6 +137,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     normalizeSecuritySettingsPayload,
     upsertStoreSecuritySettings,
   } from '../../lib/security';
+  import { navigateToMasterStoreList } from '../../lib/masterStoreNavigation';
 
   const controller = document.querySelector<HTMLElement>('[data-master-store-actions-controller]');
   if (controller && controller.dataset.initialized !== 'true') {
@@ -596,7 +597,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         };
         if (id) await updateStoreFromMaster(id, payload);
         else await createStoreFromMaster(payload);
-        window.location.assign(id ? window.location.href : '/master/stores?stores_page=1#tiendas-registradas');
+        if (id) window.location.reload();
+        else navigateToMasterStoreList(1);
       } catch (error: any) {
         setAlert(alert, error?.message || 'No se pudo guardar la tienda.');
         button.disabled = false;

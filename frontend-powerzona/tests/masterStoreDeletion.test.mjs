@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { normalizeDeletionCounts } from '../src/lib/masterStoreDeletion.ts';
+import { masterStoreListTarget, navigateToMasterStoreList } from '../src/lib/masterStoreNavigation.ts';
 
 const COUNT_KEYS = [
   'store_users', 'products', 'product_variations', 'orders', 'order_items', 'gifts',
@@ -42,4 +43,24 @@ test('rechaza un total que no coincida con tienda más registros relacionados', 
   const counts = completeCounts();
   counts.total_records += 1;
   assert.equal(normalizeDeletionCounts(counts), null);
+});
+
+test('recarga la lista actual después de crear o eliminar y navega si cambia la página', () => {
+  const actions = [];
+  const location = {
+    pathname: '/master/stores',
+    search: '?stores_page=1',
+    hash: '#tiendas-registradas',
+    reload() { actions.push('reload'); },
+    assign(target) { actions.push(`assign:${target}`); },
+  };
+  assert.equal(masterStoreListTarget(1), '/master/stores?stores_page=1#tiendas-registradas');
+  assert.equal(navigateToMasterStoreList(1, location), 'reload');
+  assert.deepEqual(actions, ['reload']);
+
+  assert.equal(navigateToMasterStoreList(2, location), 'assign');
+  assert.deepEqual(actions, [
+    'reload',
+    'assign:/master/stores?stores_page=2#tiendas-registradas',
+  ]);
 });
