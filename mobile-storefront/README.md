@@ -70,6 +70,7 @@ Los recursos se validan contra `brands/{brand}/brand.json` y se copian a `app/bu
 Los hashes PowerZona vigentes son:
 
 - `brands/powerzona/icon.png`: `e284d6746df6e11f22c344eac4a117855c61cf8e737a51db3cec1d7415c8dadb`.
+- `brands/powerzona/notification_icon.xml`: `dacaabc69d8aed099c9eb5b0141a2559203cdad0cb45df245dec5cc394ebdb62`.
 - `brands/powerzona/splash.png`: `6934893ef19c110e30facc2ef87eb1a91a26d4b0346cd190f90ea02f3f007bdf`.
 
 ## Vista previa sin efectos externos
@@ -151,6 +152,8 @@ No usa borrado recursivo ni sigue una ruta fuera de esa custodia. `delete_artifa
 Retirar o reactivar distribución no llega al runner y nunca elimina archivos. La suspensión de la tienda web tampoco forma parte de esta cola.
 
 ## Actualizaciones
+
+El motor `1.3.0` permite que una marca versionada reemplace el icono pequeño de las notificaciones. PowerZona usa su monograma `PZ` monocromático y conserva el icono completo a color de la aplicación.
 
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 

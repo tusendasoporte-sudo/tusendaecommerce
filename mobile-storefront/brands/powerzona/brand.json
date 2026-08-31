@@ -18,6 +18,11 @@
       "source": "docs/tusenda84/brand/powerzona/powerzona-icon-symbol-v3.png",
       "sha256": "e284d6746df6e11f22c344eac4a117855c61cf8e737a51db3cec1d7415c8dadb"
     },
+    "notification_icon": {
+      "file": "notification_icon.xml",
+      "source": "PowerZona PZ monochrome notification mark",
+      "sha256": "dacaabc69d8aed099c9eb5b0141a2559203cdad0cb45df245dec5cc394ebdb62"
+    },
     "splash": {
       "file": "splash.png",
       "source": "docs/tusenda84/brand/powerzona/powerzona-splash-premium-v3.png",

@@ -137,6 +137,19 @@ foreach ($assetName in @('icon', 'splash')) {
     if ((Get-Sha256Lower $assetPath) -ne [string]$asset.sha256) { throw "El hash de $assetName no coincide." }
 }
 
+$notificationIcon = $brand.assets.notification_icon
+if ($notificationIcon) {
+    $notificationIconPath = Join-Path (Split-Path -Parent $brandPath) ([string]$notificationIcon.file)
+    if (-not (Test-Path -LiteralPath $notificationIconPath -PathType Leaf) -or
+        [IO.Path]::GetExtension($notificationIconPath) -cne '.xml' -or
+        (Split-Path -Parent (Resolve-Path -LiteralPath $notificationIconPath).Path) -cne (Resolve-Path -LiteralPath (Split-Path -Parent $brandPath)).Path) {
+        throw 'El recurso notification_icon debe ser un XML versionado dentro de la marca.'
+    }
+    if ((Get-Sha256Lower $notificationIconPath) -ne [string]$notificationIcon.sha256) {
+        throw 'El hash de notification_icon no coincide.'
+    }
+}
+
 $applicationIds = @{}
 Get-ChildItem -LiteralPath (Join-Path $mobileRoot 'config') -Filter '*.properties' -File | ForEach-Object {
     $candidate = Read-PropertiesFile -Path $_.FullName
@@ -182,6 +195,9 @@ $result = [pscustomobject]@{
     Brand = $brand
     IconPath = Join-Path (Split-Path -Parent $brandPath) ([string]$brand.assets.icon.file)
     SplashPath = Join-Path (Split-Path -Parent $brandPath) ([string]$brand.assets.splash.file)
+    NotificationIconPath = if ($notificationIcon) {
+        Join-Path (Split-Path -Parent $brandPath) ([string]$notificationIcon.file)
+    } else { '' }
     StoreKey = $config['store.key']
     AppKey = $config['app.key']
     DisplayName = $config['app.display_name']

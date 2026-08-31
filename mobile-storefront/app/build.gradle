@@ -70,6 +70,38 @@ def validateBrandAsset = { String key ->
     }
 }
 
+def notificationIconEntry = (brandConfig.assets as Map)?.get('notification_icon') as Map
+def notificationIconDirectory = brandDirectory
+if (notificationIconEntry == null) {
+    def engineBrandConfigFile = rootProject.file("brands/${brandKey}/brand.json")
+    if (engineBrandConfigFile.exists()
+            && engineBrandConfigFile.canonicalFile != brandConfigFile.canonicalFile) {
+        def engineBrandConfig = new groovy.json.JsonSlurper().parseText(
+                engineBrandConfigFile.getText('UTF-8')) as Map
+        def engineNotificationIcon = (engineBrandConfig.assets as Map)?.get('notification_icon') as Map
+        if (engineNotificationIcon != null
+                && engineBrandConfig.brand_key == brandConfig.brand_key
+                && engineBrandConfig.application_id == brandConfig.application_id) {
+            notificationIconEntry = engineNotificationIcon
+            notificationIconDirectory = engineBrandConfigFile.parentFile
+        }
+    }
+}
+def notificationIconFile = rootProject.file('app/src/main/res/drawable/ic_notification.xml')
+if (notificationIconEntry != null) {
+    notificationIconFile = new File(
+            notificationIconDirectory,
+            notificationIconEntry.file?.toString() ?: '')
+    def expectedNotificationSha256 = notificationIconEntry.sha256?.toString()?.trim()?.toLowerCase()
+    if (!notificationIconFile.exists()
+            || notificationIconFile.canonicalFile.parentFile != notificationIconDirectory.canonicalFile
+            || notificationIconFile.name.tokenize('.').last().toLowerCase() != 'xml'
+            || !(expectedNotificationSha256 ==~ /[a-f0-9]{64}/)
+            || sha256(notificationIconFile) != expectedNotificationSha256) {
+        throw new GradleException("El recurso notification_icon de ${brandKey} no coincide con su hash versionado.")
+    }
+}
+
 def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
 def playBundleMode = (project.findProperty('PZ_STOREFRONT_PLAY_BUNDLE') ?: 'false')
         .toString().trim().equalsIgnoreCase('true')
@@ -273,6 +305,7 @@ def generateStorefrontBrandResources = tasks.register('generateStorefrontBrandRe
     inputs.file(brandConfigFile)
     inputs.file(brandAsset('icon'))
     inputs.file(brandAsset('splash'))
+    inputs.file(notificationIconFile)
     outputs.dir(generatedBrandResDirectory)
     doLast {
         def output = generatedBrandResDirectory.get().asFile
@@ -287,6 +320,14 @@ def generateStorefrontBrandResources = tasks.register('generateStorefrontBrandRe
                 into resourceDirectory
                 rename { "storefront_${key}.${extension}" }
             }
+        }
+        def notificationExtension = notificationIconFile.name.tokenize('.').last().toLowerCase()
+        def notificationResourceDirectory = new File(output, 'drawable')
+        notificationResourceDirectory.mkdirs()
+        copy {
+            from notificationIconFile
+            into notificationResourceDirectory
+            rename { "storefront_notification_icon.${notificationExtension}" }
         }
     }
 }

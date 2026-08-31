@@ -67,7 +67,7 @@ final class StorefrontNotifications {
         String body = bounded(rawBody, 500, "");
         Bitmap image = downloadWebp(payload.imageUrl);
         Notification.Builder builder = new Notification.Builder(context, MARKETING_CHANNEL_ID);
-        builder.setSmallIcon(R.drawable.ic_notification)
+        builder.setSmallIcon(R.drawable.storefront_notification_icon)
                 .setColor(context.getColor(R.color.pz_brand_energy_cobalt))
                 .setContentTitle(title)
                 .setContentText(body)

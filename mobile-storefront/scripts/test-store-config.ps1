@@ -14,5 +14,9 @@ if ($demo.Distribution -ne 'direct' -or $demo.Publishable) { throw 'La demo debe
 if ($powerZona.EngineVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $demo.EngineVersion -ne $powerZona.EngineVersion) {
     throw 'PowerZona y demo deben usar la misma version aprobada del motor.'
 }
+if (-not $powerZona.NotificationIconPath -or -not (Test-Path -LiteralPath $powerZona.NotificationIconPath -PathType Leaf)) {
+    throw 'PowerZona debe declarar su icono pequeno de notificacion PZ.'
+}
+if ($demo.NotificationIconPath) { throw 'La demo debe conservar el icono tecnico generico del motor.' }
 
 Write-Host 'Pruebas de configuracion C10 superadas: PowerZona y demo estan aisladas.'
