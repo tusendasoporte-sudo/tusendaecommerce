@@ -45,6 +45,14 @@ test('campana y cartera usan el hub privado y ofrecen su ciclo completo', () => 
   assert.match(checkout, /PZCouponWallet\?\.unselect/);
 });
 
+test('la APK sustituye el buscador superior por una campana solo cuando existen notificaciones', () => {
+  assert.match(shell, /body\.pz-storefront-app \.public-search-shell/);
+  assert.match(shell, /body\.pz-storefront-app \.public-mobile-search/);
+  assert.match(shell, /topSearch\.replaceWith\(inboxOpen\)/);
+  assert.match(shell, /inboxOpen\.hidden = state\.inbox\.length < 1/);
+  assert.match(shell, /\.pz-native-inbox-open\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/);
+});
+
 test('los enlaces HTTPS verificados abren únicamente la ruta de la tienda en la APK firmada', () => {
   assert.match(manifest, /android:autoVerify="true"/);
   assert.match(manifest, /android:host="\$\{storefrontHost\}"/);

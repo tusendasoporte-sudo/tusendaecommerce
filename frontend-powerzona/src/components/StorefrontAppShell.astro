@@ -7,7 +7,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
 ---
 
 <div id="pz-native-app-shell" class="pz-native-app-shell" hidden>
-  <button id="pz-native-inbox-open" class="pz-native-inbox-open" type="button" aria-label="Abrir notificaciones">
+  <button id="pz-native-inbox-open" class="pz-native-inbox-open" type="button" aria-label="Abrir notificaciones" hidden>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     <span id="pz-native-inbox-badge" hidden>0</span>
   </button>
@@ -68,8 +68,13 @@ const nativePreviewEnabled = import.meta.env.DEV;
   .pz-native-app-shell svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   :global(body.pz-storefront-app) { padding-bottom: calc(var(--pz-app-nav-height, 76px) + env(safe-area-inset-bottom)); }
   :global(body.pz-storefront-app #cart-floating-btn), :global(body.pz-storefront-app #pz-currency-switcher) { display: none !important; }
+  :global(body.pz-storefront-app .public-search-shell),
+  :global(body.pz-storefront-app .public-mobile-search),
+  :global(body.pz-storefront-app a.product-top-icon-btn[aria-label="Buscar productos"]) { display: none !important; }
   :global(body.pz-storefront-app.product-detail-page.product-add-floating-active) { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .pz-native-inbox-open { position: fixed; z-index: 39; top: calc(14px + env(safe-area-inset-top)); right: 16px; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(203,213,225,.9); border-radius: 18px; color: #071f63; background: rgba(255,255,255,.96); box-shadow: 0 12px 34px rgba(7,31,99,.18); backdrop-filter: blur(12px); }
+  .pz-native-inbox-open[hidden] { display: none !important; }
+  .pz-native-inbox-open.is-header-slot { position: relative; top: auto; right: auto; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 17px; box-shadow: 0 10px 26px rgba(7,31,99,.12); }
   .pz-native-inbox-open span { position: absolute; top: -5px; right: -4px; min-width: 21px; height: 21px; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #155eeb; font-size: 10px; font-weight: 1000; }
   .pz-native-sheet-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(15,23,42,.48); backdrop-filter: blur(4px); }
   .pz-native-sheet { position: fixed; z-index: 71; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(100%, 620px); max-height: min(88vh, 820px); margin: 0 auto; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid #dbeafe; border-bottom: 0; border-radius: 30px 30px 0 0; color: #0f172a; background: #fff; box-shadow: 0 -30px 80px rgba(15,23,42,.24); }
@@ -120,6 +125,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
   .pz-native-home-icon svg { width: 23px; height: 23px; }
   .pz-native-currency select { width: 55px; border: 0; color: #52617d; background: transparent; text-align: center; outline: none; }
   .pz-native-cart b { position: absolute; top: 0; right: calc(50% - 23px); min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #ef4444; font-size: 9px; }
+  @media (max-width: 560px) { .pz-native-inbox-open.is-header-slot { width: 42px; height: 42px; border-radius: 16px; } }
   @media (min-width: 760px) { .pz-native-bottom-nav { left: 50%; width: min(620px, 100%); right: auto; transform: translateX(-50%); border: 1px solid #cbd5e1; border-bottom: 0; border-radius: 24px 24px 0 0; } }
 </style>
 
@@ -136,6 +142,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
     const couponList = document.getElementById('pz-native-coupon-list');
     const inboxStatus = document.getElementById('pz-native-inbox-status');
     const couponStatus = document.getElementById('pz-native-coupon-status');
+    const inboxOpen = document.getElementById('pz-native-inbox-open');
     const inboxBadge = document.getElementById('pz-native-inbox-badge');
     const cartBadge = document.getElementById('pz-native-cart-count');
     const storageStoreId = String(storeId || window.PZ_CURRENT_STORE_ID || 'powerzona');
@@ -146,6 +153,12 @@ const nativePreviewEnabled = import.meta.env.DEV;
 
     shell.hidden = false;
     document.body.classList.add('pz-storefront-app');
+
+    const topSearch = document.querySelector('.public-mobile-search, a.product-top-icon-btn[aria-label="Buscar productos"]');
+    if (topSearch?.parentNode && inboxOpen) {
+      topSearch.replaceWith(inboxOpen);
+      inboxOpen.classList.add('is-header-slot');
+    }
 
     const escapeHtml = (value) => String(value || '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -185,6 +198,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
       state.unread = Math.max(0, Number(payload?.inbox?.unread_count || 0));
       state.coupons = Array.isArray(payload?.coupons?.items) ? payload.coupons.items : [];
       state.selectedCode = normalizeCode(payload?.coupons?.selected_code || '');
+      if (inboxOpen) inboxOpen.hidden = state.inbox.length < 1;
       inboxBadge.textContent = state.unread > 99 ? '99+' : String(state.unread);
       inboxBadge.hidden = state.unread < 1;
       syncLocalWallet();
