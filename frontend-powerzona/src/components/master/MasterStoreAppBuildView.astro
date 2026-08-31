@@ -105,6 +105,7 @@ const lifecycleLabel = profile?.lifecycle_status === 'deletion_scheduled'
 const updateReleaseState = latestApk?.update_delivery_status || data.update_policy.release_state;
 const latestUpdateRequired = !!latestApk
   && data.update_policy.minimum_supported_version_code === latestApk.version_code;
+const publicDownloadPagePath = `/app/${encodeURIComponent(store.slug)}`;
 
 const statusLabels: Record<string, string> = {
   preview: 'Vista previa', queued: 'En cola', claimed: 'En ejecución', succeeded: 'Completado',
@@ -571,6 +572,7 @@ function activityDateTime(value: string) {
         <article class="master-app-release__published">
           <div><span>Publicación actual · {updateReleaseState === 'paused' ? 'Pausada' : updateReleaseState === 'withdrawn' ? 'Retirada' : latestUpdateRequired ? 'Obligatoria' : 'Opcional'}</span><strong>{latestApk.file_name}</strong><small>Versión {latestApk.version_name} ({latestApk.version_code}) · SHA-256 {latestApk.sha256}</small></div>
           <div class="master-app-release__actions">
+            <a class="master-btn master-btn--secondary" href={publicDownloadPagePath} target="_blank" rel="noreferrer"><MasterIcon name="external" size={18} /> Ver página de descarga</a>
             {latestApk.download_url && <a class="master-btn" href={latestApk.download_url} target="_blank" rel="noreferrer"><MasterIcon name="download" size={18} /> Abrir enlace publicado</a>}
             {publishedAab && <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={publishedAab.master_download_path} data-file-name={publishedAab.file_name}><MasterIcon name="download" size={18} /> Descargar AAB para Google Play</button>}
             {updateReleaseState === 'active' && !latestUpdateRequired && <button class="master-btn master-btn--primary" type="button" data-app-release-action="require_update" data-artifact-id={latestApk.id}>Hacer obligatoria</button>}

@@ -23,7 +23,8 @@ if (metadataEndpoint) {
   if (response?.ok) metadata = parseStorefrontAppDownloadMetadata(await response.json().catch(() => null));
 }
 
-Astro.response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+Astro.response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+Astro.response.headers.set('Pragma', 'no-cache');
 Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
 
 const appName = metadata?.displayName || 'Power Zona';

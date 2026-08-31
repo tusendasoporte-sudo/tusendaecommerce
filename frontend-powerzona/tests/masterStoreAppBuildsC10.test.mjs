@@ -154,6 +154,9 @@ test('panel C10 es exclusivo Master y no contiene compilador, shell ni secretos'
   assert.equal((view.match(/pattern=\{'\[0-9\]\+\\\\\.\[0-9\]\+\\\\\.\[0-9\]\+'\}/g) || []).length, 2);
   assert.match(view, /enlace permanente de esta versión/i);
   assert.match(view, /Descargar APK/);
+  assert.match(view, /const publicDownloadPagePath = `\/app\/\$\{encodeURIComponent\(store\.slug\)\}`/);
+  assert.match(view, /href=\{publicDownloadPagePath\}[\s\S]*?Ver página de descarga/);
+  assert.match(view, /Abrir enlace publicado/);
   assert.match(view, />Destinatario</);
   assert.match(view, /\/master\/settings#whatsapp-master/);
   assert.doesNotMatch(view, /data-app-whatsapp-settings-form|Guardar número|saveMasterWhatsappSettings/);
