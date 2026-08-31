@@ -106,6 +106,7 @@ const canSave = canManageContent && canManageTranslations;
 
 <script>
   import { normalizePromoCmsDraftResponse, PROMO_CMS_WORK_GALLERY_KEY } from '../../../lib/promoCms';
+  import { confirmPromoAdminAction } from '../../../lib/promoAdminConfirm';
   import {
     addPromoLocale,
     buildPromoLocalesDocument,
@@ -146,6 +147,7 @@ const canSave = canManageContent && canManageTranslations;
 
   document.querySelectorAll<HTMLElement>('[data-promo-locales]').forEach((root) => {
     const storeSlug = root.dataset.storeSlug || '';
+    const adminLocale = root.closest<HTMLElement>('[data-promo-admin-root]')?.dataset.promoAdminLocale === 'en' ? 'en' : 'es';
     const maxLocales = Number(root.dataset.maxLocales || 0);
     const canSave = root.dataset.canSave === 'true';
     const endpoint = `${PROMO_LOCALES_API_PATH}?store=${encodeURIComponent(storeSlug)}`;
@@ -711,8 +713,18 @@ const canSave = canManageContent && canManageTranslations;
       remove.dataset.localeEditControl = '';
       remove.dataset.localeLocked = documentValue.locales.default === activeLocale ? 'true' : 'false';
       remove.disabled = !canSave || documentValue.locales.default === activeLocale;
-      remove.addEventListener('click', () => {
-        if (!window.confirm(`¿Quitar ${info.label} y sus traducciones de la página?`)) return;
+      remove.addEventListener('click', async () => {
+        const confirmed = await confirmPromoAdminAction({
+          kicker: adminLocale === 'en' ? 'Review before continuing' : 'Revisa antes de continuar',
+          title: adminLocale === 'en' ? `Remove ${info.label}` : `Quitar ${info.label}`,
+          message: adminLocale === 'en'
+            ? 'This language and its translations will be removed from the page when you save the changes.'
+            : 'Este idioma y sus traducciones se quitarán de la página cuando guardes los cambios.',
+          confirmText: adminLocale === 'en' ? 'Remove language' : 'Quitar idioma',
+          cancelText: adminLocale === 'en' ? 'Keep language' : 'Conservar idioma',
+          tone: 'warning',
+        });
+        if (!confirmed) return;
         try {
           clearError();
           documentValue = removePromoLocale(documentValue, activeLocale);

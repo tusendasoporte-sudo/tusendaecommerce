@@ -129,6 +129,7 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
 
 <script>
   import QRCode from 'qrcode';
+  import { confirmPromoAdminAction } from '../../../lib/promoAdminConfirm';
   import { normalizePromoCmsDraftResponse } from '../../../lib/promoCms';
   import {
     normalizePromoReviewRequestCreated,
@@ -419,7 +420,22 @@ const { storeSlug, storeName, publicSlug, canModerate, canConfigure } = Astro.pr
         : (adminLocale === 'en'
           ? 'Revoke this link? The record will remain, but the customer will no longer be able to use it.'
           : '¿Revocar este enlace? El registro se conservará, pero el cliente ya no podrá usarlo.');
-      if (!requestId || !window.confirm(confirmation)) return;
+      if (!requestId) return;
+      const confirmed = await confirmPromoAdminAction({
+        kicker: action === 'delete'
+          ? (adminLocale === 'en' ? 'Destructive action' : 'Acción destructiva')
+          : (adminLocale === 'en' ? 'Review before continuing' : 'Revisa antes de continuar'),
+        title: action === 'delete'
+          ? (adminLocale === 'en' ? 'Delete review link' : 'Borrar enlace de reseña')
+          : (adminLocale === 'en' ? 'Revoke review link' : 'Revocar enlace de reseña'),
+        message: confirmation,
+        confirmText: action === 'delete'
+          ? (adminLocale === 'en' ? 'Delete permanently' : 'Borrar definitivamente')
+          : (adminLocale === 'en' ? 'Revoke link' : 'Revocar enlace'),
+        cancelText: adminLocale === 'en' ? 'Cancel' : 'Cancelar',
+        tone: action === 'delete' ? 'danger' : 'warning',
+      });
+      if (!confirmed) return;
       button.disabled = true;
       try {
         const value = await responseJson(await fetch(requestEndpoint(), {

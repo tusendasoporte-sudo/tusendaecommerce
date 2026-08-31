@@ -1,5 +1,6 @@
 import { normalizePromoCmsDraftResponse } from './promoCms.ts';
 import { normalizePromoGalleryCatalog, promoGalleryErrorMessage } from './promoGallery.ts';
+import { confirmPromoAdminAction } from './promoAdminConfirm.ts';
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const MEDIA_BUTTON_SELECTOR = [
@@ -185,10 +186,17 @@ async function permanentlyDeleteMedia(button: HTMLButtonElement) {
     ), true);
     return;
   }
-  const confirmed = window.confirm(copy(
-    'Esta acción eliminará definitivamente el archivo de PocketBase y de todos los lugares de esta página. No se puede deshacer. ¿Deseas continuar?',
-    'This permanently deletes the file from PocketBase and every place on this page. It cannot be undone. Continue?',
-  ));
+  const confirmed = await confirmPromoAdminAction({
+    kicker: copy('Acción destructiva', 'Destructive action'),
+    title: copy('Eliminar archivo', 'Delete file'),
+    message: copy(
+      'Esta acción eliminará definitivamente el archivo de PocketBase y de todos los lugares de esta página. No se puede deshacer.',
+      'This permanently deletes the file from PocketBase and every place on this page. It cannot be undone.',
+    ),
+    confirmText: copy('Eliminar definitivamente', 'Delete permanently'),
+    cancelText: copy('Conservar archivo', 'Keep file'),
+    tone: 'danger',
+  });
   if (!confirmed) return;
   deletingAssets.add(assetId);
   const priorDisabled = button.disabled;
@@ -227,10 +235,18 @@ async function permanentlyDeleteReview(button: HTMLButtonElement) {
   const reviewId = String(card?.dataset.reviewId || '');
   const expectedUpdated = String(card?.querySelector<HTMLElement>('[data-review-updated]')?.dataset.reviewUpdated || '');
   if (!root || !card || !RECORD_ID_PATTERN.test(reviewId) || !expectedUpdated) return;
-  if (!window.confirm(copy(
-    'Esta acción eliminará definitivamente la reseña y, si existen, su solicitud privada y fotos asociadas. No se puede deshacer. ¿Deseas continuar?',
-    'This permanently deletes the review and, when present, its private request and photos. It cannot be undone. Continue?',
-  ))) return;
+  const confirmed = await confirmPromoAdminAction({
+    kicker: copy('Acción destructiva', 'Destructive action'),
+    title: copy('Eliminar reseña', 'Delete review'),
+    message: copy(
+      'Esta acción eliminará definitivamente la reseña y, si existen, su solicitud privada y fotos asociadas. No se puede deshacer.',
+      'This permanently deletes the review and, when present, its private request and photos. It cannot be undone.',
+    ),
+    confirmText: copy('Eliminar definitivamente', 'Delete permanently'),
+    cancelText: copy('Conservar reseña', 'Keep review'),
+    tone: 'danger',
+  });
+  if (!confirmed) return;
   const buttons = Array.from(card.querySelectorAll<HTMLButtonElement>('button'));
   buttons.forEach((candidate) => { candidate.disabled = true; });
   button.textContent = copy('Eliminando…', 'Deleting…');

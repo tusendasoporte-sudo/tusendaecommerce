@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import AdminDialog from '../AdminDialog.astro';
 import type { AdminStoreContext } from '../../../lib/storeContext';
 import { getAdminSupportContact } from '../../../lib/adminSupport';
 import { hasPromoAction, hasPromoCapability, type PromoAccessContext } from '../../../lib/promoAccess';
@@ -395,6 +396,8 @@ function initials(value: string) {
       </div>
     </div>
   </div>
+
+  <AdminDialog />
 
   <script>
     import { observePromoAdminFeedback } from '../../../lib/promoAdminFeedback';
