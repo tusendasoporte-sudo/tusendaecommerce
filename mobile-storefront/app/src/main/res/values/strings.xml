@@ -4,12 +4,14 @@
     <string name="offline_title">Sin conexión</string>
     <string name="offline_message">Comprueba tu conexión a internet y vuelve a intentarlo.</string>
     <string name="service_error_title">Tienda temporalmente no disponible</string>
-    <string name="service_error_message">El servicio no respondió de forma segura. Inténtalo nuevamente en unos segundos.</string>
+    <string name="service_error_message">No pudimos conectar con Power Zona. Si usas una VPN o proxy, desactívalo y toca Recargar. También puedes revisar tu conexión a internet.</string>
+    <string name="vpn_error_title">La VPN puede estar bloqueando la app</string>
+    <string name="vpn_error_message">Detectamos una VPN activa y Power Zona no pudo abrir. Desactiva la VPN o el proxy y toca Recargar.</string>
     <string name="ssl_error_title">Conexión no segura</string>
-    <string name="ssl_error_message">No fue posible verificar la seguridad del servidor.</string>
+    <string name="ssl_error_message">No fue posible verificar la seguridad del servidor. Si usas una VPN o proxy, desactívalo y toca Recargar.</string>
     <string name="configuration_error_title">Configuración incompleta</string>
     <string name="configuration_error_message">Esta compilación no contiene una URL de tienda válida.</string>
-    <string name="retry">Reintentar</string>
+    <string name="retry">Recargar</string>
     <string name="open_store_home">Ir a la tienda</string>
     <string name="notification_channel_name">Novedades de la tienda</string>
     <string name="notification_channel_description">Promociones y novedades elegidas para esta tienda.</string>

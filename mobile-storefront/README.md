@@ -157,6 +157,8 @@ El motor `1.3.0` permite que una marca versionada reemplace el icono pequeño de
 
 El motor `1.3.2` mantiene App Set ID como señal antifraude opcional. Si Google Play services no lo entrega a tiempo, la aplicación registra igualmente su FID ya aceptado por FCM y deja una traza técnica segura sin exponer identificadores ni credenciales.
 
+El motor `1.4.0` mantiene visible el splash de marca hasta el primer cuadro útil de la tienda, incorpora Android App Links verificados para los enlaces HTTPS de cada storefront y presenta recuperación diferenciada para falta de internet y posible bloqueo por VPN/proxy. La navegación inferior, la bandeja privada y la cartera de cupones se entregan desde el storefront web y solo se activan dentro de la APK mediante su identificador de agente de usuario.
+
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 
 - `app_key` y `applicationId`;

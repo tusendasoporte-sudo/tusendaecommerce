@@ -200,6 +200,9 @@ def productionApiBaseUrl = httpsOriginFromStoreUrl(storeUrl)
 if (!validHttpsOrigin(productionApiBaseUrl)) {
     throw new GradleException('No se pudo derivar el origen HTTPS productivo desde store.url.')
 }
+def configuredStoreUri = new URI(storeUrl)
+def configuredStoreHost = configuredStoreUri.host.toLowerCase()
+def configuredStorePathPrefix = configuredStoreUri.path
 if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
     throw new GradleException('app.display_name debe contener entre 1 y 60 caracteres visibles.')
 }
@@ -351,7 +354,11 @@ android {
         buildConfigField 'String', 'FIREBASE_PROJECT_ID', javaStringLiteral(configuredFirebaseProjectId)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', 'false'
         buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()
-        manifestPlaceholders = [storefrontAppName: appDisplayName]
+        manifestPlaceholders = [
+                storefrontAppName: appDisplayName,
+                storefrontHost: configuredStoreHost,
+                storefrontPathPrefix: configuredStorePathPrefix,
+        ]
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 
         resValue 'color', 'storefront_brand_deep_sapphire', palette.deep_sapphire

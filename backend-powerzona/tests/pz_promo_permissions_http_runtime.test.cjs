@@ -34,6 +34,7 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787699500_promo_media_quota_300.js',
   '1787699600_promo_operational_defaults.js',
   '1787699700_promo_publish_empty_foundations.js',
+  '1787700000_storefront_private_inbox_coupon_wallet.js',
 ];
 
 function runtimeEnvironment() {

@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
+import StorefrontAppShell from '../components/StorefrontAppShell.astro';
 import SocialMeta from '../components/SocialMeta.astro';
 import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
@@ -267,6 +268,7 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 					const list = Array.isArray(saved) ? saved.map((item) => String(item || '').toUpperCase()) : [];
 					if (!list.includes(couponCode)) list.push(couponCode);
 					localStorage.setItem(key, JSON.stringify(list.slice(-12)));
+					localStorage.setItem(selectedKey, couponCode);
 				};
 
 				const removeCouponCode = (couponCode) => {
@@ -380,6 +382,10 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 					}
 					const alreadySaved = couponAlreadySaved(code);
 					if (!alreadySaved) saveCouponCode(code);
+					else localStorage.setItem(selectedKey, code);
+					document.dispatchEvent(new CustomEvent('pz-coupon-acquired', {
+						detail: { code, source: 'link' },
+					}));
 					showCouponModal({
 						title: alreadySaved ? 'Cupón ya listo' : 'Cupón adquirido',
 						codeText: coupon.code || code,
@@ -571,6 +577,7 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 		    }
 		  })();
 		</script>
+		{!hideStoreFloatingUi && <StorefrontAppShell publicPathPrefix={publicPathPrefix} storeId={currentStoreId} />}
 		{!hideStoreFloatingUi && <CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />}
 		{!hideStoreFloatingUi && <Cart storeInitials={currentStoreInitials} />}
 

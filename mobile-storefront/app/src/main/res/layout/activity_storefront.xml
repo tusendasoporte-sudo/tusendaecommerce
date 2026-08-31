@@ -13,6 +13,16 @@
         android:background="@color/pz_brand_base_background"
         android:contentDescription="@string/storefront_web_content" />
 
+    <ImageView
+        android:id="@+id/storefront_splash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/pz_brand_base_background"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:src="@drawable/storefront_splash" />
+
     <ProgressBar
         android:id="@+id/storefront_progress"
         style="?android:attr/progressBarStyleHorizontal"

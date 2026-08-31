@@ -54,7 +54,7 @@ test('enlace principal presenta la app y la descarga conserva el alias dinámico
   assert.match(page, /Descargar APK/);
   assert.match(page, /Versión/);
   assert.match(page, /Tamaño/);
-  assert.match(page, /powerzona-app-icon-512\.png/);
+  assert.match(page, /powerzona-app-preview-android\.png/);
   assert.match(page, /storefrontAppDownloadMetadataUrl/);
   assert.doesNotMatch(page, /SHA-?256|\bsha\b/i);
   assert.match(download, /status:\s*307/);

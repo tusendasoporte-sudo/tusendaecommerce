@@ -1,0 +1,369 @@
+---
+const { publicPathPrefix = '', storeId = '' } = Astro.props;
+const basePath = String(publicPathPrefix || '').replace(/\/$/, '');
+const homePath = basePath || '/';
+const searchPath = `${basePath}/buscar`;
+const nativePreviewEnabled = import.meta.env.DEV;
+---
+
+<div id="pz-native-app-shell" class="pz-native-app-shell" hidden>
+  <button id="pz-native-inbox-open" class="pz-native-inbox-open" type="button" aria-label="Abrir notificaciones">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    <span id="pz-native-inbox-badge" hidden>0</span>
+  </button>
+
+  <div id="pz-native-sheet-backdrop" class="pz-native-sheet-backdrop" hidden></div>
+
+  <section id="pz-native-inbox-sheet" class="pz-native-sheet" role="dialog" aria-modal="true" aria-labelledby="pz-native-inbox-title" hidden>
+    <header class="pz-native-sheet-head">
+      <div><p>Power Zona</p><h2 id="pz-native-inbox-title">Notificaciones</h2></div>
+      <button type="button" data-pz-sheet-close aria-label="Cerrar notificaciones">×</button>
+    </header>
+    <div class="pz-native-sheet-tools">
+      <button id="pz-native-inbox-read-all" type="button">Marcar todas leídas</button>
+      <button id="pz-native-inbox-delete-read" type="button">Eliminar leídas</button>
+      <button id="pz-native-inbox-delete-all" class="is-danger" type="button">Eliminar todas</button>
+    </div>
+    <p id="pz-native-inbox-status" class="pz-native-sheet-status" role="status"></p>
+    <div id="pz-native-inbox-list" class="pz-native-sheet-list"></div>
+  </section>
+
+  <section id="pz-native-coupon-sheet" class="pz-native-sheet" role="dialog" aria-modal="true" aria-labelledby="pz-native-coupon-title" hidden>
+    <header class="pz-native-sheet-head">
+      <div><p>Tu cartera privada</p><h2 id="pz-native-coupon-title">Mis cupones</h2></div>
+      <button type="button" data-pz-sheet-close aria-label="Cerrar cupones">×</button>
+    </header>
+    <form id="pz-native-coupon-form" class="pz-native-coupon-form">
+      <label for="pz-native-coupon-input">Pon tu cupón</label>
+      <div><input id="pz-native-coupon-input" name="coupon" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="Código" /><button type="submit">Agregar</button></div>
+      <p>Al guardarlo quedará seleccionado para tu próximo pedido. También puedes cambiarlo en el checkout.</p>
+    </form>
+    <p id="pz-native-coupon-status" class="pz-native-sheet-status" role="status"></p>
+    <div id="pz-native-coupon-list" class="pz-native-sheet-list"></div>
+  </section>
+
+  <nav class="pz-native-bottom-nav" aria-label="Navegación de la aplicación">
+    <a href={searchPath} aria-label="Buscar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Buscar</span>
+    </a>
+    <button id="pz-native-coupons-open" type="button" aria-label="Mis cupones">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a2 2 0 0 0 0-4V5H4v3a2 2 0 0 0 0 4v3h16z"/><path d="M9 8h.01M15 12h.01M8 14l8-8"/></svg><span>Cupones</span>
+    </button>
+    <a class="pz-native-home" href={homePath} aria-label="Inicio">
+      <span class="pz-native-home-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span><span>Inicio</span>
+    </a>
+    <label class="pz-native-currency" data-pz-currency-menu hidden>
+      <span class="sr-only">Moneda</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 9h8M8 15h8M12 6v12"/></svg>
+      <select data-pz-currency-select aria-label="Moneda visual"></select>
+    </label>
+    <button id="pz-native-cart-open" class="pz-native-cart" type="button" aria-label="Abrir carrito">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M3 4h2l2 11h11l2-8H6"/></svg><span>Carrito</span><b id="pz-native-cart-count" hidden>0</b>
+    </button>
+  </nav>
+</div>
+
+<style>
+  .pz-native-app-shell { --pz-app-nav-height: 76px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  .pz-native-app-shell svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  :global(body.pz-storefront-app) { padding-bottom: calc(var(--pz-app-nav-height, 76px) + env(safe-area-inset-bottom)); }
+  :global(body.pz-storefront-app #cart-floating-btn), :global(body.pz-storefront-app #pz-currency-switcher) { display: none !important; }
+  :global(body.pz-storefront-app.product-detail-page.product-add-floating-active) { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .pz-native-inbox-open { position: fixed; z-index: 39; top: calc(14px + env(safe-area-inset-top)); right: 16px; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(203,213,225,.9); border-radius: 18px; color: #071f63; background: rgba(255,255,255,.96); box-shadow: 0 12px 34px rgba(7,31,99,.18); backdrop-filter: blur(12px); }
+  .pz-native-inbox-open span { position: absolute; top: -5px; right: -4px; min-width: 21px; height: 21px; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #155eeb; font-size: 10px; font-weight: 1000; }
+  .pz-native-sheet-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(15,23,42,.48); backdrop-filter: blur(4px); }
+  .pz-native-sheet { position: fixed; z-index: 71; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(100%, 620px); max-height: min(88vh, 820px); margin: 0 auto; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid #dbeafe; border-bottom: 0; border-radius: 30px 30px 0 0; color: #0f172a; background: #fff; box-shadow: 0 -30px 80px rgba(15,23,42,.24); }
+  .pz-native-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .pz-native-sheet-head p { margin: 0 0 2px; color: #155eeb; font-size: 11px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .pz-native-sheet-head h2 { margin: 0; color: #071f63; font-size: 27px; line-height: 1; font-weight: 1000; }
+  .pz-native-sheet-head button { width: 42px; height: 42px; border: 0; border-radius: 15px; color: #475569; background: #f1f5f9; font-size: 28px; line-height: 1; }
+  .pz-native-sheet-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 16px 0 0; padding-bottom: 8px; }
+  .pz-native-sheet-tools button { min-width: 0; border: 1px solid #dbeafe; border-radius: 16px; padding: 8px 5px; color: #155eeb; background: #eff6ff; font-size: 10px; line-height: 1.2; font-weight: 900; }
+  .pz-native-sheet-tools button.is-danger { border-color: #fee2e2; color: #b91c1c; background: #fef2f2; }
+  .pz-native-sheet-status { min-height: 18px; margin: 7px 0 0; color: #64748b; font-size: 12px; font-weight: 750; }
+  .pz-native-sheet-status.is-error { color: #b91c1c; }
+  .pz-native-sheet-status.is-success { color: #047857; }
+  .pz-native-sheet-list { display: grid; gap: 11px; margin-top: 8px; padding: 2px 2px 14px; overflow-y: auto; overscroll-behavior: contain; }
+  .pz-native-empty { margin: 20px 0; border: 1px dashed #cbd5e1; border-radius: 22px; padding: 24px 18px; color: #64748b; background: #f8fafc; text-align: center; font-size: 13px; font-weight: 800; }
+  .pz-native-notification { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: start; border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
+  .pz-native-notification.is-unread { border-color: #bfdbfe; background: #f8fbff; }
+  .pz-native-notification-main { min-width: 0; border: 0; padding: 0; color: inherit; background: transparent; text-align: left; }
+  .pz-native-notification-dot { width: 10px; height: 10px; margin-top: 6px; border-radius: 999px; background: #155eeb; box-shadow: 0 0 0 4px #dbeafe; }
+  .pz-native-notification:not(.is-unread) .pz-native-notification-dot { background: #cbd5e1; box-shadow: none; }
+  .pz-native-notification h3 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 1000; }
+  .pz-native-notification p { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 700; }
+  .pz-native-notification time { display: block; margin-top: 7px; color: #94a3b8; font-size: 10px; font-weight: 850; }
+  .pz-native-notification img { grid-column: 2 / 4; width: 100%; max-height: 180px; border-radius: 16px; object-fit: cover; }
+  .pz-native-notification-delete { width: 33px; height: 33px; border: 0; border-radius: 12px; color: #b91c1c; background: #fef2f2; font-size: 18px; font-weight: 900; }
+  .pz-native-coupon-form { display: grid; gap: 8px; margin-top: 18px; border: 1px solid #dbeafe; border-radius: 22px; padding: 14px; background: #f8fbff; }
+  .pz-native-coupon-form label { color: #071f63; font-size: 13px; font-weight: 1000; }
+  .pz-native-coupon-form > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .pz-native-coupon-form input { min-width: 0; border: 1px solid #cbd5e1; border-radius: 14px; padding: 11px 12px; color: #0f172a; background: #fff; font-size: 15px; font-weight: 900; text-transform: uppercase; outline: none; }
+  .pz-native-coupon-form button { border: 0; border-radius: 14px; padding: 11px 15px; color: #fff; background: #155eeb; font-size: 13px; font-weight: 1000; }
+  .pz-native-coupon-form p { margin: 0; color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 700; }
+  .pz-native-coupon { border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; }
+  .pz-native-coupon.is-selected { border-color: #155eeb; background: #f5f9ff; box-shadow: 0 8px 22px rgba(21,94,235,.09); }
+  .pz-native-coupon-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+  .pz-native-coupon-code { display: inline-flex; border-radius: 999px; padding: 7px 10px; color: #fff; background: #071f63; font-size: 12px; font-weight: 1000; letter-spacing: .05em; }
+  .pz-native-coupon-selected { color: #155eeb; font-size: 11px; font-weight: 1000; }
+  .pz-native-coupon p { margin: 10px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 750; }
+  .pz-native-coupon small { display: block; margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 750; }
+  .pz-native-coupon-actions { display: flex; gap: 9px; margin-top: 12px; }
+  .pz-native-coupon-actions button { border: 1px solid #dbeafe; border-radius: 13px; padding: 8px 11px; color: #155eeb; background: #eff6ff; font-size: 11px; font-weight: 950; }
+  .pz-native-coupon-actions button.is-remove { border-color: #e2e8f0; color: #64748b; background: #f8fafc; }
+  .pz-native-bottom-nav { position: fixed; z-index: 38; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1.15fr 1fr 1fr; align-items: end; min-height: calc(70px + env(safe-area-inset-bottom)); padding: 7px max(7px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-right)); border-top: 1px solid rgba(203,213,225,.88); background: rgba(255,255,255,.97); box-shadow: 0 -12px 34px rgba(15,23,42,.11); backdrop-filter: blur(14px); }
+  .pz-native-bottom-nav > a, .pz-native-bottom-nav > button, .pz-native-currency { position: relative; display: grid; justify-items: center; align-content: center; gap: 2px; min-width: 0; min-height: 54px; border: 0; padding: 2px; color: #52617d; background: transparent; text-decoration: none; }
+  .pz-native-bottom-nav span, .pz-native-currency select { max-width: 100%; font-size: 9px; font-weight: 950; }
+  .pz-native-bottom-nav svg { width: 22px; height: 22px; }
+  .pz-native-home { color: #155eeb !important; transform: translateY(-10px); }
+  .pz-native-home-icon { display: grid; place-items: center; width: 48px; height: 48px; border: 5px solid #fff; border-radius: 19px; color: #fff; background: linear-gradient(145deg,#155eeb,#0845bd); box-shadow: 0 12px 25px rgba(21,94,235,.30); }
+  .pz-native-home-icon svg { width: 23px; height: 23px; }
+  .pz-native-currency select { width: 55px; border: 0; color: #52617d; background: transparent; text-align: center; outline: none; }
+  .pz-native-cart b { position: absolute; top: 0; right: calc(50% - 23px); min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #ef4444; font-size: 9px; }
+  @media (min-width: 760px) { .pz-native-bottom-nav { left: 50%; width: min(620px, 100%); right: auto; transform: translateX(-50%); border: 1px solid #cbd5e1; border-bottom: 0; border-radius: 24px 24px 0 0; } }
+</style>
+
+<script define:vars={{ storeId, nativePreviewEnabled }}>
+  (() => {
+    const isNative = /(?:^|\s)TuSenda84Storefront\/[0-9]/.test(navigator.userAgent || '')
+      || (nativePreviewEnabled && new URLSearchParams(window.location.search).get('__pz_native_preview') === '1');
+    if (!isNative) return;
+    const shell = document.getElementById('pz-native-app-shell');
+    const backdrop = document.getElementById('pz-native-sheet-backdrop');
+    const inboxSheet = document.getElementById('pz-native-inbox-sheet');
+    const couponSheet = document.getElementById('pz-native-coupon-sheet');
+    const inboxList = document.getElementById('pz-native-inbox-list');
+    const couponList = document.getElementById('pz-native-coupon-list');
+    const inboxStatus = document.getElementById('pz-native-inbox-status');
+    const couponStatus = document.getElementById('pz-native-coupon-status');
+    const inboxBadge = document.getElementById('pz-native-inbox-badge');
+    const cartBadge = document.getElementById('pz-native-cart-count');
+    const storageStoreId = String(storeId || window.PZ_CURRENT_STORE_ID || 'powerzona');
+    const savedKey = `powerzona_saved_coupons_${storageStoreId}`;
+    const selectedKey = `powerzona_selected_coupon_${storageStoreId}`;
+    const migrationKey = `pz_native_wallet_migrated_${storageStoreId}`;
+    const state = { inbox: [], unread: 0, coupons: [], selectedCode: '', loading: false };
+
+    shell.hidden = false;
+    document.body.classList.add('pz-storefront-app');
+
+    const escapeHtml = (value) => String(value || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const normalizeCode = (value) => String(value || '').trim().toUpperCase().slice(0, 8);
+    const formatDate = (value) => {
+      const date = new Date(value || '');
+      return Number.isFinite(date.getTime()) ? date.toLocaleString('es', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    };
+    const setStatus = (node, message = '', tone = '') => {
+      if (!node) return;
+      node.textContent = message;
+      node.classList.toggle('is-error', tone === 'error');
+      node.classList.toggle('is-success', tone === 'success');
+    };
+    const errorMessage = (code) => ({
+      invalid_coupon_code: 'El código debe tener entre 2 y 8 caracteres sin acentos ni emojis.',
+      coupon_not_found: 'Ese cupón no existe o no pertenece a esta tienda.',
+      coupon_expired: 'Ese cupón ya venció.',
+      coupon_exhausted: 'Ese cupón alcanzó su límite de usos.',
+      coupon_not_started: 'Ese cupón todavía no está vigente.',
+      coupon_unavailable: 'Ese cupón no está disponible.',
+      coupon_already_used: 'Ese cupón ya fue utilizado en esta instalación.',
+      session_required: 'La identidad privada de esta instalación aún no está disponible. Cierra y vuelve a abrir la app.',
+    }[code] || 'No pudimos completar la acción. Revisa tu conexión e inténtalo otra vez.');
+
+    function syncLocalWallet() {
+      const codes = state.coupons.map((item) => normalizeCode(item.code)).filter(Boolean);
+      localStorage.setItem(savedKey, JSON.stringify(codes.slice(-12)));
+      if (state.selectedCode) localStorage.setItem(selectedKey, state.selectedCode);
+      else localStorage.removeItem(selectedKey);
+      window.dispatchEvent(new CustomEvent('pz-wallet-updated', { detail: { codes, selectedCode: state.selectedCode } }));
+    }
+
+    function applyHub(payload) {
+      state.inbox = Array.isArray(payload?.inbox?.items) ? payload.inbox.items : [];
+      state.unread = Math.max(0, Number(payload?.inbox?.unread_count || 0));
+      state.coupons = Array.isArray(payload?.coupons?.items) ? payload.coupons.items : [];
+      state.selectedCode = normalizeCode(payload?.coupons?.selected_code || '');
+      inboxBadge.textContent = state.unread > 99 ? '99+' : String(state.unread);
+      inboxBadge.hidden = state.unread < 1;
+      syncLocalWallet();
+      renderInbox();
+      renderCoupons();
+    }
+
+    async function requestHub(payload) {
+      const options = payload === undefined ? {} : {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      };
+      const response = await fetch('/api/storefront/v1/customer-hub', { ...options, credentials: 'same-origin', cache: 'no-store' });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok !== true) {
+        const error = new Error(errorMessage(result?.error));
+        error.code = result?.error || 'customer_hub_unavailable';
+        throw error;
+      }
+      applyHub(result);
+      return result;
+    }
+
+    function readLocalCodes() {
+      try {
+        const value = JSON.parse(localStorage.getItem(savedKey) || '[]');
+        return Array.isArray(value) ? [...new Set(value.map(normalizeCode).filter(Boolean))].slice(-12) : [];
+      } catch (_) { return []; }
+    }
+
+    async function migrateLocalWallet() {
+      if (localStorage.getItem(migrationKey) === '1') return;
+      const codes = readLocalCodes();
+      const selected = normalizeCode(localStorage.getItem(selectedKey));
+      const ordered = codes.filter((code) => code !== selected);
+      if (selected) ordered.push(selected);
+      for (const code of ordered) {
+        if (state.coupons.some((item) => normalizeCode(item.code) === code)) continue;
+        try { await requestHub({ action: 'coupon_claim', code, source: 'migration' }); } catch (_) {}
+      }
+      localStorage.setItem(migrationKey, '1');
+    }
+
+    function renderInbox() {
+      if (!inboxList) return;
+      if (!state.inbox.length) {
+        inboxList.innerHTML = '<p class="pz-native-empty">No tienes notificaciones guardadas. Las nuevas aparecerán aquí durante 30 días.</p>';
+        return;
+      }
+      inboxList.innerHTML = state.inbox.map((item) => `
+        <article class="pz-native-notification ${item.read ? '' : 'is-unread'}" data-notification-id="${escapeHtml(item.id)}">
+          <span class="pz-native-notification-dot" aria-hidden="true"></span>
+          <button class="pz-native-notification-main" type="button" data-notification-open>
+            <h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body)}</p><time>${escapeHtml(formatDate(item.created))}</time>
+          </button>
+          <button class="pz-native-notification-delete" type="button" data-notification-delete aria-label="Eliminar notificación">×</button>
+          ${item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ''}
+        </article>`).join('');
+    }
+
+    function couponBenefit(item) {
+      if (item.scope === 'free_shipping') return 'Envío gratis cuando la orden cumpla las condiciones.';
+      const value = Number(item.discount_value || 0);
+      if (item.discount_type === 'percentage') return `${value}% de descuento cuando aplique.`;
+      if (item.discount_type === 'fixed_usd') return `${value.toFixed(2)} USD de descuento cuando aplique.`;
+      return item.message || 'Cupón guardado.';
+    }
+
+    function renderCoupons() {
+      if (!couponList) return;
+      if (!state.coupons.length) {
+        couponList.innerHTML = '<p class="pz-native-empty">Todavía no tienes cupones vigentes. Puedes abrir un enlace, tocar una notificación o escribir el código arriba.</p>';
+        return;
+      }
+      couponList.innerHTML = state.coupons.map((item) => `
+        <article class="pz-native-coupon ${item.selected ? 'is-selected' : ''}" data-coupon-code="${escapeHtml(item.code)}">
+          <div class="pz-native-coupon-head"><span class="pz-native-coupon-code">${escapeHtml(item.code)}</span>${item.selected ? '<span class="pz-native-coupon-selected">Seleccionado</span>' : ''}</div>
+          <p>${escapeHtml(item.message || couponBenefit(item))}</p>
+          ${Number(item.min_subtotal_usd || 0) > 0 ? `<small>Compra mínima: ${Number(item.min_subtotal_usd).toFixed(2)} USD.</small>` : ''}
+          ${item.ends_at ? `<small>Vigente hasta ${escapeHtml(formatDate(item.ends_at))}.</small>` : ''}
+          <div class="pz-native-coupon-actions">${item.selected ? '' : '<button type="button" data-coupon-select>Usar este cupón</button>'}<button class="is-remove" type="button" data-coupon-remove>Quitar</button></div>
+        </article>`).join('');
+    }
+
+    function openSheet(sheet) {
+      [inboxSheet, couponSheet].forEach((item) => { item.hidden = item !== sheet; });
+      backdrop.hidden = false;
+      document.body.style.overflow = 'hidden';
+      sheet?.querySelector('button, input')?.focus();
+    }
+    function closeSheets() {
+      inboxSheet.hidden = true; couponSheet.hidden = true; backdrop.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    function updateCartCount() {
+      let cart = [];
+      try { cart = window.PZCartStorage?.readCart?.() || []; } catch (_) {}
+      const count = Array.isArray(cart) ? cart.reduce((sum, item) => sum + Math.max(0, Number(item?.quantity || 0)), 0) : 0;
+      cartBadge.textContent = count > 99 ? '99+' : String(count);
+      cartBadge.hidden = count < 1;
+    }
+
+    async function claim(codeValue, source = 'code') {
+      const code = normalizeCode(codeValue);
+      if (!code) throw new Error(errorMessage('invalid_coupon_code'));
+      const result = await requestHub({ action: 'coupon_claim', code, source });
+      return result;
+    }
+    window.PZCouponWallet = {
+      claim,
+      select: (code) => requestHub({ action: 'coupon_select', code: normalizeCode(code) }),
+      unselect: () => requestHub({ action: 'coupon_unselect' }),
+      remove: (code) => requestHub({ action: 'coupon_remove', code: normalizeCode(code) }),
+      refresh: () => requestHub(),
+    };
+
+    document.getElementById('pz-native-inbox-open')?.addEventListener('click', () => { openSheet(inboxSheet); void requestHub().catch((error) => setStatus(inboxStatus, error.message, 'error')); });
+    document.getElementById('pz-native-coupons-open')?.addEventListener('click', () => { openSheet(couponSheet); void requestHub().catch((error) => setStatus(couponStatus, error.message, 'error')); });
+    document.getElementById('pz-native-cart-open')?.addEventListener('click', () => document.getElementById('cart-floating-btn')?.click());
+    document.querySelectorAll('[data-pz-sheet-close]').forEach((button) => button.addEventListener('click', closeSheets));
+    backdrop?.addEventListener('click', closeSheets);
+
+    inboxList?.addEventListener('click', async (event) => {
+      const row = event.target.closest('[data-notification-id]');
+      if (!row) return;
+      const id = row.dataset.notificationId || '';
+      const item = state.inbox.find((entry) => entry.id === id);
+      try {
+        if (event.target.closest('[data-notification-delete]')) {
+          await requestHub({ action: 'notification_delete', notification_id: id });
+          return;
+        }
+        if (!event.target.closest('[data-notification-open]') || !item) return;
+        await requestHub({ action: 'notification_mark_read', notification_id: id });
+        if (item.coupon_code) await claim(item.coupon_code, 'push');
+        closeSheets();
+        window.location.assign(item.target_path || window.PZ_PUBLIC_PATH_PREFIX || '/');
+      } catch (error) { setStatus(inboxStatus, error.message, 'error'); }
+    });
+
+    document.getElementById('pz-native-inbox-read-all')?.addEventListener('click', () => requestHub({ action: 'notifications_mark_all_read' }).catch((error) => setStatus(inboxStatus, error.message, 'error')));
+    document.getElementById('pz-native-inbox-delete-read')?.addEventListener('click', () => {
+      if (!window.confirm('¿Eliminar las notificaciones leídas de esta instalación?')) return;
+      requestHub({ action: 'notifications_delete', scope: 'read' }).catch((error) => setStatus(inboxStatus, error.message, 'error'));
+    });
+    document.getElementById('pz-native-inbox-delete-all')?.addEventListener('click', () => {
+      if (!window.confirm('¿Eliminar todas las notificaciones guardadas en esta instalación?')) return;
+      requestHub({ action: 'notifications_delete', scope: 'all' }).catch((error) => setStatus(inboxStatus, error.message, 'error'));
+    });
+
+    document.getElementById('pz-native-coupon-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const input = document.getElementById('pz-native-coupon-input');
+      try {
+        await claim(input?.value || '', 'code');
+        if (input) input.value = '';
+        setStatus(couponStatus, 'Cupón guardado y seleccionado para tu próximo pedido.', 'success');
+      } catch (error) { setStatus(couponStatus, error.message, 'error'); }
+    });
+    couponList?.addEventListener('click', async (event) => {
+      const row = event.target.closest('[data-coupon-code]');
+      if (!row) return;
+      const code = normalizeCode(row.dataset.couponCode);
+      try {
+        if (event.target.closest('[data-coupon-select]')) await requestHub({ action: 'coupon_select', code });
+        else if (event.target.closest('[data-coupon-remove]')) await requestHub({ action: 'coupon_remove', code });
+      } catch (error) { setStatus(couponStatus, error.message, 'error'); }
+    });
+
+    window.addEventListener('cart-updated', updateCartCount);
+    document.addEventListener('pz-coupon-acquired', (event) => {
+      const code = normalizeCode(event.detail?.code);
+      if (code) claim(code, event.detail?.source || 'link').catch(() => {});
+    });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeSheets(); });
+    updateCartCount();
+    requestHub().then(migrateLocalWallet).catch((error) => {
+      setStatus(inboxStatus, error.message, 'error');
+      setStatus(couponStatus, error.message, 'error');
+    });
+  })();
+</script>

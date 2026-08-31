@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { normalizeDeletionCounts } from '../src/lib/masterStoreDeletion.ts';
@@ -14,7 +15,7 @@ const COUNT_KEYS = [
   'price_watches', 'price_events', 'master_notifications', 'settings', 'categories',
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',
   'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
-  'storefront_order_links', 'push_media', 'push_campaigns',
+  'storefront_order_links', 'storefront_installation_coupons', 'push_media', 'push_campaigns',
   'push_campaign_deliveries', 'push_events', 'push_daily_stats',
   'admin_app_release_events', 'admin_app_download_tickets', 'admin_app_release_assignments',
   'promo_sites', 'promo_entitlements', 'promo_domain_bindings', 'promo_drafts', 'promo_media',
@@ -31,6 +32,11 @@ function completeCounts() {
 test('acepta el contrato completo del preview Master, incluido el grafo Promo', () => {
   const counts = completeCounts();
   assert.deepEqual(normalizeDeletionCounts(counts), counts);
+});
+
+test('el resumen visual incluye la cartera privada dentro de app y push', () => {
+  const dialog = readFileSync(new URL('../src/components/master/MasterStoreDeleteDialog.astro', import.meta.url), 'utf8');
+  assert.match(dialog, /public_app_and_push:[^\n]+storefront_installation_coupons/);
 });
 
 test('rechaza un preview que omita cualquier conteo C02', () => {

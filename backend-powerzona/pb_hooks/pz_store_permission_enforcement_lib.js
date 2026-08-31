@@ -62,6 +62,7 @@ const STOREFRONT_PUSH_PRIVATE_COLLECTIONS = Object.freeze([
   "storefront_app_download_events",
   "storefront_web_sessions",
   "storefront_order_links",
+  "storefront_installation_coupons",
   "push_media",
   "push_campaigns",
   "push_campaign_deliveries",

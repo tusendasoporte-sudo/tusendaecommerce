@@ -55,6 +55,7 @@ public final class StorefrontActivity extends Activity {
     private StorefrontRegistrationClient client;
     private WebView webView;
     private ProgressBar progressBar;
+    private View splashView;
     private View offlineView;
     private TextView offlineTitle;
     private TextView offlineMessage;
@@ -69,11 +70,13 @@ public final class StorefrontActivity extends Activity {
     private boolean updateDownloadInFlight;
     private boolean updatePromptVisible;
     private boolean initialNavigationDone;
+    private boolean splashHidden;
     private long lastOptionalUpdateCode;
     private AlertDialog updateDialog;
     private File pendingVerifiedUpdate;
     private final ExecutorService updateExecutor = Executors.newSingleThreadExecutor();
     private int pushResolutionGeneration;
+    private int pageLoadGeneration;
     private String pendingDeliveryId = "";
     private String pendingDestinationUrl = "";
     private String pendingReportedPath = "";
@@ -109,6 +112,7 @@ public final class StorefrontActivity extends Activity {
             initialNavigationDone = true;
             syncInstallation();
             flushEvents();
+            webView.post(() -> hideSplashAfterDraw(webView));
         }
     }
 
@@ -124,6 +128,7 @@ public final class StorefrontActivity extends Activity {
     private void bindViews() {
         webView = findViewById(R.id.storefront_webview);
         progressBar = findViewById(R.id.storefront_progress);
+        splashView = findViewById(R.id.storefront_splash);
         offlineView = findViewById(R.id.storefront_offline);
         offlineTitle = findViewById(R.id.storefront_offline_title);
         offlineMessage = findViewById(R.id.storefront_offline_message);
@@ -452,8 +457,16 @@ public final class StorefrontActivity extends Activity {
     private void completeInitialNavigation(Intent intent) {
         if (initialNavigationDone || isFinishing() || isDestroyed()) return;
         initialNavigationDone = true;
-        if (!openPushTarget(intent)) openStoreHome();
+        if (!openPushTarget(intent) && !openAppLink(intent)) openStoreHome();
         flushEvents();
+    }
+
+    private boolean openAppLink(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return false;
+        String target = intent.getData().toString();
+        if (!StorefrontDeepLink.isAllowedInternalNavigation(target, StorefrontConfig.storeUrl())) return false;
+        openInternalUrl(target);
+        return true;
     }
 
     private void refreshWebSession(StorefrontRegistrationClient.Callback callback) {
@@ -637,7 +650,7 @@ public final class StorefrontActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        openPushTarget(intent);
+        if (!openPushTarget(intent)) openAppLink(intent);
     }
 
     private void openStoreHome() {
@@ -707,7 +720,52 @@ public final class StorefrontActivity extends Activity {
                 && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
     }
 
+    private boolean isVpnActive() {
+        ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (manager == null) return false;
+        Network network = manager.getActiveNetwork();
+        if (network == null) return false;
+        NetworkCapabilities capabilities = manager.getNetworkCapabilities(network);
+        return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN);
+    }
+
+    private void showConnectivityError() {
+        if (!isOnline()) {
+            showError(getString(R.string.offline_title), getString(R.string.offline_message));
+        } else if (isVpnActive()) {
+            showError(getString(R.string.vpn_error_title), getString(R.string.vpn_error_message));
+        } else {
+            showError(getString(R.string.service_error_title), getString(R.string.service_error_message));
+        }
+    }
+
+    private void hideSplash() {
+        if (splashHidden || splashView == null) return;
+        splashHidden = true;
+        splashView.animate()
+                .alpha(0f)
+                .setDuration(260)
+                .withEndAction(() -> splashView.setVisibility(View.GONE))
+                .start();
+    }
+
+    private void hideSplashAfterDraw(WebView view) {
+        if (splashHidden || view == null || Build.VERSION.SDK_INT < 23) {
+            hideSplash();
+            return;
+        }
+        view.postVisualStateCallback(System.nanoTime(), new WebView.VisualStateCallback() {
+            @Override
+            public void onComplete(long requestId) {
+                if (!isFinishing() && !isDestroyed() && offlineView.getVisibility() != View.VISIBLE) hideSplash();
+            }
+        });
+    }
+
     private void showError(String title, String message) {
+        pageLoadGeneration += 1;
+        pageReady = false;
+        hideSplash();
         progressBar.setVisibility(View.GONE);
         permissionCard.setVisibility(View.GONE);
         offlineTitle.setText(title);
@@ -820,11 +878,22 @@ public final class StorefrontActivity extends Activity {
         @Override
         public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
             hideError();
+            pageReady = false;
+            int generation = ++pageLoadGeneration;
             progressBar.setVisibility(View.VISIBLE);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (generation == pageLoadGeneration && !pageReady
+                        && !isFinishing() && !isDestroyed()
+                        && offlineView.getVisibility() != View.VISIBLE) {
+                    clearPendingDestination();
+                    showConnectivityError();
+                }
+            }, 20_000);
         }
 
         @Override
         public void onPageCommitVisible(WebView view, String url) {
+            hideSplashAfterDraw(view);
             reportVisibleDestination(url);
         }
 
@@ -833,6 +902,7 @@ public final class StorefrontActivity extends Activity {
             progressBar.setVisibility(View.GONE);
             CookieManager.getInstance().flush();
             pageReady = true;
+            hideSplashAfterDraw(view);
             updateNotificationCard();
             reportVisibleDestinationAfterDraw(view, url);
         }
@@ -841,10 +911,7 @@ public final class StorefrontActivity extends Activity {
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             if (!request.isForMainFrame()) return;
             clearPendingDestination();
-            showError(
-                    isOnline() ? getString(R.string.service_error_title) : getString(R.string.offline_title),
-                    isOnline() ? getString(R.string.service_error_message) : getString(R.string.offline_message)
-            );
+            showConnectivityError();
         }
 
         @Override
@@ -856,7 +923,10 @@ public final class StorefrontActivity extends Activity {
             if (request.isForMainFrame() && errorResponse.getStatusCode() >= 400) {
                 clearPendingDestination();
             }
-            if (request.isForMainFrame() && errorResponse.getStatusCode() >= 500) {
+            if (request.isForMainFrame()
+                    && (errorResponse.getStatusCode() == 403 || errorResponse.getStatusCode() == 451)) {
+                showConnectivityError();
+            } else if (request.isForMainFrame() && errorResponse.getStatusCode() >= 500) {
                 showError(
                         getString(R.string.service_error_title),
                         getString(R.string.service_error_message)

@@ -44,6 +44,9 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787699600_promo_operational_defaults.js',
   '1787699700_promo_publish_empty_foundations.js',
 ];
+const POST_DATA_NON_PROMO_MIGRATIONS = [
+  '1787700000_storefront_private_inbox_coupon_wallet.js',
+];
 const PROMO_COLLECTIONS = [
   'promo_sites',
   'promo_site_entitlements',
@@ -340,13 +343,21 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     const emptyUp = runPocketBase(['migrate', 'up'], emptyRollbackDirectory, environment);
     assertCommand(emptyUp, 'migrate up para rollback vacio');
     const emptyDown = runPocketBase(
-      ['migrate', 'down', String(PROMO_MIGRATIONS.length + ADDITIVE_POST_DATA_MIGRATIONS.length)],
+      ['migrate', 'down', String(
+        PROMO_MIGRATIONS.length
+          + ADDITIVE_POST_DATA_MIGRATIONS.length
+          + POST_DATA_NON_PROMO_MIGRATIONS.length
+      )],
       emptyRollbackDirectory,
       environment,
       'y\n',
     );
     assertCommand(emptyDown, 'rollback vacio de todas las migraciones Promo');
-    for (const migration of [...ADDITIVE_POST_DATA_MIGRATIONS, ...PROMO_MIGRATIONS]) {
+    for (const migration of [
+      ...POST_DATA_NON_PROMO_MIGRATIONS,
+      ...ADDITIVE_POST_DATA_MIGRATIONS,
+      ...PROMO_MIGRATIONS,
+    ]) {
       assert.match(emptyDown.stdout, new RegExp(`Reverted ${migration.replace('.', '\\.')}`));
     }
     assert.equal(
@@ -888,7 +899,10 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     await stopPocketBase(runtime);
     runtime = null;
 
-    for (const migration of ADDITIVE_POST_DATA_MIGRATIONS.slice().reverse()) {
+    for (const migration of [
+      ...ADDITIVE_POST_DATA_MIGRATIONS,
+      ...POST_DATA_NON_PROMO_MIGRATIONS,
+    ].reverse()) {
       const additiveDown = runPocketBase(
         ['migrate', 'down', '1'],
         dataDirectory,

@@ -19,7 +19,7 @@ const COUNT_KEYS = [
   "price_watches", "price_events", "master_notifications", "settings", "categories",
   "subcategories", "currencies", "shipping_zones", "visual_items",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns",
+  "storefront_order_links", "storefront_installation_coupons", "push_media", "push_campaigns",
   "push_campaign_deliveries", "push_events", "push_daily_stats",
   "admin_app_release_events", "admin_app_download_tickets", "admin_app_release_assignments",
   "promo_sites", "promo_entitlements", "promo_domain_bindings", "promo_drafts", "promo_media",
@@ -37,7 +37,7 @@ const DIRECT_STORE_COLLECTIONS = [
   "store_user_device_audit", "store_user_devices",
   "store_visitor_pageviews", "store_visitor_sessions", "store_visual_items", "subcategories",
   "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
-  "storefront_order_links", "push_media", "push_campaigns",
+  "storefront_order_links", "storefront_installation_coupons", "push_media", "push_campaigns",
   "push_campaign_deliveries", "push_events", "push_daily_stats",
   "admin_app_release_events", "admin_app_release_assignments",
   "users",
@@ -283,6 +283,7 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM target_installations) AS storefrontInstallations,
       (SELECT COUNT(*) FROM storefront_web_sessions WHERE store = {:storeId}) AS storefrontWebSessions,
       (SELECT COUNT(*) FROM storefront_order_links WHERE store = {:storeId}) AS storefrontOrderLinks,
+      (SELECT COUNT(*) FROM storefront_installation_coupons WHERE store = {:storeId}) AS storefrontInstallationCoupons,
       (SELECT COUNT(*) FROM push_media WHERE store = {:storeId}) AS pushMedia,
       (SELECT COUNT(*) FROM target_push_campaigns) AS pushCampaigns,
       (SELECT COUNT(*) FROM target_push_deliveries) AS pushCampaignDeliveries,
@@ -304,7 +305,7 @@ function buildCounts(app, storeId) {
     masterNotifications: 0, settings: 0, categories: 0, subcategories: 0,
     currencies: 0, shippingZones: 0, visualItems: 0,
     storefrontAppConfigs: 0, storefrontInstallations: 0, storefrontWebSessions: 0,
-    storefrontOrderLinks: 0, pushMedia: 0, pushCampaigns: 0,
+    storefrontOrderLinks: 0, storefrontInstallationCoupons: 0, pushMedia: 0, pushCampaigns: 0,
     pushCampaignDeliveries: 0, pushEvents: 0, pushDailyStats: 0,
     adminAppReleaseEvents: 0, adminAppDownloadTickets: 0, adminAppReleaseAssignments: 0,
   }) || {};
@@ -350,6 +351,7 @@ function buildCounts(app, storeId) {
     storefront_installations: nonNegativeInteger(row.storefrontInstallations),
     storefront_web_sessions: nonNegativeInteger(row.storefrontWebSessions),
     storefront_order_links: nonNegativeInteger(row.storefrontOrderLinks),
+    storefront_installation_coupons: nonNegativeInteger(row.storefrontInstallationCoupons),
     push_media: nonNegativeInteger(row.pushMedia),
     push_campaigns: nonNegativeInteger(row.pushCampaigns),
     push_campaign_deliveries: nonNegativeInteger(row.pushCampaignDeliveries),
@@ -643,6 +645,14 @@ function findCrossStoreReferences(app, storeId) {
           OR link."order" IN (SELECT id FROM target_orders)
         )
     UNION ALL
+    SELECT 'storefront_installation_coupons', COUNT(DISTINCT wallet.id)
+      FROM storefront_installation_coupons wallet
+      WHERE COALESCE(wallet.store, '') != {:storeId}
+        AND (
+          wallet.installation IN (SELECT id FROM target_installations)
+          OR wallet.coupon IN (SELECT id FROM target_coupons)
+        )
+    UNION ALL
     SELECT 'push_campaigns', COUNT(DISTINCT campaign.id)
       FROM push_campaigns campaign
       WHERE COALESCE(campaign.store, '') != {:storeId}
@@ -772,6 +782,7 @@ function executeDeletionPlan(app, storeId, counts) {
   deleted += deleteExpected(app, "push_daily_stats", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_daily_stats));
   deleted += deleteExpected(app, "push_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_events));
   deleted += deleteExpected(app, "push_campaign_deliveries", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaign_deliveries));
+  deleted += deleteExpected(app, "storefront_installation_coupons", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_installation_coupons));
   deleted += deleteExpected(app, "storefront_order_links", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_order_links));
   deleted += deleteExpected(app, "storefront_web_sessions", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_web_sessions));
   deleted += deleteExpected(app, "push_campaigns", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaigns));

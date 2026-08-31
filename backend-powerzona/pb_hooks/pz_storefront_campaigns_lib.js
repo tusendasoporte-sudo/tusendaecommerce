@@ -1005,6 +1005,8 @@ function materializeAudience(app, campaign, nowValue) {
   if (existing > 0) return existing;
   const selected = eligibleInstallations(app, campaign, now);
   const collection = app.findCollectionByNameOrId(DELIVERIES_COLLECTION);
+  let inboxImageUrl = "";
+  try { inboxImageUrl = dispatch.campaignImageUrl(app, campaign, dispatch.relayConfig(), now); } catch (_) {}
   selected.forEach((installation) => {
     const delivery = new Record(collection, {});
     delivery.set("store", relationId(campaign, "store"));
@@ -1013,6 +1015,12 @@ function materializeAudience(app, campaign, nowValue) {
     delivery.set("status", "pending");
     delivery.set("attempt_count", 0);
     delivery.set("delete_after", addDays(now, DELIVERY_RETENTION_DAYS));
+    delivery.set("inbox_title", recordString(campaign, "title"));
+    delivery.set("inbox_body", recordString(campaign, "body"));
+    delivery.set("inbox_image_url", inboxImageUrl);
+    delivery.set("inbox_target_type", recordString(campaign, "target_type") || "home");
+    delivery.set("inbox_target_path", recordString(campaign, "target_path"));
+    delivery.set("inbox_expires_at", addDays(now, 30));
     schema.assertValidState(DELIVERIES_COLLECTION, "pending");
     schema.assertTenantIsolation(app, DELIVERIES_COLLECTION, delivery);
     app.save(delivery);

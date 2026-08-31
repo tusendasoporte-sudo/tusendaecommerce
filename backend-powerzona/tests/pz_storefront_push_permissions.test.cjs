@@ -81,6 +81,7 @@ test('las colecciones privadas permanecen cerradas al CRUD incluso para usuarios
     'storefront_app_download_events',
     'storefront_web_sessions',
     'storefront_order_links',
+    'storefront_installation_coupons',
     'push_media',
     'push_campaigns',
     'push_campaign_deliveries',

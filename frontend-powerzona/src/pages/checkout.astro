@@ -861,6 +861,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			localStorage.setItem(SAVED_COUPONS_KEY, JSON.stringify(codes.slice(-12)));
 			selectedManualCouponCode = normalized;
 			localStorage.setItem(SELECTED_COUPON_KEY, normalized);
+			window.PZCouponWallet?.claim?.(normalized, 'checkout').catch(() => {});
 		}
 
 		function writeSavedCouponCodes(codes) {
@@ -879,6 +880,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			resetCouponAttributionRetry(selectedManualCouponCode);
 			selectedManualCouponCode = '';
 			localStorage.removeItem(SELECTED_COUPON_KEY);
+			window.PZCouponWallet?.unselect?.().catch(() => {});
 		}
 
 		function getActiveManualCoupons() {
@@ -2102,10 +2104,15 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		manualCouponApplyBtn?.addEventListener('click', () => {
 			if (checkoutLocked) return;
-			const code = manualCouponInput?.value || '';
+			const code = String(manualCouponInput?.value || '').trim().toUpperCase();
 			if (!String(code).trim()) {
 				clearSelectedCoupon();
 				renderCheckout();
+				return;
+			}
+			const coupon = getCouponByCode(code);
+			if (!coupon || !couponIsAvailable(coupon)) {
+				setCouponAlert('El cupón no es válido, no está vigente o ya se agotó.', 'error');
 				return;
 			}
 			saveCouponCode(code);
@@ -2124,6 +2131,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const selectBtn = event.target.closest('.js-select-coupon');
 			if (selectBtn) {
 				saveCouponCode(selectBtn.dataset.couponCode || '');
+				window.PZCouponWallet?.select?.(selectBtn.dataset.couponCode || '').catch(() => {});
 				resetOrderCreatedState();
 				renderCheckout();
 				return;

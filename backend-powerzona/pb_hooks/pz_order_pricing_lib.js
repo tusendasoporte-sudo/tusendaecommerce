@@ -18,6 +18,9 @@ const securityEnforcement = typeof __hooks === "undefined"
 const storefrontInstallations = typeof __hooks === "undefined"
   ? require("./pz_storefront_installations_lib.js")
   : require(`${__hooks}/pz_storefront_installations_lib.js`);
+const storefrontCustomerHub = typeof __hooks === "undefined"
+  ? require("./pz_storefront_customer_hub_lib.js")
+  : require(`${__hooks}/pz_storefront_customer_hub_lib.js`);
 const storefrontAnalytics = typeof __hooks === "undefined"
   ? require("./pz_storefront_analytics_lib.js")
   : require(`${__hooks}/pz_storefront_analytics_lib.js`);
@@ -1484,7 +1487,10 @@ function linkStorefrontCheckoutBestEffort(e, parsed) {
       const installationLink = storefrontInstallations.ensureOrderInstallationLink(txApp, session, order, now);
       if (!installationLink) return;
       const coupon = couponRecordByCode(txApp, parsed.storeId, recordString(order, "coupon_code"));
-      if (coupon) storefrontAnalytics.recordCouponApplied(txApp, session, parsed.storeId, recordString(order, "coupon_code"), now);
+      if (coupon) {
+        storefrontCustomerHub.markCouponUsed(txApp, session, recordString(order, "coupon_code"), now);
+        storefrontAnalytics.recordCouponApplied(txApp, session, parsed.storeId, recordString(order, "coupon_code"), now);
+      }
       storefrontAnalytics.attributeOrder(txApp, session, order, { couponRecord: coupon }, now);
     });
   } catch (_) {

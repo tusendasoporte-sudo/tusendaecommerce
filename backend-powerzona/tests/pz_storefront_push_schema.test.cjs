@@ -116,6 +116,7 @@ test('los secretos, datos sensibles y fechas de retención están explícitos', 
     campaign_technical_days: 90,
     campaign_quota_entry_days: 40,
     daily_aggregate_days: 90,
+    private_inbox_days: 30,
   });
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('fid'), true);
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('credential_digest'), true);

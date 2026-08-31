@@ -16,6 +16,10 @@ const STOREFRONT_PUSH_COLLECTIONS = Object.freeze([
   "push_daily_stats",
 ]);
 
+const STOREFRONT_CUSTOMER_COLLECTIONS = Object.freeze([
+  "storefront_installation_coupons",
+]);
+
 const ADMIN_PUSH_COLLECTIONS = Object.freeze([
   "store_push_devices",
   "store_notifications",
@@ -26,6 +30,7 @@ const COLLECTION_STATES = Object.freeze({
   storefront_installations: Object.freeze(["active", "disabled", "invalid", "revoked"]),
   storefront_web_sessions: Object.freeze(["pending", "active", "consumed", "expired", "revoked"]),
   storefront_order_links: Object.freeze(["active", "revoked", "expired"]),
+  storefront_installation_coupons: Object.freeze(["active", "used", "removed", "expired"]),
   push_media: Object.freeze(["active", "archived", "pending_delete"]),
   push_campaigns: Object.freeze([
     "draft", "scheduled", "processing", "sent", "partially_sent", "failed", "canceled", "paused_plan",
@@ -55,6 +60,7 @@ const RETENTION_POLICY = Object.freeze({
   campaign_technical_days: 90,
   campaign_quota_entry_days: 40,
   daily_aggregate_days: 90,
+  private_inbox_days: 30,
 });
 
 const SENSITIVE_FIELDS = Object.freeze({
@@ -64,9 +70,12 @@ const SENSITIVE_FIELDS = Object.freeze({
   ]),
   storefront_web_sessions: Object.freeze(["session_digest"]),
   storefront_order_links: Object.freeze(["campaign_id_snapshot", "delivery_id_snapshot", "coupon_id_snapshot"]),
+  storefront_installation_coupons: Object.freeze(["installation"]),
   push_media: Object.freeze([]),
   push_campaigns: Object.freeze(["lock_token", "audience_config"]),
-  push_campaign_deliveries: Object.freeze(["claim_token", "firebase_message_id"]),
+  push_campaign_deliveries: Object.freeze([
+    "claim_token", "firebase_message_id", "inbox_title", "inbox_body", "inbox_image_url",
+  ]),
   push_events: Object.freeze(["idempotency_key", "metadata_json", "order", "coupon"]),
   push_daily_stats: Object.freeze([]),
 });
@@ -76,6 +85,10 @@ const TENANT_RELATIONS = Object.freeze({
   storefront_installations: Object.freeze({ app_config: "storefront_app_configs" }),
   storefront_web_sessions: Object.freeze({ installation: "storefront_installations" }),
   storefront_order_links: Object.freeze({ installation: "storefront_installations", order: "orders" }),
+  storefront_installation_coupons: Object.freeze({
+    installation: "storefront_installations",
+    coupon: "manual_coupons",
+  }),
   push_media: Object.freeze({ created_by: "users" }),
   push_campaigns: Object.freeze({
     created_by: "users",
@@ -141,7 +154,8 @@ function recordStoreId(record) {
 }
 
 function isPrivateCollection(collectionName) {
-  return STOREFRONT_PUSH_COLLECTIONS.includes(safeText(collectionName));
+  const name = safeText(collectionName);
+  return STOREFRONT_PUSH_COLLECTIONS.includes(name) || STOREFRONT_CUSTOMER_COLLECTIONS.includes(name);
 }
 
 function isAdminPushCollection(collectionName) {
@@ -228,6 +242,7 @@ module.exports = {
   NOTIFICATION_PERMISSION_STATES,
   RETENTION_POLICY,
   SENSITIVE_FIELDS,
+  STOREFRONT_CUSTOMER_COLLECTIONS,
   STOREFRONT_PUSH_COLLECTIONS,
   TENANT_RELATIONS,
   StorefrontPushSchemaError,
