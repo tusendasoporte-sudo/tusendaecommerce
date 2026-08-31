@@ -51,6 +51,9 @@ test('la APK sustituye el buscador superior por una campana solo cuando existen 
   assert.match(shell, /topSearch\.replaceWith\(inboxOpen\)/);
   assert.match(shell, /inboxOpen\.hidden = state\.inbox\.length < 1/);
   assert.match(shell, /\.pz-native-inbox-open\[hidden\][^{]*\{[^}]*display:\s*none\s*!important/);
+  assert.match(shell, /\.pz-native-inbox-open svg[^}]+fill:\s*none[^}]+stroke:\s*currentColor/);
+  assert.match(shell, /:global\(\.pz-native-notification\)/);
+  assert.match(shell, /:global\(\.pz-native-coupon\)/);
 });
 
 test('los enlaces HTTPS verificados abren únicamente la ruta de la tienda en la APK firmada', () => {

@@ -75,6 +75,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
   .pz-native-inbox-open { position: fixed; z-index: 39; top: calc(14px + env(safe-area-inset-top)); right: 16px; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(203,213,225,.9); border-radius: 18px; color: #071f63; background: rgba(255,255,255,.96); box-shadow: 0 12px 34px rgba(7,31,99,.18); backdrop-filter: blur(12px); }
   .pz-native-inbox-open[hidden] { display: none !important; }
   .pz-native-inbox-open.is-header-slot { position: relative; top: auto; right: auto; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 17px; box-shadow: 0 10px 26px rgba(7,31,99,.12); }
+  .pz-native-inbox-open svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .pz-native-inbox-open span { position: absolute; top: -5px; right: -4px; min-width: 21px; height: 21px; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; border-radius: 999px; color: #fff; background: #155eeb; font-size: 10px; font-weight: 1000; }
   .pz-native-sheet-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(15,23,42,.48); backdrop-filter: blur(4px); }
   .pz-native-sheet { position: fixed; z-index: 71; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(100%, 620px); max-height: min(88vh, 820px); margin: 0 auto; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); overflow: hidden; border: 1px solid #dbeafe; border-bottom: 0; border-radius: 30px 30px 0 0; color: #0f172a; background: #fff; box-shadow: 0 -30px 80px rgba(15,23,42,.24); }
@@ -89,33 +90,33 @@ const nativePreviewEnabled = import.meta.env.DEV;
   .pz-native-sheet-status.is-error { color: #b91c1c; }
   .pz-native-sheet-status.is-success { color: #047857; }
   .pz-native-sheet-list { display: grid; gap: 11px; margin-top: 8px; padding: 2px 2px 14px; overflow-y: auto; overscroll-behavior: contain; }
-  .pz-native-empty { margin: 20px 0; border: 1px dashed #cbd5e1; border-radius: 22px; padding: 24px 18px; color: #64748b; background: #f8fafc; text-align: center; font-size: 13px; font-weight: 800; }
-  .pz-native-notification { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: start; border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
-  .pz-native-notification.is-unread { border-color: #bfdbfe; background: #f8fbff; }
-  .pz-native-notification-main { min-width: 0; border: 0; padding: 0; color: inherit; background: transparent; text-align: left; }
-  .pz-native-notification-dot { width: 10px; height: 10px; margin-top: 6px; border-radius: 999px; background: #155eeb; box-shadow: 0 0 0 4px #dbeafe; }
-  .pz-native-notification:not(.is-unread) .pz-native-notification-dot { background: #cbd5e1; box-shadow: none; }
-  .pz-native-notification h3 { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 1000; }
-  .pz-native-notification p { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 700; }
-  .pz-native-notification time { display: block; margin-top: 7px; color: #94a3b8; font-size: 10px; font-weight: 850; }
-  .pz-native-notification img { grid-column: 2 / 4; width: 100%; max-height: 180px; border-radius: 16px; object-fit: cover; }
-  .pz-native-notification-delete { width: 33px; height: 33px; border: 0; border-radius: 12px; color: #b91c1c; background: #fef2f2; font-size: 18px; font-weight: 900; }
+  :global(.pz-native-empty) { margin: 20px 0; border: 1px dashed #cbd5e1; border-radius: 22px; padding: 24px 18px; color: #64748b; background: #f8fafc; text-align: center; font-size: 13px; font-weight: 800; }
+  :global(.pz-native-notification) { position: relative; display: grid; grid-template-columns: auto 1fr auto; gap: 11px; align-items: start; border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
+  :global(.pz-native-notification.is-unread) { border-color: #bfdbfe; background: #f8fbff; }
+  :global(.pz-native-notification-main) { min-width: 0; border: 0; padding: 0; color: inherit; background: transparent; text-align: left; }
+  :global(.pz-native-notification-dot) { width: 10px; height: 10px; margin-top: 6px; border-radius: 999px; background: #155eeb; box-shadow: 0 0 0 4px #dbeafe; }
+  :global(.pz-native-notification:not(.is-unread) .pz-native-notification-dot) { background: #cbd5e1; box-shadow: none; }
+  :global(.pz-native-notification h3) { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 1000; }
+  :global(.pz-native-notification p) { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 700; }
+  :global(.pz-native-notification time) { display: block; margin-top: 7px; color: #94a3b8; font-size: 10px; font-weight: 850; }
+  :global(.pz-native-notification img) { grid-column: 2 / 4; width: 100%; max-height: 180px; border-radius: 16px; object-fit: cover; }
+  :global(.pz-native-notification-delete) { width: 33px; height: 33px; border: 0; border-radius: 12px; color: #b91c1c; background: #fef2f2; font-size: 18px; font-weight: 900; }
   .pz-native-coupon-form { display: grid; gap: 8px; margin-top: 18px; border: 1px solid #dbeafe; border-radius: 22px; padding: 14px; background: #f8fbff; }
   .pz-native-coupon-form label { color: #071f63; font-size: 13px; font-weight: 1000; }
   .pz-native-coupon-form > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
   .pz-native-coupon-form input { min-width: 0; border: 1px solid #cbd5e1; border-radius: 14px; padding: 11px 12px; color: #0f172a; background: #fff; font-size: 15px; font-weight: 900; text-transform: uppercase; outline: none; }
   .pz-native-coupon-form button { border: 0; border-radius: 14px; padding: 11px 15px; color: #fff; background: #155eeb; font-size: 13px; font-weight: 1000; }
   .pz-native-coupon-form p { margin: 0; color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 700; }
-  .pz-native-coupon { border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; }
-  .pz-native-coupon.is-selected { border-color: #155eeb; background: #f5f9ff; box-shadow: 0 8px 22px rgba(21,94,235,.09); }
-  .pz-native-coupon-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-  .pz-native-coupon-code { display: inline-flex; border-radius: 999px; padding: 7px 10px; color: #fff; background: #071f63; font-size: 12px; font-weight: 1000; letter-spacing: .05em; }
-  .pz-native-coupon-selected { color: #155eeb; font-size: 11px; font-weight: 1000; }
-  .pz-native-coupon p { margin: 10px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 750; }
-  .pz-native-coupon small { display: block; margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 750; }
-  .pz-native-coupon-actions { display: flex; gap: 9px; margin-top: 12px; }
-  .pz-native-coupon-actions button { border: 1px solid #dbeafe; border-radius: 13px; padding: 8px 11px; color: #155eeb; background: #eff6ff; font-size: 11px; font-weight: 950; }
-  .pz-native-coupon-actions button.is-remove { border-color: #e2e8f0; color: #64748b; background: #f8fafc; }
+  :global(.pz-native-coupon) { border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; }
+  :global(.pz-native-coupon.is-selected) { border-color: #155eeb; background: #f5f9ff; box-shadow: 0 8px 22px rgba(21,94,235,.09); }
+  :global(.pz-native-coupon-head) { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+  :global(.pz-native-coupon-code) { display: inline-flex; border-radius: 999px; padding: 7px 10px; color: #fff; background: #071f63; font-size: 12px; font-weight: 1000; letter-spacing: .05em; }
+  :global(.pz-native-coupon-selected) { color: #155eeb; font-size: 11px; font-weight: 1000; }
+  :global(.pz-native-coupon p) { margin: 10px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 750; }
+  :global(.pz-native-coupon small) { display: block; margin-top: 5px; color: #64748b; font-size: 10px; line-height: 1.4; font-weight: 750; }
+  :global(.pz-native-coupon-actions) { display: flex; gap: 9px; margin-top: 12px; }
+  :global(.pz-native-coupon-actions button) { border: 1px solid #dbeafe; border-radius: 13px; padding: 8px 11px; color: #155eeb; background: #eff6ff; font-size: 11px; font-weight: 950; }
+  :global(.pz-native-coupon-actions button.is-remove) { border-color: #e2e8f0; color: #64748b; background: #f8fafc; }
   .pz-native-bottom-nav { position: fixed; z-index: 38; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr 1fr 1.15fr 1fr 1fr; align-items: end; min-height: calc(70px + env(safe-area-inset-bottom)); padding: 7px max(7px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-right)); border-top: 1px solid rgba(203,213,225,.88); background: rgba(255,255,255,.97); box-shadow: 0 -12px 34px rgba(15,23,42,.11); backdrop-filter: blur(14px); }
   .pz-native-bottom-nav > a, .pz-native-bottom-nav > button, .pz-native-currency { position: relative; display: grid; justify-items: center; align-content: center; gap: 2px; min-width: 0; min-height: 54px; border: 0; padding: 2px; color: #52617d; background: transparent; text-decoration: none; }
   .pz-native-bottom-nav span, .pz-native-currency select { max-width: 100%; font-size: 9px; font-weight: 950; }
