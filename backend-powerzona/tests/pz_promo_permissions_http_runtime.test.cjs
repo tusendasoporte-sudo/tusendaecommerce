@@ -32,6 +32,8 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787699300_promo_reviews_without_photos.js',
   '1787699400_promo_review_request_secure_sharing.js',
   '1787699500_promo_media_quota_300.js',
+  '1787699600_promo_operational_defaults.js',
+  '1787699700_promo_publish_empty_foundations.js',
 ];
 
 function runtimeEnvironment() {

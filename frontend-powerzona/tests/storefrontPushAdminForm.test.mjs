@@ -36,7 +36,7 @@ const client = {
 const pushCampaignViewSource = readFileSync(
   new URL('../src/components/admin/PushCampaignsView.astro', import.meta.url),
   'utf8',
-);
+).replace(/\r\n/g, '\n');
 
 test('la selección masiva usa acciones de texto horizontales sin tarjeta contenedora', () => {
   assert.match(pushCampaignViewSource, /\.push-selection-toolbar \{ display: grid; grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);/);
