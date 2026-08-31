@@ -70,7 +70,7 @@ Los recursos se validan contra `brands/{brand}/brand.json` y se copian a `app/bu
 Los hashes PowerZona vigentes son:
 
 - `brands/powerzona/icon.png`: `e284d6746df6e11f22c344eac4a117855c61cf8e737a51db3cec1d7415c8dadb`.
-- `brands/powerzona/notification_icon.xml`: `dacaabc69d8aed099c9eb5b0141a2559203cdad0cb45df245dec5cc394ebdb62`.
+- `brands/powerzona/notification_icon.xml`: `19a2022d73ed75de4fe19eccef4e4b3251d8c42fa49b586db339ee5eea24eab7` (marcado `-text` para conservar bytes idénticos en el runner Windows).
 - `brands/powerzona/splash.png`: `6934893ef19c110e30facc2ef87eb1a91a26d4b0346cd190f90ea02f3f007bdf`.
 
 ## Vista previa sin efectos externos

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
@@ -21,9 +22,12 @@ const notifications = readFileSync(new URL(
   '../../mobile-storefront/app/src/main/java/com/tusenda84/storefront/StorefrontNotifications.java',
   import.meta.url,
 ), 'utf8');
-const powerZonaNotificationIcon = readFileSync(new URL(
+const powerZonaNotificationIconUrl = new URL(
   '../../mobile-storefront/brands/powerzona/notification_icon.xml', import.meta.url,
-), 'utf8');
+);
+const powerZonaNotificationIconBytes = readFileSync(powerZonaNotificationIconUrl);
+const powerZonaNotificationIcon = powerZonaNotificationIconBytes.toString('utf8');
+const gitAttributes = readFileSync(new URL('../../.gitattributes', import.meta.url), 'utf8');
 const powerZonaBrand = JSON.parse(readFileSync(new URL(
   '../../mobile-storefront/brands/powerzona/brand.json', import.meta.url,
 ), 'utf8'));
@@ -69,6 +73,10 @@ test('la firma privada conserva rutas Windows literales sin interpretar unicode'
 test('PowerZona usa su PZ monocromatico como icono pequeno sin cambiar el icono grande', () => {
   assert.equal(powerZonaBrand.assets.notification_icon.file, 'notification_icon.xml');
   assert.match(powerZonaBrand.assets.notification_icon.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(
+    createHash('sha256').update(powerZonaNotificationIconBytes).digest('hex'),
+    powerZonaBrand.assets.notification_icon.sha256,
+  );
   assert.match(powerZonaNotificationIcon, /android:fillColor="#FFFFFFFF"/);
   assert.match(powerZonaNotificationIcon, /M2,4[\s\S]*M12\.5,4/);
   assert.doesNotMatch(powerZonaNotificationIcon, /M13\.2,1\.5 L4\.4,13\.4/);
@@ -76,4 +84,5 @@ test('PowerZona usa su PZ monocromatico como icono pequeno sin cambiar el icono 
   assert.match(notifications, /setSmallIcon\(R\.drawable\.storefront_notification_icon\)/);
   assert.match(mainManifest, /default_notification_icon[\s\S]*@drawable\/storefront_notification_icon/);
   assert.match(mainManifest, /android:icon="@drawable\/storefront_icon"/);
+  assert.match(gitAttributes, /mobile-storefront\/brands\/powerzona\/\*\.xml -text/);
 });

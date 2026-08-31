@@ -21,7 +21,7 @@
     "notification_icon": {
       "file": "notification_icon.xml",
       "source": "PowerZona PZ monochrome notification mark",
-      "sha256": "dacaabc69d8aed099c9eb5b0141a2559203cdad0cb45df245dec5cc394ebdb62"
+      "sha256": "19a2022d73ed75de4fe19eccef4e4b3251d8c42fa49b586db339ee5eea24eab7"
     },
     "splash": {
       "file": "splash.png",
