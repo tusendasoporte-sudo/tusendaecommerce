@@ -769,11 +769,15 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
     const stableMetadataUrl = `${stableDownloadUrl}/metadata`;
     const stableMetadata = await request(`/api/pz/storefront-app-downloads/by-store/${store.slug}/metadata`);
     assertStatus(stableMetadata, 200, 'consultar metadatos publicos de la APK');
+    assert.ok(Number.isFinite(Date.parse(stableMetadata.data.artifact.published_at)));
     assert.deepEqual(stableMetadata.data, {
       ok: true,
       app: { display_name: 'App Tienda C10 Runtime' },
       artifact: {
-        bytes: APK_BYTES.length, version_code: 7, version_name: '1.4.0',
+        bytes: APK_BYTES.length,
+        published_at: stableMetadata.data.artifact.published_at,
+        version_code: 7,
+        version_name: '1.4.0',
       },
     });
     assert.doesNotMatch(JSON.stringify(stableMetadata.data), /sha|capability|download_url/i);

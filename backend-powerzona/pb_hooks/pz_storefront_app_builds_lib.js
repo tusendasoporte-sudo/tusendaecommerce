@@ -2859,6 +2859,7 @@ function handleStorefrontAppDownloadMetadata(e) {
         bytes: recordNumber(resolved.artifact, "bytes"),
         version_code: recordNumber(resolved.artifact, "version_code"),
         version_name: recordString(resolved.artifact, "version_name", 40),
+        published_at: isoDate(recordValue(resolved.artifact, "published_at")),
       },
     });
   } catch (_) {

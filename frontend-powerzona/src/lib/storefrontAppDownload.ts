@@ -33,9 +33,17 @@ export function storefrontAppDownloadMetadataUrl(pocketBaseOrigin: unknown, rawS
 export type StorefrontAppDownloadMetadata = Readonly<{
   displayName: string;
   bytes: number;
+  publishedAt: string;
   versionCode: number;
   versionName: string;
 }>;
+
+function normalizedPublishedAt(value: unknown) {
+  const raw = String(value || '').trim().slice(0, 80);
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : '';
+}
 
 export function parseStorefrontAppDownloadMetadata(value: unknown): StorefrontAppDownloadMetadata | null {
   const payload = value && typeof value === 'object' && !Array.isArray(value) ? value as any : null;
@@ -43,12 +51,13 @@ export function parseStorefrontAppDownloadMetadata(value: unknown): StorefrontAp
   const artifact = payload?.artifact && typeof payload.artifact === 'object' ? payload.artifact : null;
   const displayName = String(app?.display_name || '').trim().slice(0, 120);
   const bytes = Number(artifact?.bytes);
+  const publishedAt = normalizedPublishedAt(artifact?.published_at);
   const versionCode = Number(artifact?.version_code);
   const versionName = String(artifact?.version_name || '').trim();
   if (payload?.ok !== true || !displayName || !Number.isSafeInteger(bytes) || bytes < 1
     || !Number.isSafeInteger(versionCode) || versionCode < 1
     || !VERSION_PATTERN.test(versionName)) return null;
-  return { displayName, bytes, versionCode, versionName };
+  return { displayName, bytes, publishedAt, versionCode, versionName };
 }
 
 export function formatStorefrontAppDownloadSize(bytes: unknown) {
@@ -56,4 +65,15 @@ export function formatStorefrontAppDownloadSize(bytes: unknown) {
   if (!Number.isSafeInteger(value) || value < 1) return '';
   const megabytes = value / (1024 * 1024);
   return `${megabytes.toFixed(1).replace(/\.0$/, '')} MB`;
+}
+
+export function formatStorefrontAppPublishedDate(value: unknown) {
+  const publishedAt = normalizedPublishedAt(value);
+  if (!publishedAt) return '';
+  return new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'America/Havana',
+  }).format(new Date(publishedAt));
 }

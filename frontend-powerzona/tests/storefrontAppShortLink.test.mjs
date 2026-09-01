@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   formatStorefrontAppDownloadSize,
+  formatStorefrontAppPublishedDate,
   parseStorefrontAppDownloadMetadata,
   storefrontAppDownloadAliasUrl,
   storefrontAppDownloadMetadataUrl,
@@ -39,12 +40,20 @@ test('metadatos públicos se validan y el tamaño se presenta sin hash', () => {
   assert.deepEqual(parseStorefrontAppDownloadMetadata({
     ok: true,
     app: { display_name: 'Power Zona' },
-    artifact: { bytes: 15728640, file_name: 'powerzona-0.2.11-21-direct.apk', version_code: 21, version_name: '0.2.11' },
+    artifact: {
+      bytes: 15728640,
+      file_name: 'powerzona-0.2.11-21-direct.apk',
+      published_at: '2026-08-31T19:24:00.000Z',
+      version_code: 21,
+      version_name: '0.2.11',
+    },
   }), {
     displayName: 'Power Zona', bytes: 15728640,
-    versionCode: 21, versionName: '0.2.11',
+    publishedAt: '2026-08-31T19:24:00.000Z', versionCode: 21, versionName: '0.2.11',
   });
   assert.equal(formatStorefrontAppDownloadSize(15728640), '15 MB');
+  assert.equal(formatStorefrontAppPublishedDate('2026-08-31T19:24:00.000Z'), '31 de agosto de 2026');
+  assert.equal(formatStorefrontAppPublishedDate('fecha-invalida'), '');
   assert.equal(parseStorefrontAppDownloadMetadata({ ok: true, app: {}, artifact: {} }), null);
 });
 
@@ -53,6 +62,7 @@ test('enlace principal presenta la app y la descarga conserva el alias dinámico
   const download = readFileSync(new URL('../src/pages/app/[storeSlug]/descargar.ts', import.meta.url), 'utf8');
   assert.match(page, /Descargar APK/);
   assert.match(page, /Versión/);
+  assert.match(page, /Publicada el/);
   assert.match(page, /Tamaño/);
   assert.match(page, /powerzona-app-preview-android\.png/);
   assert.match(page, /storefrontAppDownloadMetadataUrl/);

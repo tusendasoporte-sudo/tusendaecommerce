@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
 import {
   formatStorefrontAppDownloadSize,
+  formatStorefrontAppPublishedDate,
   parseStorefrontAppDownloadMetadata,
   storefrontAppDownloadMetadataUrl,
 } from '../../lib/storefrontAppDownload';
@@ -29,6 +30,7 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
 
 const appName = metadata?.displayName || 'Power Zona';
 const versionLabel = metadata?.versionName || 'No disponible';
+const publishedDateLabel = metadata ? formatStorefrontAppPublishedDate(metadata.publishedAt) : '';
 const sizeLabel = metadata ? formatStorefrontAppDownloadSize(metadata.bytes) : 'No disponible';
 const downloadPath = `/app/${encodeURIComponent(storeSlug)}/descargar`;
 const canonical = `/app/${encodeURIComponent(storeSlug)}`;
@@ -62,7 +64,13 @@ const seo = {
         <p class="app-preview-description">{description}</p>
 
         <dl class="app-preview-metadata">
-          <div><dt>Versión</dt><dd>{versionLabel}</dd></div>
+          <div>
+            <dt>Versión</dt>
+            <dd>
+              <span>{versionLabel}</span>
+              {publishedDateLabel && <small>Publicada el {publishedDateLabel}</small>}
+            </dd>
+          </div>
           <div><dt>Tamaño</dt><dd>{sizeLabel}</dd></div>
         </dl>
 
@@ -127,7 +135,8 @@ const seo = {
   .app-preview-metadata { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 12px; width: min(100%, 430px); margin: 2px 0; }
   .app-preview-metadata div { display: grid; gap: 4px; border: 1px solid #dbeafe; border-radius: 18px; padding: 15px; background: #f8fbff; }
   .app-preview-metadata dt { color: #64748b; font-size: 12px; font-weight: 900; text-transform: uppercase; }
-  .app-preview-metadata dd { margin: 0; color: #071f63; font-size: 16px; font-weight: 1000; }
+  .app-preview-metadata dd { display: grid; gap: 3px; margin: 0; color: #071f63; font-size: 16px; font-weight: 1000; }
+  .app-preview-metadata dd small { color: #64748b; font-size: 10px; line-height: 1.25; font-weight: 800; }
   .app-preview-download { display: grid; gap: 3px; width: min(100%, 430px); border-radius: 20px; padding: 16px 22px; color: #fff; background: linear-gradient(135deg,#155eeb,#0845bd); text-decoration: none; box-shadow: 0 18px 40px rgba(21,94,235,.28); }
   .app-preview-download span { font-size: 17px; font-weight: 1000; }
   .app-preview-download small { color: #dbeafe; font-size: 12px; font-weight: 750; }
