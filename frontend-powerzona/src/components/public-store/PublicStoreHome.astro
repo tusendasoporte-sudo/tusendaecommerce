@@ -6,6 +6,7 @@ import PublicConfirm from './PublicConfirm.astro';
 import PublicRafflesSection from './PublicRafflesSection.astro';
 import PromoBar from '../PromoBar.astro';
 import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
+import StorefrontAppHomeFooter from '../StorefrontAppHomeFooter.astro';
 import { getSettings, getCategories, getSubcategories, getHomepageProducts, getProductTaxonomyIndex, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
@@ -117,6 +118,7 @@ const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
+const privacyPath = getPublicPath('/privacidad', currentStore, currentPathname);
 const searchPath = getPublicPath('/buscar', currentStore, currentPathname);
 const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
 const productAnchorPath = getPublicPath('/#destacados', currentStore, currentPathname);
@@ -2805,6 +2807,11 @@ function getProductOfferView(product: any) {
     </section>
   )}
   <StoreAnalyticsTracker storeId={currentStoreId} pageType="store_home" />
+  <StorefrontAppHomeFooter
+    contactHref={whatsappStoreHref === '#' ? '' : whatsappStoreHref}
+    privacyPath={privacyPath}
+    storeName={storeName}
+  />
   <PublicFooter settings={settings} />
   <PublicConfirm />
 

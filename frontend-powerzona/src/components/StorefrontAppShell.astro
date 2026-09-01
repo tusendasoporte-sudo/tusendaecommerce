@@ -68,6 +68,7 @@ const nativePreviewEnabled = import.meta.env.DEV;
   .pz-native-app-shell svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   :global(body.pz-storefront-app) { --pz-app-nav-height: 60px; padding-bottom: calc(var(--pz-app-nav-height, 60px) + env(safe-area-inset-bottom)); }
   :global(body.pz-storefront-app #cart-floating-btn), :global(body.pz-storefront-app #pz-currency-switcher) { display: none !important; }
+  :global(body.pz-storefront-app .pz-public-footer) { display: none !important; }
   :global(body.pz-storefront-app .public-search-shell),
   :global(body.pz-storefront-app .public-mobile-search),
   :global(body.pz-storefront-app a.product-top-icon-btn[aria-label="Buscar productos"]) { display: none !important; }

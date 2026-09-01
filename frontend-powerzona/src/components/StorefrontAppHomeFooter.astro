@@ -1,0 +1,43 @@
+---
+const {
+  contactHref = '',
+  privacyPath = '',
+  storeName = 'Tienda',
+} = Astro.props;
+const currentYear = new Date().getUTCFullYear();
+const safeContactHref = String(contactHref || '').trim();
+const safePrivacyPath = String(privacyPath || '').trim();
+const safeStoreName = String(storeName || 'Tienda').trim() || 'Tienda';
+---
+
+<footer class="pz-native-home-footer" aria-label={`Información de ${safeStoreName}`}>
+  <strong>{safeStoreName}</strong>
+  <span>© {currentYear} {safeStoreName}</span>
+  <nav aria-label="Enlaces de la aplicación">
+    {safePrivacyPath && <a href={safePrivacyPath}>Privacidad</a>}
+    {safePrivacyPath && safeContactHref && <i aria-hidden="true">•</i>}
+    {safeContactHref && <a href={safeContactHref} target="_blank" rel="noreferrer">Contacto</a>}
+  </nav>
+</footer>
+
+<style>
+  .pz-native-home-footer { display: none; }
+  :global(body.pz-storefront-app) .pz-native-home-footer {
+    width: calc(100% + 2rem);
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    margin: 10px -1rem 0;
+    padding: 24px 16px 26px;
+    border-top: 1px solid rgba(147,197,253,.72);
+    border-bottom: 1px solid rgba(191,219,254,.58);
+    background: linear-gradient(180deg,rgba(255,255,255,.98),rgba(239,246,255,.98));
+    color: #071f63;
+    text-align: center;
+  }
+  .pz-native-home-footer strong { font-size: 17px; line-height: 1.1; font-weight: 1000; }
+  .pz-native-home-footer > span { color: #64748b; font-size: 12px; line-height: 1.3; font-weight: 750; }
+  .pz-native-home-footer nav { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 24px; }
+  .pz-native-home-footer nav a { color: #155eeb; font-size: 12px; line-height: 1.2; font-weight: 900; text-decoration: none; }
+  .pz-native-home-footer nav i { color: #64748b; font-size: 12px; font-style: normal; }
+</style>

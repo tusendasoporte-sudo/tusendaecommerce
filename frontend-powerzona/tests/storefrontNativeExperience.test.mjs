@@ -6,6 +6,8 @@ const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf
 
 const layout = read('../src/layouts/Layout.astro');
 const shell = read('../src/components/StorefrontAppShell.astro');
+const home = read('../src/components/public-store/PublicStoreHome.astro');
+const homeFooter = read('../src/components/StorefrontAppHomeFooter.astro');
 const hubProxy = read('../src/pages/api/storefront/v1/customer-hub.ts');
 const assetLinks = read('../src/pages/.well-known/assetlinks.json.ts');
 const checkout = read('../src/pages/checkout.astro');
@@ -78,6 +80,18 @@ test('la navegación APK queda compacta y pegada a la barra segura de Android', 
   assert.match(shell, /\.pz-native-bottom-nav > a[^}]+min-height:\s*50px/);
   assert.match(shell, /\.pz-native-home[^}]+translateY\(-7px\)/);
   assert.match(shell, /\.pz-native-home-icon[^}]+width:\s*44px[^}]+height:\s*44px/);
+});
+
+test('la APK sustituye el footer web por uno compacto solo al final de Inicio', () => {
+  assert.match(shell, /body\.pz-storefront-app \.pz-public-footer[^}]+display:\s*none\s*!important/);
+  assert.match(home, /<StorefrontAppHomeFooter/);
+  assert.match(home, /privacyPath=\{privacyPath\}/);
+  assert.match(home, /contactHref=\{whatsappStoreHref === '#' \? '' : whatsappStoreHref\}/);
+  assert.match(homeFooter, /body\.pz-storefront-app/);
+  assert.match(homeFooter, /<footer class="pz-native-home-footer"/);
+  assert.match(homeFooter, />Privacidad<\/a>/);
+  assert.match(homeFooter, />Contacto<\/a>/);
+  assert.doesNotMatch(homeFooter, /position:\s*(?:fixed|sticky)/);
 });
 
 test('la APK conserva la marca solo en Inicio y prioriza el regreso contextual en vistas internas', () => {
