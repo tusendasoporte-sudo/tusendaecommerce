@@ -64,12 +64,20 @@ test('la APK sustituye el buscador superior por una campana solo cuando existen 
 });
 
 test('la barra de compra flota sobre la navegación y responde al scroll en la APK', () => {
-  assert.match(shell, /body\.pz-storefront-app\.product-detail-page \.product-mobile-cta[^}]+bottom:\s*calc\(76px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(shell, /product-add-floating-active[^}]+padding-bottom:\s*calc\(168px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(shell, /body\.pz-storefront-app\.product-detail-page \.product-mobile-cta[^}]+bottom:\s*calc\(var\(--pz-app-nav-height, 60px\) \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(shell, /product-add-floating-active[^}]+padding-bottom:\s*calc\(152px \+ env\(safe-area-inset-bottom\)\)/);
   assert.match(product, /document\.querySelector\('\.pz-native-bottom-nav'\)/);
   assert.match(product, /window\.innerHeight - bottomOcclusion/);
   assert.match(product, /window\.addEventListener\('scroll', schedulePurchaseActionsVisibility, \{ passive: true \}\)/);
   assert.match(product, /window\.visualViewport\?\.addEventListener\('resize', schedulePurchaseActionsVisibility\)/);
+});
+
+test('la navegación APK queda compacta y pegada a la barra segura de Android', () => {
+  assert.match(shell, /--pz-app-nav-height:\s*60px/);
+  assert.match(shell, /\.pz-native-bottom-nav[^}]+min-height:\s*calc\(var\(--pz-app-nav-height, 60px\) \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(shell, /\.pz-native-bottom-nav > a[^}]+min-height:\s*50px/);
+  assert.match(shell, /\.pz-native-home[^}]+translateY\(-7px\)/);
+  assert.match(shell, /\.pz-native-home-icon[^}]+width:\s*44px[^}]+height:\s*44px/);
 });
 
 test('la APK conserva la marca solo en Inicio y prioriza el regreso contextual en vistas internas', () => {
