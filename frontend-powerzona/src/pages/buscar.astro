@@ -122,21 +122,22 @@ const searchItems = [
     .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-size: 18px; font-weight: 1000; display: none; }
     .search-clear.is-visible { display: inline-flex; align-items: center; justify-content: center; }
     .results-info { margin: 0 0 16px; color: #64748b; font-size: 14px; font-weight: 850; }
-    .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .result-card { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 24px; padding: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.06); color: #111827; text-decoration: none; min-width: 0; }
-    .result-img { width: 62px; height: 62px; border-radius: 18px; background: #f8fafc; border: 1px solid #eef2f7; object-fit: cover; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 20px; font-weight: 1000; }
-    .result-main { min-width: 0; flex: 1; }
-    .result-name { margin: 0; color: #111827; font-size: 14px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .result-subtitle { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .result-price { margin: 5px 0 0; color: #111827; font-size: 13px; font-weight: 1000; }
-    .result-type { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #f1f5f9; color: #64748b; padding: 5px 8px; font-size: 11px; font-weight: 1000; flex: 0 0 auto; }
+    .result-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .search-shell :global(.result-card) { display: flex; align-items: center; gap: 12px; min-height: 88px; background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 8px 12px 8px 8px; box-shadow: 0 10px 28px rgba(15,23,42,.06); color: #111827; text-decoration: none; min-width: 0; }
+    .search-shell :global(.result-card:hover) { border-color: #cbd5e1; box-shadow: 0 14px 34px rgba(15,23,42,.1); }
+    .search-shell :global(.result-img) { width: 72px; height: 72px; border-radius: 16px; background: #f8fafc; border: 1px solid #eef2f7; object-fit: contain; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 20px; font-weight: 1000; }
+    .search-shell :global(.result-main) { min-width: 0; flex: 1; }
+    .search-shell :global(.result-name) { margin: 0; color: #111827; font-size: 14px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-shell :global(.result-subtitle) { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-shell :global(.result-price) { margin: 5px 0 0; color: #111827; font-size: 13px; font-weight: 1000; }
+    .search-shell :global(.result-type) { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #f1f5f9; color: #64748b; padding: 5px 8px; font-size: 11px; font-weight: 1000; flex: 0 0 auto; }
     .recent-card, .empty-card { background: #fff; border: 1px solid #eef2f7; border-radius: 26px; padding: 18px; box-shadow: 0 12px 34px rgba(15,23,42,.06); }
     .recent-title { margin: 0 0 12px; color: #111827; font-size: 16px; font-weight: 1000; }
     .recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .recent-chip { border: 1px solid #e5e7eb; background: #f8fafc; color: #111827; border-radius: 999px; padding: 10px 13px; font-size: 13px; font-weight: 1000; }
+    .search-shell :global(.recent-chip) { border: 1px solid #e5e7eb; background: #f8fafc; color: #111827; border-radius: 999px; padding: 10px 13px; font-size: 13px; font-weight: 1000; }
     .empty-card { color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
     [hidden] { display: none !important; }
-    @media (max-width: 700px) { .result-grid { grid-template-columns: 1fr; } .search-store { max-width: 52vw; } .search-panel { border-radius: 26px; } }
+    @media (max-width: 700px) { .search-store { max-width: 52vw; } .search-panel { border-radius: 26px; } .search-shell :global(.result-card) { min-height: 80px; padding: 7px 9px 7px 7px; } .search-shell :global(.result-img) { width: 64px; height: 64px; border-radius: 14px; } .search-shell :global(.result-type) { display: none; } }
   </style>
 
   <div class="search-shell">
