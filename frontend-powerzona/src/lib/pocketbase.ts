@@ -1,7 +1,12 @@
 import PocketBase from 'pocketbase';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl';
+import { resolvePublicMediaBaseUrl } from './publicMediaUrl';
 
 const publicPocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+const publicMediaUrl = resolvePublicMediaBaseUrl(
+  import.meta.env.PUBLIC_MEDIA_CDN_URL,
+  publicPocketbaseUrl,
+);
 const pocketbaseApiUrl = import.meta.env.SSR
   ? serverPocketBaseUrl()
   : publicPocketbaseUrl;
@@ -12,6 +17,10 @@ if (!publicPocketbaseUrl) {
 
 if (!pocketbaseApiUrl) {
   throw new Error('La URL de PocketBase para SSR no es valida');
+}
+
+if (!publicMediaUrl) {
+  throw new Error('PUBLIC_MEDIA_CDN_URL no es una URL publica valida');
 }
 
 export const pb = new PocketBase(pocketbaseApiUrl);
@@ -28,7 +37,7 @@ export function getPocketBaseFileUrl(
 ) {
   const url = new URL(
     `/api/files/${encodeURIComponent(collectionIdOrName)}/${encodeURIComponent(recordId)}/${encodeURIComponent(filename)}`,
-    publicPocketbaseUrl,
+    publicMediaUrl,
   );
   if (options.thumb) url.searchParams.set('thumb', options.thumb);
   return url.toString();
