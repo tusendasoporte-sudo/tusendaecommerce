@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   internalPath: '/api/pz/storefront/v1/updates/verified',
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.update_verified,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontUpdateVerifiedPayload,
   mapSuccess: mapStorefrontUpdateVerifiedResponse,
 });

@@ -10,6 +10,7 @@ const deletion = require('../pb_hooks/pz_master_store_deletion_lib.js');
 const PUBLIC_COLLECTIONS = [
   'storefront_app_configs',
   'storefront_installations',
+  'storefront_installation_diagnostics',
   'storefront_web_sessions',
   'storefront_order_links',
   'storefront_installation_coupons',
@@ -36,7 +37,7 @@ const PROMO_COLLECTIONS = [
   ['promo_sites', 'promo_sites'],
 ];
 
-test('el inventario Master cuenta y verifica las ocho colecciones nuevas', () => {
+test('el inventario Master cuenta y verifica toda la familia pública', () => {
   for (const collection of PUBLIC_COLLECTIONS) {
     assert.equal(deletion.COUNT_KEYS.includes(collection), true, collection);
     assert.equal(deletion.DIRECT_STORE_COLLECTIONS.includes(collection), true, collection);
@@ -74,6 +75,7 @@ test('la eliminación explícita borra solo la tienda objetivo y respeta el orde
     'push_daily_stats',
     'push_events',
     'push_campaign_deliveries',
+    'storefront_installation_diagnostics',
     'storefront_installation_coupons',
     'storefront_order_links',
     'storefront_web_sessions',

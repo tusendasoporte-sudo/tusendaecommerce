@@ -8,6 +8,7 @@ import android.util.Base64;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 import javax.crypto.Cipher;
@@ -21,8 +22,15 @@ final class StorefrontInstallationStore {
     private static final String IV = "installation_credential_iv";
     private static final String NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested";
     private static final String LAST_REPORTED_PERMISSION = "last_reported_notification_permission";
+    private static final String INSTALLATION_ID = "installation_uuid_v2";
+    private static final String LAST_SUCCESSFUL_SYNC = "last_successful_sync";
+    private static final String LAST_REALTIME_STATUS = "last_realtime_status";
+    private static final String LAST_REALTIME_STATUS_AT = "last_realtime_status_at";
     private static final String KEY_ALIAS = "pz_storefront_installation_credential_v1";
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
+    private static final Pattern INSTALLATION_ID_PATTERN = Pattern.compile(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    );
 
     private StorefrontInstallationStore() {}
 
@@ -72,6 +80,51 @@ final class StorefrontInstallationStore {
 
     static synchronized boolean hasCredential(Context context) {
         return !credential(context).isEmpty();
+    }
+
+    static synchronized String installationId(Context context) {
+        SharedPreferences preferences = preferences(context);
+        String existing = preferences.getString(INSTALLATION_ID, "");
+        if (existing != null && INSTALLATION_ID_PATTERN.matcher(existing).matches()) return existing;
+        String created = UUID.randomUUID().toString();
+        if (!preferences.edit().putString(INSTALLATION_ID, created).commit()) {
+            throw new IllegalStateException("installation_storage_unavailable");
+        }
+        return created;
+    }
+
+    static synchronized boolean hasInstallationId(Context context) {
+        String value = preferences(context).getString(INSTALLATION_ID, "");
+        return value != null && INSTALLATION_ID_PATTERN.matcher(value).matches();
+    }
+
+    static synchronized void recordSuccessfulSync(Context context, String timestamp) {
+        if (timestamp == null || timestamp.isEmpty() || timestamp.length() > 40) return;
+        preferences(context).edit().putString(LAST_SUCCESSFUL_SYNC, timestamp).apply();
+    }
+
+    static synchronized String lastSuccessfulSync(Context context) {
+        String value = preferences(context).getString(LAST_SUCCESSFUL_SYNC, "");
+        return value == null ? "" : value;
+    }
+
+    static synchronized void recordRealtimeStatus(Context context, String status, String timestamp) {
+        if (!"connected".equals(status) && !"unavailable".equals(status)) return;
+        if (timestamp == null || timestamp.isEmpty() || timestamp.length() > 40) return;
+        preferences(context).edit()
+                .putString(LAST_REALTIME_STATUS, status)
+                .putString(LAST_REALTIME_STATUS_AT, timestamp)
+                .apply();
+    }
+
+    static synchronized String lastRealtimeStatus(Context context) {
+        String value = preferences(context).getString(LAST_REALTIME_STATUS, "");
+        return value == null ? "" : value;
+    }
+
+    static synchronized String lastRealtimeStatusAt(Context context) {
+        String value = preferences(context).getString(LAST_REALTIME_STATUS_AT, "");
+        return value == null ? "" : value;
     }
 
     static synchronized void markNotificationPermissionRequested(Context context) {

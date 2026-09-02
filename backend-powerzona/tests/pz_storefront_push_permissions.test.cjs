@@ -28,7 +28,7 @@ function store(plan, overrides = {}) {
 }
 
 function fixture(plan, assigned = ['marketing.push.manage'], overrides = {}) {
-  const tenant = store(plan, overrides);
+  const tenant = store(plan, { plan_is_permanent: true, plan_expires_at: '', ...overrides });
   const user = { id: USER_ID, role: 'store_staff', status: 'active', store: STORE_ID };
   const access = { store: STORE_ID, user: USER_ID, template_code: 'custom', permissions_json: assigned };
   return {
@@ -78,6 +78,7 @@ test('las colecciones privadas permanecen cerradas al CRUD incluso para usuarios
   assert.deepEqual(enforcement.STOREFRONT_PUSH_PRIVATE_COLLECTIONS, [
     'storefront_app_configs',
     'storefront_installations',
+    'storefront_installation_diagnostics',
     'storefront_app_download_events',
     'storefront_web_sessions',
     'storefront_order_links',

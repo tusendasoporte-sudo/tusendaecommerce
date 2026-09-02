@@ -17,6 +17,7 @@ import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.installations.FirebaseInstallations;
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -26,11 +27,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,6 +62,10 @@ final class StorefrontRegistrationClient {
 
     interface UpdateTicketCallback {
         void complete(UpdateTicket ticket);
+    }
+
+    interface RealtimeTicketCallback {
+        void complete(RealtimeTicket ticket);
     }
 
     static final class Result {
@@ -144,6 +152,16 @@ final class StorefrontRegistrationClient {
         }
     }
 
+    static final class RealtimeTicket {
+        final String webSocketUrl;
+        final String ticket;
+
+        RealtimeTicket(String webSocketUrl, String ticket) {
+            this.webSocketUrl = webSocketUrl;
+            this.ticket = ticket;
+        }
+    }
+
     private interface Operation {
         Result run() throws Exception;
     }
@@ -160,6 +178,10 @@ final class StorefrontRegistrationClient {
         UpdateTicket run() throws Exception;
     }
 
+    private interface RealtimeTicketOperation {
+        RealtimeTicket run() throws Exception;
+    }
+
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
     private static final Pattern BOOTSTRAP_URL_PATTERN = Pattern.compile(
             "^https://[^/]+/api/storefront/v1/session/bootstrap/pzb_v1_[A-Za-z0-9]{48}$"
@@ -174,9 +196,17 @@ final class StorefrontRegistrationClient {
     private static final Pattern SAFE_ERROR = Pattern.compile("^[a-z0-9_]{1,80}$");
     private static final Pattern CAMPAIGN_PATTERN = Pattern.compile("^[a-z0-9]{15}$");
     private static final Pattern UPDATE_TICKET_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{43}$");
+    private static final Pattern REALTIME_TICKET_PATTERN = Pattern.compile(
+            "^pzrt_v1\\.[a-f0-9]{64}\\.[0-9]{10}\\.[0-9]{10}\\."
+                    + "[A-Za-z0-9]{32}\\.[a-f0-9]{64}$"
+    );
     private static final int RESPONSE_LIMIT = 65_536;
     private static final long APP_SET_TIMEOUT_SECONDS = 5;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final ExecutorService FIREBASE_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final ExecutorService DIAGNOSTICS_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final AtomicBoolean FIREBASE_ENRICHMENT_ACTIVE = new AtomicBoolean(false);
+    private static final AtomicBoolean DIAGNOSTICS_UPLOAD_ACTIVE = new AtomicBoolean(false);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private final Context context;
@@ -186,15 +216,15 @@ final class StorefrontRegistrationClient {
     }
 
     void register(Callback callback) {
-        execute(callback, () -> registerInternal(false, RegistrationOrigin.USER_ACTION));
+        executeCoreRegistration(callback, RegistrationOrigin.USER_ACTION);
     }
 
     void syncFromAppStart(Callback callback) {
-        execute(callback, () -> registerInternal(false, RegistrationOrigin.APP_START));
+        executeCoreRegistration(callback, RegistrationOrigin.APP_START);
     }
 
     void registerFromMessagingCallback(Callback callback) {
-        execute(callback, () -> registerInternal(false, RegistrationOrigin.MESSAGING_CALLBACK));
+        executeCoreRegistration(callback, RegistrationOrigin.MESSAGING_CALLBACK);
     }
 
     void rotateFidAndRegister(Callback callback) {
@@ -210,23 +240,27 @@ final class StorefrontRegistrationClient {
             Tasks.await(messaging.unregister(), 30, TimeUnit.SECONDS);
             Tasks.await(FirebaseInstallations.getInstance().delete(), 30, TimeUnit.SECONDS);
             messaging.setAutoInitEnabled(true);
-            return registerInternal(true, RegistrationOrigin.USER_ACTION);
+            return registerFirebaseInternal(true, RegistrationOrigin.USER_ACTION);
         });
     }
 
     void heartbeat(Callback callback) {
-        execute(callback, () -> authenticatedPost(
-                StorefrontConfig.HEARTBEAT_PATH,
-                StorefrontRegistrationPayload.heartbeat(
-                        BuildConfig.VERSION_NAME,
-                        BuildConfig.VERSION_CODE,
-                        androidVersion(),
-                        deviceModel(),
-                        locale(),
-                        timezone()
-                ),
-                "Heartbeat aceptado."
-        ));
+        execute(callback, () -> {
+            Result result = authenticatedPost(
+                    StorefrontConfig.HEARTBEAT_PATH,
+                    StorefrontRegistrationPayload.heartbeat(
+                            BuildConfig.VERSION_NAME,
+                            BuildConfig.VERSION_CODE,
+                            androidVersion(),
+                            deviceModel(),
+                            locale(),
+                            timezone()
+                    ),
+                    "Heartbeat aceptado."
+            );
+            if (result.ok) StorefrontInstallationStore.recordSuccessfulSync(context, Instant.now().toString());
+            return result;
+        });
     }
 
     void updatePermission(Callback callback) {
@@ -248,6 +282,18 @@ final class StorefrontRegistrationClient {
 
     void flushEvents(Callback callback) {
         execute(callback, this::flushEventsInternal);
+    }
+
+    void flushDiagnostics(Callback callback) {
+        execute(callback, this::flushDiagnosticsInternal);
+    }
+
+    void syncNotifications(Callback callback) {
+        execute(callback, this::syncNotificationsInternal);
+    }
+
+    void flushNotificationReceipts(Callback callback) {
+        execute(callback, this::flushNotificationReceiptsInternal);
     }
 
     void disable(Callback callback) {
@@ -274,6 +320,10 @@ final class StorefrontRegistrationClient {
         executeUpdateTicket(callback, () -> updateTicketInternal(artifactId));
     }
 
+    void requestRealtimeTicket(RealtimeTicketCallback callback) {
+        executeRealtimeTicket(callback, this::realtimeTicketInternal);
+    }
+
     void reportUpdateVerified(UpdateArtifact artifact, Callback callback) {
         execute(callback, () -> {
             if (artifact == null) return Result.fail("Metadatos de actualización no disponibles.");
@@ -290,7 +340,154 @@ final class StorefrontRegistrationClient {
         });
     }
 
-    private Result registerInternal(
+    private void executeCoreRegistration(Callback callback, RegistrationOrigin origin) {
+        execute(callback, () -> {
+            Result core = registerCoreInternal();
+            if (core.ok) {
+                scheduleFirebaseEnrichment(origin);
+                scheduleDiagnosticsUpload();
+            }
+            return core;
+        });
+    }
+
+    private void scheduleFirebaseEnrichment(RegistrationOrigin origin) {
+        if (!BuildConfig.FIREBASE_CONFIGURED
+                || !FIREBASE_ENRICHMENT_ACTIVE.compareAndSet(false, true)) return;
+        FIREBASE_EXECUTOR.execute(() -> {
+            try {
+                registerFirebaseInternal(false, origin);
+            } catch (Exception error) {
+                StorefrontDiagnostics.recordError(context, failureCode(error));
+                logRegistration("firebase_enrichment_pending reason=" + failureCode(error));
+            } finally {
+                FIREBASE_ENRICHMENT_ACTIVE.set(false);
+            }
+        });
+    }
+
+    private void scheduleDiagnosticsUpload() {
+        if (!DIAGNOSTICS_UPLOAD_ACTIVE.compareAndSet(false, true)) return;
+        DIAGNOSTICS_EXECUTOR.execute(() -> {
+            try {
+                flushDiagnosticsInternal();
+            } catch (Exception error) {
+                logRegistration("diagnostics_pending reason=" + failureCode(error));
+            } finally {
+                DIAGNOSTICS_UPLOAD_ACTIVE.set(false);
+            }
+        });
+    }
+
+    private Result registerCoreInternal() throws Exception {
+        Result readiness = coreReadiness();
+        if (!readiness.ok) return readiness;
+        String permission = permissionState();
+        String body = StorefrontRegistrationPayload.coreRegister(
+                StorefrontInstallationStore.installationId(context),
+                StorefrontConfig.appKey(),
+                BuildConfig.VERSION_NAME,
+                BuildConfig.VERSION_CODE,
+                androidVersion(),
+                deviceModel(),
+                locale(),
+                timezone(),
+                permission
+        );
+        String existingCredential = StorefrontInstallationStore.credential(context);
+        StorefrontDiagnostics.record(
+                context,
+                StorefrontDiagnostics.INSTALLATION_REGISTER_REQUEST_SENT,
+                "started",
+                "",
+                0,
+                0
+        );
+        long startedAt = System.nanoTime();
+        HttpResult response;
+        try {
+            response = post(StorefrontConfig.CORE_REGISTER_PATH, body, existingCredential, false);
+            if (!existingCredential.isEmpty()
+                    && response.status == HttpURLConnection.HTTP_UNAUTHORIZED
+                    && "invalid_credential".equals(response.errorCode())) {
+                StorefrontInstallationStore.clearCredential(context);
+                response = post(StorefrontConfig.CORE_REGISTER_PATH, body, "", false);
+            }
+        } catch (Exception error) {
+            long latency = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.BACKEND_REACHABLE,
+                    "failure",
+                    failureCode(error),
+                    0,
+                    latency
+            );
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.INSTALLATION_REGISTER_RESPONSE,
+                    "failure",
+                    failureCode(error),
+                    0,
+                    latency
+            );
+            throw error;
+        }
+        long latency = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
+        StorefrontDiagnostics.record(
+                context,
+                StorefrontDiagnostics.BACKEND_REACHABLE,
+                "success",
+                "",
+                response.status,
+                latency
+        );
+        if (!response.ok()) {
+            Result rejected = failure(response);
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.INSTALLATION_REGISTER_RESPONSE,
+                    "failure",
+                    response.errorCode(),
+                    response.status,
+                    latency
+            );
+            return rejected;
+        }
+
+        JSONObject payload = new JSONObject(response.body);
+        String credential = payload.optString("credential", "");
+        if (!hasExactKeys(payload, Set.of(
+                "ok", "created", "credential", "firebase_enrichment_required"
+        )) || !payload.optBoolean("ok", false)
+                || !CREDENTIAL_PATTERN.matcher(credential).matches()) {
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.INSTALLATION_REGISTER_RESPONSE,
+                    "failure",
+                    "invalid_gateway_response",
+                    response.status,
+                    latency
+            );
+            return Result.fail("El gateway devolvió una respuesta no válida.");
+        }
+        StorefrontInstallationStore.saveCredential(context, credential);
+        StorefrontInstallationStore.recordReportedPermission(context, permission);
+        StorefrontInstallationStore.recordSuccessfulSync(context, Instant.now().toString());
+        StorefrontDiagnostics.record(
+                context,
+                StorefrontDiagnostics.INSTALLATION_REGISTER_RESPONSE,
+                "success",
+                "",
+                response.status,
+                latency
+        );
+        return payload.optBoolean("created", false)
+                ? Result.ok("Instalación registrada correctamente.")
+                : Result.ok("Instalación sincronizada correctamente.");
+    }
+
+    private Result registerFirebaseInternal(
             boolean forceAppCheckRefresh,
             RegistrationOrigin origin
     ) throws Exception {
@@ -298,23 +495,34 @@ final class StorefrontRegistrationClient {
                 "register_start origin=" + origin.name().toLowerCase(Locale.ROOT)
                         + " credential_present=" + StorefrontInstallationStore.hasCredential(context)
         );
-        Result readiness = readiness();
+        Result readiness = firebaseReadiness();
         if (!readiness.ok) {
             logRegistration("register_readiness_failed");
             return readiness;
         }
 
-        // Validate the real Play Integrity path before creating or refreshing Firebase identifiers.
-        // The token remains in memory and is never rendered or logged.
-        String attestationToken = appCheckToken(forceAppCheckRefresh);
-        logRegistration("register_app_check_ok");
-
         FirebaseMessaging messaging = FirebaseMessaging.getInstance();
         messaging.setAutoInitEnabled(true);
         if (shouldRequestMessagingRegistration(origin)) {
             Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.FCM_TOKEN_CREATED,
+                    "success",
+                    "",
+                    0,
+                    0
+            );
         }
         String fid = Tasks.await(FirebaseInstallations.getInstance().getId(), 30, TimeUnit.SECONDS);
+        StorefrontDiagnostics.record(
+                context,
+                StorefrontDiagnostics.FID_CREATED,
+                "success",
+                "",
+                0,
+                0
+        );
         AppSetIdInfo appSetInfo = null;
         try {
             appSetInfo = Tasks.await(
@@ -333,36 +541,14 @@ final class StorefrontRegistrationClient {
                             ? "unavailable"
                             : String.valueOf(appSetInfo.getScope()))
         );
-        String permission = permissionState();
-        String invalidField = StorefrontRegistrationPayload.invalidRegisterField(
-                fid,
-                appSetId,
-                BuildConfig.VERSION_NAME,
-                BuildConfig.VERSION_CODE,
-                androidVersion(),
-                deviceModel(),
-                locale(),
-                timezone(),
-                permission
-        );
-        logRegistration("register_payload_contract=" + (invalidField.isEmpty() ? "ok" : invalidField));
-        String body = StorefrontRegistrationPayload.register(
-                fid,
-                appSetId,
-                BuildConfig.VERSION_NAME,
-                BuildConfig.VERSION_CODE,
-                androidVersion(),
-                deviceModel(),
-                locale(),
-                timezone(),
-                permission
-        );
+        String body = StorefrontRegistrationPayload.firebaseEnrichment(fid, appSetId);
         String existingCredential = StorefrontInstallationStore.credential(context);
-        HttpResult response = postWithToken(
-                StorefrontConfig.REGISTER_PATH,
+        if (existingCredential.isEmpty()) return Result.fail("Primero registra la instalación.");
+        HttpResult response = post(
+                StorefrontConfig.FIREBASE_ENRICH_PATH,
                 body,
                 existingCredential,
-                attestationToken
+                false
         );
         logRegistration("register_http_status=" + response.status);
         if (!response.ok()) {
@@ -373,22 +559,52 @@ final class StorefrontRegistrationClient {
 
         JSONObject payload = new JSONObject(response.body);
         String credential = payload.optString("credential", "");
-        if (!payload.optBoolean("ok", false) || !CREDENTIAL_PATTERN.matcher(credential).matches()) {
+        if (!hasExactKeys(payload, Set.of(
+                "ok", "firebase_registered", "fid_rotated", "credential"
+        )) || !payload.optBoolean("ok", false)
+                || !payload.optBoolean("firebase_registered", false)
+                || !existingCredential.equals(credential)) {
             logRegistration("register_invalid_response");
             return Result.fail("El gateway devolvió una respuesta no válida.");
         }
-        StorefrontInstallationStore.saveCredential(context, credential);
-        StorefrontInstallationStore.recordReportedPermission(context, permission);
-        boolean created = payload.optBoolean("created", false);
         boolean rotated = payload.optBoolean("fid_rotated", false);
-        logRegistration("register_accepted created=" + created + " fid_rotated=" + rotated);
+        scheduleFirebaseTrustUpgrade(body, existingCredential, forceAppCheckRefresh);
+        logRegistration("register_accepted fid_rotated=" + rotated);
         if (rotated) return Result.ok("FID rotado y registro actualizado sin exponer identificadores.");
-        if (created) return Result.ok("Instalación creada correctamente.");
-        return Result.ok("Registro repetido sin duplicar la instalación.");
+        return Result.ok("Firebase quedó asociado como canal opcional.");
+    }
+
+    private void scheduleFirebaseTrustUpgrade(
+            String body,
+            String credential,
+            boolean forceAppCheckRefresh
+    ) {
+        FIREBASE_EXECUTOR.execute(() -> {
+            try {
+                String token = appCheckToken(forceAppCheckRefresh);
+                HttpResult response = postWithToken(
+                        StorefrontConfig.FIREBASE_ENRICH_PATH,
+                        body,
+                        credential,
+                        token
+                );
+                if (!response.ok()) return;
+                JSONObject payload = new JSONObject(response.body);
+                if (!hasExactKeys(payload, Set.of(
+                        "ok", "firebase_registered", "fid_rotated", "credential"
+                )) || !payload.optBoolean("ok", false)
+                        || !payload.optBoolean("firebase_registered", false)
+                        || !credential.equals(payload.optString("credential", ""))) return;
+                logRegistration("register_app_check_ok");
+            } catch (Exception error) {
+                StorefrontDiagnostics.recordError(context, failureCode(error));
+                logRegistration("firebase_attestation_optional reason=" + failureCode(error));
+            }
+        });
     }
 
     private Result authenticatedPost(String path, String body, String successMessage) throws Exception {
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok) return readiness;
         String credential = StorefrontInstallationStore.credential(context);
         if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
@@ -401,7 +617,7 @@ final class StorefrontRegistrationClient {
     }
 
     private Result bootstrapInternal() throws Exception {
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok) return readiness;
         String credential = StorefrontInstallationStore.credential(context);
         if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
@@ -424,7 +640,7 @@ final class StorefrontRegistrationClient {
     }
 
     private TargetResult resolveCampaignTargetInternal(String campaignId) throws Exception {
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok || !CAMPAIGN_PATTERN.matcher(clean(campaignId)).matches()) {
             return TargetResult.fail();
         }
@@ -451,7 +667,7 @@ final class StorefrontRegistrationClient {
     }
 
     private UpdatePolicy updatePolicyInternal(String installSource) throws Exception {
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok || !("play".equals(installSource) || "direct".equals(installSource))) return null;
         String credential = StorefrontInstallationStore.credential(context);
         if (credential.isEmpty()) return null;
@@ -490,7 +706,7 @@ final class StorefrontRegistrationClient {
 
     private UpdateTicket updateTicketInternal(String artifactId) throws Exception {
         String requestedArtifactId = clean(artifactId);
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok || !CAMPAIGN_PATTERN.matcher(requestedArtifactId).matches()) return null;
         String credential = StorefrontInstallationStore.credential(context);
         if (credential.isEmpty()) return null;
@@ -521,6 +737,34 @@ final class StorefrontRegistrationClient {
                 || !expiresAt.isAfter(now) || expiresAt.isAfter(now.plusSeconds(5 * 60))
                 || !StorefrontUpdateContract.allowedDownloadUrl(downloadUrl, StorefrontConfig.storeUrl())) return null;
         return new UpdateTicket(downloadUrl, artifact);
+    }
+
+    private RealtimeTicket realtimeTicketInternal() throws Exception {
+        Result readiness = coreReadiness();
+        if (!readiness.ok) return null;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return null;
+        HttpResult response = post(
+                StorefrontConfig.REALTIME_TICKET_PATH,
+                StorefrontRegistrationPayload.empty(),
+                credential,
+                false
+        );
+        if (!response.ok()) return null;
+        JSONObject root = new JSONObject(response.body);
+        if (!hasExactKeys(root, Set.of("ok", "ticket", "expires_at", "websocket_url"))
+                || !root.optBoolean("ok", false)) return null;
+        String ticket = root.optString("ticket", "");
+        String webSocketUrl = StorefrontConfig.normalizeWebSocketUrl(
+                root.optString("websocket_url", "")
+        );
+        try {
+            Instant.parse(root.optString("expires_at", ""));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+        if (!REALTIME_TICKET_PATTERN.matcher(ticket).matches() || webSocketUrl.isEmpty()) return null;
+        return new RealtimeTicket(webSocketUrl, ticket);
     }
 
     private UpdateArtifact updateArtifact(JSONObject artifact) {
@@ -593,20 +837,19 @@ final class StorefrontRegistrationClient {
     }
 
     private Result flushEventsInternal() throws Exception {
-        Result readiness = readiness();
+        Result readiness = coreReadiness();
         if (!readiness.ok) return readiness;
         String credential = StorefrontInstallationStore.credential(context);
         if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
         java.util.List<StorefrontEventQueue.Event> events = StorefrontEventQueue.pending(context);
         if (events.isEmpty()) return Result.ok("No hay eventos pendientes.");
-        String token = appCheckToken(false);
         int accepted = 0;
         for (StorefrontEventQueue.Event event : events) {
-            HttpResult response = postWithToken(
+            HttpResult response = post(
                     StorefrontConfig.EVENTS_PATH,
                     StorefrontRegistrationPayload.event(event),
                     credential,
-                    token
+                    false
             );
             boolean recorded = false;
             if (response.ok()) {
@@ -637,7 +880,7 @@ final class StorefrontRegistrationClient {
             String credential,
             boolean forceAppCheckRefresh
     ) throws Exception {
-        return postWithToken(path, body, credential, appCheckToken(forceAppCheckRefresh));
+        return postRequest(path, body, credential, "");
     }
 
     private HttpResult postWithToken(
@@ -646,11 +889,151 @@ final class StorefrontRegistrationClient {
             String credential,
             String token
     ) throws Exception {
-        String endpoint = StorefrontConfig.endpoint(path);
-        if (endpoint.isEmpty()) throw new IllegalStateException("api_not_configured");
         if (token.length() < 32 || token.length() > 8192) {
             throw new IllegalStateException("app_check_unavailable");
         }
+        return postRequest(path, body, credential, token);
+    }
+
+    private Result flushDiagnosticsInternal() throws Exception {
+        Result readiness = coreReadiness();
+        if (!readiness.ok) return readiness;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
+        StorefrontDiagnostics.Batch batch = StorefrontDiagnostics.pendingBatch(context);
+        if (batch.count < 1) return Result.ok("No hay diagnósticos pendientes.");
+        HttpResult response = post(
+                StorefrontConfig.DIAGNOSTICS_PATH,
+                batch.body,
+                credential,
+                false
+        );
+        if (!response.ok()) return failure(response);
+        JSONObject result = new JSONObject(response.body);
+        int processed = result.optInt("accepted", -1) + result.optInt("duplicates", -1);
+        if (!result.optBoolean("ok", false) || processed != batch.count) {
+            return Result.fail("El gateway devolvió una respuesta no válida.");
+        }
+        StorefrontDiagnostics.acknowledge(context, batch.keys);
+        return Result.ok("Diagnósticos sincronizados.");
+    }
+
+    private Result syncNotificationsInternal() throws Exception {
+        Result readiness = coreReadiness();
+        if (!readiness.ok) return readiness;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
+        HttpResult response = post(
+                StorefrontConfig.NOTIFICATIONS_SYNC_PATH,
+                StorefrontRegistrationPayload.empty(),
+                credential,
+                false
+        );
+        if (!response.ok()) return failure(response);
+        JSONObject body = new JSONObject(response.body);
+        if (!hasExactKeys(body, Set.of("ok", "notifications", "server_time"))
+                || !body.optBoolean("ok", false)) {
+            return Result.fail("El gateway devolvió una respuesta no válida.");
+        }
+        Instant serverTime;
+        try { serverTime = Instant.parse(body.optString("server_time", "")); }
+        catch (Exception ignored) { return Result.fail("El gateway devolvió una respuesta no válida."); }
+        JSONArray notifications = body.optJSONArray("notifications");
+        if (notifications == null || notifications.length() > 50) {
+            return Result.fail("El gateway devolvió una respuesta no válida.");
+        }
+        int delivered = 0;
+        for (int index = 0; index < notifications.length(); index += 1) {
+            JSONObject item = notifications.optJSONObject(index);
+            StorefrontPushPayload payload = StorefrontPushPayload.fromNativeJson(
+                    item,
+                    StorefrontConfig.appKey()
+            );
+            if (payload == null) return Result.fail("El gateway devolvió una notificación no válida.");
+            try {
+                if (!Instant.parse(item.optString("expires_at", "")).isAfter(serverTime)) continue;
+            } catch (Exception ignored) {
+                return Result.fail("El gateway devolvió una notificación no válida.");
+            }
+            if (StorefrontNotificationStore.wasDisplayed(context, payload.deliveryId)) {
+                StorefrontNotificationStore.queueReceipt(context, payload.deliveryId, "native_delivered");
+                continue;
+            }
+            boolean posted = StorefrontNotifications.show(context, payload, payload.title, payload.body);
+            if (!posted) continue;
+            StorefrontNotificationStore.markDisplayed(context, payload.deliveryId);
+            StorefrontNotificationStore.queueReceipt(context, payload.deliveryId, "native_delivered");
+            delivered += 1;
+        }
+        if (delivered > 0) {
+            StorefrontDiagnostics.record(
+                    context,
+                    StorefrontDiagnostics.LAST_PUSH_RECEIVED,
+                    "success",
+                    "",
+                    response.status,
+                    0
+            );
+        }
+        Result receipts = flushNotificationReceiptsInternal();
+        if (!receipts.ok) return receipts;
+        StorefrontInstallationStore.recordSuccessfulSync(context, Instant.now().toString());
+        return Result.ok("Notificaciones nuevas: " + delivered + ".");
+    }
+
+    private Result flushNotificationReceiptsInternal() throws Exception {
+        Result readiness = coreReadiness();
+        if (!readiness.ok) return readiness;
+        String credential = StorefrontInstallationStore.credential(context);
+        if (credential.isEmpty()) return Result.fail("Primero registra la instalación.");
+        int synchronizedCount = 0;
+        for (int page = 0; page < 5; page += 1) {
+            StorefrontNotificationStore.ReceiptBatch batch = StorefrontNotificationStore.pendingBatch(context);
+            if (batch.count < 1) break;
+            HttpResult response = post(
+                    StorefrontConfig.NOTIFICATIONS_ACK_PATH,
+                    batch.body,
+                    credential,
+                    false
+            );
+            if (!response.ok()) return failure(response);
+            JSONObject body = new JSONObject(response.body);
+            if (!hasExactKeys(body, Set.of("accepted", "duplicates", "ok"))
+                    || !body.optBoolean("ok", false)) {
+                return Result.fail("El gateway devolvió una respuesta no válida.");
+            }
+            int accepted = body.optInt("accepted", -1);
+            int duplicates = body.optInt("duplicates", -1);
+            if (accepted < 0 || duplicates < 0 || accepted + duplicates != batch.count) {
+                return Result.fail("El gateway devolvió una respuesta no válida.");
+            }
+            StorefrontNotificationStore.acknowledge(context, batch.keys);
+            synchronizedCount += batch.count;
+        }
+        return Result.ok("Confirmaciones sincronizadas: " + synchronizedCount + ".");
+    }
+
+    Result runDurableBackgroundSync() {
+        try {
+            Result core = registerCoreInternal();
+            if (!core.ok) return core;
+            Result notifications = syncNotificationsInternal();
+            try { flushDiagnosticsInternal(); } catch (Exception ignored) {}
+            return notifications;
+        } catch (Exception error) {
+            StorefrontDiagnostics.recordError(context, failureCode(error));
+            return Result.fail(safeFailure(error));
+        }
+    }
+
+    private HttpResult postRequest(
+            String path,
+            String body,
+            String credential,
+            String token
+    ) throws Exception {
+        String endpoint = StorefrontConfig.endpoint(path);
+        if (endpoint.isEmpty()) throw new IllegalStateException("api_not_configured");
 
         HttpURLConnection connection = null;
         try {
@@ -664,7 +1047,7 @@ final class StorefrontRegistrationClient {
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("Cache-Control", "no-store");
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            connection.setRequestProperty("X-Firebase-AppCheck", token);
+            if (!token.isEmpty()) connection.setRequestProperty("X-Firebase-AppCheck", token);
             if (!credential.isEmpty()) connection.setRequestProperty("Authorization", "Bearer " + credential);
             try (OutputStream output = connection.getOutputStream()) {
                 output.write(bytes);
@@ -690,12 +1073,26 @@ final class StorefrontRegistrationClient {
         return token;
     }
 
-    private Result readiness() {
+    private Result firebaseReadiness() {
         if (!BuildConfig.FIREBASE_CONFIGURED) {
             return Result.fail("Firebase no está configurado en esta APK.");
         }
+        return coreReadiness();
+    }
+
+    private static boolean hasExactKeys(JSONObject source, Set<String> expected) {
+        if (source == null || source.length() != expected.size()) return false;
+        Set<String> actual = new HashSet<>();
+        source.keys().forEachRemaining(actual::add);
+        return actual.equals(expected);
+    }
+
+    private Result coreReadiness() {
         if (StorefrontConfig.apiBaseUrl().isEmpty()) {
             return Result.fail("El origen HTTPS de la aplicación no está configurado.");
+        }
+        if (!StorefrontConfig.isConfigured()) {
+            return Result.fail("La identidad pública de la aplicación no está configurada.");
         }
         return Result.ok("ready");
     }
@@ -707,6 +1104,38 @@ final class StorefrontRegistrationClient {
             if (SAFE_ERROR.matcher(candidate).matches()) code = candidate;
         } catch (Exception ignored) {}
         return Result.fail("Solicitud rechazada (HTTP " + response.status + ", " + code + ").");
+    }
+
+    private static String failureCode(Throwable error) {
+        String material = failureMaterial(error);
+        if (material.contains("appcheck") || material.contains("app_check")
+                || material.contains("playintegrity") || material.contains("attestation")
+                || material.contains("attest") || material.contains("integrity")) {
+            return "app_check_unavailable";
+        }
+        if (material.contains("firebaseinstallations") || material.contains("firebasemessaging")
+                || material.contains("service_not_available")) return "firebase_unavailable";
+        if (material.contains("unknownhost")) return "dns_unavailable";
+        if (material.contains("ssl") || material.contains("certificate")) return "https_unavailable";
+        if (material.contains("connectexception") || material.contains("sockettimeoutexception")) {
+            return "backend_unreachable";
+        }
+        return "operation_failed";
+    }
+
+    private static String failureMaterial(Throwable error) {
+        StringBuilder diagnostic = new StringBuilder();
+        Throwable current = error;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            diagnostic.append(' ')
+                    .append(current.getClass().getName())
+                    .append(' ')
+                    .append(clean(current.getMessage()));
+            Throwable next = current.getCause();
+            if (next == current) break;
+            current = next;
+        }
+        return diagnostic.toString().toLowerCase(Locale.ROOT);
     }
 
     private static String readBody(HttpURLConnection connection, int status) throws Exception {
@@ -733,6 +1162,7 @@ final class StorefrontRegistrationClient {
             } catch (Exception error) {
                 String safeReason = safeFailure(error);
                 logRegistration("operation_failed reason=" + safeReason);
+                StorefrontDiagnostics.recordError(context, failureCode(error));
                 result = Result.fail(safeReason);
             }
             Result delivered = result;
@@ -781,19 +1211,25 @@ final class StorefrontRegistrationClient {
         });
     }
 
+    private void executeRealtimeTicket(
+            RealtimeTicketCallback callback,
+            RealtimeTicketOperation operation
+    ) {
+        EXECUTOR.execute(() -> {
+            RealtimeTicket ticket;
+            try {
+                ticket = operation.run();
+            } catch (Exception error) {
+                logRegistration("realtime_ticket_failed reason=" + safeFailure(error));
+                ticket = null;
+            }
+            RealtimeTicket delivered = ticket;
+            MAIN.post(() -> callback.complete(delivered));
+        });
+    }
+
     static String safeFailure(Throwable error) {
-        StringBuilder diagnostic = new StringBuilder();
-        Throwable current = error;
-        for (int depth = 0; current != null && depth < 8; depth++) {
-            diagnostic.append(' ')
-                    .append(current.getClass().getName())
-                    .append(' ')
-                    .append(clean(current.getMessage()));
-            Throwable next = current.getCause();
-            if (next == current) break;
-            current = next;
-        }
-        String material = diagnostic.toString().toLowerCase(Locale.ROOT);
+        String material = failureMaterial(error);
         if (material.contains("appcheck")
                 || material.contains("app_check")
                 || material.contains("playintegrity")
@@ -886,6 +1322,15 @@ final class StorefrontRegistrationClient {
 
         boolean ok() {
             return status >= 200 && status < 300;
+        }
+
+        String errorCode() {
+            try {
+                String candidate = new JSONObject(body).optString("error", "");
+                return SAFE_ERROR.matcher(candidate).matches() ? candidate : "request_failed";
+            } catch (Exception ignored) {
+                return "request_failed";
+            }
         }
     }
 }

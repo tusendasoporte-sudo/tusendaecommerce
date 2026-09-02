@@ -7,6 +7,12 @@ import java.util.regex.Pattern;
 
 final class StorefrontConfig {
     static final String REGISTER_PATH = "/api/storefront/v1/installations/register";
+    static final String CORE_REGISTER_PATH = "/api/storefront/v2/installations/register";
+    static final String FIREBASE_ENRICH_PATH = "/api/storefront/v2/installations/firebase";
+    static final String DIAGNOSTICS_PATH = "/api/storefront/v2/diagnostics";
+    static final String NOTIFICATIONS_SYNC_PATH = "/api/storefront/v2/notifications/sync";
+    static final String NOTIFICATIONS_ACK_PATH = "/api/storefront/v2/notifications/ack";
+    static final String REALTIME_TICKET_PATH = "/api/storefront/v2/realtime/ticket";
     static final String HEARTBEAT_PATH = "/api/storefront/v1/installations/heartbeat";
     static final String PERMISSION_PATH = "/api/storefront/v1/installations/permission";
     static final String DISABLE_PATH = "/api/storefront/v1/installations/disable";
@@ -91,6 +97,22 @@ final class StorefrontConfig {
             if (!expectedPath.equals(uri.getRawPath())) return "";
             if (uri.getRawQuery() != null || uri.getRawFragment() != null) return "";
             return "https://" + host + expectedPath;
+        } catch (URISyntaxException error) {
+            return "";
+        }
+    }
+
+    static String normalizeWebSocketUrl(String raw) {
+        String value = clean(raw);
+        if (value.isEmpty() || value.length() > 2048) return "";
+        try {
+            URI uri = new URI(value);
+            String host = normalizedHost(uri.getHost());
+            if (!"wss".equalsIgnoreCase(uri.getScheme()) || host.isEmpty()) return "";
+            if (uri.getRawUserInfo() != null || (uri.getPort() != -1 && uri.getPort() != 443)) return "";
+            if (!"/v1/connect".equals(uri.getRawPath())) return "";
+            if (uri.getRawQuery() != null || uri.getRawFragment() != null) return "";
+            return "wss://" + host + "/v1/connect";
         } catch (URISyntaxException error) {
             return "";
         }

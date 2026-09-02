@@ -18,11 +18,14 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 final class StorefrontNotifications {
     static final String MARKETING_CHANNEL_ID = "pz_storefront_marketing";
     static final String NOTIFICATION_TAP = "pz_storefront_notification_tap";
     private static final int IMAGE_MAX_BYTES = 102_400;
+    private static final ExecutorService IMAGE_EXECUTOR = Executors.newFixedThreadPool(2);
 
     private StorefrontNotifications() {}
 
@@ -65,7 +68,42 @@ final class StorefrontNotifications {
 
         String title = bounded(rawTitle, 120, StorefrontConfig.displayName());
         String body = bounded(rawBody, 500, "");
-        Bitmap image = downloadWebp(payload.imageUrl);
+        String notificationTag = "pz_storefront_" + payload.deliveryId;
+        manager.notify(
+                notificationTag,
+                requestCode,
+                buildNotification(context, title, body, contentIntent, null)
+        );
+
+        // En redes lentas la imagen nunca debe retrasar el aviso. Publicamos el
+        // texto primero y, si el WebP llega después, actualizamos el mismo aviso
+        // sin volver a vibrar ni generar un duplicado.
+        if (!payload.imageUrl.isEmpty()) {
+            Context applicationContext = context.getApplicationContext();
+            IMAGE_EXECUTOR.execute(() -> {
+                Bitmap image = downloadWebp(payload.imageUrl);
+                if (image == null || !canNotify(applicationContext)) return;
+                NotificationManager imageManager = applicationContext.getSystemService(
+                        NotificationManager.class
+                );
+                if (imageManager == null) return;
+                imageManager.notify(
+                        notificationTag,
+                        requestCode,
+                        buildNotification(applicationContext, title, body, contentIntent, image)
+                );
+            });
+        }
+        return true;
+    }
+
+    private static Notification buildNotification(
+            Context context,
+            String title,
+            String body,
+            PendingIntent contentIntent,
+            Bitmap image
+    ) {
         Notification.Builder builder = new Notification.Builder(context, MARKETING_CHANNEL_ID);
         builder.setSmallIcon(R.drawable.storefront_notification_icon)
                 .setColor(context.getColor(R.color.pz_brand_energy_cobalt))
@@ -82,8 +120,7 @@ final class StorefrontNotifications {
         } else {
             builder.setStyle(new Notification.BigTextStyle().bigText(body));
         }
-        manager.notify("pz_storefront_" + payload.deliveryId, requestCode, builder.build());
-        return true;
+        return builder.build();
     }
 
     static boolean isNotificationTap(Intent intent) {

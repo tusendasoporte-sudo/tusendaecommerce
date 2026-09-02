@@ -3,8 +3,12 @@ package com.tusenda84.storefront;
 import android.content.Intent;
 import android.os.Bundle;
 
+import org.json.JSONObject;
+
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -79,6 +83,28 @@ final class StorefrontPushPayload {
         );
     }
 
+    static StorefrontPushPayload fromNativeJson(JSONObject source, String expectedStoreKey) {
+        Set<String> keys = Set.of(
+                "notification_id", SCHEMA_VERSION, STORE_KEY, CAMPAIGN_ID, DELIVERY_ID,
+                TITLE, BODY, TARGET_TYPE, TARGET_PATH, IMAGE_URL, "created_at", "expires_at"
+        );
+        if (!hasExactKeys(source, keys)) return null;
+        String notificationId = clean(source.optString("notification_id", ""));
+        String deliveryId = clean(source.optString(DELIVERY_ID, ""));
+        if (!DELIVERY.matcher(notificationId).matches() || !notificationId.equals(deliveryId)) return null;
+        try {
+            Instant createdAt = Instant.parse(source.optString("created_at", ""));
+            Instant expiresAt = Instant.parse(source.optString("expires_at", ""));
+            if (!expiresAt.isAfter(createdAt)) return null;
+        } catch (Exception ignored) {
+            return null;
+        }
+        Map<String, String> values = new HashMap<>();
+        for (String key : expectedKeys()) values.put(key, source.optString(key, ""));
+        values.put(CHANNEL, "storefront");
+        return fromMap(values, expectedStoreKey);
+    }
+
     static String diagnosticCode(Map<String, String> source, String expectedStoreKey) {
         if (source == null) return "missing_data";
         String schemaVersion = clean(source.get(SCHEMA_VERSION));
@@ -147,6 +173,13 @@ final class StorefrontPushPayload {
                 TARGET_PATH,
                 IMAGE_URL
         ));
+    }
+
+    private static boolean hasExactKeys(JSONObject source, Set<String> expected) {
+        if (source == null || source.length() != expected.size()) return false;
+        Set<String> actual = new HashSet<>();
+        source.keys().forEachRemaining(actual::add);
+        return actual.equals(expected);
     }
 
     private static boolean containsControl(String value) {

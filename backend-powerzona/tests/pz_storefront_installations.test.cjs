@@ -81,6 +81,9 @@ function createApp() {
     [installations.APP_CONFIGS_COLLECTION, { name: installations.APP_CONFIGS_COLLECTION }],
     [installations.INSTALLATIONS_COLLECTION, { name: installations.INSTALLATIONS_COLLECTION }],
     [installations.WEB_SESSIONS_COLLECTION, { name: installations.WEB_SESSIONS_COLLECTION }],
+    [installations.DIAGNOSTICS_COLLECTION, { name: installations.DIAGNOSTICS_COLLECTION }],
+    ['push_campaigns', { name: 'push_campaigns' }],
+    ['push_campaign_deliveries', { name: 'push_campaign_deliveries' }],
     ['storefront_order_links', { name: 'storefront_order_links' }],
     ['orders', { name: 'orders' }],
   ]);
@@ -99,12 +102,14 @@ function createApp() {
   }));
   add(record(installations.APP_CONFIGS_COLLECTION, APP_A, {
     store: STORE_A,
+    app_key: 'powerzona-storefront-staging',
     firebase_app_id: FIREBASE_A,
     status: 'active',
     store_path_prefix: '/t/powerzona',
   }));
   add(record(installations.APP_CONFIGS_COLLECTION, APP_B, {
     store: STORE_B,
+    app_key: 'otra-storefront',
     firebase_app_id: FIREBASE_B,
     status: 'active',
     store_path_prefix: '/t/otra-tienda',
@@ -128,13 +133,18 @@ function createApp() {
     findFirstRecordByFilter(collection, filter, params = {}) {
       const result = list(collection).find((item) => {
         if (params.appId !== undefined && item.getString('firebase_app_id') !== params.appId) return false;
+        if (params.appKey !== undefined && item.getString('app_key') !== params.appKey) return false;
         if (params.appConfig !== undefined && item.getString('app_config') !== params.appConfig) return false;
         if (params.fidDigest !== undefined && item.getString('fid_digest') !== params.fidDigest) return false;
         if (params.appSetDigest !== undefined && item.getString('app_set_digest') !== params.appSetDigest) return false;
+        if (params.uuidDigest !== undefined && item.getString('installation_uuid_digest') !== params.uuidDigest) return false;
         if (params.credentialDigest !== undefined && item.getString('credential_digest') !== params.credentialDigest) return false;
+        if (params.installation !== undefined && item.getString('installation') !== params.installation) return false;
+        if (params.idempotencyKey !== undefined && item.getString('idempotency_key') !== params.idempotencyKey) return false;
         if (params.digest !== undefined && item.getString('session_digest') !== params.digest) return false;
         if (params.order !== undefined && item.getString('order') !== params.order) return false;
-        if (filter.includes('status = "pending"') && item.getString('status') !== 'pending') return false;
+        if (/(?:^|[^A-Za-z0-9_])status\s*=\s*"pending"/.test(filter)
+          && item.getString('status') !== 'pending') return false;
         return true;
       });
       if (!result) throw new Error('record_not_found');
@@ -143,13 +153,28 @@ function createApp() {
     findRecordsByFilter(collection, filter, _sort, limit, _offset, params = {}) {
       return list(collection)
         .filter((item) => (!params.installation || item.getString('installation') === params.installation)
-          && (!filter.includes('status = "pending"') || item.getString('status') === 'pending'))
+          && (!/(?:^|[^A-Za-z0-9_])status\s*=\s*"pending"/.test(filter)
+            || item.getString('status') === 'pending')
+          && (!filter.includes('native_status = "pending"') || item.getString('native_status') === 'pending')
+          && (!filter.includes('inbox_deleted_at = ""') || !item.getString('inbox_deleted_at'))
+          && (!params.now || !filter.includes('delivery_expires_at <=')
+            || (item.getString('delivery_expires_at')
+              && new Date(item.getString('delivery_expires_at')).getTime() <= new Date(params.now).getTime()))
+          && (!params.now || !filter.includes('delivery_expires_at >')
+            || !item.getString('delivery_expires_at')
+            || new Date(item.getString('delivery_expires_at')).getTime() > new Date(params.now).getTime())
+          && (!params.now || !filter.includes('delete_after <=')
+            || (item.getString('delete_after')
+              && new Date(item.getString('delete_after')).getTime() <= new Date(params.now).getTime())))
         .slice(0, limit);
     },
     save(item) {
       if (!item.id) item.id = `${item.collection === installations.INSTALLATIONS_COLLECTION ? 'inst' : 'sess'}${String(nextId++).padStart(11, '0')}`;
       add(item);
       return item;
+    },
+    delete(item) {
+      records.delete(`${item.collection}:${item.id}`);
     },
   };
   return app;
@@ -181,6 +206,20 @@ function heartbeatPayload() {
     device_model: 'Google Pixel 9 Pro',
     locale: 'es-US',
     timezone: 'America/Havana',
+  };
+}
+
+function coreRegisterPayload(installationId = '123e4567-e89b-42d3-a456-426614174000') {
+  return {
+    installation_id: installationId,
+    app_key: 'powerzona-storefront-staging',
+    app_version: '1.0.0',
+    app_version_code: 1,
+    android_version: 'Android 16',
+    device_model: 'Google Pixel 9',
+    locale: 'es-US',
+    timezone: 'America/Havana',
+    notification_permission: 'unknown',
   };
 }
 
@@ -306,6 +345,16 @@ function signedHeaders(action, body, internalSecret, now = new Date()) {
 
 test('valida contratos exactos y no acepta tienda ni IP declaradas por el telefono', () => {
   assert.ok(installations.parseRegisterPayload(registerPayload()));
+  assert.deepEqual(
+    installations.parseFirebaseEnrichmentPayload({ fid: FID_A, app_set_id: APP_SET_ID }),
+    { fid: FID_A, appSetId: APP_SET_ID },
+  );
+  assert.deepEqual(
+    installations.parseFirebaseEnrichmentPayload({ fid: FID_A }),
+    { fid: FID_A, appSetId: '' },
+  );
+  assert.equal(installations.parseFirebaseEnrichmentPayload({ fid: FID_A, store_id: STORE_B }), null);
+  assert.equal(installations.parseFirebaseEnrichmentPayload({ fid: 'short' }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), store_id: STORE_B }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), ip: '1.2.3.4' }), null);
   assert.equal(installations.parseRegisterPayload({ ...registerPayload(), app_version_code: 0 }), null);
@@ -355,7 +404,7 @@ test('registro repetido es idempotente y no duplica una misma app/FID', () => {
   assert.equal(JSON.stringify(first.installation).includes(FID_A), false);
 });
 
-test('rotacion autenticada de FID preserva id y first_seen pero rota la credencial', () => {
+test('rotacion autenticada de FID preserva id, first_seen y la credencial estable', () => {
   const app = createApp();
   const first = installations.registerInstallation(app, context(), CREDENTIAL_SECRET, AES_KEY);
   const later = new Date(NOW.getTime() + 60_000);
@@ -368,10 +417,268 @@ test('rotacion autenticada de FID preserva id y first_seen pero rota la credenci
   assert.equal(rotated.created, false);
   assert.equal(rotated.fid_rotated, true);
   assert.equal(rotated.installation.id, first.installation.id);
-  assert.notEqual(rotated.credential, first.credential);
+  assert.equal(rotated.credential, first.credential);
   assert.equal(rotated.installation.first_seen_at, first.installation.first_seen_at);
   assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
   assert.equal(app.list(installations.INSTALLATIONS_COLLECTION)[0].getString('fid'), FID_B);
+});
+
+test('registro UUID funciona sin Firebase y el enriquecimiento FID conserva la misma instalación', () => {
+  const app = createApp();
+  const parsed = installations.parseCoreRegisterPayload(coreRegisterPayload());
+  const core = installations.registerCoreInstallation(app, context({
+    appId: '',
+    payload: parsed,
+  }), CREDENTIAL_SECRET, AES_KEY);
+
+  assert.equal(core.created, true);
+  assert.equal(core.firebase_enrichment_required, true);
+  assert.match(core.credential, /^pzs_v1_[a-f0-9]{64}$/);
+  assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
+  const stored = app.list(installations.INSTALLATIONS_COLLECTION)[0];
+  assert.equal(stored.getString('fid'), '');
+  assert.match(stored.getString('installation_uuid_digest'), /^[a-f0-9]{64}$/);
+  assert.equal(stored.getString('identity_source'), 'app_uuid');
+  assert.equal(stored.getString('trust_level'), 'basic');
+
+  const enrichmentPayload = installations.parseFirebaseEnrichmentPayload({
+    fid: FID_A,
+    app_set_id: APP_SET_ID,
+  });
+  const enriched = installations.enrichFirebaseInstallation(app, context({
+    appId: '',
+    credential: core.credential,
+    payload: enrichmentPayload,
+  }), CREDENTIAL_SECRET, AES_KEY);
+  assert.equal(enriched.firebase_registered, true);
+  assert.equal(enriched.fid_rotated, false);
+  assert.equal(enriched.credential, core.credential);
+  assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
+  assert.equal(stored.getString('fid'), FID_A);
+  assert.equal(stored.getString('firebase_status'), 'registered');
+  assert.equal(stored.getString('trust_level'), 'basic');
+
+  const attested = installations.enrichFirebaseInstallation(app, context({
+    credential: core.credential,
+    payload: enrichmentPayload,
+  }), CREDENTIAL_SECRET, AES_KEY);
+  assert.equal(attested.firebase_registered, true);
+  assert.equal(stored.getString('trust_level'), 'firebase_verified');
+});
+
+test('un FID no puede enriquecerse sobre dos UUID aunque no haya App Check', () => {
+  const app = createApp();
+  const first = installations.registerCoreInstallation(app, context({
+    appId: '',
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const second = installations.registerCoreInstallation(app, context({
+    appId: '',
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload(
+      '123e4567-e89b-42d3-a456-426614174001',
+    )),
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const payload = installations.parseFirebaseEnrichmentPayload({ fid: FID_A });
+  installations.enrichFirebaseInstallation(app, context({
+    appId: '', credential: first.credential, payload,
+  }), CREDENTIAL_SECRET);
+  assert.throws(() => installations.enrichFirebaseInstallation(app, context({
+    appId: '', credential: second.credential, payload,
+  }), CREDENTIAL_SECRET), assertCode('invalid_credential'));
+});
+
+test('registro UUID migra una instalación existente usando su credencial sin duplicarla', () => {
+  const app = createApp();
+  const legacy = installations.registerInstallation(app, context(), CREDENTIAL_SECRET, AES_KEY);
+  const migrated = installations.registerCoreInstallation(app, context({
+    appId: '',
+    credential: legacy.credential,
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+  }), CREDENTIAL_SECRET, AES_KEY);
+
+  assert.equal(migrated.created, false);
+  assert.equal(migrated.installation.id, legacy.installation.id);
+  assert.equal(migrated.credential, legacy.credential);
+  assert.equal(app.list(installations.INSTALLATIONS_COLLECTION).length, 1);
+  assert.match(app.list(installations.INSTALLATIONS_COLLECTION)[0].getString('installation_uuid_digest'), /^[a-f0-9]{64}$/);
+});
+
+test('diagnósticos se guardan por credencial sin Firebase y son idempotentes', () => {
+  const app = createApp();
+  const core = installations.registerCoreInstallation(app, context({
+    appId: '',
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const raw = {
+    events: [{
+      idempotency_key: 'diagnostic-event-000000000001',
+      event_type: 'INSTALLATION_REGISTER_RESPONSE',
+      result: 'success',
+      error_code: '',
+      http_status: 200,
+      latency_ms: 321,
+      occurred_at: NOW.toISOString(),
+    }],
+  };
+  const payload = installations.parseDiagnosticsPayload(raw);
+  const diagnosticContext = context({ appId: '', credential: core.credential, payload });
+  const first = installations.recordDiagnostics(app, diagnosticContext, CREDENTIAL_SECRET);
+  const repeated = installations.recordDiagnostics(app, diagnosticContext, CREDENTIAL_SECRET);
+
+  assert.deepEqual(first, { ok: true, accepted: 1, duplicates: 0 });
+  assert.deepEqual(repeated, { ok: true, accepted: 0, duplicates: 1 });
+  const rows = app.list(installations.DIAGNOSTICS_COLLECTION);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].getString('installation'), core.installation.id);
+  assert.equal(JSON.stringify(rows[0].values).includes(coreRegisterPayload().installation_id), false);
+});
+
+test('ticket realtime usa la credencial propia, dura 60 segundos y no la expone', () => {
+  const app = createApp();
+  const security = securityFixture();
+  const core = installations.registerCoreInstallation(app, context({
+    appId: '',
+    security,
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const ticket = installations.createRealtimeTicket(app, context({
+    appId: '',
+    credential: core.credential,
+    security,
+    payload: installations.parseEmptyPayload({}),
+  }), CREDENTIAL_SECRET, {
+    config: {
+      url: 'wss://realtime.tusenda84.com/v1/connect',
+      secret: 'realtime-ticket-secret-abcdefghijklmnopqrstuvwxyz',
+    },
+    nonce: 'A'.repeat(32),
+  });
+
+  assert.equal(ticket.ok, true);
+  assert.equal(ticket.websocket_url, 'wss://realtime.tusenda84.com/v1/connect');
+  assert.equal(ticket.expires_at, new Date(NOW.getTime() + 60_000).toISOString());
+  assert.match(ticket.ticket, /^pzrt_v1\.[a-f0-9]{64}\.\d{10}\.\d{10}\.A{32}\.[a-f0-9]{64}$/);
+  assert.equal(ticket.ticket.includes(core.credential), false);
+  assert.equal(ticket.ticket.includes(coreRegisterPayload().installation_id), false);
+  assert.equal(ticket.ticket.includes(core.installation.id), false);
+});
+
+test('mantenimiento elimina diagnósticos vencidos y expira la cola nativa sin borrar entregas', () => {
+  const app = createApp();
+  const expiredDiagnostic = record(installations.DIAGNOSTICS_COLLECTION, 'diagnosticold01', {
+    store: STORE_A,
+    app_config: APP_A,
+    installation: 'installation001',
+    delete_after: '2026-08-11T23:59:59.000Z',
+  });
+  const futureDiagnostic = record(installations.DIAGNOSTICS_COLLECTION, 'diagnosticnew01', {
+    store: STORE_A,
+    app_config: APP_A,
+    installation: 'installation001',
+    delete_after: '2026-08-13T00:00:00.000Z',
+  });
+  const expiredDelivery = record('push_campaign_deliveries', 'deliveryexpire1', {
+    store: STORE_A,
+    campaign: 'campaignnative1',
+    installation: 'installation001',
+    native_status: 'pending',
+    delivery_expires_at: '2026-08-12T01:59:59.000Z',
+  });
+  const futureDelivery = record('push_campaign_deliveries', 'deliveryfuture1', {
+    store: STORE_A,
+    campaign: 'campaignnative1',
+    installation: 'installation001',
+    native_status: 'pending',
+    delivery_expires_at: '2026-08-12T02:00:01.000Z',
+  });
+  [expiredDiagnostic, futureDiagnostic, expiredDelivery, futureDelivery]
+    .forEach((item) => app.records.set(`${item.collection}:${item.id}`, item));
+
+  const result = installations.cleanupResilientInstallationData(app, NOW);
+
+  assert.deepEqual(result, { diagnostics_deleted: 1, native_expired: 1, failed: 0 });
+  assert.equal(app.list(installations.DIAGNOSTICS_COLLECTION).length, 1);
+  assert.equal(app.list(installations.DIAGNOSTICS_COLLECTION)[0].id, futureDiagnostic.id);
+  assert.equal(expiredDelivery.getString('native_status'), 'expired');
+  assert.equal(futureDelivery.getString('native_status'), 'pending');
+  assert.equal(app.list('push_campaign_deliveries').length, 2);
+});
+
+test('cola nativa entrega sin FID, evita duplicados y confirma recepción', () => {
+  const app = createApp();
+  const security = securityFixture();
+  const registered = installations.registerCoreInstallation(app, context({
+    appId: '',
+    firebaseProjectId: '',
+    credential: '',
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+    security,
+  }), CREDENTIAL_SECRET, AES_KEY);
+  const installationId = registered.installation.id;
+  const delivery = record('push_campaign_deliveries', 'deliverynative1', {
+    store: STORE_A,
+    campaign: 'campaignnative1',
+    installation: installationId,
+    status: 'accepted',
+    fcm_status: 'not_attempted',
+    native_status: 'pending',
+    inbox_title: 'Oferta PowerZona',
+    inbox_body: 'Mensaje disponible sin Firebase',
+    inbox_image_url: '',
+    inbox_target_type: 'home',
+    inbox_target_path: '/t/powerzona',
+    inbox_deleted_at: '',
+    created: '2026-08-12T01:30:00.000Z',
+    delivery_expires_at: '2026-08-19T02:00:00.000Z',
+  });
+  const campaign = record('push_campaigns', 'campaignnative1', { store: STORE_A });
+  app.records.set(`${campaign.collection}:${campaign.id}`, campaign);
+  app.records.set(`${delivery.collection}:${delivery.id}`, delivery);
+  const authenticated = context({
+    appId: '',
+    firebaseProjectId: '',
+    credential: registered.credential,
+    payload: {},
+    security,
+  });
+
+  const synced = installations.syncNativeNotifications(app, authenticated, CREDENTIAL_SECRET);
+  assert.equal(synced.ok, true);
+  assert.equal(synced.notifications.length, 1);
+  assert.deepEqual(synced.notifications[0], {
+    notification_id: delivery.id,
+    schema_version: '1',
+    store_key: 'powerzona-storefront-staging',
+    campaign_id: 'campaignnative1',
+    delivery_id: delivery.id,
+    title: 'Oferta PowerZona',
+    body: 'Mensaje disponible sin Firebase',
+    target_type: 'home',
+    target_path: '/t/powerzona',
+    image_url: '',
+    created_at: '2026-08-12T01:30:00.000Z',
+    expires_at: '2026-08-19T02:00:00.000Z',
+  });
+
+  const receiptPayload = installations.parseNotificationReceiptsPayload({ receipts: [{
+    notification_id: delivery.id,
+    state: 'native_delivered',
+    occurred_at: '2026-08-12T02:00:00.000Z',
+  }] });
+  const first = installations.recordNotificationReceipts(
+    app,
+    { ...authenticated, payload: receiptPayload },
+    CREDENTIAL_SECRET,
+  );
+  const duplicate = installations.recordNotificationReceipts(
+    app,
+    { ...authenticated, payload: receiptPayload },
+    CREDENTIAL_SECRET,
+  );
+  assert.deepEqual(first, { ok: true, accepted: 1, duplicates: 0 });
+  assert.deepEqual(duplicate, { ok: true, accepted: 0, duplicates: 1 });
+  assert.equal(delivery.getString('native_status'), 'delivered');
+  assert.equal(installations.syncNativeNotifications(app, authenticated, CREDENTIAL_SECRET).notifications.length, 0);
 });
 
 test('App Set ID rota un FID sin duplicar la instalación y solo persiste su HMAC', () => {
@@ -458,6 +765,10 @@ test('plan no Premium bloquea altas pero una app no elige store_id', () => {
   store.set('plan_is_permanent', false);
   store.set('plan_expires_at', '2026-08-20T00:00:00.000Z');
   assert.throws(() => installations.registerInstallation(app, context(), CREDENTIAL_SECRET, AES_KEY), assertCode('plan_not_available'));
+  assert.throws(() => installations.registerCoreInstallation(app, context({
+    appId: '',
+    payload: installations.parseCoreRegisterPayload(coreRegisterPayload()),
+  }), CREDENTIAL_SECRET, AES_KEY), assertCode('plan_not_available'));
 });
 
 test('la referencia administrativa distingue instalaciones sin exponer FID ni ids internos', () => {
@@ -617,6 +928,12 @@ test('rutas privadas tienen body limit y omiten activity logs con datos sensible
   const source = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_storefront_installations_lib.js'), 'utf8');
   for (const route of [
     '/installations/register',
+    '/storefront/v2/installations/register',
+    '/storefront/v2/installations/firebase',
+    '/storefront/v2/diagnostics',
+    '/storefront/v2/notifications/sync',
+    '/storefront/v2/notifications/ack',
+    '/storefront/v2/realtime/ticket',
     '/installations/heartbeat',
     '/installations/permission',
     '/installations/disable',
@@ -629,9 +946,10 @@ test('rutas privadas tienen body limit y omiten activity logs con datos sensible
     '/storefront-app-updates/{artifact}/{ticket}/{filename}',
     '/events',
   ]) assert.match(routes, new RegExp(route.replaceAll('/', '\\/')));
-  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 12);
-  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 12);
+  assert.equal((routes.match(/\$apis\.bodyLimit\(/g) || []).length, 18);
+  assert.equal((routes.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 18);
   assert.match(routes, /campaigns_resolve_target/);
+  assert.match(routes, /cronAdd\([\s\S]*pz_storefront_resilient_installation_cleanup/);
   assert.match(source, /PZ_STOREFRONT_INSTALLATION_REQUEST_FAILED/);
   assert.doesNotMatch(source, /logger\(\)\.error\([\s\S]{0,300}error\.message/);
 });

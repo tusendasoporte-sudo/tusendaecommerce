@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   internalPath: '/api/pz/storefront/v1/events',
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.event,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontEventPayload,
   mapSuccess: mapStorefrontEventResponse,
 });

@@ -50,6 +50,12 @@ function logStorefrontGateway(
 
 const ACTION_LIMITS = Object.freeze({
   installations_register: 12,
+  installations_register_core: 12,
+  installations_firebase_enrich: 12,
+  diagnostics_batch: 30,
+  notifications_sync: 60,
+  notifications_ack: 120,
+  realtime_ticket: 30,
   installations_heartbeat: 60,
   installations_permission: 30,
   installations_disable: 12,
@@ -73,6 +79,7 @@ let rateOperations = 0;
 
 export type StorefrontInternalEnvelope<T = unknown> = Readonly<{
   app_id: string;
+  firebase_project_id?: string;
   credential: string;
   client: Readonly<{
     ip: string;
@@ -90,6 +97,7 @@ export type StorefrontNativeGatewayOptions<T> = Readonly<{
   maxBodyBytes: number;
   allowEmptyBody?: boolean;
   credential: 'optional' | 'required';
+  appCheck?: 'required' | 'optional' | 'disabled';
   parsePayload: GatewayPayloadParser<T>;
   mapSuccess?: (payload: Record<string, unknown>) => Record<string, unknown> | null;
   verifyAppCheckToken?: AppCheckVerifier;
@@ -268,8 +276,11 @@ function rateIdentity(
   payload: unknown,
 ) {
   const fid = isPlainObject(payload) && typeof payload.fid === 'string' ? payload.fid : '';
+  const installationId = isPlainObject(payload) && typeof payload.installation_id === 'string'
+    ? payload.installation_id : '';
+  const appKey = isPlainObject(payload) && typeof payload.app_key === 'string' ? payload.app_key : '';
   return createHash('sha256')
-    .update(`${appId}\n${clientIp}\n${credential || fid || 'anonymous'}`, 'utf8')
+    .update(`${appId || appKey}\n${clientIp}\n${credential || fid || installationId || 'anonymous'}`, 'utf8')
     .digest('hex');
 }
 
@@ -379,13 +390,22 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     return storefrontJson(401, { ok: false, error: 'invalid_credential' });
   }
 
-  const appCheck = await verifyStorefrontAppCheck(
-    options.request,
-    options.verifyAppCheckToken || defaultAppCheckVerifier,
-  );
-  if (!appCheck.ok) {
-    logStorefrontGateway(options.action, appCheck.status, 'rejected', appCheck.error);
-    return storefrontJson(appCheck.status, { ok: false, error: appCheck.error });
+  const appCheckMode = options.appCheck || 'required';
+  const appCheckToken = storefrontAppCheckToken(options.request);
+  let appCheck: Readonly<{ ok: true; appId: string; projectId?: string }> = Object.freeze({
+    ok: true,
+    appId: '',
+  });
+  if (appCheckMode === 'required' || (appCheckMode === 'optional' && appCheckToken)) {
+    const verified = await verifyStorefrontAppCheck(
+      options.request,
+      options.verifyAppCheckToken || defaultAppCheckVerifier,
+    );
+    if (!verified.ok) {
+      logStorefrontGateway(options.action, verified.status, 'rejected', verified.error);
+      return storefrontJson(verified.status, { ok: false, error: verified.error });
+    }
+    appCheck = verified;
   }
 
   const client = trustedClientContext(options.request, options.clientAddress);
@@ -395,7 +415,7 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     return storefrontJson(429, { ok: false, error: 'rate_limited' }, { 'Retry-After': '60' });
   }
 
-  const verifiedProjectId = 'projectId' in appCheck ? String(appCheck.projectId || '') : '';
+  const verifiedProjectId = String(appCheck.projectId || '');
   const envelope = Object.freeze({
     app_id: appCheck.appId,
     ...(verifiedProjectId ? { firebase_project_id: verifiedProjectId } : {}),

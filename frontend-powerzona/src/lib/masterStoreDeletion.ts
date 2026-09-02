@@ -38,6 +38,7 @@ export type MasterStoreDeleteCounts = {
   visual_items: number;
   storefront_app_configs: number;
   storefront_installations: number;
+  storefront_installation_diagnostics: number;
   storefront_web_sessions: number;
   storefront_order_links: number;
   storefront_installation_coupons: number;
@@ -107,7 +108,7 @@ const COUNT_KEYS: Array<Exclude<keyof MasterStoreDeleteCounts, 'total_records'>>
   'activity_reviews', 'activity_audit',
   'price_watches', 'price_events', 'master_notifications', 'settings', 'categories',
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',
-  'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
+  'storefront_app_configs', 'storefront_installations', 'storefront_installation_diagnostics', 'storefront_web_sessions',
   'storefront_order_links', 'storefront_installation_coupons', 'push_media', 'push_campaigns',
   'push_campaign_deliveries', 'push_events', 'push_daily_stats',
   'admin_app_release_events', 'admin_app_download_tickets', 'admin_app_release_assignments',

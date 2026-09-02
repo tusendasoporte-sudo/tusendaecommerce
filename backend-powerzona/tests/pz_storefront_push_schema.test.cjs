@@ -10,7 +10,10 @@ const schema = require('../pb_hooks/pz_storefront_push_schema_lib.js');
 
 const migrationPath = path.resolve(__dirname, '../pb_migrations/1786579200_storefront_push_foundation.js');
 const migrationSource = fs.readFileSync(migrationPath, 'utf8');
-const FOUNDATION_COLLECTIONS = schema.STOREFRONT_PUSH_COLLECTIONS.filter((name) => name !== 'push_daily_stats');
+const FOUNDATION_COLLECTIONS = schema.STOREFRONT_PUSH_COLLECTIONS.filter((name) => ![
+  'push_daily_stats',
+  'storefront_installation_diagnostics',
+].includes(name));
 
 function loadMigration() {
   let forward;
@@ -117,10 +120,13 @@ test('los secretos, datos sensibles y fechas de retención están explícitos', 
     campaign_quota_entry_days: 40,
     daily_aggregate_days: 90,
     private_inbox_days: 30,
+    installation_diagnostics_days: 30,
   });
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('fid'), true);
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('credential_digest'), true);
   assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('app_set_digest'), true);
+  assert.equal(schema.SENSITIVE_FIELDS.storefront_installations.includes('installation_uuid_digest'), true);
+  assert.equal(schema.SENSITIVE_FIELDS.storefront_installation_diagnostics.includes('metadata_json'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_campaign_deliveries.includes('firebase_message_id'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('order'), true);
   assert.equal(schema.SENSITIVE_FIELDS.push_events.includes('coupon'), true);

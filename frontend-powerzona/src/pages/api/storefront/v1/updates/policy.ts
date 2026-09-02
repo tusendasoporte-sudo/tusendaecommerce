@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   internalPath: '/api/pz/storefront/v1/updates/policy',
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.update_policy,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontUpdatePolicyPayload,
   mapSuccess: mapStorefrontUpdatePolicyResponse,
 });

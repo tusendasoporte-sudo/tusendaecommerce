@@ -57,6 +57,11 @@
         </provider>
 
         <activity
+            android:name=".StorefrontDiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Storefront" />
+
+        <activity
             android:name=".StorefrontActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="true"

@@ -358,6 +358,10 @@ function buildDownloadAnalytics(app, storeIdValue, options) {
   }
   const versions = Array.from(rowsByVersion.values())
     .sort((left, right) => right.version_code - left.version_code || right.artifact_id.localeCompare(left.artifact_id));
+  const uniqueActivatedInstallations = new Set(eventRows
+    .filter((event) => recordString(event, "event_type") === "version_activated")
+    .map((event) => relationId(event, "installation"))
+    .filter((installationId) => RECORD_ID_PATTERN.test(installationId)));
   const summary = versions.reduce((result, row) => ({
     shared_link_downloads: result.shared_link_downloads + row.shared_link_downloads,
     private_update_downloads: result.private_update_downloads + row.private_update_downloads,
@@ -381,6 +385,7 @@ function buildDownloadAnalytics(app, storeIdValue, options) {
     all_downloads: 0,
     last_activity_at: "",
   });
+  summary.activated_installations = uniqueActivatedInstallations.size;
   return {
     available: collectionAvailable,
     generated_at: now.toISOString(),
@@ -389,8 +394,8 @@ function buildDownloadAnalytics(app, storeIdValue, options) {
     summary,
     versions,
     measurement_note: includeMaster
-      ? "Las solicitudes de clientes y las descargas de prueba Master se muestran por separado. Una descarga verificada no equivale a una instalación; la instalación se confirma cuando la nueva versión abre y se registra."
-      : "Las descargas de prueba Master están excluidas. Una solicitud de enlace no confirma la instalación; las actualizaciones privadas se verifican en la app y la instalación se confirma al abrir la nueva versión.",
+      ? "Las solicitudes de clientes y las descargas de prueba Master se muestran por separado. El resumen cuenta dispositivos únicos confirmados; un mismo dispositivo puede figurar en varias filas al abrir versiones distintas."
+      : "Las descargas de prueba Master están excluidas. El resumen cuenta dispositivos únicos confirmados; un mismo dispositivo puede figurar en varias filas al abrir versiones distintas.",
   };
 }
 

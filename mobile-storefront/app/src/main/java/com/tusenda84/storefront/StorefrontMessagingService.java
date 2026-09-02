@@ -16,6 +16,14 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
 
     @Override
     public void onRegistered(@NonNull String installationId) {
+        StorefrontDiagnostics.record(
+                this,
+                StorefrontDiagnostics.FCM_TOKEN_CREATED,
+                "success",
+                "",
+                0,
+                0
+        );
         registerWithoutExposingIdentifiers();
     }
 
@@ -41,13 +49,36 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
             stagingDiagnostic("payload_rejected_" + diagnostic);
             return;
         }
-        boolean posted = StorefrontNotifications.show(
+        StorefrontDiagnostics.record(
+                this,
+                StorefrontDiagnostics.LAST_PUSH_RECEIVED,
+                "success",
+                "",
+                0,
+                0
+        );
+        StorefrontNotificationStore.queueReceipt(this, payload.deliveryId, "fcm_received");
+        boolean duplicate = StorefrontNotificationStore.wasDisplayed(this, payload.deliveryId);
+        boolean posted = !duplicate && StorefrontNotifications.show(
                 this,
                 payload,
                 payload.title,
                 payload.body
         );
-        stagingDiagnostic(posted ? "notification_posted" : "notification_skipped");
+        if (posted) {
+            StorefrontNotificationStore.markDisplayed(this, payload.deliveryId);
+            StorefrontNotificationStore.queueReceipt(this, payload.deliveryId, "native_delivered");
+        }
+        StorefrontRegistrationClient client = new StorefrontRegistrationClient(this);
+        if (StorefrontInstallationStore.hasCredential(this)) {
+            client.flushNotificationReceipts(result -> { });
+        } else {
+            client.syncFromAppStart(result -> {
+                if (result.ok) client.flushNotificationReceipts(receiptResult -> { });
+            });
+        }
+        stagingDiagnostic(duplicate ? "notification_duplicate"
+                : posted ? "notification_posted" : "notification_skipped");
     }
 
     private static void stagingDiagnostic(String code) {

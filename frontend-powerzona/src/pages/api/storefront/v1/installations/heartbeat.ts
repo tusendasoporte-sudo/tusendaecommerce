@@ -14,5 +14,6 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   internalPath: '/api/pz/storefront/v1/installations/heartbeat',
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.heartbeat,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontHeartbeatPayload,
 });

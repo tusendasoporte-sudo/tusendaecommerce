@@ -4,6 +4,10 @@ import java.util.regex.Pattern;
 
 final class StorefrontRegistrationPayload {
     private static final Pattern FID = Pattern.compile("^[A-Za-z0-9_-]{16,255}$");
+    private static final Pattern INSTALLATION_ID = Pattern.compile(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    );
+    private static final Pattern APP_KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$");
     private static final Pattern APP_SET_ID = Pattern.compile("^[0-9A-Za-z+.=/_$,{}-]{22,150}$");
     private static final Pattern VERSION = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$");
     private static final Pattern ANDROID = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$");
@@ -13,6 +17,39 @@ final class StorefrontRegistrationPayload {
     private static final Pattern STOREFRONT_PATH = Pattern.compile("^/t/[a-z0-9]+(?:-[a-z0-9]+)*(?:/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?(?:\\?[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$");
 
     private StorefrontRegistrationPayload() {}
+
+    static String coreRegister(
+            String installationId,
+            String appKey,
+            String appVersion,
+            int appVersionCode,
+            String androidVersion,
+            String deviceModel,
+            String locale,
+            String timezone,
+            String permission
+    ) {
+        require(installationId, 36, INSTALLATION_ID);
+        require(appKey, 64, APP_KEY);
+        require(appVersion, 40, VERSION);
+        requireVersionCode(appVersionCode);
+        require(androidVersion, 40, ANDROID);
+        require(deviceModel, 120, null);
+        require(locale, 35, LOCALE);
+        require(timezone, 80, TIMEZONE);
+        requirePermission(permission);
+        return "{"
+                + "\"installation_id\":" + quote(installationId)
+                + ",\"app_key\":" + quote(appKey)
+                + ",\"app_version\":" + quote(appVersion)
+                + ",\"app_version_code\":" + appVersionCode
+                + ",\"android_version\":" + quote(androidVersion)
+                + ",\"device_model\":" + quote(deviceModel)
+                + ",\"locale\":" + quote(locale)
+                + ",\"timezone\":" + quote(timezone)
+                + ",\"notification_permission\":" + quote(permission)
+                + "}";
+    }
 
     static String register(
             String fid,
@@ -46,6 +83,14 @@ final class StorefrontRegistrationPayload {
                 + ",\"locale\":" + quote(locale)
                 + ",\"timezone\":" + quote(timezone)
                 + ",\"notification_permission\":" + quote(permission)
+                + "}";
+    }
+
+    static String firebaseEnrichment(String fid, String appSetId) {
+        require(fid, 255, FID);
+        if (!validOptionalAppSetId(appSetId)) throw new IllegalArgumentException("invalid_payload");
+        return "{\"fid\":" + quote(fid)
+                + (appSetId.isEmpty() ? "" : ",\"app_set_id\":" + quote(appSetId))
                 + "}";
     }
 

@@ -1,5 +1,11 @@
 export const STOREFRONT_MAX_BODY_BYTES = Object.freeze({
   register: 4096,
+  register_core: 4096,
+  firebase_enrichment: 1024,
+  diagnostics: 16_384,
+  notifications_sync: 256,
+  notifications_ack: 8192,
+  realtime_ticket: 256,
   heartbeat: 3072,
   permission: 512,
   disable: 256,
@@ -16,18 +22,40 @@ export const STOREFRONT_BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 export const STOREFRONT_SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
+const INSTALLATION_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const APP_SET_ID_PATTERN = /^[0-9A-Za-z+.=/_$,{}-]{22,150}$/;
 const VERSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+()-]{0,39}$/;
 const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
 const TIMEZONE_PATTERN = /^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,3})$/;
 const PERMISSION_STATES = Object.freeze(['unknown', 'granted', 'denied'] as const);
+const DIAGNOSTIC_EVENT_TYPES = Object.freeze([
+  'APP_STARTED',
+  'INTERNET_AVAILABLE',
+  'BACKEND_REACHABLE',
+  'INSTALLATION_UUID_CREATED',
+  'FIREBASE_INITIALIZED',
+  'FID_CREATED',
+  'FCM_TOKEN_CREATED',
+  'INSTALLATION_REGISTER_REQUEST_SENT',
+  'INSTALLATION_REGISTER_RESPONSE',
+  'NOTIFICATION_PERMISSION_STATUS',
+  'LAST_PUSH_RECEIVED',
+  'LAST_ERROR',
+] as const);
+const DIAGNOSTIC_RESULTS = Object.freeze(['started', 'success', 'failure', 'skipped'] as const);
+const DIAGNOSTIC_KEY_PATTERN = /^[A-Za-z0-9._:-]{16,128}$/;
+const SAFE_ERROR_PATTERN = /^[a-z0-9_:-]{1,80}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PACKAGE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const APK_FILE_PATTERN = /^[A-Za-z0-9._-]+\.apk$/;
 const ORDER_TARGET_PATH_PATTERN = /^\/orden\/[A-Za-z0-9_-]{1,80}\/[A-Za-z0-9_-]{6,80}$/;
 const STOREFRONT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*)?(?:\?[A-Za-z0-9._~!$&'()*+,;=:@%/?-]*)?$/;
+const NOTIFICATION_RECEIPT_STATES = Object.freeze([
+  'fcm_received', 'native_delivered', 'read',
+] as const);
 
 export type NotificationPermission = typeof PERMISSION_STATES[number];
 
@@ -43,6 +71,23 @@ export type StorefrontRegisterPayload = Readonly<{
   notification_permission: NotificationPermission;
 }>;
 
+export type StorefrontCoreRegisterPayload = Readonly<{
+  installation_id: string;
+  app_key: string;
+  app_version: string;
+  app_version_code: number;
+  android_version: string;
+  device_model: string;
+  locale: string;
+  timezone: string;
+  notification_permission: NotificationPermission;
+}>;
+
+export type StorefrontFirebaseEnrichmentPayload = Readonly<{
+  fid: string;
+  app_set_id?: string;
+}>;
+
 export type StorefrontHeartbeatPayload = Readonly<{
   app_version: string;
   app_version_code: number;
@@ -50,6 +95,16 @@ export type StorefrontHeartbeatPayload = Readonly<{
   device_model: string;
   locale: string;
   timezone: string;
+}>;
+
+export type StorefrontDiagnosticEvent = Readonly<{
+  idempotency_key: string;
+  event_type: typeof DIAGNOSTIC_EVENT_TYPES[number];
+  result: typeof DIAGNOSTIC_RESULTS[number];
+  error_code: string;
+  http_status: number;
+  latency_ms: number;
+  occurred_at: string;
 }>;
 
 type ParsedJson = Readonly<
@@ -128,6 +183,263 @@ export function normalizeStorefrontRegisterPayload(value: unknown): StorefrontRe
     timezone,
     notification_permission: notificationPermission,
   });
+}
+
+export function normalizeStorefrontCoreRegisterPayload(value: unknown): StorefrontCoreRegisterPayload | null {
+  const keys = [
+    'installation_id',
+    'app_key',
+    'app_version',
+    'app_version_code',
+    'android_version',
+    'device_model',
+    'locale',
+    'timezone',
+    'notification_permission',
+  ] as const;
+  if (!exactKeys(value, keys)) return null;
+
+  const source = value as Record<string, unknown>;
+  const installationId = boundedText(source.installation_id, 36, INSTALLATION_UUID_PATTERN).toLowerCase();
+  const appKey = boundedText(source.app_key, 64, APP_KEY_PATTERN);
+  const appVersion = boundedText(source.app_version, 40, VERSION_PATTERN);
+  const versionCode = appVersionCode(source.app_version_code);
+  const androidVersion = boundedText(source.android_version, 40, ANDROID_PATTERN);
+  const deviceModel = boundedText(source.device_model, 120);
+  const locale = boundedText(source.locale, 35, LOCALE_PATTERN);
+  const timezone = boundedText(source.timezone, 80, TIMEZONE_PATTERN);
+  const notificationPermission = permissionState(source.notification_permission);
+  if (!installationId || !appKey || !appVersion || !versionCode || !androidVersion || !deviceModel
+    || !locale || !timezone || !notificationPermission) return null;
+
+  return Object.freeze({
+    installation_id: installationId,
+    app_key: appKey,
+    app_version: appVersion,
+    app_version_code: versionCode,
+    android_version: androidVersion,
+    device_model: deviceModel,
+    locale,
+    timezone,
+    notification_permission: notificationPermission,
+  });
+}
+
+export function mapStorefrontCoreRegisterResponse(value: unknown) {
+  if (!exactKeys(value, [
+    'ok', 'created', 'installation', 'credential', 'firebase_enrichment_required',
+  ])) return null;
+  const source = value as Record<string, unknown>;
+  const installation = source.installation;
+  if (!exactKeys(installation, [
+    'id', 'status', 'notification_permission', 'first_seen_at', 'last_seen_at',
+  ])) return null;
+  const record = installation as Record<string, unknown>;
+  const firstSeen = typeof record.first_seen_at === 'string' ? new Date(record.first_seen_at) : null;
+  const lastSeen = typeof record.last_seen_at === 'string' ? new Date(record.last_seen_at) : null;
+  if (source.ok !== true || typeof source.created !== 'boolean'
+    || typeof source.firebase_enrichment_required !== 'boolean'
+    || !STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN.test(String(source.credential || ''))
+    || !RECORD_ID_PATTERN.test(String(record.id || ''))
+    || record.status !== 'active' || !PERMISSION_STATES.includes(record.notification_permission as NotificationPermission)
+    || !firstSeen || !lastSeen || !Number.isFinite(firstSeen.getTime()) || !Number.isFinite(lastSeen.getTime())) {
+    return null;
+  }
+  return Object.freeze({
+    ok: true,
+    created: source.created,
+    credential: String(source.credential),
+    firebase_enrichment_required: source.firebase_enrichment_required,
+  });
+}
+
+export function normalizeStorefrontFirebaseEnrichmentPayload(
+  value: unknown,
+): StorefrontFirebaseEnrichmentPayload | null {
+  const hasAppSetId = isPlainObject(value) && Object.hasOwn(value, 'app_set_id');
+  const keys = hasAppSetId ? ['fid', 'app_set_id'] as const : ['fid'] as const;
+  if (!exactKeys(value, keys)) return null;
+  const source = value as Record<string, unknown>;
+  const fid = boundedText(source.fid, 255, FID_PATTERN);
+  const appSetId = hasAppSetId ? boundedText(source.app_set_id, 150, APP_SET_ID_PATTERN) : '';
+  if (!fid || (hasAppSetId && !appSetId)) return null;
+  return Object.freeze({ fid, ...(appSetId ? { app_set_id: appSetId } : {}) });
+}
+
+export function mapStorefrontFirebaseEnrichmentResponse(value: unknown) {
+  if (!exactKeys(value, ['ok', 'firebase_registered', 'fid_rotated', 'credential'])) return null;
+  const source = value as Record<string, unknown>;
+  if (source.ok !== true || source.firebase_registered !== true || typeof source.fid_rotated !== 'boolean'
+    || !STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN.test(String(source.credential || ''))) return null;
+  return Object.freeze({
+    ok: true,
+    firebase_registered: true,
+    fid_rotated: source.fid_rotated,
+    credential: String(source.credential),
+  });
+}
+
+export function normalizeStorefrontDiagnosticsPayload(value: unknown) {
+  if (!exactKeys(value, ['events'])) return null;
+  const events = (value as Record<string, unknown>).events;
+  if (!Array.isArray(events) || events.length < 1 || events.length > 32) return null;
+  const normalized: StorefrontDiagnosticEvent[] = [];
+  for (const event of events) {
+    if (!exactKeys(event, [
+      'idempotency_key', 'event_type', 'result', 'error_code',
+      'http_status', 'latency_ms', 'occurred_at',
+    ])) return null;
+    const source = event as Record<string, unknown>;
+    const idempotencyKey = boundedText(source.idempotency_key, 128, DIAGNOSTIC_KEY_PATTERN);
+    const eventType = typeof source.event_type === 'string'
+      && DIAGNOSTIC_EVENT_TYPES.includes(source.event_type as typeof DIAGNOSTIC_EVENT_TYPES[number])
+      ? source.event_type as typeof DIAGNOSTIC_EVENT_TYPES[number] : '';
+    const result = typeof source.result === 'string'
+      && DIAGNOSTIC_RESULTS.includes(source.result as typeof DIAGNOSTIC_RESULTS[number])
+      ? source.result as typeof DIAGNOSTIC_RESULTS[number] : '';
+    const errorCode = source.error_code === '' ? '' : boundedText(source.error_code, 80, SAFE_ERROR_PATTERN);
+    const httpStatus = Number(source.http_status);
+    const latencyMs = Number(source.latency_ms);
+    const occurredAt = typeof source.occurred_at === 'string' ? new Date(source.occurred_at) : null;
+    if (!idempotencyKey || !eventType || !result
+      || (source.error_code !== '' && !errorCode)
+      || !Number.isSafeInteger(httpStatus) || httpStatus < 0 || httpStatus > 599
+      || !Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 600_000
+      || !occurredAt || !Number.isFinite(occurredAt.getTime())) return null;
+    normalized.push(Object.freeze({
+      idempotency_key: idempotencyKey,
+      event_type: eventType,
+      result,
+      error_code: errorCode,
+      http_status: httpStatus,
+      latency_ms: latencyMs,
+      occurred_at: occurredAt.toISOString(),
+    }));
+  }
+  return Object.freeze({ events: Object.freeze(normalized) });
+}
+
+export function normalizeStorefrontNotificationReceiptsPayload(value: unknown) {
+  if (!exactKeys(value, ['receipts'])) return null;
+  const receipts = (value as Record<string, unknown>).receipts;
+  if (!Array.isArray(receipts) || receipts.length < 1 || receipts.length > 50) return null;
+  const normalized: Array<Readonly<{ notification_id: string; state: string; occurred_at: string }>> = [];
+  for (const receipt of receipts) {
+    if (!exactKeys(receipt, ['notification_id', 'state', 'occurred_at'])) return null;
+    const source = receipt as Record<string, unknown>;
+    const notificationId = boundedText(source.notification_id, 15, RECORD_ID_PATTERN);
+    const state = typeof source.state === 'string'
+      && NOTIFICATION_RECEIPT_STATES.includes(source.state as typeof NOTIFICATION_RECEIPT_STATES[number])
+      ? source.state : '';
+    const occurredAt = typeof source.occurred_at === 'string' ? new Date(source.occurred_at) : null;
+    if (!notificationId || !state || !occurredAt || !Number.isFinite(occurredAt.getTime())) return null;
+    normalized.push(Object.freeze({
+      notification_id: notificationId,
+      state,
+      occurred_at: occurredAt.toISOString(),
+    }));
+  }
+  return Object.freeze({ receipts: Object.freeze(normalized) });
+}
+
+function normalizedNativeNotification(value: unknown) {
+  if (!exactKeys(value, [
+    'notification_id', 'schema_version', 'store_key', 'campaign_id', 'delivery_id',
+    'title', 'body', 'target_type', 'target_path', 'image_url', 'created_at', 'expires_at',
+  ])) return null;
+  const source = value as Record<string, unknown>;
+  const notificationId = boundedText(source.notification_id, 15, RECORD_ID_PATTERN);
+  const deliveryId = boundedText(source.delivery_id, 15, RECORD_ID_PATTERN);
+  const campaignId = boundedText(source.campaign_id, 15, RECORD_ID_PATTERN);
+  const storeKey = boundedText(source.store_key, 64, APP_KEY_PATTERN);
+  const title = typeof source.title === 'string' && source.title.length <= 120 ? source.title : null;
+  const body = typeof source.body === 'string' && source.body.length <= 1000 ? source.body : null;
+  const targetType = ['home', 'product', 'category', 'section', 'order', 'raffle', 'coupon']
+    .includes(String(source.target_type || '')) ? String(source.target_type) : '';
+  const targetPath = typeof source.target_path === 'string' && source.target_path.length <= 500
+    && !/\p{Cc}/u.test(source.target_path) ? source.target_path : null;
+  let imageUrl = '';
+  if (source.image_url === '') imageUrl = '';
+  else {
+    try {
+      const parsed = new URL(String(source.image_url || ''));
+      if (parsed.protocol === 'https:' && !parsed.username && !parsed.password) imageUrl = parsed.toString();
+    } catch (_) {}
+  }
+  const createdAt = typeof source.created_at === 'string' ? new Date(source.created_at) : null;
+  const expiresAt = typeof source.expires_at === 'string' ? new Date(source.expires_at) : null;
+  if (!notificationId || notificationId !== deliveryId || !campaignId || !storeKey
+    || source.schema_version !== '1' || title === null || body === null || !targetType || targetPath === null
+    || (source.image_url !== '' && !imageUrl)
+    || (targetType !== 'order' && !STOREFRONT_PATH_PATTERN.test(targetPath))
+    || !createdAt || !expiresAt || !Number.isFinite(createdAt.getTime())
+    || !Number.isFinite(expiresAt.getTime()) || expiresAt <= createdAt) return null;
+  return Object.freeze({
+    notification_id: notificationId,
+    schema_version: '1',
+    store_key: storeKey,
+    campaign_id: campaignId,
+    delivery_id: deliveryId,
+    title,
+    body,
+    target_type: targetType,
+    target_path: targetPath,
+    image_url: imageUrl,
+    created_at: createdAt.toISOString(),
+    expires_at: expiresAt.toISOString(),
+  });
+}
+
+export function mapStorefrontNotificationsSyncResponse(value: unknown) {
+  if (!exactKeys(value, ['ok', 'notifications', 'server_time']) || (value as Record<string, unknown>).ok !== true) {
+    return null;
+  }
+  const source = value as Record<string, unknown>;
+  if (!Array.isArray(source.notifications) || source.notifications.length > 50) return null;
+  const notifications = source.notifications.map(normalizedNativeNotification);
+  const serverTime = typeof source.server_time === 'string' ? new Date(source.server_time) : null;
+  if (notifications.some((item) => !item) || !serverTime || !Number.isFinite(serverTime.getTime())) return null;
+  return Object.freeze({
+    ok: true,
+    notifications: Object.freeze(notifications),
+    server_time: serverTime.toISOString(),
+  });
+}
+
+export function mapStorefrontNotificationAckResponse(value: unknown) {
+  if (!exactKeys(value, ['accepted', 'duplicates', 'ok'])) return null;
+  const source = value as Record<string, unknown>;
+  const accepted = Number(source.accepted);
+  const duplicates = Number(source.duplicates);
+  return source.ok === true && Number.isSafeInteger(accepted) && accepted >= 0 && accepted <= 50
+    && Number.isSafeInteger(duplicates) && duplicates >= 0 && duplicates <= 50
+    ? Object.freeze({ ok: true, accepted, duplicates }) : null;
+}
+
+export function mapStorefrontRealtimeTicketResponse(value: unknown) {
+  if (!exactKeys(value, ['expires_at', 'ok', 'ticket', 'websocket_url'])) return null;
+  const source = value as Record<string, unknown>;
+  const ticket = boundedText(
+    source.ticket,
+    256,
+    /^pzrt_v1\.[a-f0-9]{64}\.\d{10}\.\d{10}\.[A-Za-z0-9]{32}\.[a-f0-9]{64}$/,
+  );
+  const expiresAt = typeof source.expires_at === 'string' ? new Date(source.expires_at) : null;
+  let websocketUrl = '';
+  try {
+    const parsed = new URL(String(source.websocket_url || ''));
+    if (parsed.protocol === 'wss:' && parsed.hostname && !parsed.username && !parsed.password
+      && (parsed.port === '' || parsed.port === '443') && parsed.pathname === '/v1/connect'
+      && !parsed.search && !parsed.hash) websocketUrl = parsed.toString();
+  } catch (_) {}
+  return source.ok === true && ticket && expiresAt && Number.isFinite(expiresAt.getTime()) && websocketUrl
+    ? Object.freeze({
+      ok: true,
+      ticket,
+      expires_at: expiresAt.toISOString(),
+      websocket_url: websocketUrl,
+    })
+    : null;
 }
 
 export function normalizeStorefrontHeartbeatPayload(value: unknown): StorefrontHeartbeatPayload | null {

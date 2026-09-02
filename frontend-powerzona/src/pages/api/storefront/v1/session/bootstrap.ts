@@ -18,6 +18,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.session_bootstrap,
   allowEmptyBody: true,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontEmptyPayload,
   mapSuccess: (payload) => mapBootstrapResponse(request, payload, clientAddress),
 });

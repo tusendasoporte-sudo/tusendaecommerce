@@ -713,7 +713,7 @@ function activityDateTime(value: string) {
         <article><span>Descargas clientes</span><strong>{downloadSummary.customer_downloads.toLocaleString('es-US')}</strong><small>Enlace compartido + privadas.</small></article>
         <article><span>Descargas Master</span><strong>{downloadSummary.master_downloads.toLocaleString('es-US')}</strong><small>Pruebas, fuera del total cliente.</small></article>
         <article><span>Privadas verificadas</span><strong>{downloadSummary.verified_updates.toLocaleString('es-US')}</strong><small>APK validada por la app.</small></article>
-        <article><span>Instalaciones confirmadas</span><strong>{downloadSummary.activated_installations.toLocaleString('es-US')}</strong><small>La versión abrió después de instalarse.</small></article>
+        <article><span>Instalaciones confirmadas</span><strong>{downloadSummary.activated_installations.toLocaleString('es-US')}</strong><small>Dispositivos únicos que abrieron una versión.</small></article>
         <article><span>Activas estimadas</span><strong>{downloadSummary.active_installations.toLocaleString('es-US')}</strong><small>Actividad durante 30 días.</small></article>
         <article><span>Pendientes</span><strong>{downloadSummary.pending_installations.toLocaleString('es-US')}</strong><small>Por debajo de la publicación activa.</small></article>
         <article><span>Última actividad</span><strong>{downloadSummary.last_activity_at ? 'Registrada' : '—'}</strong><small>{activityDateTime(downloadSummary.last_activity_at)}</small></article>

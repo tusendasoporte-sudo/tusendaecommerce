@@ -277,7 +277,7 @@ Astro.response.headers.set('X-Content-Type-Options', 'nosniff');
               <div class="delivery-summary">
                 <article><span>Solicitudes de descarga</span><strong>{Number(deliverySummary.customer_downloads || 0).toLocaleString('es-US')}</strong><small>Enlace compartido y actualización privada.</small></article>
                 <article><span>Privadas verificadas</span><strong>{Number(deliverySummary.verified_updates || 0).toLocaleString('es-US')}</strong><small>APK completa y validada por la app.</small></article>
-                <article><span>Instalaciones confirmadas</span><strong>{Number(deliverySummary.activated_installations || 0).toLocaleString('es-US')}</strong><small>La nueva versión abrió y se registró.</small></article>
+                <article><span>Instalaciones confirmadas</span><strong>{Number(deliverySummary.activated_installations || 0).toLocaleString('es-US')}</strong><small>Dispositivos únicos que abrieron una versión.</small></article>
                 <article><span>Pendientes de actualizar</span><strong>{Number(deliverySummary.pending_installations || 0).toLocaleString('es-US')}</strong><small>Instalaciones activas bajo la publicación vigente.</small></article>
                 <article><span>Última actividad</span><strong>{deliverySummary.last_activity_at ? 'Registrada' : '—'}</strong><small>{dateTime(deliverySummary.last_activity_at)}</small></article>
               </div>

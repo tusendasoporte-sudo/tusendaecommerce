@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   internalPath: '/api/pz/storefront/v1/campaigns/resolve-target',
   maxBodyBytes: STOREFRONT_MAX_BODY_BYTES.resolve_target,
   credential: 'required',
+  appCheck: 'optional',
   parsePayload: normalizeStorefrontCampaignTargetPayload,
   mapSuccess: mapStorefrontResolvedTarget,
 });

@@ -24,8 +24,11 @@ const ORDER_LINKS_COLLECTION = "storefront_order_links";
 const UPDATE_TICKETS_COLLECTION = "storefront_app_update_tickets";
 const UPDATE_PROFILES_COLLECTION = "storefront_app_build_profiles";
 const UPDATE_ARTIFACTS_COLLECTION = "storefront_app_artifacts";
+const DIAGNOSTICS_COLLECTION = "storefront_installation_diagnostics";
 const INTERNAL_SECRET_ENV = "PZ_STOREFRONT_INTERNAL_SECRET";
 const CREDENTIAL_SECRET_ENV = "PZ_STOREFRONT_CREDENTIAL_SECRET";
+const REALTIME_TICKET_SECRET_ENV = "PZ_STOREFRONT_REALTIME_TICKET_SECRET";
+const REALTIME_PUBLIC_URL_ENV = "PZ_STOREFRONT_REALTIME_PUBLIC_URL";
 const INTERNAL_HEADERS = Object.freeze({
   secret: "X-PZ-Storefront-Internal",
   timestamp: "X-PZ-Storefront-Timestamp",
@@ -38,11 +41,14 @@ const RATE_WINDOW_MS = 60000;
 const RATE_BUCKET_LIMIT = 20000;
 const APP_ID_PATTERN = /^[^\s\u0000-\u001f\u007f]{1,255}$/;
 const FID_PATTERN = /^[A-Za-z0-9_-]{16,255}$/;
+const INSTALLATION_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$/;
 const APP_SET_ID_PATTERN = /^[0-9A-Za-z+.=/_$,{}-]{22,150}$/;
 const CREDENTIAL_PATTERN = /^pzs_v1_[a-f0-9]{64}$/;
 const BOOTSTRAP_CODE_PATTERN = /^pzb_v1_[A-Za-z0-9]{48}$/;
 const SESSION_TOKEN_PATTERN = /^pzws_v1_[A-Za-z0-9]{64}$/;
 const UPDATE_TICKET_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const REALTIME_NONCE_PATTERN = /^[A-Za-z0-9]{32}$/;
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const ORDER_NUMBER_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 const RECEIPT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{6,80}$/;
@@ -52,12 +58,37 @@ const ANDROID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._+()-]{0,39}$/;
 const LOCALE_PATTERN = /^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8}){0,3}$/;
 const TIMEZONE_PATTERN = /^(?:UTC|GMT|[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+){1,3})$/;
 const PERMISSION_STATES = Object.freeze(["unknown", "granted", "denied"]);
+const DIAGNOSTIC_EVENT_TYPES = new Set([
+  "APP_STARTED",
+  "INTERNET_AVAILABLE",
+  "BACKEND_REACHABLE",
+  "INSTALLATION_UUID_CREATED",
+  "FIREBASE_INITIALIZED",
+  "FID_CREATED",
+  "FCM_TOKEN_CREATED",
+  "INSTALLATION_REGISTER_REQUEST_SENT",
+  "INSTALLATION_REGISTER_RESPONSE",
+  "NOTIFICATION_PERMISSION_STATUS",
+  "LAST_PUSH_RECEIVED",
+  "LAST_ERROR",
+]);
+const DIAGNOSTIC_RESULTS = new Set(["started", "success", "failure", "skipped"]);
+const NOTIFICATION_RECEIPT_STATES = new Set(["fcm_received", "native_delivered", "read"]);
 const SESSION_BOOTSTRAP_SECONDS = 60;
 const SESSION_ACTIVE_SECONDS = 86400;
+const REALTIME_TICKET_SECONDS = 60;
 const IP_RETENTION_DAYS = schema.RETENTION_POLICY.installation_full_ip_days;
 const SESSION_RETENTION_DAYS = schema.RETENTION_POLICY.web_session_days_after_expiration;
+const RESILIENT_MAINTENANCE_BATCH_SIZE = 250;
+const RESILIENT_MAINTENANCE_MAX_BATCHES = 4;
 const ACTION_LIMITS = Object.freeze({
   installations_register: 12,
+  installations_register_core: 12,
+  installations_firebase_enrich: 12,
+  diagnostics_batch: 30,
+  notifications_sync: 60,
+  notifications_ack: 120,
+  realtime_ticket: 30,
   installations_heartbeat: 60,
   installations_permission: 30,
   installations_disable: 12,
@@ -69,6 +100,22 @@ const ACTION_LIMITS = Object.freeze({
   updates_ticket: 6,
   updates_verified: 12,
 });
+const CREDENTIAL_ONLY_ACTIONS = new Set([
+  "installations_heartbeat",
+  "installations_permission",
+  "installations_disable",
+  "session_bootstrap",
+  "campaigns_resolve_target",
+  "events_record",
+  "updates_policy",
+  "updates_ticket",
+  "updates_verified",
+  "diagnostics_batch",
+  "notifications_sync",
+  "notifications_ack",
+  "realtime_ticket",
+  "installations_firebase_enrich",
+]);
 const SAFE_ERRORS = new Set([
   "unauthorized",
   "invalid_payload",
@@ -305,6 +352,83 @@ function parseRegisterPayload(value) {
   });
 }
 
+function validRealtimePublicUrl(value, allowInsecure) {
+  const url = safeText(value);
+  if (/^wss:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?\/v1\/connect$/.test(url)) return url;
+  if (allowInsecure
+    && /^ws:\/\/(?:127\.0\.0\.1|localhost)(?::[0-9]{1,5})?\/v1\/connect$/.test(url)) return url;
+  return "";
+}
+
+function realtimeTicketConfig(options) {
+  const settings = options && typeof options === "object" ? options : {};
+  const security = settings.security || defaultSecurity();
+  const read = typeof settings.getenv === "function" ? settings.getenv : environmentValue;
+  const allowInsecure = safeText(read("PZ_STOREFRONT_REALTIME_ALLOW_HTTP")) === "1";
+  const url = validRealtimePublicUrl(read(REALTIME_PUBLIC_URL_ENV), allowInsecure);
+  const secret = safeText(read(REALTIME_TICKET_SECRET_ENV));
+  const compared = [
+    read(INTERNAL_SECRET_ENV),
+    read(CREDENTIAL_SECRET_ENV),
+    read("PZ_STOREFRONT_REALTIME_WAKE_SECRET"),
+    read("PZ_STOREFRONT_PUSH_RELAY_SECRET"),
+    read("PZ_PUSH_RELAY_SECRET"),
+    read("PZ_SECURITY_HMAC_SECRET"),
+    read("PZ_SECURITY_AES_KEY"),
+  ];
+  if (!url || !validSecret(secret, compared, security)) return null;
+  return Object.freeze({ url, secret });
+}
+
+function parseCoreRegisterPayload(value) {
+  const fields = [
+    "installation_id", "app_key", "app_version", "app_version_code", "android_version",
+    "device_model", "locale", "timezone", "notification_permission",
+  ];
+  if (!exactPayload(value, fields)) return null;
+  const installationId = boundedText(
+    bodyValue(value, "installation_id"),
+    36,
+    INSTALLATION_UUID_PATTERN,
+  ).toLowerCase();
+  const appKey = boundedText(bodyValue(value, "app_key"), 64, APP_KEY_PATTERN);
+  const parsed = parseRegisterPayload({
+    fid: "abcdefghijklmnop",
+    app_version: bodyValue(value, "app_version"),
+    app_version_code: bodyValue(value, "app_version_code"),
+    android_version: bodyValue(value, "android_version"),
+    device_model: bodyValue(value, "device_model"),
+    locale: bodyValue(value, "locale"),
+    timezone: bodyValue(value, "timezone"),
+    notification_permission: bodyValue(value, "notification_permission"),
+  });
+  if (!installationId || !appKey || !parsed) return null;
+  return Object.freeze({
+    installationId,
+    appKey,
+    appVersion: parsed.appVersion,
+    versionCode: parsed.versionCode,
+    androidVersion: parsed.androidVersion,
+    deviceModel: parsed.deviceModel,
+    locale: parsed.locale,
+    timezone: parsed.timezone,
+    notificationPermission: parsed.notificationPermission,
+  });
+}
+
+function parseFirebaseEnrichmentPayload(value) {
+  const hasAppSetId = value && Object.prototype.hasOwnProperty.call(value, "app_set_id");
+  const fields = hasAppSetId ? ["fid", "app_set_id"] : ["fid"];
+  if (!exactPayload(value, fields)) return null;
+  const fid = boundedText(bodyValue(value, "fid"), 255, FID_PATTERN);
+  const appSetId = hasAppSetId
+    ? boundedText(bodyValue(value, "app_set_id"), 150, APP_SET_ID_PATTERN)
+    : "";
+  return fid && (!hasAppSetId || appSetId)
+    ? Object.freeze({ fid, appSetId })
+    : null;
+}
+
 function parseHeartbeatPayload(value) {
   const fields = ["app_version", "app_version_code", "android_version", "device_model", "locale", "timezone"];
   if (!exactPayload(value, fields)) return null;
@@ -414,6 +538,65 @@ function parseUpdateVerifiedPayload(value) {
   return Object.freeze({ artifactId, sha256, bytes, versionCode });
 }
 
+function parseDiagnosticsPayload(value) {
+  if (!exactPayload(value, ["events"])) return null;
+  const events = bodyValue(value, "events");
+  if (!Array.isArray(events) || events.length < 1 || events.length > 32) return null;
+  const parsed = [];
+  for (const event of events) {
+    if (!exactPayload(event, [
+      "idempotency_key", "event_type", "result", "error_code",
+      "http_status", "latency_ms", "occurred_at",
+    ])) return null;
+    const idempotencyKey = boundedText(
+      bodyValue(event, "idempotency_key"),
+      128,
+      /^[A-Za-z0-9._:-]{16,128}$/,
+    );
+    const eventType = safeText(bodyValue(event, "event_type"));
+    const result = safeText(bodyValue(event, "result"));
+    const errorValue = bodyValue(event, "error_code");
+    const errorCode = errorValue === "" ? "" : boundedText(errorValue, 80, /^[a-z0-9_:-]{1,80}$/);
+    const httpStatus = bodyValue(event, "http_status");
+    const latencyMs = bodyValue(event, "latency_ms");
+    const occurredAtRaw = safeText(bodyValue(event, "occurred_at"));
+    const occurredAt = new Date(occurredAtRaw);
+    if (!idempotencyKey || !DIAGNOSTIC_EVENT_TYPES.has(eventType) || !DIAGNOSTIC_RESULTS.has(result)
+      || (errorValue !== "" && !errorCode)
+      || !Number.isSafeInteger(httpStatus) || httpStatus < 0 || httpStatus > 599
+      || !Number.isSafeInteger(latencyMs) || latencyMs < 0 || latencyMs > 600000
+      || !occurredAtRaw || !Number.isFinite(occurredAt.getTime())) return null;
+    parsed.push(Object.freeze({
+      idempotencyKey,
+      eventType,
+      result,
+      errorCode,
+      httpStatus,
+      latencyMs,
+      occurredAt: occurredAt.toISOString(),
+    }));
+  }
+  return Object.freeze({ events: Object.freeze(parsed) });
+}
+
+function parseNotificationReceiptsPayload(value) {
+  if (!exactPayload(value, ["receipts"])) return null;
+  const receipts = bodyValue(value, "receipts");
+  if (!Array.isArray(receipts) || receipts.length < 1 || receipts.length > 50) return null;
+  const parsed = [];
+  for (const receipt of receipts) {
+    if (!exactPayload(receipt, ["notification_id", "state", "occurred_at"])) return null;
+    const notificationId = boundedText(bodyValue(receipt, "notification_id"), 15, RECORD_ID_PATTERN);
+    const state = safeText(bodyValue(receipt, "state"));
+    const occurredAtRaw = safeText(bodyValue(receipt, "occurred_at"));
+    const occurredAt = new Date(occurredAtRaw);
+    if (!notificationId || !NOTIFICATION_RECEIPT_STATES.has(state)
+      || !occurredAtRaw || !Number.isFinite(occurredAt.getTime())) return null;
+    parsed.push(Object.freeze({ notificationId, state, occurredAt: occurredAt.toISOString() }));
+  }
+  return Object.freeze({ receipts: Object.freeze(parsed) });
+}
+
 function parseEnvelope(body, action) {
   const legacyShape = exactPayload(body, ["app_id", "credential", "client", "payload"]);
   const multiProjectShape = exactPayload(body, ["app_id", "firebase_project_id", "credential", "client", "payload"]);
@@ -424,6 +607,14 @@ function parseEnvelope(body, action) {
   if (typeof appId !== "string" || typeof credential !== "string") return null;
   if (action === "session_consume") {
     if (appId || credential) return null;
+  } else if (action === "installations_register_core") {
+    if (appId || firebaseProjectId) return null;
+    if (credential && !CREDENTIAL_PATTERN.test(credential)) return null;
+  } else if (CREDENTIAL_ONLY_ACTIONS.has(action)) {
+    if (!credential || !CREDENTIAL_PATTERN.test(credential)) return null;
+    if (appId && !APP_ID_PATTERN.test(appId)) return null;
+    if (!appId && firebaseProjectId) return null;
+    if (multiProjectShape && !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProjectId)) return null;
   } else {
     if (!APP_ID_PATTERN.test(appId)) return null;
     if (multiProjectShape && !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProjectId)) return null;
@@ -433,6 +624,8 @@ function parseEnvelope(body, action) {
   if (!client) return null;
   let payload = null;
   if (action === "installations_register") payload = parseRegisterPayload(bodyValue(body, "payload"));
+  else if (action === "installations_register_core") payload = parseCoreRegisterPayload(bodyValue(body, "payload"));
+  else if (action === "installations_firebase_enrich") payload = parseFirebaseEnrichmentPayload(bodyValue(body, "payload"));
   else if (action === "installations_heartbeat") payload = parseHeartbeatPayload(bodyValue(body, "payload"));
   else if (action === "installations_permission") payload = parsePermissionPayload(bodyValue(body, "payload"));
   else if (action === "installations_disable" || action === "session_bootstrap") payload = parseEmptyPayload(bodyValue(body, "payload"));
@@ -442,6 +635,10 @@ function parseEnvelope(body, action) {
   else if (action === "updates_policy") payload = parseUpdatePolicyPayload(bodyValue(body, "payload"));
   else if (action === "updates_ticket") payload = parseUpdateTicketPayload(bodyValue(body, "payload"));
   else if (action === "updates_verified") payload = parseUpdateVerifiedPayload(bodyValue(body, "payload"));
+  else if (action === "diagnostics_batch") payload = parseDiagnosticsPayload(bodyValue(body, "payload"));
+  else if (action === "notifications_sync") payload = parseEmptyPayload(bodyValue(body, "payload"));
+  else if (action === "notifications_ack") payload = parseNotificationReceiptsPayload(bodyValue(body, "payload"));
+  else if (action === "realtime_ticket") payload = parseEmptyPayload(bodyValue(body, "payload"));
   if (!payload) return null;
   return Object.freeze({ appId, firebaseProjectId, credential, client, payload });
 }
@@ -503,7 +700,7 @@ function consumeRateLimit(action, context, credentialSecret) {
   if (!limit) return false;
   const identityMaterial = action === "session_consume"
     ? context.payload.code
-    : `${context.appId}|${context.client.ip}|${context.credential || context.payload.fid || "anonymous"}`;
+    : `${context.appId || context.payload.appKey || "core"}|${context.client.ip}|${context.credential || context.payload.fid || context.payload.installationId || "anonymous"}`;
   const key = normalizedDigest(context.security.hs256(`pz_storefront_rate:v1|${identityMaterial}`, credentialSecret));
   const nowMs = context.now.getTime();
   pruneMemory(nowMs);
@@ -526,6 +723,17 @@ function findRecords(app, collection, filter, sort, limit, params) {
   catch (_) { return []; }
 }
 
+function findRecordsStrict(app, collection, filter, sort, limit, params) {
+  return app.findRecordsByFilter(
+    collection,
+    filter || "",
+    sort || "",
+    limit || 100,
+    0,
+    params || {},
+  ) || [];
+}
+
 function findById(app, collection, id) {
   try { return app.findRecordById(collection, id); } catch (_) { return null; }
 }
@@ -534,6 +742,19 @@ function resolveAppContext(app, appId, firebaseProjectId, allowInactive) {
   const appConfig = firebaseProjectId
     ? findFirst(app, APP_CONFIGS_COLLECTION, "firebase_app_id = {:appId} && firebase_project_id = {:projectId}", { appId, projectId: firebaseProjectId })
     : findFirst(app, APP_CONFIGS_COLLECTION, "firebase_app_id = {:appId}", { appId });
+  if (!appConfig || (!allowInactive && recordString(appConfig, "status") !== "active")) {
+    throw new StorefrontInstallationError("app_not_available");
+  }
+  const storeId = relationId(appConfig, "store");
+  const store = findById(app, "stores", storeId);
+  if (!store || (!allowInactive && recordString(store, "status") !== "active")) {
+    throw new StorefrontInstallationError("store_not_available");
+  }
+  return Object.freeze({ appConfig, store, storeId });
+}
+
+function resolveAppKeyContext(app, appKey, allowInactive) {
+  const appConfig = findFirst(app, APP_CONFIGS_COLLECTION, "app_key = {:appKey}", { appKey });
   if (!appConfig || (!allowInactive && recordString(appConfig, "status") !== "active")) {
     throw new StorefrontInstallationError("app_not_available");
   }
@@ -585,6 +806,19 @@ function installationAdminReference(storeIdValue, installationIdValue, config) {
 
 function credentialFor(appConfigId, fid, credentialSecret, security) {
   const material = `pz_storefront_credential:v1|${appConfigId}|${fid}`;
+  return `pzs_v1_${normalizedDigest(security.hs256(material, credentialSecret))}`;
+}
+
+function installationUuidDigest(appConfigId, installationId, credentialSecret, security) {
+  if (!INSTALLATION_UUID_PATTERN.test(installationId)) throw new StorefrontInstallationError("invalid_payload");
+  return normalizedDigest(security.hs256(
+    `pz_storefront_installation_uuid:v1|${appConfigId}|${installationId.toLowerCase()}`,
+    credentialSecret,
+  ));
+}
+
+function credentialForInstallationUuid(appConfigId, installationId, credentialSecret, security) {
+  const material = `pz_storefront_credential_uuid:v1|${appConfigId}|${installationId.toLowerCase()}`;
   return `pzs_v1_${normalizedDigest(security.hs256(material, credentialSecret))}`;
 }
 
@@ -648,7 +882,8 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
     credentialSecret,
     context.security,
   );
-  const nextCredential = credentialFor(appConfigId, context.payload.fid, credentialSecret, context.security);
+  const generatedCredential = credentialFor(appConfigId, context.payload.fid, credentialSecret, context.security);
+  const nextCredential = context.credential || generatedCredential;
   const nextCredentialDigest = credentialDigest(nextCredential, credentialSecret, context.security);
   const providedDigest = context.credential
     ? credentialDigest(context.credential, credentialSecret, context.security)
@@ -698,6 +933,11 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   if (nextAppSetDigest) installation.set("app_set_digest", nextAppSetDigest);
   installation.set("credential_digest", nextCredentialDigest);
   installation.set("status", "active");
+  if (!recordString(installation, "identity_source")) installation.set("identity_source", "firebase_fid");
+  installation.set("trust_level", "firebase_verified");
+  installation.set("firebase_status", "registered");
+  installation.set("firebase_synced_at", nowIso);
+  installation.set("firebase_last_error", "");
   installation.set("notification_permission", context.payload.notificationPermission);
   setInstallationMetadata(installation, context.payload);
   if (created || !recordString(installation, "first_seen_at")) installation.set("first_seen_at", nowIso);
@@ -717,9 +957,378 @@ function registerInstallation(app, context, credentialSecret, aesKeyOverride) {
   });
 }
 
+function registerCoreInstallation(app, context, credentialSecret, aesKeyOverride) {
+  const resolved = resolveAppKeyContext(app, context.payload.appKey, false);
+  requireRegistrationPlan(resolved.store, context.now);
+  const appConfigId = safeText(resolved.appConfig.id || recordString(resolved.appConfig, "id"));
+  const uuidDigest = installationUuidDigest(
+    appConfigId,
+    context.payload.installationId,
+    credentialSecret,
+    context.security,
+  );
+  const providedDigest = context.credential
+    ? credentialDigest(context.credential, credentialSecret, context.security)
+    : "";
+  const existingByUuid = findFirst(
+    app,
+    INSTALLATIONS_COLLECTION,
+    "app_config = {:appConfig} && installation_uuid_digest = {:uuidDigest}",
+    { appConfig: appConfigId, uuidDigest },
+  );
+  const existingByCredential = providedDigest
+    ? findFirst(app, INSTALLATIONS_COLLECTION, "credential_digest = {:credentialDigest}", { credentialDigest: providedDigest })
+    : null;
+  if (existingByCredential && relationId(existingByCredential, "app_config") !== appConfigId) {
+    throw new StorefrontInstallationError("invalid_credential");
+  }
+  if (existingByUuid && existingByCredential && safeText(existingByUuid.id) !== safeText(existingByCredential.id)) {
+    throw new StorefrontInstallationError("invalid_credential");
+  }
+  if (context.credential && !existingByCredential) throw new StorefrontInstallationError("invalid_credential");
+
+  let installation = existingByUuid || existingByCredential;
+  const created = !installation;
+  if (installation && ["disabled", "revoked"].includes(recordString(installation, "status"))) {
+    throw new StorefrontInstallationError("installation_disabled");
+  }
+  if (!installation) installation = new Record(app.findCollectionByNameOrId(INSTALLATIONS_COLLECTION), {});
+
+  const nextCredential = context.credential || credentialForInstallationUuid(
+    appConfigId,
+    context.payload.installationId,
+    credentialSecret,
+    context.security,
+  );
+  const nowIso = context.now.toISOString();
+  installation.set("store", resolved.storeId);
+  installation.set("app_config", appConfigId);
+  installation.set("installation_uuid_digest", uuidDigest);
+  installation.set("credential_digest", credentialDigest(nextCredential, credentialSecret, context.security));
+  installation.set("status", "active");
+  installation.set("notification_permission", context.payload.notificationPermission);
+  installation.set("identity_source", created ? "app_uuid" : (recordString(installation, "identity_source") || "migrated"));
+  const hasFirebaseIdentity = Boolean(recordString(installation, "fid_digest"));
+  installation.set("trust_level", hasFirebaseIdentity ? "firebase_verified" : "basic");
+  if (hasFirebaseIdentity) installation.set("firebase_status", "registered");
+  else if (!recordString(installation, "firebase_status")) installation.set("firebase_status", "unknown");
+  setInstallationMetadata(installation, context.payload);
+  if (created || !recordString(installation, "first_seen_at")) installation.set("first_seen_at", nowIso);
+  installation.set("last_seen_at", nowIso);
+  installation.set("last_heartbeat_at", nowIso);
+  installation.set("disabled_at", "");
+  setInstallationIp(installation, context.client, context.now, context.security, aesKeyOverride);
+  schema.assertTenantIsolation(app, INSTALLATIONS_COLLECTION, installation);
+  app.save(installation);
+  downloadAnalytics.bestEffort(() => downloadAnalytics.recordVersionActivated(app, installation, context.now));
+
+  return Object.freeze({
+    ok: true,
+    created,
+    installation: mapInstallation(installation),
+    credential: nextCredential,
+    firebase_enrichment_required: !recordString(installation, "fid_digest"),
+  });
+}
+
+function enrichFirebaseInstallation(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  requireRegistrationPlan(resolved.store, context.now);
+  const installation = resolved.installation;
+  const appConfigId = safeText(resolved.appConfig.id || recordString(resolved.appConfig, "id"));
+  const nextFidDigest = fidDigest(
+    appConfigId,
+    context.payload.fid,
+    credentialSecret,
+    context.security,
+  );
+  const nextAppSetDigest = appSetDigest(
+    appConfigId,
+    context.payload.appSetId,
+    credentialSecret,
+    context.security,
+  );
+  const existingByFid = findFirst(
+    app,
+    INSTALLATIONS_COLLECTION,
+    "app_config = {:appConfig} && fid_digest = {:fidDigest}",
+    { appConfig: appConfigId, fidDigest: nextFidDigest },
+  );
+  const existingByAppSet = nextAppSetDigest
+    ? findFirst(
+      app,
+      INSTALLATIONS_COLLECTION,
+      "app_config = {:appConfig} && app_set_digest = {:appSetDigest}",
+      { appConfig: appConfigId, appSetDigest: nextAppSetDigest },
+    )
+    : null;
+  const installationId = safeText(installation.id || recordString(installation, "id"));
+  if ((existingByFid && safeText(existingByFid.id) !== installationId)
+    || (existingByAppSet && safeText(existingByAppSet.id) !== installationId)) {
+    throw new StorefrontInstallationError("invalid_credential");
+  }
+
+  const rotated = Boolean(recordString(installation, "fid_digest")
+    && recordString(installation, "fid_digest") !== nextFidDigest);
+  installation.set("fid", context.payload.fid);
+  installation.set("fid_digest", nextFidDigest);
+  if (nextAppSetDigest) installation.set("app_set_digest", nextAppSetDigest);
+  installation.set("firebase_status", "registered");
+  installation.set("firebase_synced_at", context.now.toISOString());
+  installation.set("firebase_last_error", "");
+  if (context.appId) installation.set("trust_level", "firebase_verified");
+  else if (!recordString(installation, "trust_level")) installation.set("trust_level", "basic");
+  schema.assertTenantIsolation(app, INSTALLATIONS_COLLECTION, installation);
+  app.save(installation);
+  return Object.freeze({
+    ok: true,
+    firebase_registered: true,
+    fid_rotated: rotated,
+    credential: context.credential,
+  });
+}
+
+function recordDiagnostics(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  let accepted = 0;
+  let duplicates = 0;
+  const oldest = addDays(context.now, -31).getTime();
+  const newest = addSeconds(context.now, 600).getTime();
+  for (const event of context.payload.events) {
+    const occurredAt = new Date(event.occurredAt);
+    if (occurredAt.getTime() < oldest || occurredAt.getTime() > newest) {
+      throw new StorefrontInstallationError("invalid_payload");
+    }
+    const duplicate = findFirst(
+      app,
+      DIAGNOSTICS_COLLECTION,
+      "installation = {:installation} && idempotency_key = {:idempotencyKey}",
+      { installation: resolved.installation.id, idempotencyKey: event.idempotencyKey },
+    );
+    if (duplicate) {
+      duplicates += 1;
+      continue;
+    }
+    const diagnostic = new Record(app.findCollectionByNameOrId(DIAGNOSTICS_COLLECTION), {});
+    diagnostic.set("store", resolved.storeId);
+    diagnostic.set("app_config", resolved.appConfig.id);
+    diagnostic.set("installation", resolved.installation.id);
+    diagnostic.set("idempotency_key", event.idempotencyKey);
+    diagnostic.set("event_type", event.eventType);
+    diagnostic.set("result", event.result);
+    diagnostic.set("error_code", event.errorCode);
+    diagnostic.set("http_status", event.httpStatus);
+    diagnostic.set("latency_ms", event.latencyMs);
+    diagnostic.set("client_occurred_at", event.occurredAt);
+    diagnostic.set("metadata_json", {});
+    diagnostic.set(
+      "delete_after",
+      addDays(context.now, schema.RETENTION_POLICY.installation_diagnostics_days).toISOString(),
+    );
+    schema.assertTenantIsolation(app, DIAGNOSTICS_COLLECTION, diagnostic);
+    app.save(diagnostic);
+    accepted += 1;
+  }
+  return Object.freeze({ ok: true, accepted, duplicates });
+}
+
+function expireNativeNotifications(app, installationId, now) {
+  const expired = findRecords(
+    app,
+    DELIVERIES_COLLECTION,
+    'installation = {:installation} && native_status = "pending" && delivery_expires_at != "" && delivery_expires_at <= {:now}',
+    "id",
+    100,
+    { installation: installationId, now: now.toISOString() },
+  );
+  expired.forEach((delivery) => {
+    delivery.set("native_status", "expired");
+    app.save(delivery);
+  });
+}
+
+function cleanupResilientInstallationData(app, nowValue) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  if (!Number.isFinite(now.getTime())) throw new Error("invalid_maintenance_time");
+  const summary = { diagnostics_deleted: 0, native_expired: 0, failed: 0 };
+  const nowIso = now.toISOString();
+
+  for (let batch = 0; batch < RESILIENT_MAINTENANCE_MAX_BATCHES; batch += 1) {
+    const due = findRecordsStrict(
+      app,
+      DIAGNOSTICS_COLLECTION,
+      'delete_after != "" && delete_after <= {:now}',
+      "delete_after,id",
+      RESILIENT_MAINTENANCE_BATCH_SIZE,
+      { now: nowIso },
+    );
+    if (!due.length) break;
+    let deletedThisBatch = 0;
+    due.forEach((record) => {
+      try {
+        app.delete(record);
+        summary.diagnostics_deleted += 1;
+        deletedThisBatch += 1;
+      } catch (_) { summary.failed += 1; }
+    });
+    if (due.length < RESILIENT_MAINTENANCE_BATCH_SIZE || deletedThisBatch === 0) break;
+  }
+
+  for (let batch = 0; batch < RESILIENT_MAINTENANCE_MAX_BATCHES; batch += 1) {
+    const due = findRecordsStrict(
+      app,
+      DELIVERIES_COLLECTION,
+      'native_status = "pending" && delivery_expires_at != "" && delivery_expires_at <= {:now}',
+      "delivery_expires_at,id",
+      RESILIENT_MAINTENANCE_BATCH_SIZE,
+      { now: nowIso },
+    );
+    if (!due.length) break;
+    let expiredThisBatch = 0;
+    due.forEach((delivery) => {
+      try {
+        delivery.set("native_status", "expired");
+        app.save(delivery);
+        summary.native_expired += 1;
+        expiredThisBatch += 1;
+      } catch (_) { summary.failed += 1; }
+    });
+    if (due.length < RESILIENT_MAINTENANCE_BATCH_SIZE || expiredThisBatch === 0) break;
+  }
+  return summary;
+}
+
+function mapNativeNotification(delivery, appConfig) {
+  const id = safeText(delivery.id || recordString(delivery, "id")).slice(0, 15);
+  return Object.freeze({
+    notification_id: id,
+    schema_version: "1",
+    store_key: recordString(appConfig, "app_key").slice(0, 64),
+    campaign_id: relationId(delivery, "campaign").slice(0, 15),
+    delivery_id: id,
+    title: recordString(delivery, "inbox_title").slice(0, 120),
+    body: recordString(delivery, "inbox_body").slice(0, 1000),
+    target_type: (recordString(delivery, "inbox_target_type") || "home").slice(0, 20),
+    target_path: recordString(delivery, "inbox_target_path").slice(0, 500),
+    image_url: recordString(delivery, "inbox_image_url").slice(0, 2048),
+    created_at: recordString(delivery, "created").slice(0, 40),
+    expires_at: (recordString(delivery, "delivery_expires_at")
+      || recordString(delivery, "inbox_expires_at")).slice(0, 40),
+  });
+}
+
+function syncNativeNotifications(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  expireNativeNotifications(app, resolved.installation.id, context.now);
+  const notifications = findRecords(
+    app,
+    DELIVERIES_COLLECTION,
+    'installation = {:installation} && native_status = "pending" && inbox_deleted_at = "" && (delivery_expires_at = "" || delivery_expires_at > {:now})',
+    "created",
+    50,
+    { installation: resolved.installation.id, now: context.now.toISOString() },
+  ).map((delivery) => mapNativeNotification(delivery, resolved.appConfig));
+  return Object.freeze({
+    ok: true,
+    notifications: Object.freeze(notifications),
+    server_time: context.now.toISOString(),
+  });
+}
+
+function recordNotificationReceipts(app, context, credentialSecret) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  let accepted = 0;
+  let duplicates = 0;
+  const oldest = addDays(context.now, -31).getTime();
+  const newest = addSeconds(context.now, 600).getTime();
+  for (const receipt of context.payload.receipts) {
+    const occurredAt = new Date(receipt.occurredAt);
+    if (occurredAt.getTime() < oldest || occurredAt.getTime() > newest) {
+      throw new StorefrontInstallationError("invalid_payload");
+    }
+    const delivery = findById(app, DELIVERIES_COLLECTION, receipt.notificationId);
+    if (!delivery
+      || relationId(delivery, "installation") !== safeText(resolved.installation.id)
+      || relationId(delivery, "store") !== resolved.storeId) {
+      throw new StorefrontInstallationError("delivery_not_eligible");
+    }
+    let duplicate = false;
+    if (receipt.state === "fcm_received") {
+      duplicate = recordString(delivery, "fcm_status") === "received";
+      if (!duplicate) {
+        delivery.set("fcm_status", "received");
+        delivery.set("fcm_received_at", receipt.occurredAt);
+      }
+    } else if (receipt.state === "native_delivered") {
+      duplicate = ["delivered", "read"].includes(recordString(delivery, "native_status"));
+      if (!duplicate) {
+        delivery.set("native_status", "delivered");
+        delivery.set("native_delivered_at", receipt.occurredAt);
+      }
+    } else {
+      duplicate = recordString(delivery, "native_status") === "read";
+      if (!duplicate) {
+        delivery.set("native_status", "read");
+        if (!recordString(delivery, "native_delivered_at")) {
+          delivery.set("native_delivered_at", receipt.occurredAt);
+        }
+        delivery.set("read_at", receipt.occurredAt);
+        delivery.set("inbox_read_at", receipt.occurredAt);
+      }
+    }
+    if (duplicate) duplicates += 1;
+    else {
+      schema.assertTenantIsolation(app, DELIVERIES_COLLECTION, delivery);
+      app.save(delivery);
+      accepted += 1;
+    }
+  }
+  return Object.freeze({ ok: true, accepted, duplicates });
+}
+
+function createRealtimeTicket(app, context, credentialSecret, options) {
+  const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
+  const settings = options && typeof options === "object" ? options : {};
+  const config = settings.config || realtimeTicketConfig({
+    security: context.security,
+    getenv: settings.getenv,
+  });
+  if (!config) throw new StorefrontInstallationError("storefront_secrets_unavailable");
+  const installationId = safeText(resolved.installation.id || recordString(resolved.installation, "id"));
+  if (!RECORD_ID_PATTERN.test(installationId)) {
+    throw new StorefrontInstallationError("installation_not_available");
+  }
+  const channelId = normalizedDigest(context.security.hs256(
+    `pz_storefront_realtime_channel:v1|${installationId}`,
+    config.secret,
+  ));
+  const issuedAt = Math.floor(context.now.getTime() / 1000);
+  const expiresAt = issuedAt + REALTIME_TICKET_SECONDS;
+  const nonce = settings.nonce
+    ? safeText(settings.nonce)
+    : randomAlphaNumeric(32, context.security);
+  if (!REALTIME_NONCE_PATTERN.test(nonce)) throw new StorefrontInstallationError("request_unavailable");
+  const prefix = [
+    "pzrt_v1",
+    channelId,
+    String(issuedAt),
+    String(expiresAt),
+    nonce,
+  ].join(".");
+  const signature = normalizedDigest(context.security.hs256(
+    `pz_storefront_realtime_ticket:v1|${prefix}`,
+    config.secret,
+  ));
+  return Object.freeze({
+    ok: true,
+    ticket: `${prefix}.${signature}`,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
+    websocket_url: config.url,
+  });
+}
+
 function resolveCredentialContext(app, context, credentialSecret, allowDisabled, allowInactiveApp) {
   if (!context.credential) throw new StorefrontInstallationError("credential_required");
-  const resolved = resolveAppContext(app, context.appId, context.firebaseProjectId, allowInactiveApp === true);
   const digest = credentialDigest(context.credential, credentialSecret, context.security);
   const installation = findFirst(
     app,
@@ -727,9 +1336,24 @@ function resolveCredentialContext(app, context, credentialSecret, allowDisabled,
     "credential_digest = {:credentialDigest}",
     { credentialDigest: digest },
   );
+  if (!installation) throw new StorefrontInstallationError("invalid_credential");
+  let resolved = null;
+  if (context.appId) {
+    resolved = resolveAppContext(app, context.appId, context.firebaseProjectId, allowInactiveApp === true);
+  } else {
+    const appConfig = findById(app, APP_CONFIGS_COLLECTION, relationId(installation, "app_config"));
+    if (!appConfig || (!allowInactiveApp && recordString(appConfig, "status") !== "active")) {
+      throw new StorefrontInstallationError("app_not_available");
+    }
+    const storeId = relationId(appConfig, "store");
+    const store = findById(app, "stores", storeId);
+    if (!store || (!allowInactiveApp && recordString(store, "status") !== "active")) {
+      throw new StorefrontInstallationError("store_not_available");
+    }
+    resolved = Object.freeze({ appConfig, store, storeId });
+  }
   const appConfigId = safeText(resolved.appConfig.id || recordString(resolved.appConfig, "id"));
-  if (!installation
-    || relationId(installation, "app_config") !== appConfigId
+  if (relationId(installation, "app_config") !== appConfigId
     || relationId(installation, "store") !== resolved.storeId) {
     throw new StorefrontInstallationError("invalid_credential");
   }
@@ -903,6 +1527,7 @@ function heartbeatInstallation(app, context, credentialSecret, aesKeyOverride) {
   const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
   setInstallationMetadata(resolved.installation, context.payload);
   resolved.installation.set("last_seen_at", context.now.toISOString());
+  resolved.installation.set("last_heartbeat_at", context.now.toISOString());
   setInstallationIp(resolved.installation, context.client, context.now, context.security, aesKeyOverride);
   app.save(resolved.installation);
   downloadAnalytics.bestEffort(() => downloadAnalytics.recordVersionActivated(app, resolved.installation, context.now));
@@ -1198,6 +1823,8 @@ function logSafeFailure(action, code) {
 
 function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "installations_register") return registerInstallation(app, context, credentialSecret, aesKeyOverride);
+  if (action === "installations_register_core") return registerCoreInstallation(app, context, credentialSecret, aesKeyOverride);
+  if (action === "installations_firebase_enrich") return enrichFirebaseInstallation(app, context, credentialSecret);
   if (action === "installations_heartbeat") return heartbeatInstallation(app, context, credentialSecret, aesKeyOverride);
   if (action === "installations_permission") return updateInstallationPermission(app, context, credentialSecret);
   if (action === "installations_disable") return disableInstallation(app, context, credentialSecret);
@@ -1207,6 +1834,10 @@ function executeAction(app, action, context, credentialSecret, aesKeyOverride) {
   if (action === "updates_policy") return storefrontUpdatePolicy(app, context, credentialSecret);
   if (action === "updates_ticket") return storefrontUpdateTicket(app, context, credentialSecret);
   if (action === "updates_verified") return storefrontUpdateVerified(app, context, credentialSecret);
+  if (action === "diagnostics_batch") return recordDiagnostics(app, context, credentialSecret);
+  if (action === "notifications_sync") return syncNativeNotifications(app, context, credentialSecret);
+  if (action === "notifications_ack") return recordNotificationReceipts(app, context, credentialSecret);
+  if (action === "realtime_ticket") return createRealtimeTicket(app, context, credentialSecret);
   if (action === "events_record") {
     const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
     const analytics = typeof __hooks === "undefined"
@@ -1332,6 +1963,7 @@ module.exports = {
   APP_CONFIGS_COLLECTION,
   BOOTSTRAP_CODE_PATTERN,
   CREDENTIAL_PATTERN,
+  DIAGNOSTICS_COLLECTION,
   INSTALLATIONS_COLLECTION,
   INTERNAL_HEADERS,
   WEB_SESSIONS_COLLECTION,
@@ -1341,12 +1973,16 @@ module.exports = {
   canonicalJson,
   consumeBootstrapSession,
   consumeRateLimit,
+  cleanupResilientInstallationData,
   createBootstrapSession,
   credentialDigest,
   credentialFor,
+  credentialForInstallationUuid,
+  createRealtimeTicket,
   disableInstallation,
   ensureOrderInstallationLink,
   fidDigest,
+  enrichFirebaseInstallation,
   handleAction,
   handleUpdateDownload,
   heartbeatInstallation,
@@ -1355,19 +1991,29 @@ module.exports = {
   parseBootstrapConsumePayload,
   parseCampaignResolvePayload,
   parseEventPayload,
+  parseDiagnosticsPayload,
+  parseNotificationReceiptsPayload,
   parseClient,
   parseEmptyPayload,
   parseEnvelope,
   parseHeartbeatPayload,
   parsePermissionPayload,
   parseRegisterPayload,
+  parseCoreRegisterPayload,
+  parseFirebaseEnrichmentPayload,
   parseUpdatePolicyPayload,
   parseUpdateTicketPayload,
   parseUpdateVerifiedPayload,
   registerInstallation,
+  registerCoreInstallation,
+  recordDiagnostics,
+  recordNotificationReceipts,
+  realtimeTicketConfig,
+  installationUuidDigest,
   resolveCredentialContext,
   resolveActiveWebSession,
   resolveCampaignTarget,
+  syncNativeNotifications,
   resetMemoryForTests,
   sessionDigest,
   updateInstallationPermission,

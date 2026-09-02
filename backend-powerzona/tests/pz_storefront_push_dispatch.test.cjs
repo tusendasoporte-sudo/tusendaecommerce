@@ -180,7 +180,7 @@ test('respuesta Firebase parcial conserva cada resultado sin convertir aceptado 
   assert.deepEqual(ambiguous.map((item) => item.status), ['unknown', 'unknown', 'unknown']);
 });
 
-test('FID permanentemente inválido se desactiva y queda auditable en la entrega', () => {
+test('FID permanentemente inválido desactiva solo Firebase y conserva el canal nativo', () => {
   const app = createApp();
   const item = app.add(campaign());
   const config = app.add(appConfig());
@@ -213,8 +213,14 @@ test('FID permanentemente inválido se desactiva y queda auditable en la entrega
   });
   assert.equal(counts.invalid_fid, 1);
   assert.equal(claimed.getString('status'), 'invalid_fid');
-  assert.equal(device.getString('status'), 'invalid');
-  assert.equal(device.getString('disabled_at'), '2026-08-13T14:00:00.000Z');
+  assert.equal(claimed.getString('fcm_status'), 'invalid');
+  assert.equal(device.getString('status'), 'active');
+  assert.equal(device.getString('fid'), '');
+  assert.equal(device.getString('fid_digest'), '');
+  assert.equal(device.getString('trust_level'), 'basic');
+  assert.equal(device.getString('firebase_status'), 'failed');
+  assert.equal(device.getString('firebase_last_error'), 'invalid_fid');
+  assert.equal(device.getString('disabled_at'), '');
 });
 
 test('transitorios respetan Retry-After, máximo tres intentos y luego fallan permanente', () => {

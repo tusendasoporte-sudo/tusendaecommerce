@@ -46,6 +46,9 @@ const DELETE_CAMPAIGN_LIMIT = 50;
 const CAMPAIGN_PAGE_SIZE = 10;
 const TARGET_OPTION_LIMIT = 5000;
 const MEDIA_SEND_BUFFER_SECONDS = 300;
+const REALTIME_WAKE_BATCH_SIZE = 500;
+const REALTIME_WAKE_URL_ENV = "PZ_STOREFRONT_REALTIME_WAKE_URL";
+const REALTIME_WAKE_SECRET_ENV = "PZ_STOREFRONT_REALTIME_WAKE_SECRET";
 const SECTION_PATHS = Object.freeze({
   search: "/buscar",
   links: "/links",
@@ -160,6 +163,73 @@ function addDays(value, days) {
 
 function bounded(value, max) {
   return String(value === null || value === undefined ? "" : value).trim().slice(0, max);
+}
+
+function safeGetenv(name) {
+  try { return String($os.getenv(name) || "").trim(); } catch (_) { return ""; }
+}
+
+function validRealtimeWakeUrl(value, allowHttp) {
+  const url = String(value || "").trim();
+  if (/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?\/internal\/wakeup$/.test(url)) return url;
+  if (allowHttp
+    && /^http:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?\/internal\/wakeup$/.test(url)) return url;
+  return "";
+}
+
+function realtimeWakeConfig(getenv) {
+  const read = typeof getenv === "function" ? getenv : safeGetenv;
+  const allowHttp = String(read("PZ_STOREFRONT_REALTIME_ALLOW_HTTP") || "").trim() === "1";
+  const url = validRealtimeWakeUrl(read(REALTIME_WAKE_URL_ENV), allowHttp);
+  const secret = String(read(REALTIME_WAKE_SECRET_ENV) || "").trim();
+  const ticketSecret = String(read("PZ_STOREFRONT_REALTIME_TICKET_SECRET") || "").trim();
+  const compared = [
+    read("PZ_STOREFRONT_INTERNAL_SECRET"),
+    read("PZ_STOREFRONT_CREDENTIAL_SECRET"),
+    read("PZ_STOREFRONT_PUSH_RELAY_SECRET"),
+    read("PZ_PUSH_RELAY_SECRET"),
+    read("PZ_SECURITY_HMAC_SECRET"),
+    read("PZ_SECURITY_AES_KEY"),
+  ].filter(Boolean);
+  if (!url || secret.length < 32 || secret.length > 512
+    || ticketSecret.length < 32 || ticketSecret.length > 512 || secret === ticketSecret
+    || compared.some((candidate) => {
+      const value = String(candidate).trim();
+      return value === secret || value === ticketSecret;
+    })) return null;
+  return Object.freeze({ url, secret, ticketSecret });
+}
+
+function realtimeWakeNonce(security, options) {
+  if (options && typeof options.randomNonce === "function") {
+    const provided = String(options.randomNonce() || "").trim();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(provided)) {
+      return provided.toLowerCase();
+    }
+  }
+  const hex = (length, alphabet) => String(security.randomStringWithAlphabet(
+    length,
+    alphabet || "0123456789abcdef",
+  ) || "").toLowerCase();
+  const nonce = `${hex(8)}-${hex(4)}-4${hex(3)}-${hex(1, "89ab")}${hex(3)}-${hex(12)}`;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(nonce)) {
+    throw new Error("secure_random_unavailable");
+  }
+  return nonce;
+}
+
+function realtimeWakeSignature(timestamp, nonce, rawBody, secret, security) {
+  return String(security.hs256(`${timestamp}\n${nonce}\n${rawBody}`, secret) || "").trim().toLowerCase();
+}
+
+function realtimeChannelId(installationId, ticketSecret, security) {
+  const id = String(installationId || "").trim();
+  if (!RECORD_ID_PATTERN.test(id) || typeof ticketSecret !== "string" || ticketSecret.length < 32) return "";
+  const digest = String(security.hs256(
+    `pz_storefront_realtime_channel:v1|${id}`,
+    ticketSecret,
+  ) || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(digest) ? digest : "";
 }
 
 function exactPayload(body, requiredKeys, optionalKeys) {
@@ -936,7 +1006,6 @@ function installationMatchesAudience(installation, appConfig, campaign, now) {
   if (!installation || !appConfig
     || recordString(installation, "status") !== "active"
     || recordString(installation, "notification_permission") !== "granted"
-    || !FID_PATTERN.test(bounded(recordString(installation, "fid"), 255))
     || recordString(appConfig, "status") !== "active"
     || relationId(appConfig, "store") !== relationId(campaign, "store")) return false;
   const type = recordString(campaign, "audience_type");
@@ -1008,12 +1077,16 @@ function materializeAudience(app, campaign, nowValue) {
   let inboxImageUrl = "";
   try { inboxImageUrl = dispatch.campaignImageUrl(app, campaign, dispatch.relayConfig(), now); } catch (_) {}
   selected.forEach((installation) => {
+    const hasFirebaseTarget = FID_PATTERN.test(bounded(recordString(installation, "fid"), 255));
     const delivery = new Record(collection, {});
     delivery.set("store", relationId(campaign, "store"));
     delivery.set("campaign", campaignId);
     delivery.set("installation", recordId(installation));
-    delivery.set("status", "pending");
+    delivery.set("status", hasFirebaseTarget ? "pending" : "accepted");
     delivery.set("attempt_count", 0);
+    delivery.set("fcm_status", hasFirebaseTarget ? "pending" : "not_attempted");
+    delivery.set("native_status", "pending");
+    if (!hasFirebaseTarget) delivery.set("accepted_at", now.toISOString());
     delivery.set("delete_after", addDays(now, DELIVERY_RETENTION_DAYS));
     delivery.set("inbox_title", recordString(campaign, "title"));
     delivery.set("inbox_body", recordString(campaign, "body"));
@@ -1021,11 +1094,89 @@ function materializeAudience(app, campaign, nowValue) {
     delivery.set("inbox_target_type", recordString(campaign, "target_type") || "home");
     delivery.set("inbox_target_path", recordString(campaign, "target_path"));
     delivery.set("inbox_expires_at", addDays(now, 30));
-    schema.assertValidState(DELIVERIES_COLLECTION, "pending");
+    delivery.set("delivery_expires_at", addDays(now, 7));
+    schema.assertValidState(DELIVERIES_COLLECTION, hasFirebaseTarget ? "pending" : "accepted");
     schema.assertTenantIsolation(app, DELIVERIES_COLLECTION, delivery);
     app.save(delivery);
   });
   return selected.length;
+}
+
+function wakeRealtimeCampaign(app, campaignId, nowValue, options) {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
+  const settings = options && typeof options === "object" ? options : {};
+  const config = settings.realtimeConfig || realtimeWakeConfig(settings.getenv);
+  const send = typeof settings.realtimeSend === "function"
+    ? settings.realtimeSend
+    : (typeof $http !== "undefined" && $http && typeof $http.send === "function"
+      ? $http.send.bind($http) : null);
+  if (!config || !send || !RECORD_ID_PATTERN.test(String(campaignId || ""))) {
+    return Object.freeze({ batches: 0, requested: 0, failed: 0, skipped: true });
+  }
+  const security = settings.security
+    || (typeof $security !== "undefined" ? $security : null);
+  if (!security || typeof security.hs256 !== "function"
+    || typeof security.randomStringWithAlphabet !== "function") {
+    return Object.freeze({ batches: 0, requested: 0, failed: 0, skipped: true });
+  }
+  const timestamp = String(Math.floor(now.getTime() / 1000));
+  const seen = new Set();
+  let batches = 0;
+  let requested = 0;
+  let failed = 0;
+  for (let offset = 0; ; offset += REALTIME_WAKE_BATCH_SIZE) {
+    const page = findRecordsStrict(
+      app,
+      DELIVERIES_COLLECTION,
+      "campaign = {:campaign}",
+      "id",
+      REALTIME_WAKE_BATCH_SIZE,
+      offset,
+      { campaign: campaignId },
+    );
+    const channelIds = [];
+    page.forEach((delivery) => {
+      const installationId = relationId(delivery, "installation");
+      const channelId = realtimeChannelId(installationId, config.ticketSecret, security);
+      if (channelId && !seen.has(channelId)) {
+        seen.add(channelId);
+        channelIds.push(channelId);
+      }
+    });
+    if (channelIds.length) {
+      const body = JSON.stringify({
+        version: 1,
+        type: "sync_required",
+        campaign_id: campaignId,
+        channel_ids: channelIds,
+      });
+      try {
+        const nonce = realtimeWakeNonce(security, settings);
+        const signature = realtimeWakeSignature(timestamp, nonce, body, config.secret, security);
+        if (!/^[a-f0-9]{64}$/.test(signature)) throw new Error("signature_unavailable");
+        const response = send({
+          url: config.url,
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-pz-realtime-timestamp": timestamp,
+            "x-pz-realtime-nonce": nonce,
+            "x-pz-realtime-signature": signature,
+          },
+          body,
+          timeout: 3,
+        });
+        if (!response || Number(response.statusCode) !== 200
+          || !response.json || response.json.ok !== true) failed += channelIds.length;
+      } catch (_) {
+        failed += channelIds.length;
+      }
+      batches += 1;
+      requested += channelIds.length;
+    }
+    if (page.length < REALTIME_WAKE_BATCH_SIZE) break;
+  }
+  return Object.freeze({ batches, requested, failed, skipped: false });
 }
 
 function startedCampaignUsage(app, storeId) {
@@ -1346,6 +1497,9 @@ function processCampaignById(app, campaignId, nowValue, options) {
   const initialNow = nowValue instanceof Date ? nowValue : new Date(nowValue || Date.now());
   const acquired = acquireCampaignLock(app, campaignId, initialNow, options);
   if (!acquired || acquired.terminal) return acquired;
+  // El aviso es deliberadamente best-effort. Las entregas persistentes ya existen
+  // y FCM/WorkManager siguen funcionando aunque el gateway esté fuera de servicio.
+  try { wakeRealtimeCampaign(app, campaignId, initialNow, options); } catch (_) {}
   for (let index = 0; index < MAX_BATCHES_PER_RUN; index += 1) {
     const campaign = findRecord(app, CAMPAIGNS_COLLECTION, campaignId);
     if (!campaign || recordString(campaign, "lock_token") !== acquired.lockToken) break;
@@ -1953,6 +2107,9 @@ module.exports = {
   listTargetOptions,
   mapCampaign,
   materializeAudience,
+  realtimeWakeConfig,
+  realtimeChannelId,
+  realtimeWakeSignature,
   normalizedAudienceConfig,
   parseAudiencePreviewPayload,
   parseCampaignIdPayload,
@@ -1975,4 +2132,5 @@ module.exports = {
   timezoneParts,
   validateCampaignForExecution,
   validateMedia,
+  wakeRealtimeCampaign,
 };

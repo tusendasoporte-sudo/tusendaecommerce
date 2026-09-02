@@ -12,15 +12,66 @@ public final class StorefrontApplication extends Application {
     public void onCreate() {
         super.onCreate();
         StorefrontNotifications.createChannels(this);
-        if (!BuildConfig.FIREBASE_CONFIGURED) return;
+        StorefrontDiagnostics.record(this, StorefrontDiagnostics.APP_STARTED, "started", "", 0, 0);
+        boolean existingInstallationId = StorefrontInstallationStore.hasInstallationId(this);
+        try {
+            StorefrontInstallationStore.installationId(this);
+            if (!existingInstallationId) {
+                StorefrontDiagnostics.record(
+                        this,
+                        StorefrontDiagnostics.INSTALLATION_UUID_CREATED,
+                        "success",
+                        "",
+                        0,
+                        0
+                );
+            }
+        } catch (RuntimeException error) {
+            StorefrontDiagnostics.record(
+                    this,
+                    StorefrontDiagnostics.INSTALLATION_UUID_CREATED,
+                    "failure",
+                    "installation_storage_unavailable",
+                    0,
+                    0
+            );
+        }
+        StorefrontBackgroundSync.schedule(this);
+        if (!BuildConfig.FIREBASE_CONFIGURED) {
+            StorefrontDiagnostics.record(
+                    this,
+                    StorefrontDiagnostics.FIREBASE_INITIALIZED,
+                    "skipped",
+                    "firebase_not_configured",
+                    0,
+                    0
+            );
+            return;
+        }
         try {
             FirebaseApp firebaseApp = FirebaseApp.initializeApp(this);
-            if (firebaseApp == null) return;
+            if (firebaseApp == null) throw new IllegalStateException("firebase_initialization_failed");
             FirebaseAppCheck.getInstance(firebaseApp).installAppCheckProviderFactory(
                     PlayIntegrityAppCheckProviderFactory.getInstance()
             );
             FirebaseMessaging.getInstance().setAutoInitEnabled(false);
-        } catch (RuntimeException ignored) {
+            StorefrontDiagnostics.record(
+                    this,
+                    StorefrontDiagnostics.FIREBASE_INITIALIZED,
+                    "success",
+                    "",
+                    0,
+                    0
+            );
+        } catch (RuntimeException error) {
+            StorefrontDiagnostics.record(
+                    this,
+                    StorefrontDiagnostics.FIREBASE_INITIALIZED,
+                    "failure",
+                    "firebase_initialization_failed",
+                    0,
+                    0
+            );
             // La tienda pública sigue disponible y la integración nativa falla cerrada.
         }
     }

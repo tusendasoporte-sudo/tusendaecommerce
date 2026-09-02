@@ -444,6 +444,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-installations'
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.android.gms:play-services-appset:16.1.0'
+    implementation 'androidx.work:work-runtime:2.10.1'
+    implementation 'com.squareup.okhttp3:okhttp-android:5.3.0'
 
     testImplementation 'junit:junit:4.13.2'
 }

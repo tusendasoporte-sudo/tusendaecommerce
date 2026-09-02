@@ -10,6 +10,54 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/storefront/v2/installations/register",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "installations_register_core"),
+  $apis.bodyLimit(8192),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v2/installations/firebase",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "installations_firebase_enrich"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v2/diagnostics",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "diagnostics_batch"),
+  $apis.bodyLimit(24576),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v2/notifications/sync",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "notifications_sync"),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v2/notifications/ack",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "notifications_ack"),
+  $apis.bodyLimit(12288),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v2/realtime/ticket",
+  (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "realtime_ticket"),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/storefront/v1/installations/heartbeat",
   (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "installations_heartbeat"),
   $apis.bodyLimit(7168),
@@ -93,4 +141,31 @@ routerAdd(
   (e) => require(`${__hooks}/pz_storefront_installations_lib.js`).handleAction(e, "events_record"),
   $apis.bodyLimit(4096),
   $apis.skipSuccessActivityLog()
+);
+
+cronAdd(
+  "pz_storefront_resilient_installation_cleanup",
+  "*/15 * * * *",
+  () => {
+    try {
+      const result = require(`${__hooks}/pz_storefront_installations_lib.js`)
+        .cleanupResilientInstallationData($app, new Date());
+      if (result.failed > 0) {
+        try {
+          $app.logger().error(
+            "Storefront resilient installation cleanup was partially blocked.",
+            "code", "PZ_STOREFRONT_RESILIENT_CLEANUP_PARTIAL",
+            "failed", result.failed,
+          );
+        } catch (_) {}
+      }
+    } catch (_) {
+      try {
+        $app.logger().error(
+          "Storefront resilient installation cleanup failed safely.",
+          "code", "PZ_STOREFRONT_RESILIENT_CLEANUP_FAILED",
+        );
+      } catch (_) {}
+    }
+  },
 );

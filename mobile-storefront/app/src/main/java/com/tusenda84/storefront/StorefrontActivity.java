@@ -51,8 +51,10 @@ import java.util.concurrent.Executors;
 public final class StorefrontActivity extends Activity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 601;
     private static final String ANALYTICS_LOG_TAG = "PZStorefrontAnalytics";
+    private static final long FOREGROUND_NOTIFICATION_SYNC_MS = 60_000L;
 
     private StorefrontRegistrationClient client;
+    private StorefrontRealtimeClient realtimeClient;
     private WebView webView;
     private ProgressBar progressBar;
     private View splashView;
@@ -64,7 +66,10 @@ public final class StorefrontActivity extends Activity {
     private Button permissionAction;
     private boolean pageReady;
     private boolean registrationSyncInFlight;
+    private boolean heartbeatSyncInFlight;
     private boolean permissionSyncInFlight;
+    private boolean notificationSyncInFlight;
+    private boolean notificationSyncRequested;
     private boolean sessionRefreshInFlight;
     private boolean updateCheckInFlight;
     private boolean updateDownloadInFlight;
@@ -80,6 +85,15 @@ public final class StorefrontActivity extends Activity {
     private String pendingDeliveryId = "";
     private String pendingDestinationUrl = "";
     private String pendingReportedPath = "";
+    private final Handler foregroundHandler = new Handler(Looper.getMainLooper());
+    private final Runnable foregroundNotificationSync = new Runnable() {
+        @Override
+        public void run() {
+            if (isFinishing() || isDestroyed()) return;
+            syncNotifications();
+            foregroundHandler.postDelayed(this, FOREGROUND_NOTIFICATION_SYNC_MS);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,10 +107,17 @@ public final class StorefrontActivity extends Activity {
         configureBackNavigation();
         StorefrontNotifications.createChannels(this);
         client = new StorefrontRegistrationClient(this);
+        realtimeClient = new StorefrontRealtimeClient(this, client, this::syncNotifications);
 
         findViewById(R.id.storefront_retry).setOnClickListener(view -> retry());
         findViewById(R.id.storefront_home).setOnClickListener(view -> openStoreHome());
         permissionAction.setOnClickListener(view -> handleNotificationAction());
+        splashView.setOnLongClickListener(view -> {
+            startActivity(new Intent(this, StorefrontDiagnosticsActivity.class));
+            return true;
+        });
+
+        recordConnectivityState();
 
         if (!StorefrontConfig.isConfigured()) {
             showError(
@@ -205,7 +226,6 @@ public final class StorefrontActivity extends Activity {
 
     private void syncInstallation() {
         if (registrationSyncInFlight
-                || !BuildConfig.FIREBASE_CONFIGURED
                 || StorefrontConfig.apiBaseUrl().isEmpty()) {
             updateNotificationCard();
             return;
@@ -215,6 +235,8 @@ public final class StorefrontActivity extends Activity {
             registrationSyncInFlight = false;
             updateNotificationCard();
             if (result.ok) {
+                realtimeClient.connect();
+                syncNotifications();
                 refreshWebSession(null);
                 checkForUpdates();
             }
@@ -223,7 +245,7 @@ public final class StorefrontActivity extends Activity {
 
     private void beginInitialNavigation(Intent intent) {
         new Handler(Looper.getMainLooper()).postDelayed(() -> completeInitialNavigation(intent), 4_000);
-        if (!BuildConfig.FIREBASE_CONFIGURED || StorefrontConfig.apiBaseUrl().isEmpty()) {
+        if (StorefrontConfig.apiBaseUrl().isEmpty()) {
             completeInitialNavigation(intent);
             return;
         }
@@ -235,6 +257,8 @@ public final class StorefrontActivity extends Activity {
                 completeInitialNavigation(intent);
                 return;
             }
+            realtimeClient.connect();
+            syncNotifications();
             checkForUpdates();
             refreshWebSession(sessionResult -> completeInitialNavigation(intent));
         });
@@ -243,7 +267,6 @@ public final class StorefrontActivity extends Activity {
     private void checkForUpdates() {
         if (client == null || updateCheckInFlight || updateDownloadInFlight || updatePromptVisible
                 || !"release".equals(BuildConfig.BUILD_TYPE)
-                || !BuildConfig.FIREBASE_CONFIGURED
                 || !StorefrontInstallationStore.hasCredential(this)) return;
         updateCheckInFlight = true;
         client.checkForUpdate(installSource(), policy -> {
@@ -566,6 +589,8 @@ public final class StorefrontActivity extends Activity {
         intent.removeExtra(StorefrontNotifications.NOTIFICATION_TAP);
         clearPendingDestination();
         if (explicitTap) {
+            StorefrontNotificationStore.queueReceipt(this, payload.deliveryId, "read");
+            client.flushNotificationReceipts(result -> { });
             StorefrontEventQueue.enqueue(this, "opened", payload.deliveryId, "");
             flushEvents();
         }
@@ -826,8 +851,14 @@ public final class StorefrontActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (realtimeClient != null) realtimeClient.connect();
+        foregroundHandler.removeCallbacks(foregroundNotificationSync);
+        foregroundHandler.postDelayed(foregroundNotificationSync, FOREGROUND_NOTIFICATION_SYNC_MS);
+        recordConnectivityState();
         updateNotificationCard();
         syncPermissionIfChanged();
+        syncHeartbeat();
+        syncNotifications();
         if (initialNavigationDone) refreshWebSession(null);
         flushEvents();
         if (pendingVerifiedUpdate != null) {
@@ -842,6 +873,62 @@ public final class StorefrontActivity extends Activity {
         checkForUpdates();
     }
 
+    private void syncHeartbeat() {
+        if (client == null || heartbeatSyncInFlight || registrationSyncInFlight) return;
+        if (!StorefrontInstallationStore.hasCredential(this)) {
+            syncInstallation();
+            return;
+        }
+        heartbeatSyncInFlight = true;
+        client.heartbeat(result -> {
+            heartbeatSyncInFlight = false;
+            if (!result.ok) syncInstallation();
+            else client.flushDiagnostics(diagnosticResult -> { });
+        });
+    }
+
+    private void syncNotifications() {
+        if (client == null || !StorefrontInstallationStore.hasCredential(this)) return;
+        if (notificationSyncInFlight) {
+            notificationSyncRequested = true;
+            return;
+        }
+        notificationSyncRequested = false;
+        notificationSyncInFlight = true;
+        client.syncNotifications(result -> {
+            notificationSyncInFlight = false;
+            if (notificationSyncRequested) {
+                notificationSyncRequested = false;
+                syncNotifications();
+            }
+            // El registro y el heartbeat ya reparan credenciales inválidas. Un fallo
+            // temporal de la bandeja no debe disparar otro registro cada 60 segundos.
+        });
+    }
+
+    private void recordConnectivityState() {
+        boolean online = isOnline();
+        String permission = StorefrontRegistrationClient.permissionState(this);
+        StorefrontDiagnostics.record(
+                this,
+                StorefrontDiagnostics.INTERNET_AVAILABLE,
+                online ? "success" : "failure",
+                online ? "" : "network_unavailable",
+                0,
+                0
+        );
+        StorefrontDiagnostics.record(
+                this,
+                StorefrontDiagnostics.NOTIFICATION_PERMISSION_STATUS,
+                "granted".equals(permission) ? "success"
+                        : "denied".equals(permission) ? "failure" : "skipped",
+                "granted".equals(permission) ? ""
+                        : "denied".equals(permission) ? "permission_denied" : "permission_unknown",
+                0,
+                0
+        );
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         webView.saveState(outState);
@@ -850,6 +937,8 @@ public final class StorefrontActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        foregroundHandler.removeCallbacks(foregroundNotificationSync);
+        if (realtimeClient != null) realtimeClient.disconnect();
         if (updateDialog != null) updateDialog.dismiss();
         updateExecutor.shutdownNow();
         if (webView != null) {
@@ -860,6 +949,13 @@ public final class StorefrontActivity extends Activity {
             webView.destroy();
         }
         super.onDestroy();
+    }
+
+    @Override
+    protected void onPause() {
+        foregroundHandler.removeCallbacks(foregroundNotificationSync);
+        if (realtimeClient != null) realtimeClient.disconnect();
+        super.onPause();
     }
 
     private final class StorefrontWebViewClient extends WebViewClient {

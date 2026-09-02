@@ -134,6 +134,38 @@ test('Admin excluye Master y Master conserva las tres fuentes separadas', () => 
   assert.match(master.measurement_note, /separado/i);
 });
 
+test('el resumen cuenta dispositivos únicos aunque una instalación active varias versiones', () => {
+  const { app, artifact, newInstallation, tables } = fixture();
+  const previousArtifact = new FakeRecord('storefront_app_artifacts', {
+    id: 'artifactdown002', store: STORE, profile: PROFILE, kind: 'apk', lifecycle_status: 'available',
+    release_status: 'published', update_delivery_status: 'active', version_code: 10,
+    version_name: '0.2.8', bytes: 23_000_000, published_at: '2026-08-19T11:00:00.000Z',
+  });
+  tables.get('storefront_app_artifacts').push(previousArtifact);
+  analytics.recordEvent(app, {
+    artifact: previousArtifact,
+    installation: newInstallation,
+    source: 'client_app',
+    eventType: 'version_activated',
+    now: new Date('2026-08-19T12:00:00.000Z'),
+  });
+  analytics.recordEvent(app, {
+    artifact,
+    installation: newInstallation,
+    source: 'client_app',
+    eventType: 'version_activated',
+    now: new Date('2026-08-20T12:00:00.000Z'),
+  });
+
+  const result = analytics.buildDownloadAnalytics(app, STORE, {
+    includeMaster: true,
+    now: new Date('2026-08-20T13:00:00.000Z'),
+  });
+  assert.equal(result.summary.activated_installations, 1);
+  assert.equal(result.versions.reduce((sum, row) => sum + row.activated_installations, 0), 2);
+  assert.match(result.measurement_note, /dispositivos únicos/i);
+});
+
 test('migración crea una colección privada sin IP ni identificadores publicitarios', () => {
   const source = readFileSync(path.resolve(
     __dirname,

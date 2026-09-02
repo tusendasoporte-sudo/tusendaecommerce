@@ -14,6 +14,7 @@ const STOREFRONT_PUSH_COLLECTIONS = Object.freeze([
   "push_campaign_deliveries",
   "push_events",
   "push_daily_stats",
+  "storefront_installation_diagnostics",
 ]);
 
 const STOREFRONT_CUSTOMER_COLLECTIONS = Object.freeze([
@@ -61,12 +62,17 @@ const RETENTION_POLICY = Object.freeze({
   campaign_quota_entry_days: 40,
   daily_aggregate_days: 90,
   private_inbox_days: 30,
+  installation_diagnostics_days: 30,
 });
 
 const SENSITIVE_FIELDS = Object.freeze({
   storefront_app_configs: Object.freeze(["firebase_app_id"]),
   storefront_installations: Object.freeze([
-    "fid", "fid_digest", "app_set_digest", "credential_digest", "last_ip_encrypted", "ip_delete_after",
+    "fid", "fid_digest", "app_set_digest", "installation_uuid_digest", "credential_digest",
+    "firebase_last_error", "last_ip_encrypted", "ip_delete_after",
+  ]),
+  storefront_installation_diagnostics: Object.freeze([
+    "installation", "idempotency_key", "error_code", "metadata_json",
   ]),
   storefront_web_sessions: Object.freeze(["session_digest"]),
   storefront_order_links: Object.freeze(["campaign_id_snapshot", "delivery_id_snapshot", "coupon_id_snapshot"]),
@@ -83,6 +89,10 @@ const SENSITIVE_FIELDS = Object.freeze({
 const TENANT_RELATIONS = Object.freeze({
   storefront_app_configs: Object.freeze({}),
   storefront_installations: Object.freeze({ app_config: "storefront_app_configs" }),
+  storefront_installation_diagnostics: Object.freeze({
+    app_config: "storefront_app_configs",
+    installation: "storefront_installations",
+  }),
   storefront_web_sessions: Object.freeze({ installation: "storefront_installations" }),
   storefront_order_links: Object.freeze({ installation: "storefront_installations", order: "orders" }),
   storefront_installation_coupons: Object.freeze({

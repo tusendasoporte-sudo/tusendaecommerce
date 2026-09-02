@@ -443,6 +443,10 @@ function persistClaimResults(app, claimToken, results, nowValue) {
         errorCode = "retry_exhausted";
       }
       delivery.set("status", status);
+      delivery.set("fcm_status", status === "accepted" ? "accepted"
+        : status === "invalid_fid" ? "invalid"
+          : status === "failed_transient" ? "failed_transient"
+            : status === "failed_permanent" ? "failed_permanent" : "not_attempted");
       delivery.set("claim_token", "");
       delivery.set("firebase_message_id", status === "accepted" ? result.firebase_message_id : "");
       delivery.set("error_code", status === "accepted" ? "" : safeErrorCode(errorCode, "delivery_failed"));
@@ -467,9 +471,12 @@ function persistClaimResults(app, claimToken, results, nowValue) {
         const installation = findRecord(txApp, INSTALLATIONS_COLLECTION, relationId(delivery, "installation"));
         if (installation
           && relationId(installation, "store") === relationId(delivery, "store")
-          && recordString(installation, "status") !== "invalid") {
-          installation.set("status", "invalid");
-          installation.set("disabled_at", now.toISOString());
+          && recordString(installation, "status") === "active") {
+          installation.set("fid", "");
+          installation.set("fid_digest", "");
+          installation.set("trust_level", "basic");
+          installation.set("firebase_status", "failed");
+          installation.set("firebase_last_error", "invalid_fid");
           txApp.save(installation);
         }
       }

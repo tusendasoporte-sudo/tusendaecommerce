@@ -8,6 +8,35 @@ import org.junit.Test;
 
 public final class StorefrontRegistrationPayloadTest {
     @Test
+    public void emitsFirebaseIndependentCoreRegistrationContract() {
+        String json = StorefrontRegistrationPayload.coreRegister(
+                "123e4567-e89b-42d3-a456-426614174000",
+                "powerzona-storefront-staging",
+                "0.1.0-staging",
+                1,
+                "16",
+                "Google Pixel 9",
+                "es-US",
+                "America/Havana",
+                "unknown"
+        );
+        assertEquals(
+                "{\"installation_id\":\"123e4567-e89b-42d3-a456-426614174000\","
+                        + "\"app_key\":\"powerzona-storefront-staging\","
+                        + "\"app_version\":\"0.1.0-staging\",\"app_version_code\":1,"
+                        + "\"android_version\":\"16\",\"device_model\":\"Google Pixel 9\","
+                        + "\"locale\":\"es-US\",\"timezone\":\"America/Havana\","
+                        + "\"notification_permission\":\"unknown\"}",
+                json
+        );
+        assertTrue(!json.contains("fid") && !json.contains("firebase") && !json.contains("store_id"));
+        assertThrows(IllegalArgumentException.class, () -> StorefrontRegistrationPayload.coreRegister(
+                "not-a-uuid", "powerzona-storefront-staging", "0.1.0", 1,
+                "16", "Pixel", "es-US", "UTC", "unknown"
+        ));
+    }
+
+    @Test
     public void emitsExactRegisterContractWithoutSecretsBeyondFid() {
         String json = StorefrontRegistrationPayload.register(
                 "abcdefghijklmnop",
@@ -67,6 +96,30 @@ public final class StorefrontRegistrationPayloadTest {
                 "abcdefghijklmnop", opaque, "0.1.0-staging", 1,
                 "16", "Google Pixel 9", "es-US", "America/New_York", "granted"
         ).contains("\"app_set_id\":\"" + opaque + "\""));
+    }
+
+    @Test
+    public void emitsExactFirebaseEnrichmentContract() {
+        assertEquals(
+                "{\"fid\":\"abcdefghijklmnop\",\"app_set_id\":\"12Jd92JD8078S8J29sDoakc0EF230337\"}",
+                StorefrontRegistrationPayload.firebaseEnrichment(
+                        "abcdefghijklmnop",
+                        "12Jd92JD8078S8J29sDoakc0EF230337"
+                )
+        );
+        assertEquals(
+                "{\"fid\":\"abcdefghijklmnop\"}",
+                StorefrontRegistrationPayload.firebaseEnrichment("abcdefghijklmnop", "")
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+                StorefrontRegistrationPayload.firebaseEnrichment("short", "")
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+                StorefrontRegistrationPayload.firebaseEnrichment(
+                        "abcdefghijklmnop",
+                        "unsafe:app-set-id-value"
+                )
+        );
     }
 
     @Test

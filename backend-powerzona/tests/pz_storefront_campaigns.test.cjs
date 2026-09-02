@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -456,6 +457,79 @@ test('audiencia y snapshot se aíslan por tienda y son idempotentes sin límite 
   assert.equal(campaigns.materializeAudience(app, item, new Date('2026-08-13T14:01:00.000Z')), 1);
   assert.equal(app.rows('push_campaign_deliveries').length, 1);
   assert.equal(app.rows('push_campaign_deliveries')[0].getString('store'), STORE_A);
+});
+
+test('una instalación activa sin FID entra en la cola nativa sin depender de Firebase', () => {
+  const app = createApp();
+  const config = app.add(appConfig('appconfig000001', STORE_A));
+  app.add(installation('install00000001', STORE_A, config.id, { fid: '' }));
+  const item = app.add(campaign());
+
+  assert.equal(campaigns.eligibleInstallations(app, item, new Date('2026-08-13T14:00:00.000Z')).length, 1);
+  assert.equal(campaigns.materializeAudience(app, item, new Date('2026-08-13T14:00:00.000Z')), 1);
+  const queued = app.rows('push_campaign_deliveries')[0];
+  assert.equal(queued.getString('status'), 'accepted');
+  assert.equal(queued.getString('fcm_status'), 'not_attempted');
+  assert.equal(queued.getString('native_status'), 'pending');
+  assert.ok(queued.getString('delivery_expires_at'));
+});
+
+test('el aviso realtime usa canales seudónimos y su caída no afecta la cola', () => {
+  const app = createApp();
+  const config = app.add(appConfig('appconfig000001', STORE_A));
+  app.add(installation('install00000001', STORE_A, config.id, { fid: '' }));
+  const item = app.add(campaign());
+  campaigns.materializeAudience(app, item, new Date('2026-08-13T14:00:00.000Z'));
+  const sent = [];
+  const secret = 'realtime-wake-secret-abcdefghijklmnopqrstuvwxyz';
+  const ticketSecret = 'realtime-ticket-secret-abcdefghijklmnopqrstuvwxyz';
+  const options = {
+    realtimeConfig: { url: 'http://realtime:8081/internal/wakeup', secret, ticketSecret },
+    randomNonce: () => '018f54de-6c37-4f2c-8d5a-0123456789ab',
+    security: {
+      hs256(value, key) {
+        return crypto.createHmac('sha256', key).update(value).digest('hex');
+      },
+      randomStringWithAlphabet(length) { return 'a'.repeat(length); },
+    },
+    realtimeSend(request) {
+      sent.push(request);
+      return { statusCode: 200, json: { ok: true, matched: 1, sent: 1 } };
+    },
+  };
+  const result = campaigns.wakeRealtimeCampaign(
+    app,
+    item.id,
+    new Date('2026-08-13T14:00:00.000Z'),
+    options,
+  );
+  assert.deepEqual(result, { batches: 1, requested: 1, failed: 0, skipped: false });
+  assert.equal(sent.length, 1);
+  const channelId = crypto.createHmac('sha256', ticketSecret)
+    .update('pz_storefront_realtime_channel:v1|install00000001')
+    .digest('hex');
+  assert.deepEqual(JSON.parse(sent[0].body), {
+    version: 1,
+    type: 'sync_required',
+    campaign_id: item.id,
+    channel_ids: [channelId],
+  });
+  assert.equal(sent[0].body.includes('install00000001'), false);
+  assert.equal(sent[0].body.includes('Oferta del dia'), false);
+  const timestamp = sent[0].headers['x-pz-realtime-timestamp'];
+  const nonce = sent[0].headers['x-pz-realtime-nonce'];
+  assert.equal(
+    sent[0].headers['x-pz-realtime-signature'],
+    crypto.createHmac('sha256', secret).update(`${timestamp}\n${nonce}\n${sent[0].body}`).digest('hex'),
+  );
+
+  const failed = campaigns.wakeRealtimeCampaign(app, item.id, new Date('2026-08-13T14:00:00.000Z'), {
+    ...options,
+    realtimeSend() { throw new Error('gateway_down'); },
+  });
+  assert.equal(failed.failed, 1);
+  assert.equal(app.rows('push_campaign_deliveries').length, 1);
+  assert.equal(app.rows('push_campaign_deliveries')[0].getString('native_status'), 'pending');
 });
 
 test('previsualiza una audiencia nueva sin crear ni guardar una campaña', () => {

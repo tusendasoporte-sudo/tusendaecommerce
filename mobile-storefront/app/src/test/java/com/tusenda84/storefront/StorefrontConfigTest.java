@@ -52,4 +52,26 @@ public final class StorefrontConfigTest {
                 "powerzona"
         ));
     }
+
+    @Test
+    public void acceptsOnlyTheDedicatedSecureWebSocketEndpoint() {
+        assertEquals(
+                "wss://realtime.tusenda84.com/v1/connect",
+                StorefrontConfig.normalizeWebSocketUrl(
+                        "wss://Realtime.TuSenda84.com/v1/connect"
+                )
+        );
+        assertEquals("", StorefrontConfig.normalizeWebSocketUrl(
+                "ws://realtime.tusenda84.com/v1/connect"
+        ));
+        assertEquals("", StorefrontConfig.normalizeWebSocketUrl(
+                "wss://realtime.tusenda84.com/v1/connect?ticket=secret"
+        ));
+        assertEquals("", StorefrontConfig.normalizeWebSocketUrl(
+                "wss://user@realtime.tusenda84.com/v1/connect"
+        ));
+        assertEquals("", StorefrontConfig.normalizeWebSocketUrl(
+                "wss://realtime.tusenda84.com/otra-ruta"
+        ));
+    }
 }
