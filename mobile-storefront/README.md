@@ -159,6 +159,8 @@ El motor `1.3.2` mantiene App Set ID como señal antifraude opcional. Si Google 
 
 El motor `1.4.0` mantiene visible el splash de marca hasta el primer cuadro útil de la tienda, incorpora Android App Links verificados para los enlaces HTTPS de cada storefront y presenta recuperación diferenciada para falta de internet y posible bloqueo por VPN/proxy. La navegación inferior, la bandeja privada y la cartera de cupones se entregan desde el storefront web y solo se activan dentro de la APK mediante su identificador de agente de usuario.
 
+El motor `1.5.0` registra cada instalación con un UUID persistente independiente de Firebase, añade diagnóstico local de conectividad y registro, mantiene FCM como canal acelerador opcional e incorpora sincronización propia de notificaciones mediante WebSocket, apertura/reanudación y WorkManager.
+
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 
 - `app_key` y `applicationId`;
