@@ -43,6 +43,7 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
   '1787699500_promo_media_quota_300.js',
   '1787699600_promo_operational_defaults.js',
   '1787699700_promo_publish_empty_foundations.js',
+  '1788354000_promo_theme_catalog_bootstrap.js',
 ];
 const POST_DATA_NON_PROMO_MIGRATIONS = [
   '1787700000_storefront_private_inbox_coupon_wallet.js',
@@ -1012,7 +1013,7 @@ test('gate runtime DATA: migraciones, hooks, privacidad, aislamiento, media e ro
     for (const migration of [
       ...ADDITIVE_POST_DATA_MIGRATIONS,
       ...POST_DATA_NON_PROMO_MIGRATIONS,
-    ].reverse()) {
+    ].sort().reverse()) {
       const additiveDown = runPocketBase(
         ['migrate', 'down', '1'],
         dataDirectory,

@@ -213,37 +213,43 @@ function assertTransition(previous, next) {
   if (!allowed.includes(next)) throw codedError("invalid_promo_theme_transition", 400);
 }
 
-function createRelease(app, entry) {
+function createRelease(app, entry, approvalActor, approvedAt) {
   const record = new Record(app.findCollectionByNameOrId("promo_theme_releases"), {});
   record.set("theme_id", entry.manifest.theme_id);
   record.set("version", entry.manifest.version);
-  record.set("status", "draft");
+  record.set("status", approvalActor ? "approved" : "draft");
   record.set("renderer_key", entry.manifest.renderer_key);
   record.set("contract_version", entry.manifest.contract_version);
   record.set("manifest_sha256", entry.manifest_sha256);
   record.set("token_schema_sha256", entry.token_schema_sha256);
+  if (approvalActor) {
+    record.set("approved_by", recordId(approvalActor));
+    record.set("approved_at", approvedAt || new Date().toISOString());
+  }
   app.save(record);
   return record;
 }
 
-function transitionRelease(app, record, nextStatus, actor) {
+function transitionRelease(app, record, nextStatus, actor, approvedAt) {
   record.set("status", nextStatus);
   if (nextStatus === "approved") {
     record.set("approved_by", recordId(actor));
-    record.set("approved_at", new Date().toISOString());
+    record.set("approved_at", approvedAt || new Date().toISOString());
   }
   if (nextStatus === "retired") record.set("retired_at", new Date().toISOString());
   app.save(record);
   return record;
 }
 
-function auditRelease(app, decision, previous, next) {
+function auditRelease(app, decision, previous, next, options) {
+  const settings = options || {};
   const before = releaseSnapshot(previous);
   const after = releaseSnapshot(next);
   const paths = previous
     ? ["/status"]
     : ["/theme_id", "/version", "/status", "/renderer_key", "/contract_version"];
   return audit.createPromoAudit(app, decision, {
+    ...(settings.origin ? { origin: settings.origin } : {}),
     action: "promo.theme.release.update",
     resourceType: "promo_theme_release",
     resourceId: `${after.theme_id}:${after.version}`,
@@ -252,6 +258,56 @@ function auditRelease(app, decision, previous, next) {
     newValues: after,
     sourceEventKey: `promo.theme.release.${after.theme_id}.${after.version}.${after.status}`,
   });
+}
+
+function ensureFirstPartyCatalog(app, actor, options) {
+  const settings = options || {};
+  if (!actor || !/^[a-z0-9]{15}$/.test(recordId(actor))
+    || theme.recordString(actor, "role") !== promo.MASTER_ROLE
+    || theme.recordString(actor, "status") !== "active") {
+    throw codedError("unauthorized", 403);
+  }
+  const entries = Object.values(theme.THEME_REGISTRY).sort((first, second) => (
+    `${first.manifest.theme_id}@${first.manifest.version}`
+      .localeCompare(`${second.manifest.theme_id}@${second.manifest.version}`)
+  ));
+  const releases = entries.map((entry) => findRelease(
+    app, entry.manifest.theme_id, entry.manifest.version,
+  ));
+  releases.forEach((release, index) => {
+    if (!release) return;
+    try { theme.assertReleaseIntegrity(release, selectionForEntry(entries[index])); }
+    catch (_) { throw codedError("promo_theme_release_mismatch", 503); }
+  });
+  const existing = releases.filter(Boolean);
+  const promoteBootstrapDrafts = settings.promoteBootstrapDrafts === true
+    && existing.length > 0
+    && existing.every((release) => theme.recordString(release, "status") === "draft");
+  const approvedAt = new Date().toISOString();
+  const auditDecision = settings.auditOrigin === "migration"
+    ? null
+    : { actor, is_master: true };
+  const auditOptions = settings.auditOrigin === "migration" ? { origin: "migration" } : {};
+  let created = 0;
+  let promoted = 0;
+
+  entries.forEach((entry, index) => {
+    let release = releases[index];
+    let previous = null;
+    if (!release) {
+      release = createRelease(app, entry, actor, approvedAt);
+      created += 1;
+    } else if (promoteBootstrapDrafts && theme.recordString(release, "status") === "draft") {
+      previous = releaseSnapshot(release);
+      release = transitionRelease(app, release, "approved", actor, approvedAt);
+      promoted += 1;
+    } else {
+      return;
+    }
+    auditRelease(app, auditDecision, previous, release, auditOptions);
+  });
+
+  return Object.freeze({ created, promoted, total: entries.length });
 }
 
 function handleReleaseUpdate(e) {
@@ -338,6 +394,7 @@ module.exports = {
   EXPECTED_RELEASE_STATUSES,
   RELEASE_STATUSES,
   auditRelease,
+  ensureFirstPartyCatalog,
   currentCatalogSelection,
   errorCode,
   errorStatus,

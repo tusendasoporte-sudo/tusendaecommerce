@@ -23,6 +23,9 @@ const audit = typeof __hooks === "undefined"
 const theme = typeof __hooks === "undefined"
   ? require("./pz_promo_theme_lib.js")
   : require(`${__hooks}/pz_promo_theme_lib.js`);
+const themeApi = typeof __hooks === "undefined"
+  ? require("./pz_promo_theme_api_lib.js")
+  : require(`${__hooks}/pz_promo_theme_api_lib.js`);
 const domain = typeof __hooks === "undefined"
   ? require("./pz_promo_domain_lib.js")
   : require(`${__hooks}/pz_promo_domain_lib.js`);
@@ -857,6 +860,19 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
   if (findExact(app, "promo_sites", "store = {:store}", { store: storeId })) throw codedError("store_not_promo", 409);
   if (findExact(app, "promo_sites", "public_slug = {:slug}", { slug })) throw codedError("promo_public_slug_exists", 409);
 
+  const selectedThemeId = String(requestedThemeId || DEFAULT_PROMO_THEME_ID).trim();
+  const selectedTheme = theme.registryEntry(selectedThemeId, DEFAULT_PROMO_THEME_VERSION);
+  if (!selectedTheme) throw codedError("unknown_promo_theme", 400);
+  themeApi.ensureFirstPartyCatalog(app, actor);
+  const selectedRelease = themeApi.findRelease(app, selectedThemeId, DEFAULT_PROMO_THEME_VERSION);
+  try {
+    theme.assertReleaseForSelection(selectedRelease, {
+      theme_id: selectedThemeId,
+      version: DEFAULT_PROMO_THEME_VERSION,
+      tokens: {},
+    }, { mode: "select" });
+  } catch (_) { throw codedError("promo_theme_not_selectable", 403); }
+
   const site = new Record(app.findCollectionByNameOrId("promo_sites"), {});
   site.set("store", storeId);
   site.set("public_slug", slug);
@@ -882,7 +898,7 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
   entitlement.set("updated_by", recordId(actor));
   app.save(entitlement);
 
-  const document = initialPublishedDocument(recordString(store, "name"), slug, requestedThemeId);
+  const document = initialPublishedDocument(recordString(store, "name"), slug, selectedThemeId);
   const draft = new Record(app.findCollectionByNameOrId("promo_draft_documents"), {});
   draft.set("site", recordId(site));
   draft.set("schema_version", 1);

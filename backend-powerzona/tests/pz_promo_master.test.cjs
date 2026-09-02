@@ -22,7 +22,7 @@ function mutableRecord(id, values = {}, collection = null) {
 function foundationFixture() {
   const names = [
     'promo_sites', 'promo_site_entitlements', 'promo_draft_documents',
-    'promo_publication_slots', 'promo_audit_events',
+    'promo_publication_slots', 'promo_theme_releases', 'promo_audit_events',
   ];
   const collections = Object.fromEntries(names.map((name) => [name, { name }]));
   const saved = [];
@@ -47,6 +47,8 @@ function foundationFixture() {
       return saved.filter((item) => item._collection?.name === collection)
         .filter((item) => !params.store || item.store === params.store)
         .filter((item) => !params.slug || item.public_slug === params.slug)
+        .filter((item) => !params.theme || item.theme_id === params.theme)
+        .filter((item) => !params.version || item.version === params.version)
         .slice(0, limit);
     },
     findFirstRecordByFilter() { throw new Error('not_found'); },
@@ -160,7 +162,10 @@ test('foundation Promo crea tenant operativo y publicado en español con Black G
     const actor = mutableRecord('masterstore0001', { role: 'master_admin', status: 'active', name: 'Master' });
     const store = mutableRecord('storeaaaaaaaaaa', { name: 'Demo Promo', slug: 'demo-promo', status: 'active' });
     const result = master.createPromoFoundation(fixture.app, actor, store, 'demo-promo', 'free');
-    assert.equal(fixture.saved.length, 5);
+    const releases = fixture.saved.filter((item) => item._collection?.name === 'promo_theme_releases');
+    assert.equal(releases.length, 6);
+    assert.equal(releases.every((item) => item.status === 'approved'), true);
+    assert.equal(releases.every((item) => item.approved_by === actor.id), true);
     assert.equal(result.site.store, store.id);
     assert.equal(result.site.status, 'active');
     assert.equal(result.site.contract_version, 1);
@@ -195,7 +200,9 @@ test('foundation Promo crea tenant operativo y publicado en español con Black G
     assert.equal(result.slot.generation, 1);
     assert.equal(result.slot.published_by, actor.id);
     assert.match(result.slot.published_at, /^\d{4}-\d{2}-\d{2}T/);
-    const event = fixture.saved.find((item) => item._collection?.name === 'promo_audit_events');
+    const event = fixture.saved.find((item) => (
+      item._collection?.name === 'promo_audit_events' && item.action === 'promo.site.create'
+    ));
     assert.equal(event.action, 'promo.site.create');
     assert.equal(event.scope_key, `site:${result.site.id}`);
     assert.doesNotMatch(JSON.stringify(event), /token|password|owner_phone|document_json/i);

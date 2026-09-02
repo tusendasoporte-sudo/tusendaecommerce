@@ -267,7 +267,7 @@ const {
       return result;
     }
 
-    function setBusy(next: boolean, message = '') {
+    function setBusy(next: boolean, message = '', preserveError = false) {
       busy = next;
       root.setAttribute('aria-busy', next ? 'true' : 'false');
       if (message) setStatus(message);
@@ -288,7 +288,7 @@ const {
           }
         });
       if (saveLabel) saveLabel.textContent = next ? 'Guardando…' : 'Guardar apariencia';
-      if (!next) updateChangeState();
+      if (!next) updateChangeState(!preserveError);
     }
 
     function selectedManifest() {
@@ -348,12 +348,12 @@ const {
       });
     }
 
-    function updateChangeState() {
+    function updateChangeState(clearExistingError = true) {
       let requirements = null;
       try {
         const next = prospectiveDocument();
         requirements = next && draft ? promoAppearanceChangeRequirements(draft.document, next) : null;
-        clearError();
+        if (clearExistingError) clearError();
       } catch (error) {
         showError(error);
       }
@@ -566,7 +566,7 @@ const {
         setStatus('');
         showError(error);
       } finally {
-        setBusy(false);
+        setBusy(false, '', true);
       }
     }
 
@@ -619,7 +619,7 @@ const {
         setStatus('', 'idle');
         showError(error);
       } finally {
-        setBusy(false);
+        setBusy(false, '', true);
       }
     });
 

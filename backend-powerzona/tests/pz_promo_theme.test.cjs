@@ -47,6 +47,57 @@ function selection(tokens = {}) {
   };
 }
 
+function catalogBootstrapFixture(initial = []) {
+  const collections = {
+    promo_theme_releases: { name: 'promo_theme_releases' },
+    promo_audit_events: { name: 'promo_audit_events' },
+  };
+  const saved = initial.slice();
+  let sequence = 0;
+  const previousRecord = global.Record;
+  global.Record = class FakeRecord {
+    constructor(collection) {
+      sequence += 1;
+      const values = {
+        id: `record${String(sequence).padStart(9, '0')}`,
+        _collection: collection,
+        get(key) { return this[key]; },
+        getString(key) { return String(this[key] ?? ''); },
+        set(key, value) { this[key] = value; },
+      };
+      return values;
+    }
+  };
+  const app = {
+    findCollectionByNameOrId(name) {
+      if (!collections[name]) throw new Error(`not_found:${name}`);
+      return collections[name];
+    },
+    findRecordsByFilter(collection, _filter, _sort, limit, _offset, params = {}) {
+      return saved.filter((item) => item._collection?.name === collection)
+        .filter((item) => !params.theme || item.theme_id === params.theme)
+        .filter((item) => !params.version || item.version === params.version)
+        .slice(0, limit);
+    },
+    findFirstRecordByFilter(collection, _filter, params = {}) {
+      const found = saved.find((item) => item._collection?.name === collection
+        && (!params.scope || item.scope_key === params.scope)
+        && (!params.source || item.source_event_key === params.source));
+      if (!found) throw new Error('not_found');
+      return found;
+    },
+    save(record) {
+      if (!saved.includes(record)) saved.push(record);
+      return record;
+    },
+  };
+  return {
+    app,
+    saved,
+    restore() { global.Record = previousRecord; },
+  };
+}
+
 function publicDocument(tokens = {}) {
   return {
     contract: 'promo.site.v2',
@@ -178,6 +229,61 @@ test('catálogo privado oculta releases no aprobados, retirados, unknown o con d
   assert.doesNotMatch(serialized, /manifest_sha256|token_schema_sha256|approved_by|#[a-f0-9]{6}/i);
 });
 
+test('bootstrap first-party crea seis releases aprobados, auditados e idempotentes', () => {
+  const fixture = catalogBootstrapFixture();
+  try {
+    const actor = {
+      id: 'masterstore0001', role: 'master_admin', status: 'active', name: 'Master',
+      get(key) { return this[key]; },
+      getString(key) { return String(this[key] ?? ''); },
+    };
+    assert.deepEqual(api.ensureFirstPartyCatalog(fixture.app, actor), {
+      created: 6, promoted: 0, total: 6,
+    });
+    assert.deepEqual(api.ensureFirstPartyCatalog(fixture.app, actor), {
+      created: 0, promoted: 0, total: 6,
+    });
+    const releases = fixture.saved.filter((item) => item._collection?.name === 'promo_theme_releases');
+    const events = fixture.saved.filter((item) => item._collection?.name === 'promo_audit_events');
+    assert.equal(releases.length, 6);
+    assert.equal(events.length, 6);
+    assert.equal(releases.every((item) => item.status === 'approved'), true);
+    assert.equal(releases.every((item) => item.approved_by === actor.id), true);
+    assert.equal(events.every((item) => item.origin === 'master_admin'), true);
+    assert.equal(events.every((item) => item.action === 'promo.theme.release.update'), true);
+  } finally {
+    fixture.restore();
+  }
+});
+
+test('bootstrap de migración promueve solo un catálogo completamente draft', () => {
+  const entry = theme.THEME_REGISTRY['promo.black-gold@1.0.0'];
+  const draft = {
+    ...releaseFor(entry, 'draft'),
+    _collection: { name: 'promo_theme_releases' },
+    approved_by: '', approved_at: '',
+    set(key, value) { this[key] = value; },
+  };
+  const fixture = catalogBootstrapFixture([draft]);
+  try {
+    const actor = {
+      id: 'masterstore0001', role: 'master_admin', status: 'active',
+      get(key) { return this[key]; },
+      getString(key) { return String(this[key] ?? ''); },
+    };
+    assert.deepEqual(api.ensureFirstPartyCatalog(fixture.app, actor, {
+      promoteBootstrapDrafts: true,
+      auditOrigin: 'migration',
+    }), { created: 5, promoted: 1, total: 6 });
+    const releases = fixture.saved.filter((item) => item._collection?.name === 'promo_theme_releases');
+    const events = fixture.saved.filter((item) => item._collection?.name === 'promo_audit_events');
+    assert.equal(releases.every((item) => item.status === 'approved'), true);
+    assert.equal(events.every((item) => item.origin === 'migration' && item.actor === ''), true);
+  } finally {
+    fixture.restore();
+  }
+});
+
 test('contratos Theme son exactos y las transiciones Master no aceptan tenant ni campos libres', () => {
   assert.deepEqual(api.parseReleaseUpdate({
     contract: 'promo.theme.release.update.v1',
@@ -212,6 +318,14 @@ test('Theme registra solo dos POST privados autenticados y reutiliza PUBCFG/AUDI
   const apiSource = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_theme_api_lib.js'), 'utf8');
   assert.match(apiSource, /promo\.master\.theme_releases\.manage/);
   assert.match(apiSource, /promo\.theme\.release\.update/);
+  assert.match(apiSource, /ensureFirstPartyCatalog/);
+  const migrationSource = fs.readFileSync(path.join(
+    __dirname, '..', 'pb_migrations', '1788354000_promo_theme_catalog_bootstrap.js',
+  ), 'utf8');
+  assert.match(migrationSource, /role = \{\:role\} && status = \{\:status\}/);
+  assert.match(migrationSource, /promoteBootstrapDrafts: true/);
+  assert.match(migrationSource, /auditOrigin: "migration"/);
+  assert.match(migrationSource, /El catálogo no se elimina/);
   assert.match(apiSource, /draftDecision/);
   const pubcfgSource = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_pubcfg_api_lib.js'), 'utf8');
   assert.match(pubcfgSource, /promo\.theme\.selection\.update/);

@@ -227,6 +227,9 @@ test('shell y proxy conservan auth central, tenant exacto, CAS y límites del pr
   assert.match(editor, /setAttribute\('aria-expanded'/);
   assert.match(editor, /data-appearance-status-success/);
   assert.match(editor, /window\.setTimeout[\s\S]*?4000/);
+  assert.match(editor, /setBusy\(false, '', true\)/);
+  assert.match(editor, /updateChangeState\(!preserveError\)/);
+  assert.match(editor, /if \(clearExistingError\) clearError\(\)/);
   assert.match(editor, /pz-promo-appearance__sample-brand">\{storeName\}/);
   assert.doesNotMatch(editor, /TU SENDA <b>84<\/b>/);
   assert.doesNotMatch(editor, /Versión de página:|tokens seguros/);
