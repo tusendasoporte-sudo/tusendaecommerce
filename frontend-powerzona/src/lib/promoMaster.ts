@@ -11,6 +11,9 @@ export const PROMO_MASTER_CONTRACTS = Object.freeze({
   lifecycleUpdate: 'promo.master.lifecycle.update.v1',
   preferencesUpdate: 'promo.master.preferences.update.v1',
   entitlementUpdate: 'promo.entitlements.update.v1',
+  domainCreate: 'promo.domain.create.v1',
+  domainVerify: 'promo.domain.verify.v1',
+  domainStatus: 'promo.domain.status.update.v1',
   themeRelease: 'promo.theme.release.update.v1',
   candidateCreate: 'promo.candidate.create.v1',
   publish: 'promo.publication.publish.v1',
@@ -85,6 +88,21 @@ export type PromoMasterOverview = {
     locales: { default: string; published: string[] };
     publish_readiness: { state: string; code: string };
     rollback_readiness: { state: string; code: string };
+  }>;
+  domains: Array<{
+    binding_id: string;
+    hostname_ascii: string;
+    hostname_display: string;
+    role: 'primary' | 'alias';
+    status: string;
+    is_current: boolean;
+    verification_method: string;
+    state_version: number;
+    verified_at: string;
+    activated_at: string;
+    retired_at: string;
+    allowed_next_statuses: string[];
+    verification_available: boolean;
   }>;
   theme: {
     draft: { theme_id: string; version: string } | null;
@@ -252,11 +270,13 @@ function validOverviewPayload(payload: any): payload is PromoMasterOverview & { 
     || !Number.isSafeInteger(payload.publication.generation)
     || payload.publication.generation < 0
     || payload.publication.canonical?.mode !== 'platform'
-    || !Array.isArray(payload.revisions)
+    || !Array.isArray(payload.revisions) || !Array.isArray(payload.domains)
     || !payload.theme || !Array.isArray(payload.theme.releases)
     || !Array.isArray(payload.activity) || !payload.health || !Array.isArray(payload.health.issues)) return false;
   if (payload.revisions.some((item: any) => !recordId(item?.revision_id)
     || !item?.publish_readiness || !item?.rollback_readiness)) return false;
+  if (payload.domains.some((item: any) => !recordId(item?.binding_id)
+    || !Array.isArray(item?.allowed_next_statuses))) return false;
   return true;
 }
 
@@ -319,6 +339,29 @@ export async function updatePromoEntitlements(client: PocketBase, storeId: strin
   reason: string;
 }) {
   return client.send('/api/pz/promo/master/entitlements/update', supportOptions(storeId, input));
+}
+
+export async function createPromoDomain(client: PocketBase, storeId: string, hostname: string, role: string) {
+  return client.send('/api/pz/promo/private/v1/domains/create', supportOptions(storeId, {
+    contract: PROMO_MASTER_CONTRACTS.domainCreate, hostname, role,
+  }));
+}
+
+export async function verifyPromoDomain(client: PocketBase, storeId: string, input: {
+  binding_id: string; expected_state_version: number; expected_status: string;
+  verification_method: string; verification_evidence_sha256: string;
+}) {
+  return client.send('/api/pz/promo/private/v1/domains/verify', supportOptions(storeId, {
+    contract: PROMO_MASTER_CONTRACTS.domainVerify, ...input,
+  }));
+}
+
+export async function updatePromoDomainStatus(client: PocketBase, storeId: string, input: {
+  binding_id: string; expected_state_version: number; expected_status: string; next_status: string;
+}) {
+  return client.send('/api/pz/promo/private/v1/domains/status/update', supportOptions(storeId, {
+    contract: PROMO_MASTER_CONTRACTS.domainStatus, ...input,
+  }));
 }
 
 export async function updatePromoThemeRelease(client: PocketBase, storeId: string, input: {

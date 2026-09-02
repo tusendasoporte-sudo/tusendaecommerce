@@ -9,6 +9,7 @@ const stateLabels: Record<string, string> = {
   draft: 'Configurando', active: 'Activa', paused: 'Pausada', suspended: 'Suspendida', retired: 'Retirada',
   unpublished: 'Sin publicar', missing: 'Ausente', enabled: 'Habilitado', disabled: 'Deshabilitado',
   grace: 'En gracia', expired: 'Vencido', expiring: 'Próximo a vencer', critical: 'Vence pronto',
+  pending: 'Pendiente', verified: 'Verificado', revoked: 'Revocado', released: 'Liberado',
 };
 const themeLabels: Record<string, string> = {
   'promo.black-gold': 'Promo Black Gold',
@@ -27,7 +28,8 @@ const expiry = overview.plan.expires_at
 ---
 
 <section class="master-page promo-master" aria-label="Control Master de Tienda Promo" data-promo-master
-  data-store-id={storeId} data-entitlement-updated={overview.entitlement.updated} data-draft-version={String(overview.draft.version)}>
+  data-store-id={storeId} data-entitlement-updated={overview.entitlement.updated}
+  data-entitlement-source={overview.entitlement.source} data-draft-version={String(overview.draft.version)}>
   <header class="master-overview-heading promo-master__heading">
     <div>
       <div class="promo-master__eyebrow"><span class="master-pill master-pill--warning">PROMO</span><span>{overview.plan.name}</span></div>
@@ -68,6 +70,68 @@ const expiry = overview.plan.expires_at
     </div>
   </section>
 
+  <section class="master-card promo-master__card" aria-labelledby="promo-private-domain-title">
+    <header class="master-card-header">
+      <div>
+        <h3 id="promo-private-domain-title" class="master-card-title">Dominio propio</h3>
+        <span class="master-muted">Bindings privados y auditados, aislados por Tienda Promo</span>
+      </div>
+    </header>
+    <div class="promo-master__card-body">
+      {overview.entitlement.capabilities.custom_domain_enabled !== true ? (
+        overview.operations.entitlements_update ? (
+          <form class="promo-master__form" data-domain-enable-form>
+            <p class="master-notice">La capacidad está cerrada. Habilitarla no cambia el canónico ni publica un hostname.</p>
+            <button class="master-btn master-btn--secondary" type="submit">Habilitar dominio propio</button>
+          </form>
+        ) : <p class="master-notice">La sesión actual no puede habilitar dominios.</p>
+      ) : overview.operations.domains_manage ? (
+        <form class="promo-master__form promo-master__inline-form" data-domain-create-form>
+          <div class="master-field">
+            <label for="promo-domain-host">Hostname exacto</label>
+            <input id="promo-domain-host" name="hostname" type="text" maxlength="253" required autocomplete="off" placeholder="www.ejemplo.com" />
+          </div>
+          <div class="master-field">
+            <label for="promo-domain-role">Rol</label>
+            <select id="promo-domain-role" name="role"><option value="primary">Primario</option><option value="alias">Alias</option></select>
+          </div>
+          <button class="master-btn master-btn--secondary" type="submit">Registrar binding</button>
+        </form>
+      ) : <p class="master-notice">La capacidad está habilitada, pero el estado actual no permite gestionar bindings.</p>}
+
+      <div class="promo-master__domain-list">
+        {overview.domains.length ? overview.domains.map((binding) => (
+          <article data-domain-binding data-binding-id={binding.binding_id} data-binding-status={binding.status} data-binding-version={binding.state_version}>
+            <div>
+              <strong>{binding.hostname_display || binding.hostname_ascii}</strong>
+              <span class="master-pill">{binding.role} · {label(binding.status)}</span>
+              {binding.is_current && <span class="master-pill master-pill--success">Vigente</span>}
+            </div>
+            <span>Versión {binding.state_version} · verificación {binding.verification_method || 'pendiente'}</span>
+            {overview.operations.domains_manage && binding.verification_available && (
+              <form class="promo-master__verify-form" data-domain-verify-form>
+                <div class="master-field">
+                  <label for={`promo-domain-method-${binding.binding_id}`}>Método</label>
+                  <select id={`promo-domain-method-${binding.binding_id}`} name="verification_method"><option value="dns">DNS</option><option value="http">HTTP</option><option value="manual">Manual</option></select>
+                </div>
+                <div class="master-field">
+                  <label for={`promo-domain-evidence-${binding.binding_id}`}>SHA-256 de evidencia verificada</label>
+                  <input id={`promo-domain-evidence-${binding.binding_id}`} name="verification_evidence_sha256" type="text" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" autocomplete="off" spellcheck="false" required />
+                </div>
+                <button class="master-btn master-btn--secondary" type="submit">Marcar verificado</button>
+              </form>
+            )}
+            {overview.operations.domains_manage && binding.allowed_next_statuses.length > 0 && (
+              <div class="promo-master__actions">
+                {binding.allowed_next_statuses.map((status) => <button class="master-btn master-btn--secondary" type="button" data-domain-status={status}>{label(status)}</button>)}
+              </div>
+            )}
+          </article>
+        )) : <p class="master-empty">No hay bindings registrados.</p>}
+      </div>
+    </div>
+  </section>
+
   <section class="master-card promo-master__card" aria-labelledby="promo-audit-title">
     <header class="master-card-header"><div><h3 id="promo-audit-title" class="master-card-title">Actividad Promo reciente</h3><span class="master-muted">Resumen de acciones administrativas</span></div></header>
     <div class="promo-master__card-body promo-master__activity">
@@ -78,13 +142,22 @@ const expiry = overview.plan.expires_at
 
 <script>
   import { pb } from '../../lib/pocketbase';
-  import { updatePromoPreferences } from '../../lib/promoMaster';
+  import {
+    createPromoDomain,
+    updatePromoDomainStatus,
+    updatePromoEntitlements,
+    updatePromoPreferences,
+    verifyPromoDomain,
+  } from '../../lib/promoMaster';
 
   function errorCode(error: any) { return String(error?.data?.error || error?.response?.error || error?.message || 'promo_master_unavailable').slice(0, 80); }
   function errorMessage(error: any) {
     const code = errorCode(error);
     const messages: Record<string, string> = {
       promo_preferences_conflict: 'La configuración cambió en otra sesión. Recarga antes de repetir.',
+      promo_entitlements_conflict: 'Las capacidades cambiaron en otra sesión. Recarga antes de repetir.',
+      promo_domain_conflict: 'Ese hostname ya está registrado o la tienda ya tiene un dominio primario vigente.',
+      promo_domain_state_conflict: 'El binding cambió en otra sesión. Recarga antes de repetir.',
       promo_theme_not_selectable: 'Ese tema ya no está aprobado para seleccionarlo.',
       invalid_promo_document: 'El tema no puede aplicarse al contenido actual.',
       invalid_payload: 'La operación no cumple el contrato esperado.',
@@ -127,6 +200,85 @@ const expiry = overview.plan.expires_at
         button.disabled = false;
         root.removeAttribute('aria-busy');
       }
+    });
+
+    root.querySelector<HTMLFormElement>('[data-domain-enable-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const enableForm = event.currentTarget as HTMLFormElement;
+      const button = enableForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button) return;
+      button.disabled = true;
+      root.setAttribute('aria-busy', 'true');
+      announce('Habilitando dominio propio…');
+      void updatePromoEntitlements(pb, storeId, {
+        expected_updated: String(root.dataset.entitlementUpdated || ''),
+        source: String(root.dataset.entitlementSource || 'master_override'),
+        capabilities: { custom_domain_enabled: true },
+        reason: 'private_domain_requested',
+      }).then(() => window.location.reload()).catch((error) => {
+        announce(errorMessage(error), true);
+        button.disabled = false;
+        root.removeAttribute('aria-busy');
+      });
+    });
+
+    root.querySelector<HTMLFormElement>('[data-domain-create-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const domainForm = event.currentTarget as HTMLFormElement;
+      const button = domainForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!button || !domainForm.reportValidity()) return;
+      const values = new FormData(domainForm);
+      button.disabled = true;
+      root.setAttribute('aria-busy', 'true');
+      announce('Registrando binding…');
+      void createPromoDomain(pb, storeId, String(values.get('hostname') || ''), String(values.get('role') || ''))
+        .then(() => window.location.reload()).catch((error) => {
+          announce(errorMessage(error), true);
+          button.disabled = false;
+          root.removeAttribute('aria-busy');
+        });
+    });
+
+    root.querySelectorAll<HTMLElement>('[data-domain-binding]').forEach((row) => {
+      const bindingId = String(row.dataset.bindingId || '');
+      const expectedStatus = String(row.dataset.bindingStatus || '');
+      const expectedVersion = Number(row.dataset.bindingVersion || 0);
+      row.querySelector<HTMLFormElement>('[data-domain-verify-form]')?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const verifyForm = event.currentTarget as HTMLFormElement;
+        const button = verifyForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (!button || !verifyForm.reportValidity()) return;
+        const values = new FormData(verifyForm);
+        button.disabled = true;
+        root.setAttribute('aria-busy', 'true');
+        announce('Verificando binding…');
+        void verifyPromoDomain(pb, storeId, {
+          binding_id: bindingId,
+          expected_state_version: expectedVersion,
+          expected_status: expectedStatus,
+          verification_method: String(values.get('verification_method') || ''),
+          verification_evidence_sha256: String(values.get('verification_evidence_sha256') || '').trim().toLowerCase(),
+        }).then(() => window.location.reload()).catch((error) => {
+          announce(errorMessage(error), true);
+          button.disabled = false;
+          root.removeAttribute('aria-busy');
+        });
+      });
+      row.querySelectorAll<HTMLButtonElement>('[data-domain-status]').forEach((button) => button.addEventListener('click', () => {
+        button.disabled = true;
+        root.setAttribute('aria-busy', 'true');
+        announce('Actualizando binding…');
+        void updatePromoDomainStatus(pb, storeId, {
+          binding_id: bindingId,
+          expected_state_version: expectedVersion,
+          expected_status: expectedStatus,
+          next_status: String(button.dataset.domainStatus || ''),
+        }).then(() => window.location.reload()).catch((error) => {
+          announce(errorMessage(error), true);
+          button.disabled = false;
+          root.removeAttribute('aria-busy');
+        });
+      }));
     });
   });
 </script>

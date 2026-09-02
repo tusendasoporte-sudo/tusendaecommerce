@@ -25,6 +25,7 @@ export default defineConfig({
     allowedDomains: [
       { protocol: 'https', hostname: 'tusenda84.com' },
       { protocol: 'https', hostname: 'www.tusenda84.com' },
+      { protocol: 'https', hostname: 'www.enriquecarpet.com' },
       { protocol: 'https', hostname: 'mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io' },
       { protocol: 'https', hostname: '*.91.99.99.83.sslip.io' },
     ],

@@ -23,6 +23,9 @@ test('cliente Master Promo usa exclusivamente POST privados, contexto header y c
     '/api/pz/promo/master/v1/lifecycle/update',
     '/api/pz/promo/master/v1/preferences/update',
     '/api/pz/promo/master/entitlements/update',
+    '/api/pz/promo/private/v1/domains/create',
+    '/api/pz/promo/private/v1/domains/verify',
+    '/api/pz/promo/private/v1/domains/status/update',
     '/api/pz/promo/private/v1/themes/releases/update',
     '/api/pz/promo/private/v1/publication/candidates/create',
     '/api/pz/promo/private/v1/publication/publish',
@@ -31,7 +34,7 @@ test('cliente Master Promo usa exclusivamente POST privados, contexto header y c
     '/api/pz/promo/private/v1/publication/pause',
     '/api/pz/promo/private/v1/publication/resume',
   ]) assert.match(client, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.doesNotMatch(client, /\/domains\/|canonical\/switch|mode: 'custom'/);
+  assert.doesNotMatch(client, /canonical\/switch|mode: 'custom'/);
   assert.match(client, /'X-PZ-Promo-Store'/);
   assert.match(client, /idempotency_key/);
   assert.match(client, /expected_generation/);
@@ -79,16 +82,20 @@ test('rutas Master específicas de Commerce fallan cerradas para Promo o clasifi
   assert.match(planPage, /MasterStorePlanView/);
 });
 
-test('UI Master muestra solo resumen y preferencias comerciales de Promo', () => {
+test('UI Master conserva preferencias Promo y gestiona dominios solo tras habilitar la capacidad', () => {
   assert.match(view, /Configuración de la tienda Promo/);
   assert.match(view, /Promo Black Gold/);
   assert.match(view, /name="theme_id"/);
   assert.match(view, /name="language_selector_enabled"/);
   assert.match(view, /aria-live="polite"/);
-  assert.doesNotMatch(view, /custom_domain_enabled|data-domain|verification_evidence_sha256|Dominio personalizado/);
+  assert.match(view, /custom_domain_enabled/);
+  assert.match(view, /data-domain-enable-form/);
+  assert.match(view, /data-domain-create-form/);
+  assert.match(view, /verification_evidence_sha256/);
+  assert.match(view, /Dominio propio/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
-  assert.doesNotMatch(view, /landing_qr_bridge_enabled|Landing QR|entitlements|CAS|Máximo de servicios|Almacenamiento máximo/);
+  assert.doesNotMatch(view, /landing_qr_bridge_enabled|Landing QR|CAS|Máximo de servicios|Almacenamiento máximo/);
 });
 
 test('planes Promo tienen pantalla y cliente aislados de Commerce', () => {

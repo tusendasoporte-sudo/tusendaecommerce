@@ -23,6 +23,9 @@ const audit = typeof __hooks === "undefined"
 const theme = typeof __hooks === "undefined"
   ? require("./pz_promo_theme_lib.js")
   : require(`${__hooks}/pz_promo_theme_lib.js`);
+const domain = typeof __hooks === "undefined"
+  ? require("./pz_promo_domain_lib.js")
+  : require(`${__hooks}/pz_promo_domain_lib.js`);
 
 const CATALOG_READ_CONTRACT = "promo.master.store.catalog.read.v1";
 const CATALOG_RESPONSE_CONTRACT = "promo.master.store.catalog.v1";
@@ -60,7 +63,7 @@ const MASTER_LIFECYCLE_TRANSITIONS = Object.freeze({
   retired: Object.freeze([]),
 });
 const REQUIRED_COLLECTIONS = Object.freeze([
-  "promo_sites", "promo_site_entitlements", "promo_theme_releases",
+  "promo_sites", "promo_site_entitlements", "promo_domain_bindings", "promo_theme_releases",
   "promo_draft_documents", "promo_media_assets", "promo_revisions", "promo_revision_media_refs",
   "promo_publication_slots", "promo_publication_events", "promo_audit_events",
   "promo_analytics_events", "promo_analytics_daily",
@@ -306,6 +309,22 @@ function draftProjection(app, decision) {
   });
 }
 
+function domainTransitionTargets(status) {
+  const next = (data.DOMAIN_TRANSITIONS[status] || [])
+    .filter((value) => value !== status && ["active", "paused", "revoked", "released"].includes(value));
+  return Object.freeze(next);
+}
+
+function domainProjections(app, siteId) {
+  return findRows(app, "promo_domain_bindings", "site = {:site}", "-created", 100, { site: siteId }, 0)
+    .filter((row) => relationId(row, "site") === siteId)
+    .map((row) => Object.freeze({
+      ...domain.domainPrivateProjection(row),
+      allowed_next_statuses: domainTransitionTargets(recordString(row, "status")),
+      verification_available: recordString(row, "status") === "pending",
+    }));
+}
+
 function themeReleaseProjections(app) {
   return Object.keys(theme.THEME_REGISTRY).sort().map((key) => {
     const entry = theme.THEME_REGISTRY[key];
@@ -352,7 +371,9 @@ function operationSnapshot(app, auth, storeId) {
   const can = (action) => promo.canPromoAction(app, auth, action, { requestedStoreId: storeId });
   return Object.freeze({
     lifecycle_update: can("promo.master.site.lifecycle"),
+    entitlements_update: can("promo.master.entitlements.manage"),
     preferences_update: can("promo.master.support"),
+    domains_manage: can("promo.master.domains.manage"),
     candidate_create: false,
     publish: false,
     rollback: false,
@@ -446,6 +467,7 @@ function overviewResponse(app, auth, storeId) {
       reason_codes: Object.freeze({}),
     }),
     revisions,
+    domains: domainProjections(app, siteId),
     theme: Object.freeze({
       draft: draft.theme,
       published: publication.state === "active" ? draft.theme : null,

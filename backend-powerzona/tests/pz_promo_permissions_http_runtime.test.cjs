@@ -459,16 +459,17 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     });
     assertStatus(unknownCapability, 400, 'capacidad unknown');
     assert.equal(unknownCapability.data.error, 'unknown_promo_capability');
-    const retiredDomainCapability = await request('/api/pz/promo/master/entitlements/update', {
+    const enabledDomainCapability = await request('/api/pz/promo/master/entitlements/update', {
       token: masterToken,
       headers: { 'X-PZ-Promo-Store': storeA.id },
       json: {
         expected_updated: entitlementA.updated, source: 'contract',
-        capabilities: { custom_domain_enabled: true }, reason: 'Capacidad retirada runtime',
+        capabilities: { custom_domain_enabled: true }, reason: 'Dominio privado runtime',
       },
     });
-    assertStatus(retiredDomainCapability, 400, 'la capacidad general de dominio no puede reactivarse');
-    assert.equal(retiredDomainCapability.data.error, 'invalid_promo_capability');
+    assertStatus(enabledDomainCapability, 200, 'Master habilita dominio solo en el tenant explícito');
+    entitlementA = enabledDomainCapability.data.entitlement;
+    assert.equal(entitlementA.capabilities.custom_domain_enabled, true);
 
     const disableAnalytics = await request('/api/pz/promo/master/entitlements/update', {
       token: masterToken,
@@ -493,8 +494,9 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
       token: primaryToken, json: auditListBody,
     });
     assertStatus(primaryAudit, 200, 'principal lee actividad Promo crítica');
-    assert.equal(primaryAudit.data.events.length, 2);
+    assert.equal(primaryAudit.data.events.length, 3);
     assert.deepEqual(primaryAudit.data.events.map((event) => event.action).sort(), [
+      'promo.entitlements.update',
       'promo.entitlements.update',
       'promo.team.permissions.update',
     ]);

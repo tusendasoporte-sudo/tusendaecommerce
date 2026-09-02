@@ -287,8 +287,12 @@ test('DOM-CORE no pausa, revoca o libera el primary que aún gobierna el slot cu
   assert.doesNotThrow(() => api.assertNotCanonicalInUse(app, alias));
 });
 
-test('DOM-CORE conserva su núcleo histórico pero no registra rutas HTTP', () => {
+test('DOM-CORE registra solo las cuatro rutas privadas de administración', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_domain.pb.js'), 'utf8');
-  assert.equal((source.match(/routerAdd\(/g) || []).length, 0);
-  assert.doesNotMatch(source, /\/api\/pz\/promo\/|\$apis\./);
+  assert.equal((source.match(/routerAdd\(/g) || []).length, 4);
+  for (const route of ['domains/list', 'domains/create', 'domains/verify', 'domains/status/update']) {
+    assert.match(source, new RegExp(`/api/pz/promo/private/v1/${route.replaceAll('/', '\\/')}`));
+  }
+  assert.match(source, /\$apis\.requireAuth\(\)/);
+  assert.doesNotMatch(source, /cloudflare|token|secret/i);
 });

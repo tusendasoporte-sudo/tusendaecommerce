@@ -31,6 +31,7 @@ export const PROMO_PERMISSION_KEYS = [
 export const PROMO_RESERVED_PERMISSION_KEYS = [
   'promo.site.lifecycle.manage',
   'promo.entitlements.manage',
+  'promo.domains.manage',
   'promo.theme_releases.manage',
   'promo.publication.rollback',
   'promo.support.access',
@@ -51,6 +52,7 @@ export const PROMO_ACTION_KEYS = [
   'promo.landing_qr.bridge.manage',
   'promo.master.site.lifecycle',
   'promo.master.entitlements.manage',
+  'promo.master.domains.manage',
   'promo.master.theme_releases.manage',
   'promo.master.publication.rollback',
   'promo.master.support',
