@@ -161,6 +161,8 @@ El motor `1.4.0` mantiene visible el splash de marca hasta el primer cuadro úti
 
 El motor `1.5.0` registra cada instalación con un UUID persistente independiente de Firebase, añade diagnóstico local de conectividad y registro, mantiene FCM como canal acelerador opcional e incorpora sincronización propia de notificaciones mediante WebSocket, apertura/reanudación y WorkManager.
 
+El motor `1.5.1` conserva en las compilaciones optimizadas el constructor de la base interna de WorkManager que AndroidX Startup necesita al abrir la APK.
+
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 
 - `app_key` y `applicationId`;
