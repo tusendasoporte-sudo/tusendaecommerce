@@ -209,6 +209,27 @@ test('Cloudflare traduce por REST, deduplica texto repetido y nunca persiste el 
   assert.equal(JSON.stringify(result.document).includes(cloudflareConfig.apiKey), false);
 });
 
+test('un idioma nuevo se publica solo después de preparar su traducción automática', () => {
+  const previous = documentFixture();
+  delete previous.content_by_locale.en;
+  previous.locales.published = ['es'];
+  const next = clone(previous);
+  next.content_by_locale.en = {
+    identity: {}, navigation: {}, sections: {}, contact: {}, media_alt: {}, seo: {},
+  };
+  const fake = cloudflareProvider();
+
+  const result = translation.autoTranslatePromoDocument(previous, next, {}, {
+    config: cloudflareConfig, hash: sha256, send: fake.send,
+  });
+
+  assert.deepEqual(result.document.locales.published, ['en', 'es']);
+  assert.equal(result.document.content_by_locale.en.identity.name, "Aladdin's Carpet");
+  assert.equal(result.document.content_by_locale.en.identity.slogan, 'EN:Cuidamos cada fibra');
+  assert.equal(result.state.managed.en['["identity","slogan"]'].target_sha256,
+    sha256('promo-translation-v1\0EN:Cuidamos cada fibra'));
+});
+
 test('un cambio del idioma base vuelve a traducir automáticamente un valor administrado', () => {
   const previous = documentFixture();
   previous.content_by_locale.en.sections['services-main'].items[0].name = 'Deep cleaning';

@@ -362,6 +362,7 @@ function preparePromoTranslations(previousInput, nextInput, stateInput, options)
     .filter((locale) => locale !== sourceLocale).sort();
   if (targetLocales.length > 1) fail("promo_translation_unavailable");
   const requests = [];
+  const newTargetLocales = [];
   let willChange = false;
 
   targetLocales.forEach((locale) => {
@@ -376,6 +377,7 @@ function preparePromoTranslations(previousInput, nextInput, stateInput, options)
     const nextLocked = new Set();
     const priorManaged = object(previousState.managed[locale]);
     const localeIsNew = !previousTarget;
+    if (localeIsNew) newTargetLocales.push(locale);
 
     sourceDescriptors.forEach((entry) => {
       const submitted = submittedMap.get(entry.key);
@@ -451,6 +453,15 @@ function preparePromoTranslations(previousInput, nextInput, stateInput, options)
     if (nextLocked.size) state.locked[locale] = Array.from(nextLocked).sort();
     if (canonicalJson(aligned) !== canonicalJson(submittedTarget)) willChange = true;
   });
+
+  if (newTargetLocales.length) {
+    const previousPublished = Array.isArray(document.locales.published)
+      ? document.locales.published.slice()
+      : [];
+    const published = Array.from(new Set([...previousPublished, ...newTargetLocales])).sort();
+    if (canonicalJson(published) !== canonicalJson(previousPublished)) willChange = true;
+    document.locales.published = published;
+  }
 
   if (requests.length > MAX_TRANSLATION_ITEMS) fail("promo_translation_unavailable");
 
