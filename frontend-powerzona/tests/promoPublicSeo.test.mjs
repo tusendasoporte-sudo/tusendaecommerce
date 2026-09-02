@@ -94,7 +94,8 @@ test('SSR materializa canonical, OG/Twitter y recursos de plataforma sin tocar C
   assert.match(layout, /hreflang="x-default"/);
   assert.match(layout, /property="og:title"/);
   assert.match(layout, /name="twitter:card"/);
-  assert.doesNotMatch(middleware, /customPromoSeoResource|readCustomHostPromoSeo|seo\/host/);
+  assert.match(middleware, /readCustomHostPromoSeo/);
+  assert.match(seoClient, /seo\/host/);
   assert.match(`${sitemapRoute}\n${robotsRoute}`, /readPlatformPromoSeo/);
   assert.match(platformPage, /seo=\{resolved\.seo\}/);
   assert.match(localizedPage, /seo=\{resolved\.seo\}/);

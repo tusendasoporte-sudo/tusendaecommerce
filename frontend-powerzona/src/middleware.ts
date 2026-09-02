@@ -29,13 +29,16 @@ import {
 } from './lib/promoAdminShell';
 import {
   applyPromoPublicHeaders,
+  customPromoPublicPath,
   platformPromoPublicPath,
   PROMO_PUBLIC_INTERNAL_PATH,
   PROMO_PUBLIC_SERVICE_INTERNAL_PATH,
   PromoPublicShellError,
+  readCustomHostPromoShell,
   promoPublicUnavailable,
   readPlatformPromoShell,
 } from './lib/promoPublicShell';
+import { promoSeoResourceResponse, readCustomHostPromoSeo } from './lib/promoPublicSeo';
 import { findPromoService } from './lib/promoServiceCatalog';
 import { servePromoPublicRepresentation } from './lib/promoPerformance';
 import { promoPublicMediaPath, proxyPromoPublicMedia } from './lib/promoPublicMediaProxy';
@@ -240,7 +243,49 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (!promoSecurityDecision.platform) {
-    return promoPublicUnavailable(404);
+    if (!['GET', 'HEAD'].includes(context.request.method) || context.url.search) return promoPublicUnavailable(404);
+    const seoResource = pathname === '/sitemap.xml' ? 'sitemap' : pathname === '/robots.txt' ? 'robots' : '';
+    if (seoResource) {
+      try {
+        return promoSeoResourceResponse(await readCustomHostPromoSeo(
+          context.request,
+          promoSecurityDecision.hostname,
+          seoResource,
+        ));
+      } catch (error) {
+        const status = error instanceof PromoPublicShellError ? error.status : 503;
+        return promoPublicUnavailable(status);
+      }
+    }
+    const customPromoPath = customPromoPublicPath(pathname);
+    if (!customPromoPath) return promoPublicUnavailable(404);
+    let resolved;
+    try {
+      resolved = await readCustomHostPromoShell(
+        context.request,
+        promoSecurityDecision.hostname,
+        customPromoPath.locale,
+      );
+    } catch (error) {
+      const status = error instanceof PromoPublicShellError ? error.status : 503;
+      return promoPublicUnavailable(status);
+    }
+    if (resolved.route.action === 'redirect' && resolved.route.location) {
+      return applyPromoPublicHeaders(context.redirect(resolved.route.location, 308), resolved);
+    }
+    if (!resolved.profile || !resolved.seo) return promoPublicUnavailable(404);
+    if (customPromoPath.serviceKey && !findPromoService(resolved.profile, customPromoPath.serviceKey)) {
+      return promoPublicUnavailable(404);
+    }
+    context.locals.promoPublicProfile = resolved.profile;
+    context.locals.promoPublicSeo = resolved.seo;
+    context.locals.promoPublicServiceKey = customPromoPath.serviceKey;
+    const response = await servePromoPublicRepresentation(
+      context.request,
+      resolved,
+      () => context.rewrite(customPromoPath.serviceKey ? PROMO_PUBLIC_SERVICE_INTERNAL_PATH : PROMO_PUBLIC_INTERNAL_PATH),
+    );
+    return applyPromoPublicHeaders(response, resolved);
   }
 
   const platformPromoPath = platformPromoPublicPath(pathname);

@@ -4,6 +4,7 @@ import { request as nodeHttpsRequest } from 'node:https';
 import {
   applyPromoSecurityHeaders,
   isPromoPlatformHostRequest,
+  parsePromoRequestHost,
 } from './promoSecurity.ts';
 import { isPromoServiceIconKey } from './promoServiceIcons.ts';
 
@@ -1444,6 +1445,14 @@ export async function readPlatformPromoShell(request: Request, publicSlug: strin
   return requestContract({ endpoint: promoPlatformEndpoint(publicSlug, locale), request });
 }
 
+export async function readCustomHostPromoShell(request: Request, hostname: string, locale?: string) {
+  const host = parsePromoRequestHost(hostname);
+  const endpoint = locale
+    ? `/api/pz/promo/public/v1/shell/host/locales/${encodeURIComponent(locale)}`
+    : '/api/pz/promo/public/v1/shell/host';
+  return requestContract({ endpoint, request, host: host.authority });
+}
+
 export async function readPromoCommerceBridge(request: Request, storeSlug: string) {
   const slug = safePattern(storeSlug, PUBLIC_SLUG_PATTERN);
   const result = await requestContract({
@@ -1469,6 +1478,14 @@ export function platformPromoPublicPath(pathname: string) {
       ...(match[3] ? { serviceKey: match[3] } : {}),
     }
     : null;
+}
+
+export function customPromoPublicPath(pathname: string) {
+  if (pathname === '/') return { locale: undefined, serviceKey: undefined };
+  const match = String(pathname || '').match(
+    /^\/([A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*)(?:\/servicios\/([a-z][a-z0-9_-]{0,119}))?\/?$/,
+  );
+  return match ? { locale: match[1], serviceKey: match[2] || undefined } : null;
 }
 
 export function applyPromoPublicHeaders(response: Response, result?: PromoPublicShellResult) {

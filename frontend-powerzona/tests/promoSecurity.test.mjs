@@ -75,6 +75,7 @@ test('Origin cubre JSON, puertos, aliases y locales con resolución fail-closed'
     method: 'POST', headers: { Origin: 'https://alias.example.test', 'Content-Type': 'application/json' },
   })).platform, false);
   assert.equal(validatePromoFrontendRequest(request('https://alias.example.test/es-MX')).relevant, true);
+  assert.equal(validatePromoFrontendRequest(request('https://alias.example.test/es/servicios/cleaning')).platform, false);
   rejected(() => validatePromoFrontendRequest(request('https://alias.example.test/api/promo/analytics/host', {
     method: 'POST', headers: { Origin: 'https://primary.example.test' },
   })), 403);

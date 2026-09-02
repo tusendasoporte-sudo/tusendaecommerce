@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  customPromoPublicPath,
   isPromoPlatformRequest,
   normalizePromoPublicShellResponse,
   promoQuoteHref,
@@ -696,12 +697,17 @@ test('SECTIONS conserva orden CMS/GALLERY y delivery MEDIA lazy por propósito',
   assert.throws(() => normalizePromoPublicShellResponse(wrongPurpose), PromoPublicShellError);
 });
 
-test('rutas públicas exponen únicamente la plataforma de Tu Senda 84', () => {
+test('rutas públicas separan plataforma y dominio privado sin mezclar tenants', () => {
   assert.equal(promoPlatformEndpoint('demo-promo'), '/api/pz/promo/public/v1/shell/sites/demo-promo');
   assert.equal(promoPlatformEndpoint('demo-promo', 'es'), '/api/pz/promo/public/v1/shell/sites/demo-promo/locales/es');
   assert.deepEqual(platformPromoPublicPath('/promo/demo-promo/es/servicios/service-clean'), {
     publicSlug: 'demo-promo', locale: 'es', serviceKey: 'service-clean',
   });
+  assert.deepEqual(customPromoPublicPath('/es/servicios/service-clean'), {
+    locale: 'es', serviceKey: 'service-clean',
+  });
+  assert.deepEqual(customPromoPublicPath('/'), { locale: undefined, serviceKey: undefined });
+  assert.equal(customPromoPublicPath('/admin/users'), null);
   assert.equal(isPromoPlatformRequest(new Request('https://tusenda84.com/promo/demo-promo')), true);
   assert.equal(isPromoPlatformRequest(new Request('https://unknown.91.99.99.83.sslip.io/')), false);
   assert.equal(isPromoPlatformRequest(new Request('https://unknown.example.test/')), false);
@@ -765,7 +771,7 @@ test('shell SSR es independiente de Layout y solo hidrata analítica Promo allow
   assert.doesNotMatch(combined, /cart|checkout|orders|inventory|stock|price|currency|coupon|shipping/i);
   assert.match(platform, /Astro\.url\.search/);
   assert.match(localized, /Astro\.url\.search/);
-  assert.doesNotMatch(middleware, /readCustomHostPromoShell|customPromoPublicPath|shell\/host/);
+  assert.match(middleware, /readCustomHostPromoShell|customPromoPublicPath/);
   assert.match(middleware, /promoPublicUnavailable\(404\)/);
   assert.ok(commerce.indexOf('readPromoCommerceBridge') < commerce.indexOf("import('../../../components/public-store/PublicStoreHome.astro')"));
   assert.doesNotMatch(commerce, /storeSlug[^\n]*toLowerCase/);

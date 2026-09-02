@@ -79,8 +79,15 @@ function exactKeys(value, keys) {
 
 function canonicalTarget(value) {
   const object = normalizedObject(value);
-  if (!object || object.mode !== "platform" || !exactKeys(object, ["mode"])) return null;
-  return Object.freeze({ mode: "platform", primaryBindingId: "" });
+  if (!object) return null;
+  if (object.mode === "platform" && exactKeys(object, ["mode"])) {
+    return Object.freeze({ mode: "platform", primaryBindingId: "" });
+  }
+  if (object.mode === "custom" && exactKeys(object, ["mode", "primary_binding_id"])
+    && RECORD_ID_PATTERN.test(String(object.primary_binding_id || ""))) {
+    return Object.freeze({ mode: "custom", primaryBindingId: object.primary_binding_id });
+  }
+  return null;
 }
 
 function expectedGeneration(value) {

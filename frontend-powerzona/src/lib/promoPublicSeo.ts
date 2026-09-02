@@ -139,6 +139,19 @@ export async function readPlatformPromoSeo(
   return normalizePromoSeoResource(body, { resource, publicSlug });
 }
 
+export async function readCustomHostPromoSeo(
+  request: Request,
+  customHostname: string,
+  resource: PromoSeoResource,
+) {
+  const body = await requestPromoPublicJson({
+    endpoint: `/api/pz/promo/public/v1/seo/host/${resource}`,
+    request,
+    host: customHostname,
+  });
+  return normalizePromoSeoResource(body, { resource, customHostname });
+}
+
 function xmlEscape(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&apos;');

@@ -57,9 +57,9 @@ test('PUBLISH fija contratos versionados exactos sin tenant, actor ni filtros ap
 });
 
 test('canonical, motivos e idempotencia son allowlists cerradas', () => {
-  assert.equal(publish.canonicalTarget({
+  assert.deepEqual(publish.canonicalTarget({
     mode: 'custom', primary_binding_id: 'bindingaaaaaaaa',
-  }), null);
+  }), { mode: 'custom', primaryBindingId: 'bindingaaaaaaaa' });
   for (const invalid of [
     { mode: 'platform', primary_binding_id: 'bindingaaaaaaaa' },
     { mode: 'custom' },
@@ -72,6 +72,11 @@ test('canonical, motivos e idempotencia son allowlists cerradas', () => {
     expected_generation: 8, idempotency_key: 'rollback.request.01', reason_code: 'incident_recovery',
     canonical: { mode: 'platform' },
   }));
+  assert.deepEqual(publish.parseTransition('binding_switch', {
+    contract: 'promo.publication.canonical.switch.v1', expected_generation: 8,
+    idempotency_key: 'canonical.switch.01', reason_code: 'canonical_change',
+    canonical: { mode: 'custom', primary_binding_id: 'bindingaaaaaaaa' },
+  }).canonical, { mode: 'custom', primaryBindingId: 'bindingaaaaaaaa' });
   assert.equal(publish.parseTransition('rollback', {
     contract: 'promo.publication.rollback.v1', candidate_revision_id: 'revisionaaaaaaa',
     expected_generation: 8, idempotency_key: 'rollback.request.01', reason_code: 'free text with PII',
@@ -189,14 +194,13 @@ test('máquina de estados permite primera/posterior, rollback, pausa, resume y u
 
 test('hook registra solo POST privados autenticados y no crea serving alternativo', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_publish.pb.js'), 'utf8');
-  assert.equal((source.match(/routerAdd\(/g) || []).length, 8);
-  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 8);
-  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 8);
+  assert.equal((source.match(/routerAdd\(/g) || []).length, 9);
+  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 9);
+  assert.equal((source.match(/\$apis\.bodyLimit\(4096\)/g) || []).length, 9);
   assert.doesNotMatch(source, /"GET"|\/public\/|Cloudflare|Coolify|DNS/);
   for (const route of [
-    'candidates/create', 'preview', 'preview/context', 'publish', 'rollback', 'unpublish', 'pause', 'resume',
+    'candidates/create', 'preview', 'preview/context', 'publish', 'canonical/switch', 'rollback', 'unpublish', 'pause', 'resume',
   ]) assert.match(source, new RegExp(route.replace('/', '\\/')));
-  assert.doesNotMatch(source, /canonical\/switch/);
 });
 
 test('migración focal permite generation cero sin debilitar el guard server-side ni el down seguro', () => {

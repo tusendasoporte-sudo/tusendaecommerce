@@ -29,6 +29,7 @@ const DEFAULT_PLATFORM_HOSTS = Object.freeze([
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const CUSTOM_ANALYTICS_PATH = '/api/promo/analytics/host';
 const LOCALE_PATH = /^\/[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/;
+const CUSTOM_SERVICE_PATH = /^\/[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*\/servicios\/[a-z][a-z0-9_-]{0,119}\/?$/;
 
 export class PromoSecurityError extends Error {
   readonly code: string;
@@ -134,7 +135,7 @@ function platformPromoPath(pathname: string) {
 
 function customPublicPath(pathname: string) {
   return pathname === '/' || pathname === '/sitemap.xml' || pathname === '/robots.txt'
-    || LOCALE_PATH.test(pathname);
+    || LOCALE_PATH.test(pathname) || CUSTOM_SERVICE_PATH.test(pathname);
 }
 
 export function promoRequestAuthority(request: Request) {

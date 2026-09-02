@@ -29,12 +29,13 @@ test('cliente Master Promo usa exclusivamente POST privados, contexto header y c
     '/api/pz/promo/private/v1/themes/releases/update',
     '/api/pz/promo/private/v1/publication/candidates/create',
     '/api/pz/promo/private/v1/publication/publish',
+    '/api/pz/promo/private/v1/publication/canonical/switch',
     '/api/pz/promo/private/v1/publication/rollback',
     '/api/pz/promo/private/v1/publication/unpublish',
     '/api/pz/promo/private/v1/publication/pause',
     '/api/pz/promo/private/v1/publication/resume',
   ]) assert.match(client, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.doesNotMatch(client, /canonical\/switch|mode: 'custom'/);
+  assert.match(client, /canonical\/switch|mode: 'custom'/);
   assert.match(client, /'X-PZ-Promo-Store'/);
   assert.match(client, /idempotency_key/);
   assert.match(client, /expected_generation/);
@@ -93,6 +94,8 @@ test('UI Master conserva preferencias Promo y gestiona dominios solo tras habili
   assert.match(view, /data-domain-create-form/);
   assert.match(view, /verification_evidence_sha256/);
   assert.match(view, /Dominio propio/);
+  assert.match(view, /data-canonical-switch/);
+  assert.match(view, /Usar como dominio público/);
   assert.doesNotMatch(view, /overview\.publication\.controls|overview\.revisions|Crear candidato|Rollback|Publicar revisión/);
   assert.doesNotMatch(view, /actor_id|tenant_id|site_id|filter:|expand:/);
   assert.doesNotMatch(view, /landing_qr_bridge_enabled|Landing QR|CAS|Máximo de servicios|Almacenamiento máximo/);

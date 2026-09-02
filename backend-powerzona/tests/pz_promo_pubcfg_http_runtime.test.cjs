@@ -497,7 +497,7 @@ test('gate runtime LIVE: guardado inmediato, lifecycle, temas, QR, aislamiento y
     assert.equal(initialShell.data.profile.content.identity.name, 'Publicado A');
     assertStatus(await request('/api/pz/promo/public/v1/shell/host', {
       headers: { Host: 'unknown.example.test' },
-    }), 404, 'la resolución pública por host permanece retirada');
+    }), 421, 'un host desconocido falla cerrado sin enumerar tiendas');
     assertStatus(await request('/api/pz/promo/public/v1/sites/promo-live-a?store_id=attacker'), 400,
       'ruta pública rechaza tenancy inyectado');
 

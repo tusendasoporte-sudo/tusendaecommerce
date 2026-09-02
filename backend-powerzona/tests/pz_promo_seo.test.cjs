@@ -137,13 +137,14 @@ test('SHELL redirige entradas neutrales y casing de locale antes de indexar', ()
   assert.equal(alias.route.location, 'https://primary.example.test/en');
 });
 
-test('SEO registra solo los dos GET de plataforma y conserva el core histórico aislado', () => {
+test('SEO registra GET públicos acotados de plataforma y host y conserva el core histórico aislado', () => {
   const hook = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_seo.pb.js'), 'utf8');
   const api = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_seo_api_lib.js'), 'utf8');
-  assert.equal((hook.match(/routerAdd\(/g) || []).length, 2);
-  assert.equal((hook.match(/"GET"/g) || []).length, 2);
+  assert.equal((hook.match(/routerAdd\(/g) || []).length, 4);
+  assert.equal((hook.match(/"GET"/g) || []).length, 4);
   assert.match(hook, /seo\/sites\/\{publicSlug\}\/sitemap/);
-  assert.doesNotMatch(hook, /seo\/host\/(?:robots|sitemap)/);
+  assert.match(hook, /seo\/host\/sitemap/);
+  assert.match(hook, /seo\/host\/robots/);
   assert.match(api, /publishedPlatformContext/);
   assert.match(api, /domain\.resolveHostContext/);
   assert.doesNotMatch(`${hook}\n${api}`, /requireAuth|POST|PATCH|DELETE|Cloudflare|Coolify|fetch\(/i);

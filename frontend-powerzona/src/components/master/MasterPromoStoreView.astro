@@ -29,7 +29,8 @@ const expiry = overview.plan.expires_at
 
 <section class="master-page promo-master" aria-label="Control Master de Tienda Promo" data-promo-master
   data-store-id={storeId} data-entitlement-updated={overview.entitlement.updated}
-  data-entitlement-source={overview.entitlement.source} data-draft-version={String(overview.draft.version)}>
+  data-entitlement-source={overview.entitlement.source} data-draft-version={String(overview.draft.version)}
+  data-publication-generation={String(overview.publication.generation)}>
   <header class="master-overview-heading promo-master__heading">
     <div>
       <div class="promo-master__eyebrow"><span class="master-pill master-pill--warning">PROMO</span><span>{overview.plan.name}</span></div>
@@ -126,6 +127,18 @@ const expiry = overview.plan.expires_at
                 {binding.allowed_next_statuses.map((status) => <button class="master-btn master-btn--secondary" type="button" data-domain-status={status}>{label(status)}</button>)}
               </div>
             )}
+            {overview.operations.canonical_switch && overview.publication.state === 'active'
+              && binding.role === 'primary' && binding.status === 'active' && binding.is_current && (
+              overview.publication.canonical.mode === 'custom'
+                && overview.publication.canonical.primary_binding_id === binding.binding_id ? (
+                <div class="promo-master__actions">
+                  <span class="master-pill master-pill--success">Dominio público actual</span>
+                  <button class="master-btn master-btn--secondary" type="button" data-canonical-switch="platform">Volver a URL de TuSenda</button>
+                </div>
+              ) : (
+                <button class="master-btn master-btn--primary" type="button" data-canonical-switch="custom" data-canonical-binding={binding.binding_id}>Usar como dominio público</button>
+              )
+            )}
           </article>
         )) : <p class="master-empty">No hay bindings registrados.</p>}
       </div>
@@ -147,6 +160,7 @@ const expiry = overview.plan.expires_at
     updatePromoDomainStatus,
     updatePromoEntitlements,
     updatePromoPreferences,
+    transitionPromoPublication,
     verifyPromoDomain,
   } from '../../lib/promoMaster';
 
@@ -158,6 +172,8 @@ const expiry = overview.plan.expires_at
       promo_entitlements_conflict: 'Las capacidades cambiaron en otra sesión. Recarga antes de repetir.',
       promo_domain_conflict: 'Ese hostname ya está registrado o la tienda ya tiene un dominio primario vigente.',
       promo_domain_state_conflict: 'El binding cambió en otra sesión. Recarga antes de repetir.',
+      promo_canonical_invalid: 'El dominio primario debe estar vigente, activo y verificado.',
+      promo_publication_conflict: 'La publicación cambió en otra sesión. Recarga antes de repetir.',
       promo_theme_not_selectable: 'Ese tema ya no está aprobado para seleccionarlo.',
       invalid_promo_document: 'El tema no puede aplicarse al contenido actual.',
       invalid_payload: 'La operación no cumple el contrato esperado.',
@@ -280,5 +296,29 @@ const expiry = overview.plan.expires_at
         });
       }));
     });
+
+    root.querySelectorAll<HTMLButtonElement>('[data-canonical-switch]').forEach((button) => button.addEventListener('click', () => {
+      const mode = button.dataset.canonicalSwitch === 'custom' ? 'custom' : 'platform';
+      const bindingId = String(button.dataset.canonicalBinding || '');
+      const prompt = mode === 'custom'
+        ? '¿Usar este dominio como dirección pública principal de la tienda?'
+        : '¿Volver a usar la dirección pública de TuSenda?';
+      if (!window.confirm(prompt)) return;
+      button.disabled = true;
+      root.setAttribute('aria-busy', 'true');
+      announce('Actualizando dirección pública…');
+      void transitionPromoPublication(pb, storeId, {
+        operation: 'canonical_switch',
+        expected_generation: Number(root.dataset.publicationGeneration || 0),
+        reason_code: 'canonical_change',
+        canonical: mode === 'custom'
+          ? { mode: 'custom', primary_binding_id: bindingId }
+          : { mode: 'platform' },
+      }).then(() => window.location.reload()).catch((error) => {
+        announce(errorMessage(error), true);
+        button.disabled = false;
+        root.removeAttribute('aria-busy');
+      });
+    }));
   });
 </script>

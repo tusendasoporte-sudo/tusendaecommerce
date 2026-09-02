@@ -17,18 +17,23 @@ export const PROMO_MASTER_CONTRACTS = Object.freeze({
   themeRelease: 'promo.theme.release.update.v1',
   candidateCreate: 'promo.candidate.create.v1',
   publish: 'promo.publication.publish.v1',
+  canonicalSwitch: 'promo.publication.canonical.switch.v1',
   rollback: 'promo.publication.rollback.v1',
   unpublish: 'promo.publication.unpublish.v1',
   pause: 'promo.publication.pause.v1',
   resume: 'promo.publication.resume.v1',
 });
 
+export type PromoCanonicalTarget =
+  | { mode: 'platform' }
+  | { mode: 'custom'; primary_binding_id: string };
+
 export type PromoMasterCatalogItem = {
   store_id: string;
   type: 'promo';
   site: { public_slug: string; status: string };
   entitlement_state: 'enabled' | 'disabled' | 'missing';
-  publication: { state: string; generation: number; canonical: { mode: 'platform' } };
+  publication: { state: string; generation: number; canonical: PromoCanonicalTarget };
 };
 
 export type PromoMasterCatalogResult = {
@@ -69,7 +74,7 @@ export type PromoMasterOverview = {
   publication: {
     state: string;
     generation: number;
-    canonical: { mode: 'platform' };
+    canonical: PromoCanonicalTarget;
     revision_id: string;
     published_at: string;
     updated: string;
@@ -142,6 +147,18 @@ function recordId(value: unknown) {
   return RECORD_ID_PATTERN.test(id) ? id : '';
 }
 
+function promoCanonical(value: any): PromoCanonicalTarget | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const keys = Object.keys(value).sort();
+  if (value.mode === 'platform' && keys.length === 1 && keys[0] === 'mode') return { mode: 'platform' };
+  const bindingId = recordId(value.primary_binding_id);
+  if (value.mode === 'custom' && bindingId
+    && keys.length === 2 && keys[0] === 'mode' && keys[1] === 'primary_binding_id') {
+    return { mode: 'custom', primary_binding_id: bindingId };
+  }
+  return null;
+}
+
 function unavailableCatalog(status = 0, error = 'promo_master_unavailable'): PromoMasterCatalogResult {
   return { available: false, status, error, items: [], map: new Map() };
 }
@@ -200,9 +217,10 @@ export async function getPromoMasterCatalog(
   for (const raw of result.payload.items) {
     const storeId = recordId(raw?.store_id);
     const generation = Number(raw?.publication?.generation);
+    const canonical = promoCanonical(raw?.publication?.canonical);
     if (!storeId || raw?.type !== 'promo' || map.has(storeId)
       || !Number.isSafeInteger(generation) || generation < 0
-      || raw?.publication?.canonical?.mode !== 'platform') {
+      || !canonical) {
       return unavailableCatalog(503, 'promo_catalog_incoherent');
     }
     const item: PromoMasterCatalogItem = {
@@ -216,7 +234,7 @@ export async function getPromoMasterCatalog(
       publication: {
         state: text(raw?.publication?.state, 40),
         generation,
-        canonical: { mode: 'platform' },
+        canonical,
       },
     };
     items.push(item);
@@ -269,7 +287,7 @@ function validOverviewPayload(payload: any): payload is PromoMasterOverview & { 
     ))
     || !Number.isSafeInteger(payload.publication.generation)
     || payload.publication.generation < 0
-    || payload.publication.canonical?.mode !== 'platform'
+    || !promoCanonical(payload.publication.canonical)
     || !Array.isArray(payload.revisions) || !Array.isArray(payload.domains)
     || !payload.theme || !Array.isArray(payload.theme.releases)
     || !Array.isArray(payload.activity) || !payload.health || !Array.isArray(payload.health.issues)) return false;
@@ -379,10 +397,11 @@ export async function createPromoCandidate(client: PocketBase, storeId: string, 
   }));
 }
 
-export type PromoPublicationOperation = 'publish' | 'rollback' | 'unpublish' | 'pause' | 'resume';
+export type PromoPublicationOperation = 'publish' | 'canonical_switch' | 'rollback' | 'unpublish' | 'pause' | 'resume';
 
 const PUBLICATION_ENDPOINTS: Record<PromoPublicationOperation, string> = {
   publish: '/api/pz/promo/private/v1/publication/publish',
+  canonical_switch: '/api/pz/promo/private/v1/publication/canonical/switch',
   rollback: '/api/pz/promo/private/v1/publication/rollback',
   unpublish: '/api/pz/promo/private/v1/publication/unpublish',
   pause: '/api/pz/promo/private/v1/publication/pause',
@@ -391,6 +410,7 @@ const PUBLICATION_ENDPOINTS: Record<PromoPublicationOperation, string> = {
 
 const PUBLICATION_CONTRACTS: Record<PromoPublicationOperation, string> = {
   publish: PROMO_MASTER_CONTRACTS.publish,
+  canonical_switch: PROMO_MASTER_CONTRACTS.canonicalSwitch,
   rollback: PROMO_MASTER_CONTRACTS.rollback,
   unpublish: PROMO_MASTER_CONTRACTS.unpublish,
   pause: PROMO_MASTER_CONTRACTS.pause,
@@ -402,11 +422,11 @@ export async function transitionPromoPublication(client: PocketBase, storeId: st
   expected_generation: number;
   reason_code: string;
   candidate_revision_id?: string;
-  canonical?: { mode: 'platform' };
+  canonical?: PromoCanonicalTarget;
   idempotency_key?: string;
 }) {
   const withRevision = input.operation === 'publish' || input.operation === 'rollback';
-  const withCanonical = withRevision;
+  const withCanonical = withRevision || input.operation === 'canonical_switch';
   const body: Record<string, unknown> = {
     contract: PUBLICATION_CONTRACTS[input.operation],
     expected_generation: input.expected_generation,

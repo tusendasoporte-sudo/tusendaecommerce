@@ -227,10 +227,12 @@ function siteAuditSnapshot(site) {
 
 function slotProjection(slot) {
   if (!slot) return Object.freeze({ state: "missing", generation: 0, canonical: { mode: "platform" }, revision_id: "" });
+  const mode = recordString(slot, "canonical_mode") === "custom" ? "custom" : "platform";
+  const primaryBindingId = mode === "custom" ? relationId(slot, "primary_binding") : "";
   return Object.freeze({
     state: recordString(slot, "state"),
     generation: Math.max(0, recordInteger(slot, "generation") || 0),
-    canonical: Object.freeze({ mode: "platform" }),
+    canonical: Object.freeze({ mode, ...(primaryBindingId ? { primary_binding_id: primaryBindingId } : {}) }),
     revision_id: relationId(slot, "published_revision"),
     published_at: recordString(slot, "published_at"),
     updated: recordString(slot, "updated"),
@@ -381,7 +383,7 @@ function operationSnapshot(app, auth, storeId) {
     publish: false,
     rollback: false,
     unpublish: false,
-    canonical_switch: false,
+    canonical_switch: can("promo.master.publication.rollback"),
     pause: false,
     resume: false,
   });
@@ -400,13 +402,21 @@ function publicationHealth(app, decision, slot) {
     return Object.freeze({ state: "not_serving", issues: [] });
   }
   if (recordString(slot, "state") !== "active") return Object.freeze({ state: "not_serving", issues: [] });
-  if (recordString(slot, "canonical_mode") !== "platform" || relationId(slot, "primary_binding")) {
-    return Object.freeze({ state: "incoherent", issues: ["platform_canonical_required"] });
+  const mode = recordString(slot, "canonical_mode");
+  const primaryBindingId = relationId(slot, "primary_binding");
+  if (!['platform', 'custom'].includes(mode)
+    || (mode === "platform" && primaryBindingId)
+    || (mode === "custom" && !primaryBindingId)) {
+    return Object.freeze({ state: "incoherent", issues: ["canonical_incoherent"] });
   }
   try {
+    if (mode === "custom") {
+      const primary = findRecord(app, "promo_domain_bindings", primaryBindingId);
+      domain.assertActiveBinding(primary, recordId(decision.site), "", "primary");
+    }
     pubcfgApi.resolvePublicProjectionForSite(app, decision.site, {
-      canonicalMode: "platform",
-      primaryBindingId: "",
+      canonicalMode: mode,
+      primaryBindingId,
       expectedGeneration: recordInteger(slot, "generation"),
     });
     return Object.freeze({ state: "healthy", issues: [] });
