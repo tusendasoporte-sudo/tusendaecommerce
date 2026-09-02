@@ -5,11 +5,15 @@
 const TRANSLATION_STATE_CONTRACT = "promo.translation.state.v1";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-5.4-mini";
+const CLOUDFLARE_API_ROOT = "https://api.cloudflare.com/client/v4/accounts";
+const CLOUDFLARE_TRANSLATION_MODEL = "@cf/meta/m2m100-1.2b";
 const MAX_BATCH_ITEMS = 120;
 const MAX_BATCH_SOURCE_CHARS = 30000;
 const MAX_TRANSLATION_ITEMS = 720;
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{1,79}$/;
+const CLOUDFLARE_ACCOUNT_ID_PATTERN = /^[a-f0-9]{32}$/i;
+const STORE_ID_PATTERN = /^[a-z0-9]{15}$/;
 
 const IDENTITY_FIELDS = Object.freeze({
   name: Object.freeze({ max: 140, mode: "copy" }),
@@ -81,19 +85,59 @@ function defaultGetenv(name) {
   try { return typeof $os !== "undefined" && $os ? $os.getenv(name) : ""; } catch (_) { return ""; }
 }
 
+function translationStoreScope(read) {
+  const raw = envText(read, "PZ_PROMO_TRANSLATION_STORE_IDS");
+  if (!raw) return Object.freeze({ configured: false, valid: true, storeIds: Object.freeze([]) });
+  const values = raw.split(",").map((value) => value.trim()).filter(Boolean);
+  const storeIds = Array.from(new Set(values.filter((value) => STORE_ID_PATTERN.test(value))));
+  return Object.freeze({
+    configured: true,
+    valid: values.length > 0 && values.length === storeIds.length && storeIds.length <= 100,
+    storeIds: Object.freeze(storeIds),
+  });
+}
+
 function translationConfig(getenv) {
   const read = typeof getenv === "function" ? getenv : defaultGetenv;
   const enabled = envText(read, "PZ_PROMO_TRANSLATION_ENABLED") === "1";
   if (!enabled) return Object.freeze({ enabled: false });
+  const scope = translationStoreScope(read);
+  const requestedProvider = envText(read, "PZ_PROMO_TRANSLATION_PROVIDER").toLowerCase();
+  const provider = requestedProvider || "openai";
+  if (provider === "cloudflare") {
+    const accountIdInput = envText(read, "PZ_PROMO_TRANSLATION_CLOUDFLARE_ACCOUNT_ID");
+    const accountId = CLOUDFLARE_ACCOUNT_ID_PATTERN.test(accountIdInput) ? accountIdInput.toLowerCase() : "";
+    const apiKey = envText(read, "PZ_PROMO_TRANSLATION_CLOUDFLARE_API_TOKEN");
+    return Object.freeze({
+      enabled: true,
+      provider,
+      apiKey: apiKey.length >= 20 && apiKey.length <= 512 && !/\s/.test(apiKey) ? apiKey : "",
+      accountId,
+      model: CLOUDFLARE_TRANSLATION_MODEL,
+      url: accountId
+        ? `${CLOUDFLARE_API_ROOT}/${accountId}/ai/run/${CLOUDFLARE_TRANSLATION_MODEL}`
+        : "",
+      scope,
+    });
+  }
   const apiKey = envText(read, "PZ_PROMO_TRANSLATION_OPENAI_API_KEY");
   const requestedModel = envText(read, "PZ_PROMO_TRANSLATION_MODEL");
   const model = MODEL_PATTERN.test(requestedModel) ? requestedModel : DEFAULT_MODEL;
   return Object.freeze({
     enabled: true,
+    provider,
     apiKey: apiKey.length >= 20 && apiKey.length <= 512 && !/\s/.test(apiKey) ? apiKey : "",
     model,
-    url: OPENAI_RESPONSES_URL,
+    url: provider === "openai" ? OPENAI_RESPONSES_URL : "",
+    scope,
   });
+}
+
+function translationEnabledForStore(config, storeId) {
+  if (!config || config.enabled !== true) return false;
+  const scope = config.scope;
+  if (!scope || scope.configured !== true) return true;
+  return scope.valid === true && scope.storeIds.includes(String(storeId || ""));
 }
 
 function defaultHash(material) {
@@ -470,6 +514,16 @@ function parseTranslationResponse(payload, batch) {
   return result;
 }
 
+function parseCloudflareTranslationResponse(payload, request) {
+  const root = object(payload);
+  const result = object(root.result);
+  const errors = Array.isArray(root.errors) ? root.errors : [];
+  if (root.success !== true || errors.length || typeof result.translated_text !== "string") {
+    fail("promo_translation_invalid_response");
+  }
+  return validTranslation(result.translated_text, request.max, request.source);
+}
+
 function providerRequestBody(batch, config) {
   return {
     model: config.model,
@@ -513,12 +567,69 @@ function providerRequestBody(batch, config) {
   };
 }
 
+function applyTranslation(plan, request, translated, hash) {
+  setPath(plan.document.content_by_locale[request.locale], request.path, translated);
+  plan.state.managed[request.locale] = object(plan.state.managed[request.locale]);
+  plan.state.managed[request.locale][request.key] = {
+    source_sha256: textHash(request.source, hash),
+    target_sha256: textHash(translated, hash),
+  };
+  if (Array.isArray(plan.state.locked[request.locale])) {
+    plan.state.locked[request.locale] = plan.state.locked[request.locale]
+      .filter((key) => key !== request.key);
+    if (!plan.state.locked[request.locale].length) delete plan.state.locked[request.locale];
+  }
+}
+
+function executeCloudflareTranslations(plan, settings, config, send) {
+  if (!config.apiKey || !CLOUDFLARE_ACCOUNT_ID_PATTERN.test(String(config.accountId || ""))
+    || config.model !== CLOUDFLARE_TRANSLATION_MODEL
+    || config.url !== `${CLOUDFLARE_API_ROOT}/${config.accountId}/ai/run/${CLOUDFLARE_TRANSLATION_MODEL}`) {
+    fail("promo_translation_unavailable");
+  }
+  const grouped = new Map();
+  plan.requests.forEach((request) => {
+    const key = canonicalJson([request.sourceLocale, request.locale, request.source]);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(request);
+  });
+  grouped.forEach((requests) => {
+    const representative = {
+      ...requests[0],
+      max: Math.min(...requests.map((request) => request.max)),
+    };
+    let response;
+    try {
+      response = send({
+        url: config.url,
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${config.apiKey}`,
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          text: representative.source,
+          source_lang: representative.sourceLocale,
+          target_lang: representative.locale,
+        }),
+        timeout: 18,
+      });
+    } catch (_) {
+      fail("promo_translation_unavailable");
+    }
+    if (!response || Number(response.statusCode) !== 200) fail("promo_translation_unavailable");
+    const translated = parseCloudflareTranslationResponse(response.json, representative);
+    requests.forEach((request) => applyTranslation(plan, request, translated, settings.hash));
+  });
+  return plan;
+}
+
 function executePromoTranslations(plan, options) {
   const settings = options || {};
   const config = settings.config || translationConfig();
   if (!plan || !Array.isArray(plan.requests) || !plan.requests.length) return plan;
-  if (!config.enabled || !config.apiKey || !MODEL_PATTERN.test(String(config.model || ""))
-    || config.url !== OPENAI_RESPONSES_URL) {
+  if (!config.enabled) {
     fail("promo_translation_unavailable");
   }
   const send = typeof settings.send === "function"
@@ -526,6 +637,14 @@ function executePromoTranslations(plan, options) {
     : (typeof $http !== "undefined" && $http && typeof $http.send === "function"
       ? $http.send.bind($http) : null);
   if (!send) fail("promo_translation_unavailable");
+  const provider = String(config.provider || "openai");
+  if (provider === "cloudflare") {
+    return executeCloudflareTranslations(plan, settings, config, send);
+  }
+  if (provider !== "openai" || !config.apiKey || !MODEL_PATTERN.test(String(config.model || ""))
+    || config.url !== OPENAI_RESPONSES_URL) {
+    fail("promo_translation_unavailable");
+  }
   const hash = settings.hash;
   const grouped = new Map();
   plan.requests.forEach((request) => {
@@ -555,17 +674,7 @@ function executePromoTranslations(plan, options) {
       const translations = parseTranslationResponse(response.json, batch);
       batch.forEach((request) => {
         const translated = translations.get(request.id);
-        setPath(plan.document.content_by_locale[request.locale], request.path, translated);
-        plan.state.managed[request.locale] = object(plan.state.managed[request.locale]);
-        plan.state.managed[request.locale][request.key] = {
-          source_sha256: textHash(request.source, hash),
-          target_sha256: textHash(translated, hash),
-        };
-        if (Array.isArray(plan.state.locked[request.locale])) {
-          plan.state.locked[request.locale] = plan.state.locked[request.locale]
-            .filter((key) => key !== request.key);
-          if (!plan.state.locked[request.locale].length) delete plan.state.locked[request.locale];
-        }
+        applyTranslation(plan, request, translated, hash);
       });
     });
   });
@@ -590,6 +699,7 @@ function autoTranslatePromoDocument(previous, next, state, options) {
 }
 
 module.exports = {
+  CLOUDFLARE_TRANSLATION_MODEL,
   DEFAULT_MODEL,
   MAX_BATCH_ITEMS,
   OPENAI_RESPONSES_URL,
@@ -600,9 +710,11 @@ module.exports = {
   executePromoTranslations,
   normalizeTranslationState,
   parseTranslationResponse,
+  parseCloudflareTranslationResponse,
   preparePromoTranslations,
   providerRequestBody,
   responseOutputText,
   translationConfig,
+  translationEnabledForStore,
   unsafeTranslation,
 };

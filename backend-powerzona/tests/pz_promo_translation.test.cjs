@@ -124,11 +124,40 @@ function provider(translationsBySource = {}) {
   return { calls, send };
 }
 
+function cloudflareProvider(translationsBySource = {}) {
+  const calls = [];
+  const send = (request) => {
+    const body = JSON.parse(request.body);
+    calls.push({ request, body });
+    return {
+      statusCode: 200,
+      json: {
+        success: true,
+        errors: [],
+        messages: [],
+        result: {
+          translated_text: translationsBySource[body.text] || `EN:${body.text}`,
+        },
+      },
+    };
+  };
+  return { calls, send };
+}
+
 const config = {
   enabled: true,
   apiKey: `sk-test-${'x'.repeat(40)}`,
   model: 'gpt-5.4-mini',
   url: translation.OPENAI_RESPONSES_URL,
+};
+
+const cloudflareConfig = {
+  enabled: true,
+  provider: 'cloudflare',
+  accountId: '15ffc4e5014b573740ac139b5b734bd4',
+  apiKey: `cf-test-${'x'.repeat(40)}`,
+  model: translation.CLOUDFLARE_TRANSLATION_MODEL,
+  url: `https://api.cloudflare.com/client/v4/accounts/15ffc4e5014b573740ac139b5b734bd4/ai/run/${translation.CLOUDFLARE_TRANSLATION_MODEL}`,
 };
 
 test('corrige copias ES incrustadas en EN sin enviar rutas, nombres propios ni secretos al documento', () => {
@@ -156,6 +185,28 @@ test('corrige copias ES incrustadas en EN sin enviar rutas, nombres propios ni s
   assert.equal(JSON.stringify(fake.calls[0].input).includes('services-main'), false);
   assert.equal(fake.calls[0].input.entries.every((entry) => /^t\d{6}$/.test(entry.id)), true);
   assert.equal(JSON.stringify(result.document).includes(config.apiKey), false);
+});
+
+test('Cloudflare traduce por REST, deduplica texto repetido y nunca persiste el token', () => {
+  const previous = documentFixture();
+  const next = clone(previous);
+  const fake = cloudflareProvider({
+    'Limpieza profunda': 'Deep cleaning',
+    'Alfombra limpia en una sala': 'Clean rug in a living room',
+  });
+  const result = translation.autoTranslatePromoDocument(previous, next, {}, {
+    config: cloudflareConfig, hash: sha256, send: fake.send,
+  });
+
+  assert.equal(result.document.content_by_locale.en.sections['services-main'].items[0].name, 'Deep cleaning');
+  assert.equal(result.document.content_by_locale.en.sections['services-main'].items[0].summary, 'Deep cleaning');
+  assert.equal(result.document.content_by_locale.en.media_alt.rug_main.alt, 'Clean rug in a living room');
+  assert.equal(fake.calls.length, 2);
+  assert.equal(fake.calls.every((call) => call.request.url === cloudflareConfig.url), true);
+  assert.equal(fake.calls.every((call) => call.request.headers.authorization === `Bearer ${cloudflareConfig.apiKey}`), true);
+  assert.equal(fake.calls.every((call) => call.body.source_lang === 'es' && call.body.target_lang === 'en'), true);
+  assert.equal(fake.calls.some((call) => call.body.text === 'Limpieza profunda'), true);
+  assert.equal(JSON.stringify(result.document).includes(cloudflareConfig.apiKey), false);
 });
 
 test('un cambio del idioma base vuelve a traducir automáticamente un valor administrado', () => {
@@ -254,6 +305,15 @@ test('falla cerrado ante IDs faltantes, contenido activo o proveedor no configur
     config: { enabled: true, apiKey: '', model: 'gpt-5.4-mini', url: translation.OPENAI_RESPONSES_URL },
     hash: sha256,
   }), /promo_translation_unavailable/);
+
+  assert.throws(() => translation.executePromoTranslations(plan, {
+    config: cloudflareConfig,
+    hash: sha256,
+    send: () => ({
+      statusCode: 200,
+      json: { success: true, errors: [], result: { translated_text: '<script>alert(1)</script>' } },
+    }),
+  }), /promo_translation_invalid_response/);
 });
 
 test('la activación es explícita y el modo desactivado preserva el documento', () => {
@@ -264,7 +324,21 @@ test('la activación es explícita y el modo desactivado preserva el documento',
     PZ_PROMO_TRANSLATION_MODEL: 'gpt-5.4-mini',
   })[name] || '');
   assert.equal(enabled.enabled, true);
+  assert.equal(enabled.provider, 'openai');
   assert.equal(enabled.url, 'https://api.openai.com/v1/responses');
+
+  const cloudflare = translation.translationConfig((name) => ({
+    PZ_PROMO_TRANSLATION_ENABLED: '1',
+    PZ_PROMO_TRANSLATION_PROVIDER: 'cloudflare',
+    PZ_PROMO_TRANSLATION_STORE_IDS: 'c7f698w9kgurrdo',
+    PZ_PROMO_TRANSLATION_CLOUDFLARE_ACCOUNT_ID: '15ffc4e5014b573740ac139b5b734bd4',
+    PZ_PROMO_TRANSLATION_CLOUDFLARE_API_TOKEN: `cf-test-${'x'.repeat(40)}`,
+  })[name] || '');
+  assert.equal(cloudflare.provider, 'cloudflare');
+  assert.equal(cloudflare.model, '@cf/meta/m2m100-1.2b');
+  assert.equal(cloudflare.url, 'https://api.cloudflare.com/client/v4/accounts/15ffc4e5014b573740ac139b5b734bd4/ai/run/@cf/meta/m2m100-1.2b');
+  assert.equal(translation.translationEnabledForStore(cloudflare, 'c7f698w9kgurrdo'), true);
+  assert.equal(translation.translationEnabledForStore(cloudflare, 'aaaaaaaaaaaaaaa'), false);
 
   const previous = documentFixture();
   const result = translation.autoTranslatePromoDocument(previous, previous, {}, {
@@ -293,6 +367,7 @@ test('PUBCFG integra la traducción fuera de la transacción y persiste estado j
   const transactionIndex = handler.indexOf('runInTransaction');
   assert.ok(executeIndex > -1 && transactionIndex > executeIndex);
   assert.match(handler, /promo\.translations\.manage/);
+  assert.match(handler, /translationEnabledForStore/);
   assert.match(handler, /translation_state_json/);
   assert.match(handler, /promo_live_conflict/);
 });

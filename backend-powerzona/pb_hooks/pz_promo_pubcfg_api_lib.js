@@ -711,8 +711,12 @@ function handleDraftUpdate(e) {
     }
     const translationState = translationStateValue(draft);
     const translationConfig = promoTranslation.translationConfig();
+    const translationEnabled = promoTranslation.translationEnabledForStore(
+      translationConfig,
+      context.supportStoreId,
+    );
     let translationPlan;
-    if (translationConfig.enabled) {
+    if (translationEnabled) {
       translationPlan = promoTranslation.preparePromoTranslations(
         previousDocument,
         parsed.document,
@@ -735,7 +739,7 @@ function handleDraftUpdate(e) {
         previousDocument,
         parsed.document,
         translationState,
-        { config: translationConfig },
+        { config: { ...translationConfig, enabled: false } },
       );
     }
     prepared = {
