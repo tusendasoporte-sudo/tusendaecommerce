@@ -108,7 +108,13 @@ test('planes Promo tienen pantalla y cliente aislados de Commerce', () => {
     '/api/pz/promo/master/v1/plan/renew',
   ]) assert.match(promoPlanClient, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(promoPlanView, /Gratis — 30 días · 150 fotos/);
-  assert.match(promoPlanView, /Básico — 1 a 12 meses · 300 fotos/);
+  assert.match(promoPlanView, /Básico — vigencia y fotos configurables/);
+  assert.match(promoPlanView, /Permanente · sin vencimiento/);
+  assert.match(promoPlanView, /name="max_gallery_assets"/);
+  assert.match(promoPlanView, /150 fotos/);
+  assert.match(promoPlanView, /300 fotos/);
+  assert.match(promoPlanClient, /is_permanent: boolean/);
+  assert.match(promoPlanClient, /max_gallery_assets: number/);
   assert.match(promoPlanView, /Gratis ya utilizado/);
   assert.match(promoPlanView, /3 días de gracia/);
   assert.doesNotMatch(promoPlanView, /Premium|App Android|Productos|Pedidos|Landing QR/);

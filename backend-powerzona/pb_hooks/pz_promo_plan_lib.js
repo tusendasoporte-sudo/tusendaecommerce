@@ -8,6 +8,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const PROMO_PLAN_CODES = Object.freeze(["free", "basic"]);
 const PROMO_PLAN_GRACE_DAYS = 3;
 const PROMO_PLAN_IMAGE_LIMITS = Object.freeze({ free: 150, basic: 300 });
+const PROMO_PLAN_IMAGE_QUOTA_OPTIONS = Object.freeze({
+  free: Object.freeze([150]),
+  basic: Object.freeze([150, 300]),
+});
 const PROMO_READ_ONLY_ACTIONS = Object.freeze(["promo.site.view", "promo.analytics.view"]);
 
 function recordValue(record, key) {
@@ -58,10 +62,17 @@ function isPromoPlanCode(value) {
   return typeof value === "string" && PROMO_PLAN_CODES.includes(value);
 }
 
-function imageLimitForPlan(plan) {
+function imageLimitForPlan(plan, requestedLimit) {
   const code = String(plan || "").trim();
   if (!isPromoPlanCode(code)) throw new RangeError("invalid_promo_plan_code");
-  return PROMO_PLAN_IMAGE_LIMITS[code];
+  if (requestedLimit === undefined || requestedLimit === null || requestedLimit === "") {
+    return PROMO_PLAN_IMAGE_LIMITS[code];
+  }
+  const limit = Number(requestedLimit);
+  if (!Number.isInteger(limit) || !PROMO_PLAN_IMAGE_QUOTA_OPTIONS[code].includes(limit)) {
+    throw new RangeError("invalid_promo_image_limit");
+  }
+  return limit;
 }
 
 function promoPlanDefinitions() {
@@ -72,7 +83,8 @@ function promoPlanDefinitions() {
       name: code === "free" ? "Plan Gratis Promo" : "Plan Básico Promo",
       monthly_price_usd: 0,
       duration: base.duration,
-      supports_permanent: false,
+      supports_permanent: code === "basic",
+      image_quota_options: PROMO_PLAN_IMAGE_QUOTA_OPTIONS[code].slice(),
       capabilities: {
         max_active_users: 0,
         max_devices_per_user: 0,
@@ -155,16 +167,19 @@ function assertPromoPlanSelection(storeOrValues, input) {
   const isPermanent = !!(input && input.is_permanent);
   const durationMonths = Number(input && input.duration_months);
   if (!isPromoPlanCode(plan)) throw new RangeError("invalid_promo_plan_code");
-  if (isPermanent) throw new RangeError("invalid_promo_plan_permanence");
+  const imageLimit = imageLimitForPlan(plan, input && input.max_gallery_assets);
   if (plan === "free") {
+    if (isPermanent) throw new RangeError("invalid_promo_plan_permanence");
     if (durationMonths !== 0) throw new RangeError("invalid_plan_duration_months");
     if (recordBool(storeOrValues, "free_trial_used")) {
       throw new RangeError("promo_free_trial_already_used");
     }
-  } else if (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 12) {
+  } else if (isPermanent && durationMonths !== 0) {
+    throw new RangeError("invalid_plan_duration_months");
+  } else if (!isPermanent && (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 12)) {
     throw new RangeError("invalid_plan_duration_months");
   }
-  return { plan, is_permanent: false, duration_months: durationMonths };
+  return { plan, is_permanent: isPermanent, duration_months: durationMonths, max_gallery_assets: imageLimit };
 }
 
 function planSnapshot(store) {
@@ -202,14 +217,14 @@ function createInitialPromoPlanAudit(app, store, actor, previous, next, duration
   return audit;
 }
 
-function assignInitialPromoPlan(app, store, actor, requestedPlan, requestedDurationMonths, now) {
+function assignInitialPromoPlan(app, store, actor, requestedPlan, requestedDurationMonths, requestedIsPermanent, now) {
   const initialPlan = requestedPlan === undefined ? "free" : String(requestedPlan || "").trim();
   if (initialPlan === "free" && recordString(store, "plan") === "free" && recordBool(store, "free_trial_used")) {
     return planSnapshot(store);
   }
   const selection = assertPromoPlanSelection(store, {
     plan: initialPlan,
-    is_permanent: false,
+    is_permanent: requestedIsPermanent === true,
     duration_months: requestedDurationMonths === undefined ? 0 : requestedDurationMonths,
   });
   const previous = planSnapshot(store);
@@ -221,7 +236,7 @@ function assignInitialPromoPlan(app, store, actor, requestedPlan, requestedDurat
   return next;
 }
 
-function syncPromoEntitlement(app, storeOrId, actorId) {
+function syncPromoEntitlement(app, storeOrId, actorId, requestedImageLimit) {
   const site = findPromoSiteByStore(app, storeOrId);
   if (!site) return null;
   const entitlement = findExact(app, "promo_site_entitlements", "site = {:site}", { site: recordId(site) });
@@ -230,8 +245,16 @@ function syncPromoEntitlement(app, storeOrId, actorId) {
     ? storeOrId
     : (() => { try { return app.findRecordById("stores", String(storeOrId || "")); } catch (_) { return null; } })();
   if (!store || relationId(site, "store") !== recordId(store)) throw new Error("promo_entitlement_not_found");
+  const planCode = recordString(store, "plan") === "premium" ? "basic" : recordString(store, "plan");
+  const currentLimit = recordValue(entitlement, "max_gallery_assets");
+  const imageLimit = requestedImageLimit === undefined
+    ? (() => {
+      try { return imageLimitForPlan(planCode, currentLimit); }
+      catch (_) { return imageLimitForPlan(planCode); }
+    })()
+    : imageLimitForPlan(planCode, requestedImageLimit);
   entitlement.set("source", "contract");
-  entitlement.set("max_gallery_assets", imageLimitForPlan(recordString(store, "plan")));
+  entitlement.set("max_gallery_assets", imageLimit);
   entitlement.set("updated_by", String(actorId || "").trim());
   app.save(entitlement);
   return entitlement;
@@ -268,6 +291,7 @@ module.exports = {
   PROMO_PLAN_CODES,
   PROMO_PLAN_GRACE_DAYS,
   PROMO_PLAN_IMAGE_LIMITS,
+  PROMO_PLAN_IMAGE_QUOTA_OPTIONS,
   actionAllowsExpiredRead,
   assignInitialPromoPlan,
   assertPromoOperationalAccess,

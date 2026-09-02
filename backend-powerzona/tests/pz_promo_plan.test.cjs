@@ -18,7 +18,7 @@ function planStore(overrides = {}) {
   };
 }
 
-test('planes Promo son exactamente Gratis 30/150 y Básico 1-12/300 sin permanencia', () => {
+test('planes Promo son Gratis 30/150 y Básico configurable 1-12 o permanente con 150/300', () => {
   const definitions = promoPlans.promoPlanDefinitions();
   assert.deepEqual(definitions.map((item) => item.code), ['free', 'basic']);
   assert.equal(definitions[0].duration.kind, 'fixed_days');
@@ -28,7 +28,10 @@ test('planes Promo son exactamente Gratis 30/150 y Básico 1-12/300 sin permanen
   assert.equal(definitions[1].duration.min_months, 1);
   assert.equal(definitions[1].duration.max_months, 12);
   assert.equal(definitions[1].capabilities.max_gallery_assets, 300);
-  assert.equal(definitions.every((item) => item.supports_permanent === false), true);
+  assert.deepEqual(definitions[0].image_quota_options, [150]);
+  assert.deepEqual(definitions[1].image_quota_options, [150, 300]);
+  assert.equal(definitions[0].supports_permanent, false);
+  assert.equal(definitions[1].supports_permanent, true);
   assert.equal(promoPlans.PROMO_PLAN_GRACE_DAYS, 3);
 });
 
@@ -46,7 +49,7 @@ test('estado Promo avisa 7 días antes, bloquea durante gracia y pausa público 
   assert.equal(expired.public_allowed, false);
 });
 
-test('Gratis solo se consume una vez y Básico exige entre 1 y 12 meses', () => {
+test('Gratis solo se consume una vez y Básico valida vigencia y cuota de fotos', () => {
   assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
     plan: 'free', is_permanent: false, duration_months: 0,
   }), /promo_free_trial_already_used/);
@@ -57,11 +60,20 @@ test('Gratis solo se consume una vez y Básico exige entre 1 y 12 meses', () => 
     plan: 'premium', is_permanent: false, duration_months: 1,
   }), /invalid_promo_plan_code/);
   assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
-    plan: 'basic', is_permanent: false, duration_months: 13,
+    plan: 'basic', is_permanent: false, duration_months: 13, max_gallery_assets: 300,
   }), /invalid_plan_duration_months/);
+  assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
+    plan: 'basic', is_permanent: false, duration_months: 12, max_gallery_assets: 200,
+  }), /invalid_promo_image_limit/);
   assert.deepEqual(promoPlans.assertPromoPlanSelection(planStore(), {
-    plan: 'basic', is_permanent: false, duration_months: 12,
-  }), { plan: 'basic', is_permanent: false, duration_months: 12 });
+    plan: 'basic', is_permanent: false, duration_months: 12, max_gallery_assets: 300,
+  }), { plan: 'basic', is_permanent: false, duration_months: 12, max_gallery_assets: 300 });
+  assert.deepEqual(promoPlans.assertPromoPlanSelection(planStore(), {
+    plan: 'basic', is_permanent: true, duration_months: 0, max_gallery_assets: 150,
+  }), { plan: 'basic', is_permanent: true, duration_months: 0, max_gallery_assets: 150 });
+  assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
+    plan: 'basic', is_permanent: true, duration_months: 1, max_gallery_assets: 150,
+  }), /invalid_plan_duration_months/);
 });
 
 test('Promo legado Premium permanente se proyecta como Básico sin alterar Commerce', () => {
@@ -75,6 +87,30 @@ test('Promo legado Premium permanente se proyecta como Básico sin alterar Comme
   assert.equal(state.public_allowed, true);
 });
 
+test('la cuota Básica elegida se persiste y una renovación no la devuelve a 300', () => {
+  const store = { id: 'storeaaaaaaaaaa', plan: 'basic' };
+  const site = { id: 'siteaaaaaaaaaaa', store: store.id };
+  const entitlement = {
+    id: 'entitlementaaaa', site: site.id, max_gallery_assets: 300,
+    set(key, value) { this[key] = value; },
+  };
+  const app = {
+    findRecordsByFilter(collection) {
+      if (collection === 'promo_sites') return [site];
+      if (collection === 'promo_site_entitlements') return [entitlement];
+      return [];
+    },
+    save(record) { assert.equal(record, entitlement); },
+  };
+
+  promoPlans.syncPromoEntitlement(app, store, 'masterstore0001', 150);
+  assert.equal(entitlement.max_gallery_assets, 150);
+  promoPlans.syncPromoEntitlement(app, store, 'masterstore0001');
+  assert.equal(entitlement.max_gallery_assets, 150);
+  assert.equal(entitlement.source, 'contract');
+  assert.equal(entitlement.updated_by, 'masterstore0001');
+});
+
 test('API de planes Promo usa POST privados y payloads exactos', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_plan.pb.js'), 'utf8');
   assert.deepEqual([...source.matchAll(/"(\/api\/pz\/promo\/master\/v1\/plan[^"]*)"/g)].map((match) => match[1]), [
@@ -86,9 +122,20 @@ test('API de planes Promo usa POST privados y payloads exactos', () => {
   assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 3);
   assert.deepEqual(promoPlanApi.parseChangePayload({
     store_id: 'storeaaaaaaaaaa', plan: 'basic', duration_months: 12, reason: '',
-  }), { storeId: 'storeaaaaaaaaaa', plan: 'basic', durationMonths: 12, reason: '' });
+  }), { storeId: 'storeaaaaaaaaaa', plan: 'basic', durationMonths: 12, isPermanent: false, maxGalleryAssets: 300, reason: '' });
+  assert.deepEqual(promoPlanApi.parseChangePayload({
+    store_id: 'storeaaaaaaaaaa', plan: 'basic', duration_months: 0,
+    is_permanent: true, max_gallery_assets: 150, reason: 'Contrato permanente',
+  }), {
+    storeId: 'storeaaaaaaaaaa', plan: 'basic', durationMonths: 0,
+    isPermanent: true, maxGalleryAssets: 150, reason: 'Contrato permanente',
+  });
   assert.equal(promoPlanApi.parseChangePayload({
     store_id: 'storeaaaaaaaaaa', plan: 'basic', duration_months: 12, reason: '', permanent: true,
+  }), null);
+  assert.equal(promoPlanApi.parseChangePayload({
+    store_id: 'storeaaaaaaaaaa', plan: 'basic', duration_months: 0,
+    is_permanent: true, max_gallery_assets: 200, reason: '',
   }), null);
   assert.deepEqual(promoPlanApi.parseRenewPayload({
     store_id: 'storeaaaaaaaaaa', months: 4, reason: 'Renovación',

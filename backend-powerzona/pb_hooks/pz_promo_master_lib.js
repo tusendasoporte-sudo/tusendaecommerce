@@ -854,7 +854,7 @@ function isUnconfiguredDraftDocument(input) {
     && Array.isArray(contact.actions) && contact.actions.length === 0;
 }
 
-function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, requestedThemeId) {
+function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, requestedThemeId, requestedImageLimit) {
   if (!actor || recordString(actor, "role") !== promo.MASTER_ROLE || recordString(actor, "status") !== "active") {
     throw codedError("unauthorized", 403);
   }
@@ -864,7 +864,7 @@ function createPromoFoundation(app, actor, store, publicSlug, requestedPlan, req
     ? require("./pz_promo_plan_lib.js")
     : require(`${__hooks}/pz_promo_plan_lib.js`);
   const planCode = requestedPlan === undefined ? "free" : String(requestedPlan || "").trim();
-  const imageQuota = promoPlan.imageLimitForPlan(planCode);
+  const imageQuota = promoPlan.imageLimitForPlan(planCode, requestedImageLimit);
   if (!storeId) throw codedError("promo_master_unavailable", 503);
   try { data.assertPublicSlug(slug); } catch (_) { throw codedError("invalid_payload", 400); }
   if (findExact(app, "promo_sites", "store = {:store}", { store: storeId })) throw codedError("store_not_promo", 409);

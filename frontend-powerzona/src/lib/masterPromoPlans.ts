@@ -9,6 +9,8 @@ export type MasterPromoPlanAudit = {
   new_plan: MasterPromoPlanCode | '';
   previous_expires_at: string;
   new_expires_at: string;
+  previous_is_permanent: boolean;
+  new_is_permanent: boolean;
   duration_months: number;
   reason: string;
   created: string;
@@ -48,7 +50,8 @@ export type MasterPromoStorePlan = {
     code: MasterPromoPlanCode;
     name: string;
     duration: { kind: 'fixed_days' | 'calendar_months'; days: number | null; min_months: number; max_months: number };
-    supports_permanent: false;
+    supports_permanent: boolean;
+    image_quota_options: number[];
     capabilities: { max_gallery_assets: number };
   }>;
   last_change: MasterPromoPlanAudit | null;
@@ -100,6 +103,8 @@ function normalizeAudit(value: any): MasterPromoPlanAudit | null {
     new_plan: next,
     previous_expires_at: isoDate(value.previous_expires_at),
     new_expires_at: isoDate(value.new_expires_at),
+    previous_is_permanent: value.previous_is_permanent === true,
+    new_is_permanent: value.new_is_permanent === true,
     duration_months: integer(value.duration_months, 12),
     reason: text(value.reason, 500),
     created: isoDate(value.created),
@@ -112,7 +117,12 @@ function normalizeResponse(value: any): MasterPromoStorePlan | null {
   if (value?.ok !== true || !RECORD_ID_PATTERN.test(storeId) || value?.store?.type !== 'promo' || !isPlanCode(planCode)) return null;
   const definitions = Array.isArray(value.definitions) ? value.definitions.filter((item: any) => (
     isPlanCode(item?.code)
-    && item?.supports_permanent === false
+    && item?.supports_permanent === (item.code === 'basic')
+    && Array.isArray(item?.image_quota_options)
+    && item.image_quota_options.length === (item.code === 'basic' ? 2 : 1)
+    && item.image_quota_options.every((limit: unknown) => Number.isInteger(limit) && [150, 300].includes(limit as number))
+    && item.image_quota_options.includes(150)
+    && (item.code !== 'basic' || item.image_quota_options.includes(300))
     && Number.isInteger(item?.capabilities?.max_gallery_assets)
     && [150, 300].includes(item.capabilities.max_gallery_assets)
   )) : [];
@@ -158,7 +168,8 @@ function normalizeResponse(value: any): MasterPromoStorePlan | null {
         min_months: integer(item.duration?.min_months, 12),
         max_months: integer(item.duration?.max_months, 12),
       },
-      supports_permanent: false,
+      supports_permanent: item.supports_permanent === true,
+      image_quota_options: item.image_quota_options.map((limit: unknown) => integer(limit, 300)),
       capabilities: { max_gallery_assets: integer(item.capabilities.max_gallery_assets, 300) },
     })),
     last_change: value.last_change ? normalizeAudit(value.last_change) : null,
@@ -205,7 +216,8 @@ export function getMasterPromoPlanErrorMessage(error: string) {
     invalid_payload: 'Revisa los datos seleccionados antes de continuar.',
     invalid_plan_duration_months: 'Selecciona una duración entre 1 y 12 meses.',
     invalid_promo_plan_code: 'Ese plan no pertenece a Tiendas Promo.',
-    invalid_promo_plan_permanence: 'Los planes Promo siempre requieren una vigencia.',
+    invalid_promo_plan_permanence: 'El plan Gratis no admite vigencia permanente.',
+    invalid_promo_image_limit: 'Selecciona una cuota de 150 o 300 fotos para el plan Básico.',
     promo_free_trial_already_used: 'El plan Gratis solo puede utilizarse una vez por tienda.',
     free_plan_not_renewable: 'El plan Gratis no admite renovaciones.',
     permanent_plan_not_renewable: 'Asigna primero una vigencia real al contrato Promo legado.',
@@ -223,7 +235,14 @@ export function getMasterPromoPlan(pocketbaseUrl: string, token: string, storeId
 export function changeMasterPromoPlan(
   pocketbaseUrl: string,
   token: string,
-  input: { store_id: string; plan: MasterPromoPlanCode; duration_months: number; reason: string },
+  input: {
+    store_id: string;
+    plan: MasterPromoPlanCode;
+    duration_months: number;
+    is_permanent: boolean;
+    max_gallery_assets: number;
+    reason: string;
+  },
 ) {
   return postEndpoint(pocketbaseUrl, token, '/api/pz/promo/master/v1/plan/change', input);
 }

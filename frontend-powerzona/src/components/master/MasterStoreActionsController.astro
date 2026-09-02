@@ -49,14 +49,28 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           <label for="master-store-promo-plan">Plan Promo inicial</label>
           <select id="master-store-promo-plan" name="promo_plan">
             <option value="free">Gratis — 30 días · 150 fotos</option>
-            <option value="basic">Básico — 1 a 12 meses · 300 fotos</option>
+            <option value="basic">Básico — vigencia y fotos configurables</option>
           </select>
           <span class="master-muted">La prueba Gratis solo puede utilizarse una vez por tienda.</span>
+        </div>
+        <div class="master-field" data-store-promo-basic hidden>
+          <label for="master-store-promo-validity">Tipo de vigencia</label>
+          <select id="master-store-promo-validity" name="promo_validity">
+            <option value="temporary">Temporal</option>
+            <option value="permanent">Permanente · sin vencimiento</option>
+          </select>
         </div>
         <div class="master-field" data-store-promo-months hidden>
           <label for="master-store-promo-months">Vigencia del plan Básico</label>
           <select id="master-store-promo-months" name="promo_duration_months">
             {Array.from({ length: 12 }, (_, index) => index + 1).map((months) => <option value={String(months)}>{months} {months === 1 ? 'mes' : 'meses'}</option>)}
+          </select>
+        </div>
+        <div class="master-field" data-store-promo-basic hidden>
+          <label for="master-store-promo-image-limit">Fotos permitidas</label>
+          <select id="master-store-promo-image-limit" name="promo_image_limit">
+            <option value="150">150 fotos</option>
+            <option value="300" selected>300 fotos</option>
           </select>
         </div>
         <div class="master-field master-field--full" data-store-promo-only hidden>
@@ -207,11 +221,18 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       const type = String((storeForm.elements.namedItem('store_type') as HTMLSelectElement | null)?.value || 'commerce');
       const plan = String((storeForm.elements.namedItem('promo_plan') as HTMLSelectElement | null)?.value || 'free');
       const basic = !storeForm.dataset.storeId && type === 'promo' && plan === 'basic';
-      storeForm.querySelectorAll<HTMLElement>('[data-store-promo-months]').forEach((field) => {
+      const permanent = basic && String((storeForm.elements.namedItem('promo_validity') as HTMLSelectElement | null)?.value || 'temporary') === 'permanent';
+      storeForm.querySelectorAll<HTMLElement>('[data-store-promo-basic]').forEach((field) => {
         field.hidden = !basic;
         field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
           input.disabled = !basic;
-          if (!basic) input.value = '1';
+        });
+      });
+      storeForm.querySelectorAll<HTMLElement>('[data-store-promo-months]').forEach((field) => {
+        field.hidden = !basic || permanent;
+        field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
+          input.disabled = !basic || permanent;
+          if (!basic || permanent) input.value = '1';
         });
       });
     }
@@ -569,6 +590,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     });
     storeForm?.querySelector<HTMLSelectElement>('[name="store_type"]')?.addEventListener('change', syncCreateStoreType);
     storeForm?.querySelector<HTMLSelectElement>('[name="promo_plan"]')?.addEventListener('change', syncCreatePromoPlan);
+    storeForm?.querySelector<HTMLSelectElement>('[name="promo_validity"]')?.addEventListener('change', syncCreatePromoPlan);
 
     controller.querySelector<HTMLButtonElement>('[data-store-save]')?.addEventListener('click', async (event) => {
       if (!storeForm || !storeForm.reportValidity()) return;
@@ -581,9 +603,11 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       try {
         const storeType = String(data.get('store_type') || 'commerce') === 'promo' ? 'promo' : 'commerce';
         const promoPlan = String(data.get('promo_plan') || 'free') === 'basic' ? 'basic' : 'free';
-        const promoDurationMonths = promoPlan === 'basic'
+        const promoIsPermanent = promoPlan === 'basic' && String(data.get('promo_validity') || 'temporary') === 'permanent';
+        const promoDurationMonths = promoPlan === 'basic' && !promoIsPermanent
           ? Math.min(12, Math.max(1, Number(data.get('promo_duration_months') || 1)))
           : 0;
+        const promoImageLimit = promoPlan === 'basic' && Number(data.get('promo_image_limit')) === 300 ? 300 : 150;
         const promoThemeId = String(data.get('promo_theme_id') || 'promo.black-gold');
         const payload = {
           name: String(data.get('name') || ''), slug: String(data.get('slug') || ''),
@@ -592,6 +616,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           ...(storeType === 'promo' ? {
             promo_plan: promoPlan as 'free' | 'basic',
             promo_duration_months: promoDurationMonths,
+            promo_is_permanent: promoIsPermanent,
+            promo_image_limit: promoImageLimit,
             promo_theme_id: promoThemeId,
           } : {}),
         };

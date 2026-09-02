@@ -55,6 +55,8 @@ export type MasterStoreInput = {
   store_type?: 'commerce' | 'promo';
   promo_plan?: 'free' | 'basic';
   promo_duration_months?: number;
+  promo_is_permanent?: boolean;
+  promo_image_limit?: 150 | 300;
   promo_theme_id?: string;
 };
 
@@ -371,9 +373,11 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   const basePayload = getMasterStorePayload(input);
   const storeType = input.store_type === 'promo' ? 'promo' : 'commerce';
   const promoPlan = input.promo_plan === 'basic' ? 'basic' : 'free';
-  const promoDurationMonths = promoPlan === 'basic'
+  const promoIsPermanent = promoPlan === 'basic' && input.promo_is_permanent === true;
+  const promoDurationMonths = promoPlan === 'basic' && !promoIsPermanent
     ? Math.min(12, Math.max(1, Math.floor(Number(input.promo_duration_months || 1))))
     : 0;
+  const promoImageLimit = promoPlan === 'basic' && Number(input.promo_image_limit) === 300 ? 300 : 150;
   const promoThemeId = String(input.promo_theme_id || 'promo.black-gold').trim();
   const payload = {
     ...basePayload,
@@ -381,6 +385,8 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
     ...(storeType === 'promo' ? {
       promo_plan: promoPlan,
       promo_duration_months: promoDurationMonths,
+      promo_is_permanent: promoIsPermanent,
+      promo_image_limit: promoImageLimit,
       promo_theme_id: promoThemeId,
     } : {}),
   };

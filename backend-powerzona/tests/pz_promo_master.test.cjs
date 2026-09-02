@@ -190,6 +190,10 @@ test('foundation Promo crea tenant operativo y publicado en español con Black G
       name: 'Demo Promo 300', slug: 'demo-promo-300', status: 'active',
     }), 'demo-promo-300', 'basic');
     assert.equal(premiumQuota.entitlement.max_gallery_assets, 300);
+    const basicQuota150 = master.createPromoFoundation(fixture.app, actor, mutableRecord('storeccccccccccc', {
+      name: 'Demo Promo 150', slug: 'demo-promo-150', status: 'active',
+    }), 'demo-promo-150', 'basic', 'promo.black-gold', 150);
+    assert.equal(basicQuota150.entitlement.max_gallery_assets, 150);
     assert.deepEqual(
       pubcfg.validatePromoDocument(result.draft.document_json, { publicRevision: true }),
       result.draft.document_json,

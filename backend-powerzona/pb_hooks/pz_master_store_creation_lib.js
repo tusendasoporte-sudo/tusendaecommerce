@@ -159,7 +159,16 @@ function parseCreateStorePayload(body) {
   const themedPromoPlanPayload = exactPayload(body, [
     "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months", "promo_theme_id",
   ]);
-  const promoPlanPayload = legacyPromoPlanPayload || themedPromoPlanPayload;
+  const configurablePromoPlanPayload = exactPayload(body, [
+    "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months",
+    "promo_is_permanent", "promo_image_limit",
+  ]);
+  const configurableThemedPromoPlanPayload = exactPayload(body, [
+    "name", "slug", "status", "owner_phone", "store_type", "promo_plan", "promo_duration_months",
+    "promo_is_permanent", "promo_image_limit", "promo_theme_id",
+  ]);
+  const configurablePromoPayload = configurablePromoPlanPayload || configurableThemedPromoPlanPayload;
+  const promoPlanPayload = legacyPromoPlanPayload || themedPromoPlanPayload || configurablePromoPayload;
   if (!legacyPayload && !typedPayload && !promoPlanPayload) return null;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const rawSlug = typeof body.slug === "string" ? body.slug.trim() : "";
@@ -173,7 +182,11 @@ function parseCreateStorePayload(body) {
     ? body.promo_plan.trim().toLowerCase()
     : "free";
   const promoDurationMonths = promoPlanPayload ? Number(body.promo_duration_months) : 0;
-  const promoThemeId = themedPromoPlanPayload && typeof body.promo_theme_id === "string"
+  const promoIsPermanent = configurablePromoPayload ? body.promo_is_permanent : false;
+  const promoImageLimit = configurablePromoPayload
+    ? Number(body.promo_image_limit)
+    : (promoPlan === "basic" ? 300 : 150);
+  const promoThemeId = (themedPromoPlanPayload || configurableThemedPromoPlanPayload) && typeof body.promo_theme_id === "string"
     ? body.promo_theme_id.trim()
     : "promo.black-gold";
   if (!name || name.length > STORE_NAME_MAX_LENGTH) return null;
@@ -181,16 +194,21 @@ function parseCreateStorePayload(body) {
   if (!STORE_STATUSES.includes(status)) return null;
   if (!STORE_TYPES.includes(storeType)) return null;
   if (promoPlanPayload && (storeType !== "promo" || !PROMO_PLAN_CODES.includes(promoPlan))) return null;
+  if (typeof promoIsPermanent !== "boolean") return null;
   if (storeType === "promo" && (
-    (promoPlan === "free" && promoDurationMonths !== 0)
-    || (promoPlan === "basic" && (!Number.isInteger(promoDurationMonths) || promoDurationMonths < 1 || promoDurationMonths > 12))
+    (promoPlan === "free" && (promoIsPermanent || promoDurationMonths !== 0 || promoImageLimit !== 150))
+    || (promoPlan === "basic" && (
+      (promoIsPermanent && promoDurationMonths !== 0)
+      || (!promoIsPermanent && (!Number.isInteger(promoDurationMonths) || promoDurationMonths < 1 || promoDurationMonths > 12))
+      || ![150, 300].includes(promoImageLimit)
+    ))
   )) return null;
   if (storeType === "promo" && !PROMO_THEME_IDS.includes(promoThemeId)) return null;
   if (ownerPhone.length > OWNER_PHONE_MAX_LENGTH) return null;
   return {
     name, slug, status, ownerPhone,
     ...((typedPayload || promoPlanPayload) ? { storeType } : {}),
-    ...(storeType === "promo" ? { promoPlan, promoDurationMonths, promoThemeId } : {}),
+    ...(storeType === "promo" ? { promoPlan, promoDurationMonths, promoIsPermanent, promoImageLimit, promoThemeId } : {}),
   };
 }
 
@@ -318,12 +336,14 @@ function createStoreForMaster(app, actorId, payload) {
   const promoPlan = typeof __hooks === "undefined"
     ? require("./pz_promo_plan_lib.js")
     : require(`${__hooks}/pz_promo_plan_lib.js`);
-  promoPlan.assignInitialPromoPlan(app, store, actor, payload.promoPlan, payload.promoDurationMonths);
+  promoPlan.assignInitialPromoPlan(
+    app, store, actor, payload.promoPlan, payload.promoDurationMonths, payload.promoIsPermanent,
+  );
   const promoMaster = typeof __hooks === "undefined"
     ? require("./pz_promo_master_lib.js")
     : require(`${__hooks}/pz_promo_master_lib.js`);
   const foundation = promoMaster.createPromoFoundation(
-    app, actor, store, payload.slug, payload.promoPlan, payload.promoThemeId,
+    app, actor, store, payload.slug, payload.promoPlan, payload.promoThemeId, payload.promoImageLimit,
   );
   return { store, currencies: [], settings: null, foundation, storeType: "promo" };
 }

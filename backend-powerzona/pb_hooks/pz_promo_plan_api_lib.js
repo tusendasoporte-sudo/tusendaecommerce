@@ -98,6 +98,8 @@ function mapAudit(record) {
     new_plan: safeText(newPlan, 20),
     previous_expires_at: safeDate(recordValue(record, "previous_expires_at")),
     new_expires_at: safeDate(recordValue(record, "new_expires_at")),
+    previous_is_permanent: recordBool(record, "previous_is_permanent"),
+    new_is_permanent: recordBool(record, "new_is_permanent"),
     duration_months: Math.max(0, Math.floor(Number(recordValue(record, "duration_months") || 0))),
     reason: safeText(recordString(record, "reason"), 500),
     created: safeDate(recordValue(record, "created")),
@@ -113,7 +115,14 @@ function history(app, storeId) {
 }
 
 function buildResponse(app, store, now) {
-  const state = promoPlans.resolvePromoPlanState(store, now === undefined ? new Date() : now);
+  const resolvedState = promoPlans.resolvePromoPlanState(store, now === undefined ? new Date() : now);
+  const site = promoPlans.findPromoSiteByStore(app, store);
+  const entitlement = site ? promo.findPromoEntitlement(app, recordId(site)) : null;
+  let imageLimit = resolvedState.max_gallery_assets;
+  try {
+    imageLimit = promoPlans.imageLimitForPlan(resolvedState.plan, recordValue(entitlement, "max_gallery_assets"));
+  } catch (_) {}
+  const state = { ...resolvedState, max_gallery_assets: imageLimit };
   const planHistory = history(app, recordId(store));
   return {
     ok: true,
@@ -140,17 +149,32 @@ function parseDetailPayload(body) {
 }
 
 function parseChangePayload(body) {
-  if (!exactPayload(body, ["store_id", "plan", "duration_months", "reason"])) return null;
+  const legacyPayload = exactPayload(body, ["store_id", "plan", "duration_months", "reason"]);
+  const configurablePayload = exactPayload(body, [
+    "store_id", "plan", "duration_months", "is_permanent", "max_gallery_assets", "reason",
+  ]);
+  if (!legacyPayload && !configurablePayload) return null;
   const storeId = bodyValue(body, "store_id");
   const plan = bodyValue(body, "plan");
   const durationMonths = bodyValue(body, "duration_months");
-  const reason = bodyValue(body, "reason");
+  const isPermanent = configurablePayload ? bodyValue(body, "is_permanent") : false;
   if (typeof storeId !== "string" || !RECORD_ID_PATTERN.test(storeId)) return null;
   if (typeof plan !== "string" || !promoPlans.isPromoPlanCode(plan)) return null;
+  const maxGalleryAssets = configurablePayload
+    ? bodyValue(body, "max_gallery_assets")
+    : promoPlans.imageLimitForPlan(plan);
+  const reason = bodyValue(body, "reason");
   if (!Number.isInteger(durationMonths) || durationMonths < 0 || durationMonths > 12) return null;
+  if (typeof isPermanent !== "boolean") return null;
+  if (!Number.isInteger(maxGalleryAssets)) return null;
   if (typeof reason !== "string" || reason.length > 500) return null;
-  if ((plan === "free" && durationMonths !== 0) || (plan === "basic" && durationMonths < 1)) return null;
-  return { storeId, plan, durationMonths, reason: reason.trim() };
+  if (plan === "free" && (isPermanent || durationMonths !== 0 || maxGalleryAssets !== 150)) return null;
+  if (plan === "basic" && (
+    (isPermanent && durationMonths !== 0)
+    || (!isPermanent && durationMonths < 1)
+    || !promoPlans.PROMO_PLAN_IMAGE_QUOTA_OPTIONS.basic.includes(maxGalleryAssets)
+  )) return null;
+  return { storeId, plan, durationMonths, isPermanent, maxGalleryAssets, reason: reason.trim() };
 }
 
 function parseRenewPayload(body) {
@@ -208,6 +232,7 @@ function errorCode(error) {
   return [
     "unauthorized", "session_revoked", "user_inactive", "store_not_promo",
     "invalid_promo_plan_code", "invalid_promo_plan_permanence",
+    "invalid_promo_image_limit",
     "invalid_plan_duration_months", "promo_free_trial_already_used",
     "free_plan_not_renewable", "permanent_plan_not_renewable",
   ].includes(code) ? code : "";
@@ -244,15 +269,18 @@ function handleChange(e) {
     e.app.runInTransaction((app) => {
       const context = loadContext(app, e.auth, parsed.storeId);
       const selection = promoPlans.assertPromoPlanSelection(context.store, {
-        plan: parsed.plan, is_permanent: false, duration_months: parsed.durationMonths,
+        plan: parsed.plan,
+        is_permanent: parsed.isPermanent,
+        duration_months: parsed.durationMonths,
+        max_gallery_assets: parsed.maxGalleryAssets,
       });
       const previous = planSnapshot(context.store);
       const values = plans.buildPlanChangeValues(context.store, selection, new Date(), recordId(context.actor));
       applyValues(context.store, values);
       app.save(context.store);
-      promoPlans.syncPromoEntitlement(app, context.store, recordId(context.actor));
+      promoPlans.syncPromoEntitlement(app, context.store, recordId(context.actor), selection.max_gallery_assets);
       const next = planSnapshot(context.store);
-      createAudit(app, context.store, context.actor, "plan_changed", previous, next, parsed.durationMonths, parsed.reason);
+      createAudit(app, context.store, context.actor, "plan_changed", previous, next, selection.duration_months, parsed.reason);
       response = buildResponse(app, context.store);
     });
     return e.json(200, response);
