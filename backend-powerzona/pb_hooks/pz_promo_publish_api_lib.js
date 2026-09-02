@@ -524,7 +524,11 @@ function assertStateForOperation(decision, slot, operation) {
   const revisionId = relationId(slot, "published_revision");
   const bindingId = relationId(slot, "primary_binding");
   const mode = recordString(slot, "canonical_mode");
-  if (["active", "paused"].includes(slotState) && !revisionId) {
+  // Fresh Promo foundations are served from their validated live document and do
+  // not have a revision until the first explicit content publication. Changing
+  // only their canonical hostname must remain possible without weakening the
+  // revision requirement for content/lifecycle transitions.
+  if (["active", "paused"].includes(slotState) && !revisionId && operation !== "binding_switch") {
     throw codedError("promo_publication_state_conflict", 409);
   }
   if (slotState === "unpublished" && (revisionId || bindingId || mode !== "platform")) {
@@ -815,12 +819,25 @@ function transitionTarget(app, decision, slot, input) {
     });
   }
   if (input.operation === "binding_switch") {
-    const validated = validateRevisionTarget(app, decision, currentRevisionId, "rollback");
+    let currentDigest = "";
+    if (currentRevisionId) {
+      currentDigest = validateRevisionTarget(app, decision, currentRevisionId, "rollback").digest;
+    } else {
+      try {
+        pubcfgApi.resolvePublicProjectionForSite(app, decision.site, {
+          canonicalMode: currentCanonical.mode,
+          primaryBindingId: currentCanonical.primaryBindingId,
+          expectedGeneration: recordInteger(slot, "generation"),
+        });
+      } catch (_) {
+        throw codedError("promo_publication_validation_failed", 409);
+      }
+    }
     const canonical = validateCanonical(app, decision, input.canonical);
     if (canonical.mode === currentCanonical.mode && canonical.primaryBindingId === currentCanonical.primaryBindingId) {
       throw codedError("promo_publication_noop", 409);
     }
-    return Object.freeze({ state: "active", revisionId: currentRevisionId, revisionDigest: validated.digest, canonical });
+    return Object.freeze({ state: "active", revisionId: currentRevisionId, revisionDigest: currentDigest, canonical });
   }
   const validated = validateRevisionTarget(
     app,

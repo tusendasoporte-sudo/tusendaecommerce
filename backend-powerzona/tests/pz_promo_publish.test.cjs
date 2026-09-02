@@ -168,7 +168,7 @@ test('preview localizado es privado, no mezcla locales y reemplaza delivery púb
   assert.equal(JSON.stringify(preview).includes('/api/pz/promo/public/'), false);
 });
 
-test('máquina de estados permite primera/posterior, rollback, pausa, resume y unpublish exactos', () => {
+test('máquina de estados permite primera/posterior, rollback, pausa, resume, binding y unpublish exactos', () => {
   const decision = (siteStatus) => ({ site: record('siteaaaaaaaaaaa', { status: siteStatus }) });
   const slot = (state, extra = {}) => record('slotaaaaaaaaaaa', {
     state, canonical_mode: 'platform', published_revision: state === 'unpublished' ? '' : 'revisionaaaaaaa',
@@ -180,6 +180,15 @@ test('máquina de estados permite primera/posterior, rollback, pausa, resume y u
   assert.doesNotThrow(() => publishApi.assertStateForOperation(decision('active'), slot('active'), 'unpublish'));
   assert.doesNotThrow(() => publishApi.assertStateForOperation(decision('active'), slot('active'), 'pause'));
   assert.doesNotThrow(() => publishApi.assertStateForOperation(decision('paused'), slot('paused'), 'resume'));
+  assert.doesNotThrow(() => publishApi.assertStateForOperation(decision('active'), slot('active', {
+    published_revision: '',
+  }), 'binding_switch'));
+  assert.throws(
+    () => publishApi.assertStateForOperation(decision('active'), slot('active', {
+      published_revision: '',
+    }), 'pause'),
+    /promo_publication_state_conflict/,
+  );
   assert.throws(
     () => publishApi.assertStateForOperation(decision('draft'), slot('active'), 'publish'),
     /promo_publication_state_conflict/,
@@ -201,6 +210,14 @@ test('hook registra solo POST privados autenticados y no crea serving alternativ
   for (const route of [
     'candidates/create', 'preview', 'preview/context', 'publish', 'canonical/switch', 'rollback', 'unpublish', 'pause', 'resume',
   ]) assert.match(source, new RegExp(route.replace('/', '\\/')));
+});
+
+test('cambio canónico valida el documento live cuando el foundation aún no tiene revisión', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'pb_hooks', 'pz_promo_publish_api_lib.js'), 'utf8');
+  assert.match(source, /operation !== "binding_switch"/);
+  assert.match(source, /resolvePublicProjectionForSite\(app, decision\.site/);
+  assert.match(source, /expectedGeneration: recordInteger\(slot, "generation"\)/);
+  assert.match(source, /promo_publication_validation_failed/);
 });
 
 test('migración focal permite generation cero sin debilitar el guard server-side ni el down seguro', () => {
