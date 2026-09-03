@@ -6,6 +6,7 @@ type HomepageStoreOption = {
   id: string;
   name: string;
   slug: string;
+  logoUrl: string;
   featured: boolean;
 };
 
@@ -16,6 +17,17 @@ interface Props {
 }
 
 const { settings, stores, loadError = false } = Astro.props;
+const STORE_PAGE_SIZE = 10;
+const selectedStoreCount = stores.filter((store) => store.featured).length;
+
+function storeInitials(name: string) {
+  return String(name || 'TS')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'TS';
+}
 ---
 
 <section class="master-page master-homepage-page" data-master-homepage-settings>
@@ -58,15 +70,42 @@ const { settings, stores, loadError = false } = Astro.props;
 
       <div class="master-card-body">
         {stores.length > 0 ? (
-          <div class="master-homepage-store-grid" data-homepage-store-list>
-            {stores.map((store) => (
-              <label class="master-homepage-store-option">
-                <input type="checkbox" value={store.id} data-homepage-featured-store checked={store.featured} disabled={loadError} />
-                <span class="master-homepage-store-option__mark" aria-hidden="true">✓</span>
-                <span><strong>{store.name || 'Tienda'}</strong><small>/{store.slug || 'sin-slug'}</small></span>
-              </label>
-            ))}
-          </div>
+          <details class="master-homepage-store-picker" data-homepage-store-picker>
+            <summary>
+              <span class="master-homepage-store-picker__summary-copy">
+                <strong>Elegir negocios destacados</strong>
+                <small data-homepage-store-selected-label aria-live="polite">{selectedStoreCount} {selectedStoreCount === 1 ? 'tienda seleccionada' : 'tiendas seleccionadas'}</small>
+              </span>
+              <span class="master-homepage-store-picker__chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="master-homepage-store-picker__panel">
+              <div class="master-homepage-store-toolbar">
+                <label class="master-field">
+                  <span>Buscar tienda</span>
+                  <input type="search" placeholder="Nombre o dirección de la tienda" autocomplete="off" data-homepage-store-search disabled={loadError} />
+                </label>
+                <span class="master-homepage-store-results" data-homepage-store-results aria-live="polite">{stores.length} negocios disponibles</span>
+              </div>
+              <div class="master-homepage-store-list" data-homepage-store-list data-page-size={STORE_PAGE_SIZE}>
+                {stores.map((store, index) => (
+                  <label class="master-homepage-store-option" data-homepage-store-option data-store-search={`${store.name} ${store.slug}`.toLocaleLowerCase('es')} hidden={index >= STORE_PAGE_SIZE}>
+                    <input type="checkbox" value={store.id} data-homepage-featured-store checked={store.featured} disabled={loadError} />
+                    <span class="master-homepage-store-option__mark" aria-hidden="true">✓</span>
+                    <span class="master-homepage-store-option__logo" aria-hidden="true">
+                      {store.logoUrl ? <img src={store.logoUrl} alt="" width="52" height="52" loading="lazy" /> : <span>{storeInitials(store.name)}</span>}
+                    </span>
+                    <span class="master-homepage-store-option__copy"><strong>{store.name || 'Tienda'}</strong><small>/{store.slug || 'sin-slug'}</small></span>
+                  </label>
+                ))}
+              </div>
+              <p class="master-homepage-store-empty" data-homepage-store-empty hidden>No hay tiendas que coincidan con la búsqueda.</p>
+              <nav class="master-homepage-store-pagination" aria-label="Paginación de tiendas" data-homepage-store-pagination>
+                <button type="button" data-homepage-store-page-prev disabled>← Anterior</button>
+                <span data-homepage-store-page-status aria-live="polite">Página 1 de {Math.max(1, Math.ceil(stores.length / STORE_PAGE_SIZE))}</span>
+                <button type="button" data-homepage-store-page-next disabled={stores.length <= STORE_PAGE_SIZE}>Siguiente →</button>
+              </nav>
+            </div>
+          </details>
         ) : <p class="master-homepage-empty">No hay tiendas Ecommerce activas disponibles para destacar.</p>}
       </div>
     </section>
@@ -145,6 +184,51 @@ const { settings, stores, loadError = false } = Astro.props;
       alert.hidden = !message;
       alert.classList.toggle('is-success', success);
     };
+
+    const storeList = form.querySelector<HTMLElement>('[data-homepage-store-list]');
+    const storeSearch = form.querySelector<HTMLInputElement>('[data-homepage-store-search]');
+    const storeOptions = storeList
+      ? Array.from(storeList.querySelectorAll<HTMLElement>('[data-homepage-store-option]'))
+      : [];
+    const storeSelectedLabel = form.querySelector<HTMLElement>('[data-homepage-store-selected-label]');
+    const storeResults = form.querySelector<HTMLElement>('[data-homepage-store-results]');
+    const storeEmpty = form.querySelector<HTMLElement>('[data-homepage-store-empty]');
+    const storePageStatus = form.querySelector<HTMLElement>('[data-homepage-store-page-status]');
+    const storePagePrevious = form.querySelector<HTMLButtonElement>('[data-homepage-store-page-prev]');
+    const storePageNext = form.querySelector<HTMLButtonElement>('[data-homepage-store-page-next]');
+    const storePageSize = Math.max(1, Number(storeList?.dataset.pageSize || 10));
+    let storePage = 1;
+
+    const normalizedSearch = (value: string) => value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('es')
+      .trim();
+
+    const refreshStorePicker = () => {
+      if (!storeList) return;
+      const query = normalizedSearch(storeSearch?.value || '');
+      const filtered = storeOptions.filter((option) => normalizedSearch(option.dataset.storeSearch || '').includes(query));
+      const totalPages = Math.max(1, Math.ceil(filtered.length / storePageSize));
+      storePage = Math.min(Math.max(storePage, 1), totalPages);
+      const pageStart = (storePage - 1) * storePageSize;
+      const visibleOptions = new Set(filtered.slice(pageStart, pageStart + storePageSize));
+      storeOptions.forEach((option) => { option.hidden = !visibleOptions.has(option); });
+
+      const selectedCount = form.querySelectorAll('[data-homepage-featured-store]:checked').length;
+      if (storeSelectedLabel) storeSelectedLabel.textContent = `${selectedCount} ${selectedCount === 1 ? 'tienda seleccionada' : 'tiendas seleccionadas'}`;
+      if (storeResults) storeResults.textContent = `${filtered.length} ${filtered.length === 1 ? 'negocio disponible' : 'negocios disponibles'}`;
+      if (storeEmpty) storeEmpty.hidden = filtered.length > 0;
+      if (storePageStatus) storePageStatus.textContent = `Página ${storePage} de ${totalPages}`;
+      if (storePagePrevious) storePagePrevious.disabled = storePage <= 1;
+      if (storePageNext) storePageNext.disabled = storePage >= totalPages;
+    };
+
+    storeSearch?.addEventListener('input', () => { storePage = 1; refreshStorePicker(); });
+    storeList?.addEventListener('change', refreshStorePicker);
+    storePagePrevious?.addEventListener('click', () => { storePage -= 1; refreshStorePicker(); });
+    storePageNext?.addEventListener('click', () => { storePage += 1; refreshStorePicker(); });
+    refreshStorePicker();
 
     const refreshQuestionLabels = () => {
       faqList.querySelectorAll<HTMLElement>('[data-homepage-faq-item]').forEach((item, index) => {
@@ -271,16 +355,41 @@ const { settings, stores, loadError = false } = Astro.props;
   .master-homepage-switch input:checked + span::after { transform: translateX(20px); }
   .master-homepage-switch input:focus-visible + span { outline: 3px solid rgba(21,94,235,.25); outline-offset: 2px; }
   .master-homepage-switch strong { grid-column: 2; grid-row: 1; font-size: .84rem; white-space: nowrap; }
-  .master-homepage-store-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
-  .master-homepage-store-option { position: relative; display: flex; align-items: center; gap: .75rem; border: 1px solid #dce3ef; border-radius: 14px; background: #fbfcff; padding: .9rem; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
-  .master-homepage-store-option:has(input:checked) { border-color: #8eb8ff; background: #f1f6ff; box-shadow: 0 8px 20px rgba(21,94,235,.08); }
+  .master-homepage-store-picker { overflow: clip; border: 1px solid #dce3ef; border-radius: 16px; background: #fff; }
+  .master-homepage-store-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 68px; padding: .85rem 1rem; color: #142646; cursor: pointer; list-style: none; transition: background-color 160ms ease; }
+  .master-homepage-store-picker > summary::-webkit-details-marker { display: none; }
+  .master-homepage-store-picker > summary:hover { background: #f7f9fd; }
+  .master-homepage-store-picker > summary:focus-visible { outline: 3px solid rgba(21,94,235,.22); outline-offset: -3px; }
+  .master-homepage-store-picker__summary-copy { min-width: 0; display: grid; gap: .2rem; }
+  .master-homepage-store-picker__summary-copy strong { font-size: .94rem; }
+  .master-homepage-store-picker__summary-copy small { color: #68748a; font-size: .8rem; }
+  .master-homepage-store-picker__chevron { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #d5deeb; border-radius: 10px; color: #155eeb; font-size: 1.25rem; font-weight: 900; transition: transform 180ms ease, background-color 180ms ease; }
+  .master-homepage-store-picker[open] .master-homepage-store-picker__chevron { transform: rotate(180deg); background: #edf4ff; }
+  .master-homepage-store-picker__panel { display: grid; gap: .85rem; border-top: 1px solid #e1e7f0; background: #f8faff; padding: 1rem; }
+  .master-homepage-store-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+  .master-homepage-store-toolbar .master-field { flex: 1 1 420px; max-width: 560px; }
+  .master-homepage-store-results { flex: 0 0 auto; color: #68748a; font-size: .78rem; font-weight: 750; padding-bottom: .75rem; }
+  .master-homepage-store-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+  .master-homepage-store-option { position: relative; min-width: 0; display: grid; grid-template-columns: 26px 44px minmax(0, 1fr); align-items: center; gap: .7rem; border: 1px solid #dce3ef; border-radius: 13px; background: #fff; padding: .7rem .8rem; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+  .master-homepage-store-option[hidden] { display: none; }
+  .master-homepage-store-option:hover { border-color: #a9c4ef; transform: translateY(-1px); }
+  .master-homepage-store-option:has(input:checked) { border-color: #78a9fa; background: #eef5ff; box-shadow: 0 7px 18px rgba(21,94,235,.08); }
   .master-homepage-store-option input { position: absolute; opacity: 0; }
-  .master-homepage-store-option__mark { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: transparent; font-weight: 900; }
+  .master-homepage-store-option__mark { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: transparent; font-weight: 900; }
   .master-homepage-store-option input:checked + .master-homepage-store-option__mark { border-color: #155eeb; background: #155eeb; color: #fff; }
   .master-homepage-store-option input:focus-visible + .master-homepage-store-option__mark { outline: 3px solid rgba(21,94,235,.25); outline-offset: 2px; }
-  .master-homepage-store-option > span:last-child { min-width: 0; display: grid; gap: .15rem; }
-  .master-homepage-store-option strong { overflow: hidden; color: #142646; text-overflow: ellipsis; white-space: nowrap; }
-  .master-homepage-store-option small { overflow: hidden; color: #748198; text-overflow: ellipsis; white-space: nowrap; }
+  .master-homepage-store-option__logo { width: 44px; height: 44px; display: grid; place-items: center; overflow: hidden; border: 1px solid #dbe4f1; border-radius: 12px; background: #fff; color: #164a9f; font-size: .72rem; font-weight: 900; }
+  .master-homepage-store-option__logo img { width: 100%; height: 100%; display: block; object-fit: contain; padding: 3px; }
+  .master-homepage-store-option__copy { min-width: 0; display: grid; gap: .12rem; }
+  .master-homepage-store-option__copy strong { overflow: hidden; color: #142646; text-overflow: ellipsis; white-space: nowrap; }
+  .master-homepage-store-option__copy small { overflow: hidden; color: #748198; text-overflow: ellipsis; white-space: nowrap; }
+  .master-homepage-store-empty { margin: 0; border: 1px dashed #cbd5e1; border-radius: 12px; background: #fff; color: #64748b; padding: 1rem; text-align: center; }
+  .master-homepage-store-pagination { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; align-items: center; gap: .75rem; }
+  .master-homepage-store-pagination span { color: #52627c; font-size: .8rem; font-weight: 800; text-align: center; }
+  .master-homepage-store-pagination button { min-height: 38px; border: 1px solid #cbd8eb; border-radius: 10px; background: #fff; color: #19488f; padding: .5rem .8rem; font: inherit; font-size: .8rem; font-weight: 800; cursor: pointer; }
+  .master-homepage-store-pagination button:hover:not(:disabled) { border-color: #7caafa; background: #eff5ff; }
+  .master-homepage-store-pagination button:focus-visible { outline: 3px solid rgba(21,94,235,.22); outline-offset: 2px; }
+  .master-homepage-store-pagination button:disabled { opacity: .45; cursor: not-allowed; }
   .master-homepage-empty { margin: 0; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; padding: 1rem; }
   .master-homepage-faq-body { display: grid; gap: 1rem; }
   .master-homepage-copy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
@@ -296,6 +405,7 @@ const { settings, stores, loadError = false } = Astro.props;
   .master-homepage-actions { position: sticky; bottom: 1rem; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid #bfd3f7; border-radius: 15px; background: rgba(246,249,255,.96); padding: .85rem 1rem; box-shadow: 0 18px 42px rgba(15,49,107,.16); backdrop-filter: blur(12px); }
   .master-homepage-actions span { color: #5b6880; font-size: .84rem; }
   @media (max-width: 900px) {
+    .master-homepage-store-list { grid-template-columns: 1fr; }
     .master-homepage-faq-list { grid-template-columns: 1fr; }
   }
   @media (max-width: 700px) {
@@ -305,6 +415,11 @@ const { settings, stores, loadError = false } = Astro.props;
     .master-homepage-heading .master-btn,
     .master-homepage-actions .master-btn { width: 100%; }
     .master-homepage-switch { align-self: flex-start; }
+    .master-homepage-store-toolbar { align-items: stretch; flex-direction: column; }
+    .master-homepage-store-toolbar .master-field { max-width: none; flex-basis: auto; width: 100%; }
+    .master-homepage-store-results { padding-bottom: 0; }
+    .master-homepage-store-pagination { grid-template-columns: 1fr 1fr; }
+    .master-homepage-store-pagination span { grid-column: 1 / -1; grid-row: 1; }
     .master-homepage-copy-grid { grid-template-columns: 1fr; }
     .master-homepage-copy-grid__wide { grid-column: auto; }
   }

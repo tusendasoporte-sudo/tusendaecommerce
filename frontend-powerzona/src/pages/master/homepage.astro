@@ -28,7 +28,7 @@ const [homepageSettings, allStores, promoCatalog] = await Promise.all([
 ]);
 const homepageStores = allStores
   .filter((store) => store.status === 'active' && (!promoCatalog.available || !promoCatalog.map.has(store.id)))
-  .map((store) => ({ id: store.id, name: store.name, slug: store.slug, featured: store.featured === true }));
+  .map((store) => ({ id: store.id, name: store.name, slug: store.slug, logoUrl: store.logoUrl || '', featured: store.featured === true }));
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
 ---
 

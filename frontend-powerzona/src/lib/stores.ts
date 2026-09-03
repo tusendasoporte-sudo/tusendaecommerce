@@ -28,6 +28,7 @@ export type MasterStoreSummary = {
   id: string;
   name: string;
   slug: string;
+  logoUrl?: string;
   status: string;
   plan?: string;
   plan_started_at?: string;
@@ -273,32 +274,36 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
 
 export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSummary[]> {
   const stores = await client.collection('stores').getFullList({
-    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,plan_is_permanent,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    fields: 'id,name,slug,logo,status,plan,plan_started_at,plan_expires_at,plan_duration_months,plan_is_permanent,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,featured_order,status,name',
   });
 
-  return stores.map((store: any) => ({
-    id: store.id || '',
-    name: store.name || '',
-    slug: store.slug || '',
-    status: store.status || '',
-    plan: store.plan || '',
-    plan_started_at: store.plan_started_at || '',
-    plan_expires_at: store.plan_expires_at || '',
-    plan_duration_months: Number(store.plan_duration_months || 0),
-    plan_is_permanent: store.plan_is_permanent === true,
-    free_trial_used: store.free_trial_used === true,
-    plan_updated_at: store.plan_updated_at || '',
-    plan_updated_by: store.plan_updated_by || '',
-    featured: store.featured === true,
-    featured_order: Number(store.featured_order || 0),
-    protected: store.protected === true,
-    owner_phone: store.owner_phone || '',
-    views_count: Number(store.views_count || 0),
-    orders_count: Number(store.orders_count || 0),
-    created: store.created || '',
-    updated: store.updated || '',
-  }));
+  return stores.map((store: any) => {
+    const logo = normalizeStoreFileValue(store.logo)[0] || '';
+    return {
+      id: store.id || '',
+      name: store.name || '',
+      slug: store.slug || '',
+      logoUrl: logo ? getPocketBaseFileUrl('stores', store.id, logo, { thumb: '120x120' }) : '',
+      status: store.status || '',
+      plan: store.plan || '',
+      plan_started_at: store.plan_started_at || '',
+      plan_expires_at: store.plan_expires_at || '',
+      plan_duration_months: Number(store.plan_duration_months || 0),
+      plan_is_permanent: store.plan_is_permanent === true,
+      free_trial_used: store.free_trial_used === true,
+      plan_updated_at: store.plan_updated_at || '',
+      plan_updated_by: store.plan_updated_by || '',
+      featured: store.featured === true,
+      featured_order: Number(store.featured_order || 0),
+      protected: store.protected === true,
+      owner_phone: store.owner_phone || '',
+      views_count: Number(store.views_count || 0),
+      orders_count: Number(store.orders_count || 0),
+      created: store.created || '',
+      updated: store.updated || '',
+    };
+  });
 }
 
 function mapMasterStore(store: any): MasterStoreSummary {

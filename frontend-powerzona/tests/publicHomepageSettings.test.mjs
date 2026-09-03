@@ -36,6 +36,19 @@ test('Master ofrece visibilidad, selección de tiendas y edición completa de pr
   assert.match(sidebar, /href="\/master\/homepage"/);
 });
 
+test('el selector de tiendas es desplegable, muestra logos y pagina de diez en diez', () => {
+  assert.match(masterPage, /logoUrl: store\.logoUrl/);
+  assert.match(masterView, /STORE_PAGE_SIZE = 10/);
+  assert.match(masterView, /data-homepage-store-picker/);
+  assert.match(masterView, /data-homepage-store-search/);
+  assert.match(masterView, /data-homepage-store-option/);
+  assert.match(masterView, /store\.logoUrl \? <img src=\{store\.logoUrl\}/);
+  assert.match(masterView, /data-homepage-store-page-prev/);
+  assert.match(masterView, /data-homepage-store-page-next/);
+  assert.match(masterView, /filtered\.slice\(pageStart, pageStart \+ storePageSize\)/);
+  assert.match(masterView, /data-homepage-featured-store]:checked/);
+});
+
 test('el guardado valida origen, rol Master, claves exactas y tiendas activas', () => {
   assert.match(masterApi, /sameOrigin\(request\)/);
   assert.match(masterApi, /requireMasterAdmin/);
