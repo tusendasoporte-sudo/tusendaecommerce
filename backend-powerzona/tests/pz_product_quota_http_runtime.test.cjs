@@ -201,21 +201,36 @@ test('Prompt 3 HTTP runtime: API, concurrencia, downgrade, variantes, borrado y 
   const aboveFree = await create('products', productInput(store.id, `${suffix}-above-free`, true));
   products.push(aboveFree);
 
-  const downgrade = await request('/api/pz/master/store-plan/change', {
+  const repeatedFree = await request('/api/pz/master/store-plan/change', {
     token: masterToken,
     body: {
       store_id: store.id,
       plan: 'free',
       is_permanent: false,
       duration_months: 0,
+      reason: 'Verifica que la prueba Gratis no se reutilice',
+      confirm_expiration_cleanup: false,
+    },
+  });
+  assert.equal(repeatedFree.status, 409, JSON.stringify(repeatedFree.data));
+  assert.equal(repeatedFree.data?.error, 'free_trial_already_used');
+
+  const downgrade = await request('/api/pz/master/store-plan/change', {
+    token: masterToken,
+    body: {
+      store_id: store.id,
+      plan: 'basic',
+      is_permanent: true,
+      duration_months: 0,
       reason: 'Prueba de reducción con catálogo conservado',
-      confirm_expiration_cleanup: true,
+      confirm_expiration_cleanup: false,
     },
   });
   assert.equal(downgrade.status, 200, JSON.stringify(downgrade.data));
-  assert.equal(downgrade.data.product_quota.state, 'over_limit');
+  assert.equal(downgrade.data.downgrade_data_preserved, true);
+  assert.equal(downgrade.data.product_quota.state, 'available');
   assert.equal(downgrade.data.product_quota.used, 101);
-  assert.equal(downgrade.data.product_quota.limit, 100);
+  assert.equal(downgrade.data.product_quota.limit, 700);
 
   const editAfterDowngrade = await request(`/api/collections/products/records/${products[2].id}`, {
     token: superToken,
@@ -223,11 +238,8 @@ test('Prompt 3 HTTP runtime: API, concurrencia, downgrade, variantes, borrado y 
     body: { stock: 7 },
   });
   assert.equal(editAfterDowngrade.status, 200, JSON.stringify(editAfterDowngrade.data));
-  const createAfterDowngrade = await request('/api/collections/products/records', {
-    token: superToken,
-    body: productInput(store.id, `${suffix}-blocked-after-downgrade`),
-  });
-  assert.equal(createAfterDowngrade.status, 409, JSON.stringify(createAfterDowngrade.data));
+  const createAfterDowngrade = await create('products', productInput(store.id, `${suffix}-after-downgrade`, true));
+  products.push(createAfterDowngrade);
 
   assert.equal((await request(`/api/collections/products/records/${products[3].id}`, { token: superToken, method: 'DELETE' })).status, 204);
   assert.equal((await request(`/api/collections/products/records/${products[4].id}`, { token: superToken, method: 'DELETE' })).status, 204);

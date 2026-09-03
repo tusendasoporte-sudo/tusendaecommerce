@@ -11,18 +11,18 @@ function pocketBaseDateTime(value) {
   return { string() { return value; } };
 }
 
-test('acepta un cambio temporal válido de 1 a 12 meses', () => {
+test('acepta un cambio temporal con periodo comercial de 1, 6 o 12 meses', () => {
   assert.deepEqual(management.parseChangePayload({
     store_id: STORE_ID,
     plan: 'basic',
     is_permanent: false,
-    duration_months: 3,
+    duration_months: 6,
     reason: 'Renovación comercial',
   }), {
     storeId: STORE_ID,
     plan: 'basic',
     isPermanent: false,
-    durationMonths: 3,
+    durationMonths: 6,
     reason: 'Renovación comercial',
     confirmExpirationCleanup: false,
   });
@@ -45,7 +45,7 @@ test('acepta Premium permanente solo con duración cero', () => {
   });
 });
 
-test('acepta confirmación explícita de limpieza irreversible V7E9', () => {
+test('tolera el campo legado de confirmación sin volverlo requisito', () => {
   assert.deepEqual(management.parseChangePayload({
     store_id: STORE_ID,
     plan: 'basic',
@@ -81,13 +81,14 @@ test('rechaza Free permanente y campos inesperados', () => {
   }), null);
 });
 
-test('la renovación exige de 1 a 12 meses y motivo acotado', () => {
+test('la renovación exige 1, 6 o 12 meses y motivo acotado', () => {
   assert.deepEqual(management.parseRenewPayload({ store_id: STORE_ID, months: 12, reason: 'Extensión' }), {
     storeId: STORE_ID,
     months: 12,
     reason: 'Extensión',
   });
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 0, reason: '' }), null);
+  assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 2, reason: '' }), null);
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 13, reason: '' }), null);
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 1, reason: 'x'.repeat(501) }), null);
 });
@@ -140,6 +141,7 @@ test('las tres definiciones consumen precios CUP del catálogo central', () => {
     { code: 'premium', monthly_price_usd: 0, monthly_price_cup: 2500 },
   ]);
   assert.deepEqual(definitions[1].pricing.periods.map((period) => period.months), [1, 6, 12]);
+  assert.deepEqual(definitions.map((definition) => definition.grace_days), [0, 3, 3]);
   assert.equal(definitions[0].capabilities.max_products, 100);
   assert.equal(definitions[1].capabilities.max_products, 700);
   assert.equal(definitions[2].capabilities.max_products, 1600);
@@ -178,4 +180,13 @@ test('Plan y límites cuenta solo dispositivos administrativos autorizados', () 
   assert.match(usage, /COUNT\(DISTINCT device_digest\)/);
   assert.match(usage, /status = 'authorized'/);
   assert.equal(usage.includes('store_customer_devices'), false);
+});
+
+test('el downgrade conserva datos y no ejecuta la limpieza irreversible anterior', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_plan_management_lib.js'), 'utf8');
+  const handler = source.slice(source.indexOf('function handlePlanChange'), source.indexOf('function handlePlanRenew'));
+  assert.doesNotMatch(handler, /cleanupStoreExpirationData/);
+  assert.doesNotMatch(handler, /expiration_cleanup_confirmation_required/);
+  assert.match(handler, /downgrade_data_preserved/);
+  assert.match(handler, /archiveStorePlanNotifications/);
 });

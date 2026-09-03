@@ -383,7 +383,7 @@ test('M7U2-C2 HTTP runtime valida actividad privada y eliminacion segura end-to-
     assertStatus(masterAuth, 200, 'login Master');
     masterToken = masterAuth.data.token;
 
-    for (const [store, plan] of [[storeA, 'premium'], [storeB, 'premium'], [storeBasic, 'basic']]) {
+    for (const [store, plan] of [[storeA, 'premium'], [storeB, 'premium']]) {
       const changedPlan = await request('/api/pz/master/store-plan/change', {
         token: masterToken,
         body: {
@@ -1636,50 +1636,18 @@ test('M7U2-C2 HTTP runtime valida actividad privada y eliminacion segura end-to-
         plan: 'basic',
         is_permanent: true,
         duration_months: 0,
-        reason: `${prefix} audit expiration cleanup`,
+        reason: `${prefix} downgrade conservando datos`,
         confirm_expiration_cleanup: true,
       },
     });
-    assertStatus(downgradeB, 200, 'downgrade oficial limpia vencimientos con auditoria atomica');
-    assert.ok(downgradeB.data.expiration_cleanup_result, 'downgrade informa limpieza de vencimientos');
+    assertStatus(downgradeB, 200, 'downgrade oficial conserva datos con auditoria atomica');
+    assert.equal(downgradeB.data.downgrade_data_preserved, true, 'downgrade informa preservacion');
     const productBAfterDowngrade = await request(`/api/collections/products/records/${productB.id}`, { token: superToken });
     const variationBAfterDowngrade = await request(`/api/collections/product_variations/records/${variationB.id}`, { token: superToken });
     assertStatus(productBAfterDowngrade, 200, 'producto B persiste tras downgrade');
     assertStatus(variationBAfterDowngrade, 200, 'variacion B persiste tras downgrade');
-    assert.equal(String(productBAfterDowngrade.data.expiration_date || ''), '');
-    assert.equal(String(variationBAfterDowngrade.data.expiration_date || ''), '');
-
-    const productDowngradeEvents = await activity(primaryBToken, 'list', {
-      action: 'product_expiration_cleared_for_plan_downgrade',
-      resource_type: 'product',
-      resource_id: productB.id,
-      page: 1,
-      per_page: 50,
-    });
-    const variationDowngradeEvents = await activity(primaryBToken, 'list', {
-      action: 'product_variation_expiration_cleared_for_plan_downgrade',
-      resource_type: 'product_variation',
-      resource_id: variationB.id,
-      page: 1,
-      per_page: 50,
-    });
-    assertStatus(productDowngradeEvents, 200, 'limpieza downgrade producto queda auditada');
-    assertStatus(variationDowngradeEvents, 200, 'limpieza downgrade variacion queda auditada');
-    assert.equal(productDowngradeEvents.data.events.length, 1);
-    assert.equal(variationDowngradeEvents.data.events.length, 1);
-    assert.deepEqual(productDowngradeEvents.data.events[0].previous_values, { expiration_date: '2099-11-30' });
-    assert.deepEqual(variationDowngradeEvents.data.events[0].previous_values, { expiration_date: '2099-11-29' });
-    assert.deepEqual(productDowngradeEvents.data.events[0].new_values, { expiration_date: '' });
-    assert.deepEqual(variationDowngradeEvents.data.events[0].new_values, { expiration_date: '' });
-    const downgradeLastModified = await activity(primaryBToken, 'last-modified', {
-      resources: [
-        { type: 'product', id: productB.id },
-        { type: 'product_variation', id: variationB.id },
-      ],
-    });
-    assertStatus(downgradeLastModified, 200, 'last-modified refleja limpieza por downgrade');
-    assert.equal(downgradeLastModified.data.items[`product:${productB.id}`].actor_name, `${prefix} Master`);
-    assert.equal(downgradeLastModified.data.items[`product_variation:${variationB.id}`].actor_name, `${prefix} Master`);
+    assert.equal(String(productBAfterDowngrade.data.expiration_date || '').slice(0, 10), '2099-11-30');
+    assert.equal(String(variationBAfterDowngrade.data.expiration_date || '').slice(0, 10), '2099-11-29');
 
     const storeBActivity = await activity(primaryBToken, 'list', { page: 1, per_page: 50 });
     assertStatus(storeBActivity, 200, 'principal B obtiene solo su tienda');

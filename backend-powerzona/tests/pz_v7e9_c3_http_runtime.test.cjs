@@ -352,8 +352,11 @@ test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, t
     assertStatus(masterAuth, 200, 'login Master');
     masterToken = masterAuth.data.token;
     for (const [store, plan] of [
-      [storePremium, 'premium'], [storeOther, 'premium'], [storeBasic, 'basic'], [storeFree, 'free'],
+      [storePremium, 'premium'], [storeOther, 'premium'], [storeBasic, 'basic'],
     ]) assertStatus(await changePlan(store, plan), 200, `activar ${plan}`);
+    const initialFreeStore = await readRecord('stores', storeFree.id);
+    assert.equal(initialFreeStore.plan, 'free');
+    assert.equal(initialFreeStore.free_trial_used, true);
     for (const [key, store] of primarySpecs.map(([key, store]) => [key, store])) {
       const assigned = await request('/api/pz/master/primary-admin/assign', {
         token: masterToken,
@@ -1010,20 +1013,13 @@ test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, t
     const variationCountBefore = (await listRecords('product_variations', `product.store="${storePremium.id}"`)).length;
     assert.ok(cyclesBeforeDowngrade > 0 && alertsBeforeDowngrade > 0, 'fixtures de downgrade tienen ciclos y alertas');
 
-    const cancelledDowngrade = await changePlan(storePremium, 'basic', false);
-    assertStatus(cancelledDowngrade, 409, 'downgrade sin confirmacion se cancela');
+    const preservedDowngrade = await changePlan(storePremium, 'basic', false);
+    assertStatus(preservedDowngrade, 200, 'downgrade conserva datos sin confirmacion destructiva');
+    assert.equal(preservedDowngrade.data.downgrade_data_preserved, true, 'respuesta confirma preservacion');
     assert.equal(String((await readRecord('products', downgradeProduct.id)).expiration_date).slice(0, 10), firstDate);
     assert.equal(String((await readRecord('product_variations', downgradeVariation.id)).expiration_date).slice(0, 10), changedDate);
-    assert.equal((await storeCycles()).length, cyclesBeforeDowngrade, 'cancelar conserva ciclos');
-    assert.equal((await storeExpirationNotifications()).length, alertsBeforeDowngrade, 'cancelar conserva alertas');
-
-    const confirmedDowngrade = await changePlan(storePremium, 'basic', true);
-    assertStatus(confirmedDowngrade, 200, 'downgrade confirmado');
-    assert.ok(confirmedDowngrade.data.expiration_cleanup_result, 'respuesta informa limpieza');
-    assert.equal(String((await readRecord('products', downgradeProduct.id)).expiration_date || ''), '');
-    assert.equal(String((await readRecord('product_variations', downgradeVariation.id)).expiration_date || ''), '');
-    assert.equal((await storeCycles()).length, 0, 'downgrade limpia todos los ciclos');
-    assert.equal((await storeExpirationNotifications()).length, 0, 'downgrade limpia todas las alertas V7E9');
+    assert.equal((await storeCycles()).length, cyclesBeforeDowngrade, 'downgrade conserva ciclos');
+    assert.equal((await storeExpirationNotifications()).length, alertsBeforeDowngrade, 'downgrade conserva alertas V7E9');
     assert.equal((await listRecords('products', `store="${storePremium.id}"`)).length, productCountBefore, 'productos se conservan');
     assert.equal((await listRecords('product_variations', `product.store="${storePremium.id}"`)).length, variationCountBefore, 'variaciones se conservan');
     assert.equal((await storeNonExpirationNotifications()).length, nonExpirationBefore, 'otras notificaciones se conservan');
@@ -1034,12 +1030,10 @@ test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, t
 
     const upgraded = await changePlan(storePremium, 'premium', false);
     assertStatus(upgraded, 200, 'upgrade posterior a Premium');
-    for (const product of [expiredProduct, downgradeProduct]) {
-      assert.equal(String((await readRecord('products', product.id)).expiration_date || ''), '', 'upgrade no restaura fecha general');
-    }
-    assert.equal(String((await readRecord('product_variations', downgradeVariation.id)).expiration_date || ''), '', 'upgrade no restaura fecha individual');
-    assert.equal((await storeCycles()).length, 0, 'upgrade no restaura ciclos');
-    assert.equal((await storeExpirationNotifications()).length, 0, 'upgrade no restaura alertas');
+    assert.equal(String((await readRecord('products', downgradeProduct.id)).expiration_date).slice(0, 10), firstDate, 'upgrade recupera fecha general conservada');
+    assert.equal(String((await readRecord('product_variations', downgradeVariation.id)).expiration_date).slice(0, 10), changedDate, 'upgrade recupera fecha individual conservada');
+    assert.equal((await storeCycles()).length, cyclesBeforeDowngrade, 'upgrade recupera ciclos conservados');
+    assert.equal((await storeExpirationNotifications()).length, alertsBeforeDowngrade, 'upgrade recupera alertas conservadas');
   } catch (error) {
     failure = error;
   } finally {

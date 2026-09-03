@@ -47,6 +47,9 @@ const ADDITIVE_POST_DATA_MIGRATIONS = [
 ];
 const POST_DATA_NON_PROMO_MIGRATIONS = [
   '1787700000_storefront_private_inbox_coupon_wallet.js',
+  '1788440400_storefront_resilient_installations.js',
+  '1788447600_taxonomy_contract_indexes.js',
+  '1788447700_store_plan_lifecycle_notifications.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',

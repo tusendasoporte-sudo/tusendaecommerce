@@ -61,13 +61,20 @@ test('un día usa el texto crítico singular', () => {
   assert.equal(resolveStorePlanPresentation({ plan: 'basic', plan_expires_at: expiresIn(1) }, NOW).detail, 'Vence en 1 día');
 });
 
-test('fecha igual o pasada queda vencida y muestra la fecha civil de Cuba', () => {
+test('un plan pagado vencido entra en gracia y después queda vencido', () => {
   const equal = resolveStorePlanPresentation({ plan: 'basic', plan_expires_at: NOW.toISOString() }, NOW);
-  const past = resolveStorePlanPresentation({ plan: 'premium', plan_expires_at: expiresIn(-1) }, NOW);
-  assert.equal(equal.title, 'PLAN VENCIDO');
-  assert.equal(equal.detail, 'Venció el 15/07/2026');
+  const past = resolveStorePlanPresentation({ plan: 'premium', plan_expires_at: expiresIn(-3) }, NOW);
+  assert.equal(equal.title, 'PERIODO DE GRACIA');
+  assert.equal(equal.contextDetail, 'Renueva antes del 18/07/2026');
   assert.equal(past.state, 'expired');
   assert.equal(past.daysRemaining, 0);
+});
+
+test('Free vence sin gracia y conserva la llamada de plan vencido', () => {
+  const result = resolveStorePlanPresentation({ plan: 'free', plan_expires_at: expiresIn(-1) }, NOW);
+  assert.equal(result.title, 'PLAN VENCIDO');
+  assert.equal(result.detail, 'Venció el 14/07/2026');
+  assert.equal(result.state, 'expired');
 });
 
 test('un plan permanente ignora una fecha residual', () => {
@@ -131,17 +138,17 @@ test('15 de julio a 15 de agosto disminuye al cambiar la fecha civil de Cuba', (
   }
 });
 
-test('el día de vencimiento muestra Vence hoy hasta la hora exacta', () => {
+test('el día de vencimiento muestra Vence hoy hasta la hora exacta y luego gracia', () => {
   const values = { plan: 'premium', plan_expires_at: '2026-08-15T14:00:00.000Z' };
   const before = resolveStorePlanPresentation(values, '2026-08-15T13:59:59.000Z');
-  const expired = resolveStorePlanPresentation(values, '2026-08-15T14:00:00.000Z');
+  const grace = resolveStorePlanPresentation(values, '2026-08-15T14:00:00.000Z');
   assert.equal(before.daysRemaining, 0);
   assert.equal(before.state, 'critical');
   assert.equal(before.detail, 'Vence hoy');
   assert.equal(before.compactDetail, 'Vence hoy');
-  assert.equal(expired.daysRemaining, 0);
-  assert.equal(expired.state, 'expired');
-  assert.equal(expired.shortName, 'Vencido');
+  assert.equal(grace.daysRemaining, 0);
+  assert.equal(grace.state, 'grace');
+  assert.equal(grace.shortName, 'En gracia');
 });
 
 test('Cuba controla claves civiles, febrero, fin de mes y horario de verano', () => {

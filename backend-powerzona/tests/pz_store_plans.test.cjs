@@ -197,10 +197,26 @@ test('tres días devuelve critical', () => {
   assert.equal(state.state, 'critical');
 });
 
-test('una fecha pasada devuelve expired', () => {
+test('un plan pagado vencido entra en tres días de gracia antes de expirar', () => {
   const state = plans.resolvePlanState({ plan: 'basic', plan_expires_at: futureDate(-1) }, NOW);
   assert.equal(state.days_remaining, 0);
+  assert.equal(state.state, 'grace');
+  assert.equal(state.in_grace, true);
+  assert.equal(state.grace_days, 3);
+  assert.equal(state.isExpired, false);
+
+  const expired = plans.resolvePlanState({ plan: 'basic', plan_expires_at: futureDate(-3) }, NOW);
+  assert.equal(expired.state, 'expired');
+  assert.equal(expired.in_grace, false);
+  assert.equal(expired.isExpired, true);
+});
+
+test('la prueba gratuita vence sin periodo de gracia', () => {
+  const state = plans.resolvePlanState({ plan: 'free', plan_expires_at: futureDate(-1) }, NOW);
+  assert.equal(state.days_remaining, 0);
   assert.equal(state.state, 'expired');
+  assert.equal(state.grace_days, 0);
+  assert.equal(state.in_grace, false);
   assert.equal(state.isExpired, true);
 });
 
@@ -217,16 +233,16 @@ test('los días restantes usan fechas civiles de Cuba y no horas completas', () 
   }
 });
 
-test('vence hoy permanece crítico hasta el timestamp exacto', () => {
+test('vence hoy permanece crítico hasta el timestamp exacto y luego entra en gracia', () => {
   const values = { plan: 'basic', plan_expires_at: '2026-08-15T14:00:00.000Z' };
   const before = plans.resolvePlanState(values, '2026-08-15T13:59:59.000Z');
-  const expired = plans.resolvePlanState(values, '2026-08-15T14:00:00.000Z');
+  const grace = plans.resolvePlanState(values, '2026-08-15T14:00:00.000Z');
   assert.equal(before.days_remaining, 0);
   assert.equal(before.state, 'critical');
   assert.equal(before.isExpired, false);
-  assert.equal(expired.days_remaining, 0);
-  assert.equal(expired.state, 'expired');
-  assert.equal(expired.isExpired, true);
+  assert.equal(grace.days_remaining, 0);
+  assert.equal(grace.state, 'grace');
+  assert.equal(grace.isExpired, false);
 });
 
 test('la clave civil de Cuba es estable en UTC, fin de mes, febrero y horario de verano', () => {
@@ -386,17 +402,56 @@ test('Free no puede configurarse como permanente', () => {
   );
 });
 
-test('renovar un plan vigente suma meses desde su vencimiento', () => {
+test('Free solo puede utilizarse una vez por tienda', () => {
+  assert.throws(
+    () => plans.buildPlanChangeValues({ plan: 'basic', free_trial_used: true }, {
+      plan: 'free',
+      is_permanent: false,
+      duration_months: 0,
+    }, NOW, 'mastertest00001'),
+    /free_trial_already_used/
+  );
+});
+
+test('permite Gratis a Básico o Premium y Básico a Premium', () => {
+  for (const [currentPlan, targetPlan] of [
+    ['free', 'basic'],
+    ['free', 'premium'],
+    ['basic', 'premium'],
+  ]) {
+    const values = plans.buildPlanChangeValues({ plan: currentPlan, free_trial_used: true }, {
+      plan: targetPlan,
+      is_permanent: false,
+      duration_months: 1,
+    }, NOW, 'mastertest00001');
+    assert.equal(values.plan, targetPlan);
+    assert.equal(values.free_trial_used, true);
+  }
+});
+
+test('Premium a Básico conserva una transición válida sin transformar datos de negocio', () => {
+  const store = { plan: 'premium', free_trial_used: true, protected_business_data: 'conservar' };
+  const values = plans.buildPlanChangeValues(store, {
+    plan: 'basic',
+    is_permanent: false,
+    duration_months: 6,
+  }, NOW, 'mastertest00001');
+  assert.equal(values.plan, 'basic');
+  assert.equal(store.protected_business_data, 'conservar');
+  assert.equal(Object.hasOwn(values, 'protected_business_data'), false);
+});
+
+test('renovar un plan vigente suma un periodo comercial desde su vencimiento', () => {
   const values = plans.buildPlanRenewalValues({
     plan: 'basic',
     plan_started_at: '2026-06-15T12:00:00.000Z',
     plan_expires_at: '2026-07-31T12:00:00.000Z',
     plan_is_permanent: false,
     free_trial_used: true,
-  }, 2, NOW, 'mastertest00001');
+  }, 6, NOW, 'mastertest00001');
   assert.equal(values.plan_started_at, '2026-06-15T12:00:00.000Z');
-  assert.equal(values.plan_expires_at, '2026-09-30T12:00:00.000Z');
-  assert.equal(values.plan_duration_months, 2);
+  assert.equal(values.plan_expires_at, '2027-01-31T12:00:00.000Z');
+  assert.equal(values.plan_duration_months, 6);
 });
 
 test('renovar un plan vencido inicia el nuevo período desde hoy', () => {
@@ -418,4 +473,20 @@ test('un plan permanente no admite renovación', () => {
     }, 1, NOW, 'mastertest00001'),
     /permanent_plan_not_renewable/
   );
+});
+
+test('las renovaciones aceptan solo 1, 6 o 12 meses', () => {
+  const store = {
+    plan: 'basic',
+    plan_started_at: '2026-06-15T12:00:00.000Z',
+    plan_expires_at: '2026-07-31T12:00:00.000Z',
+    plan_is_permanent: false,
+    free_trial_used: true,
+  };
+  for (const months of [1, 6, 12]) {
+    assert.equal(plans.buildPlanRenewalValues(store, months, NOW).plan_duration_months, months);
+  }
+  for (const months of [2, 3, 11]) {
+    assert.throws(() => plans.buildPlanRenewalValues(store, months, NOW), /invalid_plan_duration_months/);
+  }
 });

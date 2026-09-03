@@ -40,6 +40,7 @@ export type StoreCapabilityPlanState =
   | 'active'
   | 'expiring'
   | 'critical'
+  | 'grace'
   | 'expired'
   | 'invalid';
 
@@ -271,7 +272,14 @@ function resolvePlanState(
   } else if (expiration && current) {
     const difference = expiration.getTime() - current.getTime();
     const daysRemaining = difference <= 0 ? 0 : Math.ceil(difference / 86_400_000);
-    if (daysRemaining === 0) state = 'expired';
+    const graceExpiration = plan === 'free'
+      ? null
+      : new Date(expiration.getTime() + 3 * 86_400_000);
+    if (difference <= 0) {
+      state = graceExpiration && current.getTime() < graceExpiration.getTime()
+        ? 'grace'
+        : 'expired';
+    }
     else if (daysRemaining <= 3) state = 'critical';
     else if (daysRemaining <= 7) state = 'expiring';
     else state = 'active';

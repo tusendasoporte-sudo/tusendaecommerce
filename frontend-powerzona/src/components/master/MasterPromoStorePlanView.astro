@@ -105,7 +105,7 @@ const historicalImageLimit = plan.max_gallery_assets !== catalogImageLimit;
     <article class="master-store-kpi"><span class="master-store-kpi__label">Plan actual</span><strong class="master-store-kpi__value">{planName(plan.plan)}</strong><span class="master-store-kpi__meta">{plan.plan_name}</span></article>
     <article class="master-store-kpi"><span class="master-store-kpi__label">Vencimiento</span><strong class="master-store-kpi__value">{plan.plan_is_permanent ? 'Permanente' : date(plan.plan_expires_at)}</strong><span class="master-store-kpi__meta">{plan.plan_is_permanent ? 'Compatibilidad sin renovación' : 'Vigencia temporal'}</span></article>
     <article class="master-store-kpi"><span class="master-store-kpi__label">Imágenes permitidas</span><strong class="master-store-kpi__value">{plan.max_gallery_assets}</strong><span class="master-store-kpi__meta">Cuota efectiva actual</span></article>
-    <article class="master-store-kpi"><span class="master-store-kpi__label">Página pública</span><strong class="master-store-kpi__value">{plan.public_allowed ? 'Visible' : 'Pausada'}</strong><span class="master-store-kpi__meta">{plan.grace_days} días de gracia sin edición</span></article>
+    <article class="master-store-kpi"><span class="master-store-kpi__label">Página pública</span><strong class="master-store-kpi__value">{plan.public_allowed ? 'Visible' : 'Pausada'}</strong><span class="master-store-kpi__meta">{plan.grace_days > 0 ? `${plan.grace_days} días de gracia sin edición` : 'La prueba Gratis no incluye gracia'}</span></article>
   </section>
 
   <section class="master-card">

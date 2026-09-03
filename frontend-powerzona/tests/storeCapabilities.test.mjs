@@ -131,7 +131,7 @@ test('una tienda Básico heredada unconfigured no se convierte en Premium', () =
 
 test('un plan vencido solo informa el estado con enforcement apagado', () => {
   const access = resolveStoreCapabilityAccess(
-    store('premium', { plan_expires_at: expiresIn(-1) }),
+    store('premium', { plan_expires_at: expiresIn(-4) }),
     'security_enabled',
     { enforceExpiration: false, now: NOW, optionalCapabilityEnabled: true },
   );
@@ -142,12 +142,23 @@ test('un plan vencido solo informa el estado con enforcement apagado', () => {
 
 test('un plan vencido devuelve plan_expired con enforcement encendido', () => {
   const access = resolveStoreCapabilityAccess(
-    store('premium', { plan_expires_at: expiresIn(-1) }),
+    store('premium', { plan_expires_at: expiresIn(-4) }),
     'security_enabled',
     { enforceExpiration: true, now: NOW, optionalCapabilityEnabled: true },
   );
   assert.equal(access.allowed, false);
   assert.equal(access.reason, 'plan_expired');
+});
+
+test('el periodo de gracia pagado conserva temporalmente el acceso', () => {
+  const access = resolveStoreCapabilityAccess(
+    store('premium', { plan_expires_at: expiresIn(-1) }),
+    'security_enabled',
+    { enforceExpiration: true, now: NOW, optionalCapabilityEnabled: true },
+  );
+  assert.equal(access.plan_state, 'grace');
+  assert.equal(access.is_expired, false);
+  assert.equal(access.allowed, true);
 });
 
 test('requiredAmount igual al límite está permitido', () => {

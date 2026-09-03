@@ -178,12 +178,85 @@ test('una rifa vencida avisa una sola vez por fecha de sorteo', () => withFakeRe
   assert.equal(app.tables.store_notifications.length, 1);
 }));
 
+test('el ciclo del plan crea avisos no duplicados para vencimiento, gracia y expiración', () => withFakeRecord(() => {
+  const store = mutableRecord('storeplanlife01', {
+    slug: 'tienda-plan', status: 'active', plan: 'basic',
+    plan_started_at: '2026-08-01T12:00:00.000Z',
+    plan_expires_at: '2026-09-10T12:00:00.000Z',
+    plan_is_permanent: false, free_trial_used: true,
+  });
+  const app = fakeApp({ stores: [store] });
+
+  assert.ok(notifications.processStorePlanLifecycle(app, store, new Date('2026-09-03T12:00:00.000Z')));
+  assert.equal(app.tables.store_notifications[0].type, 'plan_expiring_soon');
+  assert.equal(notifications.processStorePlanLifecycle(app, store, new Date('2026-09-03T12:05:00.000Z')), null);
+
+  assert.ok(notifications.processStorePlanLifecycle(app, store, new Date('2026-09-10T12:00:00.000Z')));
+  assert.equal(app.tables.store_notifications[1].type, 'plan_grace_period');
+  assert.match(app.tables.store_notifications[1].message, /datos permanecen conservados/);
+
+  assert.ok(notifications.processStorePlanLifecycle(app, store, new Date('2026-09-13T12:00:00.000Z')));
+  assert.equal(app.tables.store_notifications[2].type, 'plan_expired');
+  assert.equal(app.tables.store_notifications[2].metadata_json.data_preserved, true);
+}));
+
+test('la prueba Free vence sin gracia y llama a contratar un plan pagado', () => withFakeRecord(() => {
+  const store = mutableRecord('storeplanfree01', {
+    slug: 'tienda-free', status: 'active', plan: 'free',
+    plan_started_at: '2026-08-01T12:00:00.000Z',
+    plan_expires_at: '2026-08-31T12:00:00.000Z',
+    plan_is_permanent: false, free_trial_used: true,
+  });
+  const app = fakeApp({ stores: [store] });
+  const notice = notifications.processStorePlanLifecycle(app, store, new Date('2026-09-01T12:00:00.000Z'));
+  assert.equal(notice.type, 'plan_expired');
+  assert.match(notice.message, /Contrata un plan Básico o Premium/);
+}));
+
+test('un cambio de plan no reutiliza el ciclo aunque conserve la misma fecha de vencimiento', () => {
+  const store = { id: 'storeplancycle01' };
+  const shared = {
+    plan_started_at: '2026-08-01T12:00:00.000Z',
+    plan_expires_at: '2026-09-01T12:00:00.000Z',
+  };
+  const freeCycle = notifications.storePlanCycleId(store, { ...shared, plan: 'free' });
+  const basicCycle = notifications.storePlanCycleId(store, {
+    ...shared,
+    plan: 'basic',
+    plan_started_at: '2026-08-02T12:00:00.000Z',
+  });
+  assert.notEqual(freeCycle, basicCycle);
+});
+
+test('renovar o cambiar de plan archiva avisos anteriores sin borrarlos', () => withFakeRecord(() => {
+  const notification = mutableRecord('planwarning0001', {
+    store: 'storeplanlife01', type: 'plan_expiring_critical', status: 'unread',
+    entity_collection: 'stores', entity_id: 'storeplanlife01_20260910120000000',
+  });
+  const unrelated = mutableRecord('stockwarning001', {
+    store: 'storeplanlife01', type: 'low_stock', status: 'unread',
+  });
+  const app = fakeApp({ store_notifications: [notification, unrelated] });
+  assert.equal(notifications.archiveStorePlanNotifications(app, 'storeplanlife01', new Date('2026-09-03T12:00:00Z')), 1);
+  assert.equal(notification.status, 'archived');
+  assert.equal(unrelated.status, 'unread');
+  assert.equal(app.tables.store_notifications.length, 2);
+}));
+
 test('el hook registra eventos de servidor y cron cada cinco minutos', () => {
   const source = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_background_notifications.pb.js'), 'utf8');
+  const implementation = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_background_notifications_lib.js'), 'utf8');
   assert.match(source, /"products"/);
   assert.match(source, /"product_variations"/);
   assert.match(source, /"reviews"/);
   assert.match(source, /"raffles"/);
   assert.match(source, /"\*\/5 \* \* \* \*"/);
   assert.match(source, /processAllTimedNotifications/);
+  assert.match(implementation, /plan_lifecycle/);
+});
+
+test('la migración agrega los cuatro tipos de aviso sin borrar registros', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../pb_migrations/1788447700_store_plan_lifecycle_notifications.js'), 'utf8');
+  for (const type of notifications.STORE_PLAN_NOTIFICATION_TYPES) assert.match(source, new RegExp(type));
+  assert.doesNotMatch(source, /app\.delete\(/);
 });

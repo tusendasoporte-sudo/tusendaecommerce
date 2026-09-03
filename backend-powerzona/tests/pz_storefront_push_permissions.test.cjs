@@ -50,7 +50,7 @@ test('push_campaigns_enabled existe solo en Premium activo o permanente', () => 
   assert.equal(capabilities.hasStoreCapability(store('basic'), 'push_campaigns_enabled', { now: NOW }), false);
   assert.equal(capabilities.hasStoreCapability(store('premium'), 'push_campaigns_enabled', { now: NOW }), true);
   assert.equal(capabilities.hasStoreCapability(store('premium', {
-    plan_expires_at: '2026-08-10T00:00:00.000Z',
+    plan_expires_at: '2026-08-07T00:00:00.000Z',
   }), 'push_campaigns_enabled', { now: NOW, enforceExpiration: true }), false);
   assert.equal(capabilities.hasStoreCapability(store('premium', {
     plan_is_permanent: true, plan_expires_at: '',

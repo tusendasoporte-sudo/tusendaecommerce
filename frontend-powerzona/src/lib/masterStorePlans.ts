@@ -24,7 +24,7 @@ export type MasterPlanAudit = {
 export type MasterStorePlan = {
   generated_at: string;
   catalog_contract: 'tusenda84.commercial-plan-catalog.v1';
-  store: { id: string; name: string; slug: string; status: 'active' | 'suspended' };
+  store: { id: string; name: string; slug: string; status: 'active' | 'suspended'; free_trial_used: boolean };
   plan: {
     plan: MasterPlanCode;
     plan_name: string;
@@ -33,14 +33,18 @@ export type MasterStorePlan = {
     plan_duration_months: number;
     plan_is_permanent: boolean;
     days_remaining: number | null;
-    state: 'unconfigured' | 'active' | 'expiring' | 'critical' | 'expired';
+    state: 'unconfigured' | 'active' | 'expiring' | 'critical' | 'grace' | 'expired';
     isConfigured: boolean;
     isExpired: boolean;
+    in_grace: boolean;
+    grace_days: number;
+    grace_expires_at: string;
     can_renew: boolean;
   };
   usage: { active_users: number; store_devices: number; max_devices_per_user: number; products: number };
   product_quota: ProductQuota;
   expiration_cleanup: { products: number; variations: number; notifications: number; cycles: number };
+  downgrade_data_preserved?: boolean;
   last_change: MasterPlanAudit | null;
   history: MasterPlanAudit[];
 };
@@ -113,7 +117,7 @@ function normalizeResponse(value: any): MasterStorePlan | null {
   const lastChange = value.last_change ? audit(value.last_change) : null;
   const productQuota = normalizeProductQuota(value.product_quota);
   if (!productQuota) return null;
-  const states = ['unconfigured', 'active', 'expiring', 'critical', 'expired'] as const;
+  const states = ['unconfigured', 'active', 'expiring', 'critical', 'grace', 'expired'] as const;
   const state = states.includes(value.plan.state) ? value.plan.state : 'unconfigured';
   const daysRemaining = value.plan.days_remaining === null ? null : integer(value.plan.days_remaining);
   return {
@@ -124,6 +128,7 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       name: text(value.store.name, 160) || 'Tienda',
       slug: text(value.store.slug, 120),
       status: value.store.status === 'active' ? 'active' : 'suspended',
+      free_trial_used: value.store.free_trial_used === true,
     },
     plan: {
       plan: planCode,
@@ -136,6 +141,9 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       state,
       isConfigured: value.plan.isConfigured === true,
       isExpired: value.plan.isExpired === true,
+      in_grace: value.plan.in_grace === true,
+      grace_days: integer(value.plan.grace_days),
+      grace_expires_at: isoDate(value.plan.grace_expires_at),
       can_renew: value.plan.can_renew === true,
     },
     usage: {
@@ -151,6 +159,7 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       notifications: integer(value.expiration_cleanup?.notifications),
       cycles: integer(value.expiration_cleanup?.cycles),
     },
+    downgrade_data_preserved: value.downgrade_data_preserved === true,
     last_change: lastChange,
     history,
   };
@@ -195,9 +204,9 @@ export function getMasterPlanErrorMessage(error: string) {
     invalid_payload: 'Revisa los datos seleccionados antes de continuar.',
     invalid_plan_duration_months: 'Selecciona uno de los periodos comerciales disponibles.',
     invalid_plan_permanence: 'La prueba gratuita solo puede usar su vigencia temporal.',
+    free_trial_already_used: 'La prueba gratuita ya fue utilizada por esta tienda.',
     permanent_plan_not_renewable: 'Los planes permanentes no se renuevan por meses.',
     free_plan_not_renewable: 'La prueba Free no admite renovaciones por meses.',
-    expiration_cleanup_confirmation_required: 'Confirma la eliminación irreversible de fechas y alertas de vencimiento.',
     store_not_found: 'La tienda ya no está disponible.',
     unauthorized: 'Tu sesión Master ya no está autorizada.',
   };

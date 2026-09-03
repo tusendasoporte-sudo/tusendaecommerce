@@ -117,12 +117,14 @@ test('V7E9: el sidebar conserva stock sin detectar vencimientos en el navegador'
   assert.equal(sidebar.includes('detectExpiration'), false);
 });
 
-test('V7E9: el downgrade exige confirmación y presenta conteos irreversibles', () => {
+test('Prompt 8: el downgrade conserva vencimientos y presenta conteos preservados', () => {
   const planView = readFileSync(new URL('../src/components/master/MasterStorePlanView.astro', import.meta.url), 'utf8');
   const planClient = readFileSync(new URL('../src/lib/masterStorePlans.ts', import.meta.url), 'utf8');
   const masterStyles = readFileSync(new URL('../src/styles/master-ui.css', import.meta.url), 'utf8');
-  assert.match(planView, /name="confirm_expiration_cleanup"/);
-  assert.match(planView, /confirm_expiration_cleanup: needsCleanup/);
+  assert.doesNotMatch(planView, /name="confirm_expiration_cleanup"/);
+  assert.match(planView, /Los datos Premium se conservarán/);
+  assert.match(planView, /Volverán a estar disponibles al recuperar un plan compatible/);
+  assert.match(planView, /confirm_expiration_cleanup: false/);
   assert.match(planView, /if \(button\.disabled\) return/);
   assert.match(masterStyles, /grid-template-rows: auto minmax\(0, 1fr\) auto/);
   assert.match(masterStyles, /\.master-dialog__body \{[^}]*overflow-x: hidden; overflow-y: auto/);

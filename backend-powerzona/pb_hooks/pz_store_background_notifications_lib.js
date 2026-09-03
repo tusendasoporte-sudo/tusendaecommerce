@@ -1,5 +1,16 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+const plans = typeof __hooks === "undefined"
+  ? require("./pz_store_plans_lib.js")
+  : require(`${__hooks}/pz_store_plans_lib.js`);
+
+const STORE_PLAN_NOTIFICATION_TYPES = Object.freeze([
+  "plan_expiring_soon",
+  "plan_expiring_critical",
+  "plan_grace_period",
+  "plan_expired",
+]);
+
 const INVENTORY_SETTING_FIELDS = Object.freeze([
   "notifications_enabled",
   "notify_low_stock",
@@ -174,6 +185,114 @@ function createNotification(app, values) {
   notification.set("metadata_json", values.metadata || {});
   app.save(notification);
   return notification;
+}
+
+function storePlanNotificationType(state) {
+  if (state === "expiring") return "plan_expiring_soon";
+  if (state === "critical") return "plan_expiring_critical";
+  if (state === "grace") return "plan_grace_period";
+  if (state === "expired") return "plan_expired";
+  return "";
+}
+
+function storePlanCycleId(store, state) {
+  const plan = String(state.plan || "plan").replace(/[^a-z0-9]/gi, "").slice(0, 12);
+  const startedKey = String(state.plan_started_at || "")
+    .replace(/[^0-9]/g, "")
+    .slice(0, 17);
+  const expirationKey = String(state.plan_expires_at || "")
+    .replace(/[^0-9]/g, "")
+    .slice(0, 17);
+  return `${String(store.id || "").slice(0, 15)}_${plan}_${startedKey}_${expirationKey}`.slice(0, 80);
+}
+
+function storePlanNotificationCopy(state) {
+  const trial = state.plan === "free";
+  if (state.state === "expired") {
+    return {
+      title: trial ? "Tu prueba gratuita venció" : `Tu ${state.plan_name} venció`,
+      message: trial
+        ? "Tus datos están conservados. Contrata un plan Básico o Premium para continuar."
+        : "Tus datos están conservados. Renueva la suscripción para recuperar el acceso del plan.",
+      priority: "critical",
+    };
+  }
+  if (state.state === "grace") {
+    const graceDate = plans.getHavanaCivilDateKey(state.grace_expires_at) || "la fecha indicada";
+    return {
+      title: "Suscripción en periodo de gracia",
+      message: `Tu ${state.plan_name} venció. Renueva antes del ${graceDate}; todos tus datos permanecen conservados.`,
+      priority: "critical",
+    };
+  }
+  const days = Math.max(0, Number(state.days_remaining || 0));
+  const when = days === 0 ? "hoy" : `en ${days} ${days === 1 ? "día" : "días"}`;
+  return {
+    title: trial ? "Tu prueba gratuita está por vencer" : `Tu ${state.plan_name} está por vencer`,
+    message: trial
+      ? `La prueba vence ${when}. Contrata un plan Básico o Premium para continuar sin interrupciones.`
+      : `La suscripción vence ${when}. Renueva por 1, 6 o 12 meses para continuar sin interrupciones.`,
+    priority: state.state === "critical" ? "critical" : "important",
+  };
+}
+
+function processStorePlanLifecycle(app, store, now) {
+  if (!storeIsActive(store)) return null;
+  let state;
+  try {
+    state = plans.resolvePlanState(store, asDate(now));
+  } catch (_) {
+    return null;
+  }
+  const type = storePlanNotificationType(state.state);
+  if (!type || state.plan_is_permanent || !state.plan_expires_at) return null;
+  const entityId = storePlanCycleId(store, state);
+  if (!entityId || hasNotificationAnyStatus(app, store.id, type, "stores", entityId)) return null;
+  const copy = storePlanNotificationCopy(state);
+  return createNotification(app, {
+    storeId: store.id,
+    type,
+    title: copy.title,
+    message: copy.message,
+    priority: copy.priority,
+    targetUrl: `/t/${encodeURIComponent(recordString(store, "slug"))}/admin/account#plan`,
+    entityCollection: "stores",
+    entityId,
+    metadata: {
+      plan: state.plan,
+      plan_name: state.plan_name,
+      lifecycle_state: state.state,
+      days_remaining: state.days_remaining,
+      plan_expires_at: state.plan_expires_at,
+      grace_expires_at: state.grace_expires_at,
+      data_preserved: true,
+    },
+  });
+}
+
+function archiveStorePlanNotifications(app, storeId, now) {
+  if (!app || !storeId) return 0;
+  const archivedAt = asDate(now).toISOString();
+  const rows = findAllRecords(
+    app,
+    "store_notifications",
+    "store = {:store}",
+    "id",
+    { store: storeId },
+    1000,
+  );
+  let archived = 0;
+  rows.forEach((notification) => {
+    if (!STORE_PLAN_NOTIFICATION_TYPES.includes(recordString(notification, "type"))
+      || recordString(notification, "status") === "archived") return;
+    try {
+      notification.set("status", "archived");
+      notification.set("archived_at", archivedAt);
+      app.save(notification);
+      archived += 1;
+    } catch (_) {}
+  });
+  return archived;
 }
 
 function inventoryConfig(settings) {
@@ -590,13 +709,18 @@ function processAllTimedNotifications(app, now) {
   const raffles = findAllRecords(app, "raffles", "is_configured = true", "draw_at", {}, 10000);
   let rafflesDue = 0;
   raffles.forEach((raffle) => { if (processDueRaffle(app, raffle, now)) rafflesDue += 1; });
-  return { pending_orders: pendingOrders, raffles_due: rafflesDue };
+  const stores = findAllRecords(app, "stores", "", "id", {}, 10000);
+  let planLifecycle = 0;
+  stores.forEach((store) => { if (processStorePlanLifecycle(app, store, now)) planLifecycle += 1; });
+  return { pending_orders: pendingOrders, raffles_due: rafflesDue, plan_lifecycle: planLifecycle };
 }
 
 module.exports = {
   COMPLETED_RAFFLE_STATUSES,
   INVENTORY_SETTING_FIELDS,
   PENDING_SETTING_FIELDS,
+  STORE_PLAN_NOTIFICATION_TYPES,
+  archiveStorePlanNotifications,
   continueInventoryChanged,
   continueRaffleChanged,
   continueReviewCreated,
@@ -612,10 +736,14 @@ module.exports = {
   processStoreDueRaffles,
   processStoreInventory,
   processStorePendingOrders,
+  processStorePlanLifecycle,
   processVariationInventory,
   productInventoryAlert,
   raffleDrawKey,
   raffleResultPublished,
+  storePlanCycleId,
+  storePlanNotificationCopy,
+  storePlanNotificationType,
   sourceNotificationCovered,
   variationInventoryAlert,
 };

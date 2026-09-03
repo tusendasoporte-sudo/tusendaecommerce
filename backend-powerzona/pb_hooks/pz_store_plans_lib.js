@@ -7,6 +7,7 @@ const catalog = typeof __hooks === "undefined"
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HAVANA_TIME_ZONE = "America/Havana";
 const FREE_TRIAL_DAYS = catalog.getPlanDefinition("ecommerce", "free").duration.days;
+const PAID_PLAN_GRACE_DAYS = 3;
 const STORE_PLAN_AUDIT_COLLECTION = "store_plan_audit";
 const MASTER_ROLE = "master_admin";
 const PLAN_CODES = Object.freeze(catalog.getPlanCodes("ecommerce"));
@@ -35,6 +36,12 @@ function getPlanDefinition(plan) {
 function getPlanCapabilities(plan) {
   const capabilities = getPlanDefinition(plan).capabilities;
   return { ...capabilities };
+}
+
+function getPlanGraceDays(plan) {
+  return getPlanDefinition(plan).duration.kind === "calendar_months"
+    ? PAID_PLAN_GRACE_DAYS
+    : 0;
 }
 
 function parseDate(value, allowEmpty) {
@@ -176,12 +183,20 @@ function resolvePlanState(storeOrValues, now) {
   const current = now === undefined ? new Date() : parseDate(now, false);
   const expiration = isPermanent ? null : parseDate(expiresAt, true);
   const daysRemaining = isPermanent ? null : getDaysRemaining(expiration, current);
+  const graceDays = isPermanent ? 0 : getPlanGraceDays(plan);
+  const graceExpiration = expiration && graceDays > 0
+    ? new Date(expiration.getTime() + graceDays * DAY_MS)
+    : null;
 
   let state = "unconfigured";
   if (isPermanent) {
     state = "active";
   } else if (expiration) {
-    if (expiration.getTime() <= current.getTime()) state = "expired";
+    if (expiration.getTime() <= current.getTime()) {
+      state = graceExpiration && current.getTime() < graceExpiration.getTime()
+        ? "grace"
+        : "expired";
+    }
     else if (daysRemaining <= 3) state = "critical";
     else if (daysRemaining <= 7) state = "expiring";
     else state = "active";
@@ -198,6 +213,9 @@ function resolvePlanState(storeOrValues, now) {
     state,
     isConfigured: isPermanent || !!expiresAt,
     isExpired: state === "expired",
+    in_grace: state === "grace",
+    grace_days: graceDays,
+    grace_expires_at: graceExpiration ? graceExpiration.toISOString() : null,
     can_renew: !isPermanent && plan !== "free",
     monthly_price_usd: MONTHLY_PRICES_USD[plan],
     monthly_price_cup: catalog.getMonthlyPriceCup("ecommerce", plan),
@@ -265,7 +283,7 @@ function buildNewStoreTrialValues(now, actorId) {
 
 function normalizeDurationMonths(value) {
   const months = Number(value);
-  if (!Number.isInteger(months) || months < 1 || months > 12) {
+  if (!Number.isInteger(months) || !catalog.COMMERCIAL_PERIOD_MONTHS.includes(months)) {
     throw new RangeError("invalid_plan_duration_months");
   }
   return months;
@@ -292,6 +310,9 @@ function buildPlanChangeValues(storeOrValues, input, now, actorId) {
   const definition = getPlanDefinition(plan);
   if (isPermanent && !PERMANENT_PLAN_CODES.includes(plan)) {
     throw new RangeError("invalid_plan_permanence");
+  }
+  if (plan === "free" && booleanValue(recordValue(storeOrValues, "free_trial_used"))) {
+    throw new RangeError("free_trial_already_used");
   }
 
   const changedAt = parseDate(now === undefined ? new Date() : now, false);
@@ -403,6 +424,7 @@ function handleStoreCreate(e) {
 module.exports = {
   HAVANA_TIME_ZONE,
   MONTHLY_PRICES_USD,
+  PAID_PLAN_GRACE_DAYS,
   PERMANENT_PLAN_CODES,
   PLAN_CODES,
   PLAN_DEFINITIONS,
@@ -415,6 +437,7 @@ module.exports = {
   getHavanaCivilDateKey,
   getMonthlyPriceCup,
   getMonthlyPriceUsd,
+  getPlanGraceDays,
   getPlanCapabilities,
   getPlanDefinition,
   getPlanPricing,

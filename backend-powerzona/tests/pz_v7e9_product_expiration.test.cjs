@@ -977,7 +977,7 @@ test('limpieza de downgrade audita cada recurso, se limita a la tienda y propaga
   });
 });
 
-test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico', () => {
+test('contratos V7E9 conectan hooks y el downgrade del Prompt 8 conserva datos', () => {
   const root = path.resolve(__dirname, '..');
   const hooks = readFileSync(path.join(root, 'pb_hooks', 'pz_product_expiration.pb.js'), 'utf8');
   const management = readFileSync(path.join(root, 'pb_hooks', 'pz_store_plan_management_lib.js'), 'utf8');
@@ -990,11 +990,10 @@ test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico
   assert.doesNotMatch(hooks, /^function\s+/m);
   assert.match(hooks, /raiseExpirationRequestError/);
   assert.match(management, /runInTransaction/);
-  assert.match(management, /confirmExpirationCleanup !== true/);
-  assert.match(
-    management,
-    /const audit = createAudit[\s\S]*cleanupStoreExpirationData\(txApp, store\.id, \{[\s\S]*actor,[\s\S]*planAuditId: audit\.id[\s\S]*createPlanActivity/,
-  );
+  const changeHandler = management.slice(management.indexOf('function handlePlanChange'), management.indexOf('function handlePlanRenew'));
+  assert.doesNotMatch(changeHandler, /cleanupStoreExpirationData/);
+  assert.doesNotMatch(changeHandler, /confirmExpirationCleanup !== true/);
+  assert.match(changeHandler, /downgrade_data_preserved/);
   assert.match(migration, /UNIQUE INDEX[\s\S]*cycle_key/i);
   assert.match(zeroDayMigration, /field\.required = false/);
   assert.match(zeroDayMigration, /field\.required = true/);

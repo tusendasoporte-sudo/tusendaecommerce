@@ -9,6 +9,12 @@ const promoPlans = typeof __hooks === "undefined"
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const planCatalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
+const backgroundNotifications = typeof __hooks === "undefined"
+  ? require("./pz_store_background_notifications_lib.js")
+  : require(`${__hooks}/pz_store_background_notifications_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 
@@ -165,7 +171,8 @@ function parseChangePayload(body) {
     ? bodyValue(body, "max_gallery_assets")
     : promoPlans.imageLimitForPlan(plan);
   const reason = bodyValue(body, "reason");
-  if (!Number.isInteger(durationMonths) || durationMonths < 0 || durationMonths > 12) return null;
+  if (!Number.isInteger(durationMonths)
+    || (durationMonths !== 0 && !planCatalog.COMMERCIAL_PERIOD_MONTHS.includes(durationMonths))) return null;
   if (typeof isPermanent !== "boolean") return null;
   if (!Number.isInteger(maxGalleryAssets)) return null;
   if (typeof reason !== "string" || reason.length > 500) return null;
@@ -188,7 +195,7 @@ function parseRenewPayload(body) {
   const months = bodyValue(body, "months");
   const reason = bodyValue(body, "reason");
   if (typeof storeId !== "string" || !RECORD_ID_PATTERN.test(storeId)) return null;
-  if (!Number.isInteger(months) || months < 1 || months > 12) return null;
+  if (!Number.isInteger(months) || !planCatalog.COMMERCIAL_PERIOD_MONTHS.includes(months)) return null;
   if (typeof reason !== "string" || reason.length > 500) return null;
   return { storeId, months, reason: reason.trim() };
 }
@@ -283,6 +290,7 @@ function handleChange(e) {
       const values = plans.buildPlanChangeValues(context.store, selection, new Date(), recordId(context.actor));
       applyValues(context.store, values);
       app.save(context.store);
+      backgroundNotifications.archiveStorePlanNotifications(app, context.store.id, new Date());
       promoPlans.syncPromoEntitlement(app, context.store, recordId(context.actor), selection.max_gallery_assets);
       const next = planSnapshot(context.store);
       createAudit(app, context.store, context.actor, "plan_changed", previous, next, selection.duration_months, parsed.reason);
@@ -306,6 +314,7 @@ function handleRenew(e) {
       const values = plans.buildPlanRenewalValues(context.store, parsed.months, new Date(), recordId(context.actor));
       applyValues(context.store, values);
       app.save(context.store);
+      backgroundNotifications.archiveStorePlanNotifications(app, context.store.id, new Date());
       promoPlans.syncPromoEntitlement(app, context.store, recordId(context.actor));
       const next = planSnapshot(context.store);
       createAudit(app, context.store, context.actor, "plan_renewed", previous, next, parsed.months, parsed.reason);

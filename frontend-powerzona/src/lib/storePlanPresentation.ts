@@ -1,7 +1,7 @@
 export const STORE_PLAN_CODES = ['free', 'basic', 'premium'] as const;
 
 export type StorePlanCode = (typeof STORE_PLAN_CODES)[number] | '';
-export type StorePlanState = 'unconfigured' | 'active' | 'expiring' | 'critical' | 'expired';
+export type StorePlanState = 'unconfigured' | 'active' | 'expiring' | 'critical' | 'grace' | 'expired';
 export type StorePlanTone = 'neutral' | 'trial' | 'basic' | 'premium' | 'warning' | 'danger';
 export type StorePlanIcon = 'clock' | 'badge' | 'crown' | 'expired' | 'info';
 export type StorePlanDotTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
@@ -34,6 +34,7 @@ export type StorePlanPresentation = {
 };
 
 const DAY_MS = 86_400_000;
+export const STORE_PAID_PLAN_GRACE_DAYS = 3;
 export const STORE_PLAN_TIME_ZONE = 'America/Havana';
 
 const PLAN_COPY: Record<Exclude<StorePlanCode, ''>, {
@@ -226,6 +227,33 @@ export function resolveStorePlanPresentation(
 
   if (expiration.getTime() <= current.getTime()) {
     const expiredDate = formatHavanaDate(expiration);
+    const graceExpiration = code === 'free'
+      ? null
+      : new Date(expiration.getTime() + STORE_PAID_PLAN_GRACE_DAYS * DAY_MS);
+    if (graceExpiration && current.getTime() < graceExpiration.getTime()) {
+      const graceDaysRemaining = getHavanaCalendarDaysRemaining(graceExpiration, current) ?? 0;
+      const graceDate = formatHavanaDate(graceExpiration);
+      const detail = graceDaysRemaining === 0
+        ? 'Último día para renovar'
+        : `${pluralDays(graceDaysRemaining)} de gracia para renovar`;
+      return {
+        code,
+        title: 'PERIODO DE GRACIA',
+        shortName: 'En gracia',
+        contextTitle: 'Suscripción en periodo de gracia',
+        detail,
+        compactDetail: detail,
+        contextDetail: `Renueva antes del ${graceDate}`,
+        state: 'grace',
+        isPermanent: false,
+        daysRemaining: 0,
+        expiresAt,
+        tone: 'warning',
+        icon: 'clock',
+        dotTone: 'warning',
+        ariaLabel: `Suscripción en periodo de gracia, renueva antes del ${graceDate}`,
+      };
+    }
     const detail = `Venció el ${expiredDate}`;
     return {
       code,

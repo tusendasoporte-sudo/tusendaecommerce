@@ -67,6 +67,9 @@ test('Gratis solo se consume una vez y Básico valida vigencia y cuota de fotos'
     plan: 'basic', is_permanent: false, duration_months: 13, max_gallery_assets: 300,
   }), /invalid_plan_duration_months/);
   assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
+    plan: 'basic', is_permanent: false, duration_months: 2, max_gallery_assets: 300,
+  }), /invalid_plan_duration_months/);
+  assert.throws(() => promoPlans.assertPromoPlanSelection(planStore(), {
     plan: 'basic', is_permanent: false, duration_months: 12, max_gallery_assets: 200,
   }), /invalid_promo_image_limit/);
   assert.deepEqual(promoPlans.assertPromoPlanSelection(planStore(), {
@@ -142,6 +145,6 @@ test('API de planes Promo usa POST privados y payloads exactos', () => {
     is_permanent: true, max_gallery_assets: 200, reason: '',
   }), null);
   assert.deepEqual(promoPlanApi.parseRenewPayload({
-    store_id: 'storeaaaaaaaaaa', months: 4, reason: 'Renovación',
-  }), { storeId: 'storeaaaaaaaaaa', months: 4, reason: 'Renovación' });
+    store_id: 'storeaaaaaaaaaa', months: 6, reason: 'Renovación',
+  }), { storeId: 'storeaaaaaaaaaa', months: 6, reason: 'Renovación' });
 });

@@ -7,9 +7,8 @@ const catalog = typeof __hooks === "undefined"
   ? require("./pz_plan_catalog_lib.js")
   : require(`${__hooks}/pz_plan_catalog_lib.js`);
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const PROMO_PLAN_CODES = Object.freeze(catalog.getPlanCodes("promotional"));
-const PROMO_PLAN_GRACE_DAYS = 3;
+const PROMO_PLAN_GRACE_DAYS = plans.PAID_PLAN_GRACE_DAYS;
 const PROMO_PLAN_IMAGE_LIMITS = Object.freeze(PROMO_PLAN_CODES.reduce((limits, code) => {
   limits[code] = catalog.getPlanCapabilities("promotional", code).max_total_images;
   return limits;
@@ -137,7 +136,7 @@ function resolvePromoPlanState(storeOrValues, now) {
       catalog_contract: catalog.CATALOG_CONTRACT,
       capabilities: definition.capabilities,
       in_grace: false,
-      grace_days: PROMO_PLAN_GRACE_DAYS,
+      grace_days: 0,
       grace_expires_at: null,
       can_mutate: false,
       public_allowed: false,
@@ -153,15 +152,9 @@ function resolvePromoPlanState(storeOrValues, now) {
     plan_is_permanent: true,
   } : storeOrValues;
   const base = plans.resolvePlanState(source, current);
-  const expiration = plans.parseDate(base.plan_expires_at, true);
-  const graceExpiration = expiration
-    ? new Date(expiration.getTime() + PROMO_PLAN_GRACE_DAYS * DAY_MS)
-    : null;
-  const inGrace = base.state === "expired"
-    && !!graceExpiration
-    && current.getTime() < graceExpiration.getTime();
+  const inGrace = base.in_grace === true;
   const operational = ["active", "expiring", "critical"].includes(base.state);
-  const finalExpired = base.state === "expired" && !inGrace;
+  const finalExpired = base.isExpired === true;
   const definition = promoPlanDefinitions().find((item) => item.code === base.plan);
   return {
     ...base,
@@ -171,11 +164,11 @@ function resolvePromoPlanState(storeOrValues, now) {
     pricing: definition.pricing,
     catalog_contract: catalog.CATALOG_CONTRACT,
     capabilities: definition.capabilities,
-    state: inGrace ? "grace" : base.state,
+    state: base.state,
     isExpired: finalExpired,
     in_grace: inGrace,
-    grace_days: PROMO_PLAN_GRACE_DAYS,
-    grace_expires_at: graceExpiration ? graceExpiration.toISOString() : null,
+    grace_days: base.grace_days,
+    grace_expires_at: base.grace_expires_at,
     can_mutate: operational,
     public_allowed: operational || inGrace,
     max_gallery_assets: imageLimitForPlan(base.plan),
@@ -197,7 +190,8 @@ function assertPromoPlanSelection(storeOrValues, input) {
     }
   } else if (isPermanent && durationMonths !== 0) {
     throw new RangeError("invalid_plan_duration_months");
-  } else if (!isPermanent && (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 12)) {
+  } else if (!isPermanent && (!Number.isInteger(durationMonths)
+    || !catalog.COMMERCIAL_PERIOD_MONTHS.includes(durationMonths))) {
     throw new RangeError("invalid_plan_duration_months");
   }
   return { plan, is_permanent: isPermanent, duration_months: durationMonths, max_gallery_assets: imageLimit };

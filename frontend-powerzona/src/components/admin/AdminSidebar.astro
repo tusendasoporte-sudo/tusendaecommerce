@@ -198,6 +198,16 @@ if (storeAccessContext === undefined && requestStoreAccessContext === undefined 
 }
 
 const isPrimaryAdmin = resolvedStoreAccess?.access.is_primary_admin === true;
+const showPlanAction = isPrimaryAdmin
+  && ['expiring', 'critical', 'grace', 'expired'].includes(planPresentation.state);
+const planActionHref = masterSupportHref || `${adminAccountPath}#plan`;
+const planActionLabel = planPresentation.code === 'free'
+  ? 'Contratar un plan'
+  : planPresentation.state === 'expired'
+    ? 'Renovar suscripción'
+    : planPresentation.state === 'grace'
+      ? 'Renovar durante la gracia'
+      : 'Renovar antes de vencer';
 const permissionContext = resolvedStoreAccess
   ? {
       permissions: resolvedStoreAccess.access.permissions,
@@ -439,6 +449,7 @@ const audienceSubClass = (subsection: string) => {
         <button class="pz-admin-sidebar__close" type="button" aria-label="Cerrar menú" data-sidebar-close>&times;</button>
       </div>
       <StorePlanIndicator presentation={planPresentation} variant="store-sidebar" />
+      {showPlanAction && <a class="pz-admin-sidebar__plan-action" href={planActionHref}>{planActionLabel}</a>}
     </div>
 
     {canShowPrincipalGroup && <section class:list={['pz-admin-sidebar__section-group', { 'is-current': isPrincipalSectionActive }]} data-sidebar-section-group="principal">
@@ -944,6 +955,9 @@ const audienceSubClass = (subsection: string) => {
 
     function toastMessageForNotification(item) {
       const type = String(item?.type || '');
+      if (type === 'plan_expiring_soon' || type === 'plan_expiring_critical') return 'Tu suscripción está por vencer';
+      if (type === 'plan_grace_period') return 'Suscripción en periodo de gracia';
+      if (type === 'plan_expired') return item?.title || 'Tu suscripción venció';
       if (type === 'security_blocked_attempt') return 'Seguridad bloqueó un intento';
       if (type === 'security_address_match') return 'Dirección vinculada a un cliente bloqueado';
       if (type === 'review_pending') return 'Nueva reseña pendiente';
@@ -956,6 +970,7 @@ const audienceSubClass = (subsection: string) => {
 
     function browserNotificationBodyFor(item) {
       const type = String(item?.type || '');
+      if (type.startsWith('plan_')) return 'Revisa las opciones para contratar o renovar tu plan.';
       if (type === 'security_blocked_attempt') return 'Revisa la actividad reciente de Seguridad.';
       if (type === 'security_address_match') return 'Un pedido necesita revisión de Seguridad.';
       if (type === 'review_pending') return 'Una reseña necesita aprobación.';
@@ -1086,6 +1101,8 @@ const audienceSubClass = (subsection: string) => {
     }
 
     function iconFor(type) {
+      if (type === 'plan_expired') return '⚠️';
+      if (type === 'plan_expiring_soon' || type === 'plan_expiring_critical' || type === 'plan_grace_period') return '⏳';
       if (type === 'security_blocked_attempt') return '\u26e8';
       if (type === 'security_address_match') return '!';
       if (type === 'review_pending') return '\u2605';
@@ -2896,6 +2913,29 @@ const audienceSubClass = (subsection: string) => {
     font-size: 12px !important;
     line-height: 1.2 !important;
     font-weight: 850 !important;
+  }
+  .pz-admin-sidebar__plan-action {
+    display: inline-flex;
+    min-height: 30px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #1d4ed8;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    padding: 6px 9px;
+    font-size: 11px;
+    font-weight: 950;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none;
+  }
+  .pz-admin-sidebar__plan-action:hover,
+  .pz-admin-sidebar__plan-action:focus-visible {
+    background: #1d4ed8;
+    outline: 2px solid rgba(37,99,235,.3);
+    outline-offset: 2px;
   }
   .pz-admin-sidebar__close {
     margin-left: auto !important;

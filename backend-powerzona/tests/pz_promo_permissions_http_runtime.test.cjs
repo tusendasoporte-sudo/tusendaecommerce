@@ -36,6 +36,9 @@ const POST_PERMISSION_MIGRATIONS = [
   '1787699700_promo_publish_empty_foundations.js',
   '1787700000_storefront_private_inbox_coupon_wallet.js',
   '1788354000_promo_theme_catalog_bootstrap.js',
+  '1788440400_storefront_resilient_installations.js',
+  '1788447600_taxonomy_contract_indexes.js',
+  '1788447700_store_plan_lifecycle_notifications.js',
 ];
 
 function runtimeEnvironment() {

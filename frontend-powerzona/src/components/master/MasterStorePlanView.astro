@@ -35,6 +35,7 @@ const definitions = catalog.plans;
 const currentDefinition = commercialPlan(catalog, plan.plan) as CommercialPlanDefinition;
 const expirationCleanup = data.expiration_cleanup;
 const productQuota = data.product_quota;
+const freeUnavailable = store.free_trial_used && plan.plan !== 'free';
 const headerStore = { ...store, featured: storeMeta.featured, security_label: storeMeta.securityLabel };
 const planPresentation = resolveStorePlanPresentation(plan, data.generated_at || new Date());
 const cup = (value: unknown) => formatCommercialCup(value, currencyDecimals);
@@ -43,7 +44,6 @@ const planData = Object.fromEntries(definitions.map((definition) => [definition.
   trialDays: definition.pricing.trial?.days || 0,
   trialTotalCup: definition.pricing.trial?.total_cup || 0,
   supportsPermanent: definition.supports_permanent,
-  expirationToolsEnabled: definition.capabilities.product_expiration_tools_enabled === true,
   periods: definition.pricing.periods,
 }]));
 
@@ -70,6 +70,7 @@ function stateLabel(value: string, daysRemaining: number | null) {
   if (value === 'active') return 'Activo';
   if (value === 'expiring') return 'Próximo a vencer';
   if (value === 'critical') return daysRemaining === 0 ? 'Vence hoy' : 'Vence pronto';
+  if (value === 'grace') return 'Periodo de gracia';
   if (value === 'expired') return 'Vencido';
   return 'No configurado';
 }
@@ -77,7 +78,7 @@ function stateLabel(value: string, daysRemaining: number | null) {
 function stateTone(value: string) {
   if (value === 'active') return 'master-pill--success';
   if (value === 'expired') return 'master-pill--danger';
-  if (value === 'expiring' || value === 'critical') return 'master-pill--warning';
+  if (value === 'expiring' || value === 'critical' || value === 'grace') return 'master-pill--warning';
   return '';
 }
 
@@ -106,7 +107,7 @@ const validityValue = plan.plan_is_permanent
   : plan.days_remaining === null
     ? 'Sin configurar'
     : plan.days_remaining === 0
-      ? plan.state === 'expired' ? 'Vencido' : 'Vence hoy'
+      ? plan.state === 'expired' ? 'Vencido' : plan.state === 'grace' ? 'Periodo de gracia' : 'Vence hoy'
       : `${plan.days_remaining} ${plan.days_remaining === 1 ? 'día' : 'días'}`;
 
 function numericCapability(definition: CommercialPlanDefinition, key: string) {
@@ -179,6 +180,17 @@ function planFeatures(definition: CommercialPlanDefinition) {
     <div><h1>Plan y límites</h1><p>Gestiona el plan activo, la vigencia y las capacidades de {catalog.name}.</p></div>
   </header>
 
+  {['expiring', 'critical', 'grace', 'expired'].includes(plan.state) && (
+    <section class:list={['master-notice', plan.state === 'expired' ? 'master-notice--danger' : 'master-notice--warning']} role="alert">
+      <strong>{plan.state === 'expired' ? 'La suscripción venció.' : plan.state === 'grace' ? 'La suscripción está en periodo de gracia.' : 'La suscripción está próxima a vencer.'}</strong><br />
+      {plan.state === 'expired'
+        ? `Todos los datos de la tienda permanecen conservados. ${plan.plan === 'free' ? 'Asigna Básico o Premium para contratar.' : 'Usa Renovar plan para reactivar la suscripción.'}`
+        : plan.state === 'grace'
+          ? `Todos los datos permanecen conservados. Renueva antes del ${date(plan.grace_expires_at)}.`
+          : `${plan.plan === 'free' ? 'Contrata Básico o Premium' : 'Renueva por 1, 6 o 12 meses'} para evitar interrupciones.`}
+    </section>
+  )}
+
   {productQuota.state !== 'available' && (
     <section class:list={['master-notice', productQuota.state === 'near_limit' ? 'master-notice--warning' : 'master-notice--danger']} role="status">
       <strong>{productQuotaLabel(productQuota)}</strong><br />
@@ -232,6 +244,7 @@ function planFeatures(definition: CommercialPlanDefinition) {
       <div class="master-card-body master-plan-options">
         {definitions.map((definition) => {
           const current = definition.code === plan.plan;
+          const unavailable = definition.code === 'free' && freeUnavailable;
           const trial = definition.pricing.trial;
           const firstPeriod = definition.pricing.periods[0];
           return (
@@ -248,7 +261,7 @@ function planFeatures(definition: CommercialPlanDefinition) {
                 </div>
               )}
               <ul>{planFeatures(definition).map((feature) => <li><MasterIcon name="check" size={17} /> {feature}</li>)}</ul>
-              <button class:list={['master-btn', current ? 'master-btn--secondary' : 'master-btn--primary']} type="button" data-plan-target={definition.code} disabled={current}>{current ? (plan.plan_is_permanent ? 'Plan permanente actual' : 'Plan actual') : `Asignar ${definition.name}`}</button>
+              <button class:list={['master-btn', current ? 'master-btn--secondary' : 'master-btn--primary']} type="button" data-plan-target={definition.code} disabled={current || unavailable}>{current ? (plan.plan_is_permanent ? 'Plan permanente actual' : 'Plan actual') : unavailable ? 'Prueba ya utilizada' : `Asignar ${definition.name}`}</button>
             </article>
           );
         })}
@@ -266,11 +279,11 @@ function planFeatures(definition: CommercialPlanDefinition) {
 
   <MasterDialog id="master-plan-change-dialog" title="Cambiar plan" description="Asigna un plan y define una vigencia comercial o permanente compatible." tone="primary" size="lg">
     <form class="master-form" data-plan-change-form>
-      <div class="master-field-grid"><div class="master-field master-field--full"><label for="master-plan-destination">Plan destino</label><select id="master-plan-destination" name="plan" required>{definitions.map((definition) => <option value={definition.code}>{definition.name} — {definition.pricing.trial ? `${definition.pricing.trial.days} días · total ${cup(definition.pricing.trial.total_cup)}` : `desde ${cup(definition.pricing.periods[0]?.monthly_equivalent_cup)}/mes`}</option>)}</select></div></div>
+      <div class="master-field-grid"><div class="master-field master-field--full"><label for="master-plan-destination">Plan destino</label><select id="master-plan-destination" name="plan" required>{definitions.map((definition) => <option value={definition.code} disabled={definition.code === 'free' && freeUnavailable}>{definition.name} — {definition.pricing.trial ? `${definition.pricing.trial.days} días · total ${cup(definition.pricing.trial.total_cup)}` : `desde ${cup(definition.pricing.periods[0]?.monthly_equivalent_cup)}/mes`}</option>)}</select></div></div>
       <fieldset class="master-fieldset"><legend>Tipo de vigencia</legend><div class="master-choice-grid"><label class="master-choice"><input name="validity" type="radio" value="temporary" checked /><span><strong>Temporal</strong><br />Usa uno de los periodos comerciales.</span></label><label class="master-choice" data-permanent-choice><input name="validity" type="radio" value="permanent" /><span><strong>Permanente compatible</strong><br />Conserva contratos sin vencimiento existentes.</span></label></div></fieldset>
       <div class="master-field" data-change-months-field><label for="master-plan-months">Duración comercial</label><select id="master-plan-months" name="duration_months">{definitions.find((definition) => definition.duration.allowed_months.length)?.duration.allowed_months.map((month) => <option value={month}>{commercialMonthsLabel(month)}</option>)}</select></div>
       <div class="master-field"><label for="master-plan-reason">Motivo interno (opcional)</label><textarea id="master-plan-reason" name="reason" maxlength="500" placeholder="Contexto para la auditoría del cambio"></textarea></div>
-      <aside class="master-form-alert master-expiration-cleanup-warning" data-expiration-cleanup-warning role="alert" hidden><strong>Esta acción es irreversible.</strong><span data-expiration-cleanup-copy></span><span><strong>App Android:</strong> su distribución se retirará de forma reversible. No se eliminará la app, Firebase, firma o APK/AAB y la tienda web no será suspendida.</span><label class="master-choice"><input name="confirm_expiration_cleanup" type="checkbox" /><span>Confirmo que se eliminen definitivamente las fechas, notificaciones y ciclos de vencimiento de esta tienda.</span></label></aside>
+      <aside class="master-form-alert master-expiration-cleanup-warning" data-downgrade-preservation-notice role="status" hidden><strong>Los datos Premium se conservarán.</strong><span data-downgrade-preservation-copy></span><span><strong>App Android:</strong> su distribución se retirará de forma reversible. No se eliminará la app, Firebase, firma o APK/AAB y la tienda web no será suspendida.</span></aside>
       <aside class="master-plan-form-summary" data-change-summary aria-live="polite"></aside>
       <p class="master-form-alert" data-plan-change-alert role="alert" hidden></p>
     </form>
@@ -297,7 +310,7 @@ function planFeatures(definition: CommercialPlanDefinition) {
   import { pb } from '../../lib/pocketbase';
   import { changeMasterStorePlan, getMasterPlanErrorMessage, renewMasterStorePlan, type MasterPlanCode } from '../../lib/masterStorePlans';
 
-  type UiPlan = { name: string; trialDays: number; trialTotalCup: number; supportsPermanent: boolean; expirationToolsEnabled: boolean; periods: Array<{ months: number; monthly_equivalent_cup: number; total_cup: number; savings_cup: number; savings_percent: number }> };
+  type UiPlan = { name: string; trialDays: number; trialTotalCup: number; supportsPermanent: boolean; periods: Array<{ months: number; monthly_equivalent_cup: number; total_cup: number; savings_cup: number; savings_percent: number }> };
   const root = document.querySelector<HTMLElement>('[data-plan-page]');
   if (root && root.dataset.planInitialized !== 'true') {
     root.dataset.planInitialized = 'true';
@@ -317,9 +330,8 @@ function planFeatures(definition: CommercialPlanDefinition) {
     const temporaryInput = changeForm?.querySelector<HTMLInputElement>('[name="validity"][value="temporary"]');
     const permanentChoice = changeForm?.querySelector<HTMLElement>('[data-permanent-choice]');
     const changeSummary = changeForm?.querySelector<HTMLElement>('[data-change-summary]');
-    const expirationCleanupWarning = changeForm?.querySelector<HTMLElement>('[data-expiration-cleanup-warning]');
-    const expirationCleanupCopy = changeForm?.querySelector<HTMLElement>('[data-expiration-cleanup-copy]');
-    const expirationCleanupConfirmation = changeForm?.querySelector<HTMLInputElement>('[name="confirm_expiration_cleanup"]');
+    const downgradePreservationNotice = changeForm?.querySelector<HTMLElement>('[data-downgrade-preservation-notice]');
+    const downgradePreservationCopy = changeForm?.querySelector<HTMLElement>('[data-downgrade-preservation-copy]');
     const renewForm = root.querySelector<HTMLFormElement>('[data-plan-renew-form]');
     const renewMonths = renewForm?.querySelector<HTMLSelectElement>('[name="months"]');
     const renewReason = renewForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
@@ -330,7 +342,7 @@ function planFeatures(definition: CommercialPlanDefinition) {
     function addMonthsClamped(value: Date, months: number) { const originalDay = value.getUTCDate(); const result = new Date(value); result.setUTCDate(1); result.setUTCMonth(result.getUTCMonth() + months); const lastDay = new Date(result); lastDay.setUTCMonth(lastDay.getUTCMonth() + 1); lastDay.setUTCDate(0); result.setUTCDate(Math.min(originalDay, lastDay.getUTCDate())); return result; }
     const formatDate = (value: Date) => new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(value);
     const selectedPermanent = () => permanentInput?.checked === true;
-    const requiresExpirationCleanup = (selected: MasterPlanCode) => plans[currentPlan]?.expirationToolsEnabled === true && plans[selected]?.expirationToolsEnabled !== true;
+    const showsDowngradePreservation = (selected: MasterPlanCode) => currentPlan === 'premium' && selected !== 'premium';
 
     function updateChangeSummary() {
       if (!changePlan || !changeMonths || !changeSummary) return;
@@ -342,9 +354,8 @@ function planFeatures(definition: CommercialPlanDefinition) {
       const months = Number(changeMonths.value); const expiration = isTrial ? new Date(Date.now() + selectedPlan.trialDays * 86400000) : addMonthsClamped(new Date(), months); const period = periodFor(selected, months);
       const pricing = permanent ? 'No aplica a la vigencia permanente compatible' : isTrial ? `Total ${cup(selectedPlan.trialTotalCup)}` : period ? `${cup(period.monthly_equivalent_cup)}/mes equivalente · total ${cup(period.total_cup)} · ahorro ${cup(period.savings_cup)} (${period.savings_percent}%)` : 'Periodo no disponible';
       changeSummary.innerHTML = `<span>Nuevo plan</span><strong>${selectedPlan.name}</strong><span>Vigencia</span><strong>${permanent ? 'Permanente · sin vencimiento' : isTrial ? `${selectedPlan.trialDays} días · hasta ${formatDate(expiration)}` : `${months} ${months === 1 ? 'mes' : 'meses'} · hasta ${formatDate(expiration)}`}</strong><span>Importe</span><strong>${pricing}</strong>`;
-      const needsCleanup = requiresExpirationCleanup(selected); if (expirationCleanupWarning) expirationCleanupWarning.hidden = !needsCleanup;
-      if (expirationCleanupCopy) expirationCleanupCopy.textContent = `Al cambiar a un plan sin vencimientos se eliminarán ${expirationCleanup.products} fechas generales de producto, ${expirationCleanup.variations} fechas de variación, ${expirationCleanup.notifications} notificaciones y ${expirationCleanup.cycles} ciclos de alertas. Un cambio posterior no restaurará estos datos.`;
-      if (!needsCleanup && expirationCleanupConfirmation) expirationCleanupConfirmation.checked = false;
+      const preservesData = showsDowngradePreservation(selected); if (downgradePreservationNotice) downgradePreservationNotice.hidden = !preservesData;
+      if (downgradePreservationCopy) downgradePreservationCopy.textContent = `Se conservarán ${expirationCleanup.products} fechas generales de producto, ${expirationCleanup.variations} fechas de variación, ${expirationCleanup.notifications} notificaciones y ${expirationCleanup.cycles} ciclos de alertas. Volverán a estar disponibles al recuperar un plan compatible.`;
     }
     function updateRenewSummary() {
       if (!renewMonths || !renewSummary) return; const months = Number(renewMonths.value); const period = periodFor(currentPlan, months); const now = new Date(); const expiration = new Date(currentExpiration); const base = Number.isFinite(expiration.getTime()) && expiration > now ? expiration : now;
@@ -358,9 +369,8 @@ function planFeatures(definition: CommercialPlanDefinition) {
     changeForm?.addEventListener('change', updateChangeSummary); renewMonths?.addEventListener('change', updateRenewSummary);
     root.querySelector<HTMLButtonElement>('[data-plan-change-save]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget as HTMLButtonElement; const alert = root.querySelector<HTMLElement>('[data-plan-change-alert]'); if (button.disabled) return; if (!changePlan || !changeMonths || !changeReason) return;
-      const selected = changePlan.value as MasterPlanCode; const selectedPlan = plans[selected]; if (!selectedPlan) return; const needsCleanup = requiresExpirationCleanup(selected);
-      if (needsCleanup && expirationCleanupConfirmation?.checked !== true) { setAlert(alert, 'Confirma la eliminación irreversible de fechas y alertas de vencimiento.'); expirationCleanupConfirmation?.focus(); return; }
-      button.disabled = true; setAlert(alert); const permanent = selectedPermanent(); const result = await changeMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, { store_id: storeId, plan: selected, is_permanent: permanent, duration_months: permanent || selectedPlan.trialDays > 0 ? 0 : Number(changeMonths.value), reason: changeReason.value.trim(), confirm_expiration_cleanup: needsCleanup && expirationCleanupConfirmation?.checked === true });
+      const selected = changePlan.value as MasterPlanCode; const selectedPlan = plans[selected]; if (!selectedPlan) return;
+      button.disabled = true; setAlert(alert); const permanent = selectedPermanent(); const result = await changeMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, { store_id: storeId, plan: selected, is_permanent: permanent, duration_months: permanent || selectedPlan.trialDays > 0 ? 0 : Number(changeMonths.value), reason: changeReason.value.trim(), confirm_expiration_cleanup: false });
       if (result.available) window.location.reload(); else { setAlert(alert, getMasterPlanErrorMessage(result.error)); button.disabled = false; }
     });
     root.querySelector<HTMLButtonElement>('[data-plan-renew-save]')?.addEventListener('click', async (event) => {

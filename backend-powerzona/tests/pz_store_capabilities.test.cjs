@@ -165,7 +165,7 @@ test('una tienda Básico heredada unconfigured no recibe capacidades Premium', (
 
 test('un plan vencido se informa sin bloquear cuando enforceExpiration es false', () => {
   const access = capabilities.resolveStoreCapabilityAccess(
-    store('premium', { plan_expires_at: futureDate(-1) }),
+    store('premium', { plan_expires_at: futureDate(-4) }),
     'raffles_enabled',
     { enforceExpiration: false, now: NOW },
   );
@@ -176,13 +176,24 @@ test('un plan vencido se informa sin bloquear cuando enforceExpiration es false'
 
 test('un plan vencido se bloquea cuando enforceExpiration es true', () => {
   const access = capabilities.resolveStoreCapabilityAccess(
-    store('premium', { plan_expires_at: futureDate(-1) }),
+    store('premium', { plan_expires_at: futureDate(-4) }),
     'raffles_enabled',
     { enforceExpiration: true, now: NOW },
   );
   assert.equal(access.is_expired, true);
   assert.equal(access.allowed, false);
   assert.equal(access.reason, 'plan_expired');
+});
+
+test('durante la gracia pagada mantiene capacidades y aún no se considera vencido', () => {
+  const access = capabilities.resolveStoreCapabilityAccess(
+    store('premium', { plan_expires_at: futureDate(-1) }),
+    'raffles_enabled',
+    { enforceExpiration: true, now: NOW },
+  );
+  assert.equal(access.plan_state, 'grace');
+  assert.equal(access.is_expired, false);
+  assert.equal(access.allowed, true);
 });
 
 test('un plan desconocido falla cerrado y nunca se convierte en Premium', () => {
