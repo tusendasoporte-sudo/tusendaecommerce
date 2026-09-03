@@ -110,12 +110,30 @@ function supportContactSnapshot(app, actor, supportStoreId) {
   });
 }
 
+function publicCommercialContactSnapshot(app) {
+  const configured = configuredMaster(app);
+  if (!configured) return Object.freeze({ configured: false, href: "" });
+  return Object.freeze({
+    configured: true,
+    href: `https://wa.me/${configured.whatsapp}`,
+  });
+}
+
 function setPrivateHeaders(e) {
   try {
     const headers = e.response.header();
     headers.set("Cache-Control", "private, no-store, max-age=0");
     headers.set("Pragma", "no-cache");
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    headers.set("Referrer-Policy", "no-referrer");
+  } catch (_) {}
+}
+
+function setPublicHeaders(e) {
+  try {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+    headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Referrer-Policy", "no-referrer");
   } catch (_) {}
 }
@@ -143,12 +161,26 @@ function handleSupportContact(e) {
   }
 }
 
+function handlePublicCommercialContact(e) {
+  setPublicHeaders(e);
+  try {
+    return e.json(200, {
+      ok: true,
+      contact: publicCommercialContactSnapshot($app),
+    });
+  } catch (_) {
+    return e.json(500, { ok: false, error: "commercial_contact_failed" });
+  }
+}
+
 module.exports = {
   activeMasterActor,
   activeStoreActor,
   configuredMaster,
+  handlePublicCommercialContact,
   handleSupportContact,
   normalizeWhatsappNumber,
+  publicCommercialContactSnapshot,
   requireAuthenticatedUser,
   supportContactSnapshot,
 };

@@ -11,7 +11,8 @@ const styles = read('src/styles/commercial-home.css');
 const settings = read('src/lib/publicHomepageSettings.ts');
 
 test('la portada comercial consume el catálogo oficial y conserva las tiendas reales', () => {
-  assert.match(page, /getPublicCommercialPlanCatalog\(serverPocketBaseUrl\(\)\)/);
+  assert.match(page, /const pocketbaseUrl = serverPocketBaseUrl\(\)/);
+  assert.match(page, /getPublicCommercialPlanCatalog\(pocketbaseUrl\)/);
   assert.match(page, /getFeaturedStores\(\)/);
   assert.match(page, /commercialCatalog\.store_types/);
   assert.match(page, /commercialPeriods/);
@@ -34,6 +35,12 @@ test('las tarjetas muestran precio, total, ahorro, duración, límites, funcione
   assert.match(page, /Seguridad avanzada', value: \(\) => 'No incluida'/);
   assert.doesNotMatch(page, /Opcional · apagada por defecto/);
   assert.match(settings, /No está incluida ni activada por defecto/);
+});
+
+test('los planes promocionales no muestran límites de idiomas ni almacenamiento', () => {
+  assert.doesNotMatch(page, /capabilities\.max_locales|capabilities\.max_storage_bytes/);
+  assert.doesNotMatch(page, /label: 'Idiomas'|label: 'Almacenamiento'|MB de archivos/);
+  assert.match(page, /Contenido multilenguaje/);
 });
 
 test('la portada contiene todas las secciones y selectores pedidos', () => {

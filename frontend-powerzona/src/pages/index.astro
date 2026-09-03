@@ -8,15 +8,18 @@ import {
   type CommercialStoreTypeCode,
   type CommercialStoreTypeDefinition,
 } from '../lib/commercialPlanCatalog';
+import { buildCommercialPlanWhatsappHref, getPublicCommercialContact, publicWhatsappBaseHref } from '../lib/publicCommercialContact';
 import { serverPocketBaseUrl } from '../lib/pocketBaseServerUrl';
 import { getPublicHomepageSettings } from '../lib/publicHomepageSettings';
 import { getFeaturedStores } from '../lib/stores';
 import '../styles/commercial-home.css';
 
-const [featuredStores, commercialCatalogResult, homepageSettings] = await Promise.all([
+const pocketbaseUrl = serverPocketBaseUrl();
+const [featuredStores, commercialCatalogResult, homepageSettings, commercialContact] = await Promise.all([
   getFeaturedStores(),
-  getPublicCommercialPlanCatalog(serverPocketBaseUrl()),
+  getPublicCommercialPlanCatalog(pocketbaseUrl),
   getPublicHomepageSettings(),
+  getPublicCommercialContact(pocketbaseUrl),
 ]);
 const visibleStores = await Promise.all(featuredStores.map(async (store) => {
   const settings = await getSettings({ storeId: store.id }).catch(() => null);
@@ -27,6 +30,8 @@ const visibleStores = await Promise.all(featuredStores.map(async (store) => {
   };
 }));
 const commercialCatalog = commercialCatalogResult.data;
+const commercialWhatsappHref = commercialContact.href
+  || publicWhatsappBaseHref(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP);
 const commercialPeriods = commercialCatalog?.commercial_period_months || [1, 6, 12];
 const visibleFaqs = homepageSettings.faqs.filter((faq) => faq.visible);
 const showFeaturedStores = homepageSettings.storesSectionEnabled && visibleStores.length > 0;
@@ -82,19 +87,12 @@ function pricingView(plan: CommercialPlanDefinition, months: number) {
   };
 }
 
-function storageLabel(value: unknown) {
-  const megabytes = Math.round(Number(value || 0) / (1024 * 1024));
-  return `${new Intl.NumberFormat('es-CU').format(megabytes)} MB de archivos`;
-}
-
 function limitLabels(plan: CommercialPlanDefinition, storeType: CommercialStoreTypeCode) {
   const capabilities = plan.capabilities as Record<string, any>;
   if (storeType === 'promotional') {
     return [
       `${capabilities.max_services} servicios`,
       `${capabilities.max_total_images} imágenes totales`,
-      `${capabilities.max_locales} idiomas`,
-      storageLabel(capabilities.max_storage_bytes),
     ];
   }
   return [
@@ -138,8 +136,6 @@ function comparisonRows(storeType: CommercialStoreTypeDefinition) {
     return [
       { label: 'Servicios', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_services) },
       { label: 'Imágenes totales', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_total_images) },
-      { label: 'Idiomas', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_locales) },
-      { label: 'Almacenamiento', value: (plan: CommercialPlanDefinition) => storageLabel(plan.capabilities.max_storage_bytes) },
       { label: 'Panel administrativo web', value: (plan: CommercialPlanDefinition) => plan.capabilities.admin_panel_enabled === true },
       { label: 'Reseñas y contactos', value: (plan: CommercialPlanDefinition) => plan.capabilities.reviews_management_enabled === true && plan.capabilities.contacts_management_enabled === true },
       { label: 'Analítica', value: (plan: CommercialPlanDefinition) => plan.capabilities.analytics_enabled === true },
@@ -288,6 +284,14 @@ function comparisonValue(value: string | boolean) {
                       const pricing = pricingView(plan, months);
                       if (!pricing) return null;
                       const featured = plan.code === 'basic';
+                      const whatsappHref = buildCommercialPlanWhatsappHref(commercialWhatsappHref, {
+                        storeTypeName: storeType.name,
+                        planName: plan.name,
+                        duration: pricing.duration,
+                        monthlyEquivalent: pricing.equivalent,
+                        total: pricing.total,
+                        isTrial: plan.pricing.trial !== null,
+                      });
                       return (
                         <article class:list={['commercial-plan-card', featured && 'is-featured']}>
                           <div class="commercial-plan-ribbon">{featured && <span>Más elegido</span>}</div>
@@ -297,7 +301,11 @@ function comparisonValue(value: string | boolean) {
                           <p class="commercial-plan-total">Total a pagar: <strong>{pricing.total}</strong></p>
                           <p class="commercial-plan-saving">{pricing.savings}</p>
                           <p class="commercial-plan-duration"><span>Duración</span><strong>{pricing.duration}</strong></p>
-                          <button class="commercial-plan-action" type="button" data-plan-action data-plan-name={plan.name} data-store-name={storeType.name} data-period-name={pricing.duration} data-plan-total={pricing.total}>Elegir {plan.name.toLowerCase()}</button>
+                          {whatsappHref ? (
+                            <a class="commercial-plan-action" href={whatsappHref} target="_blank" rel="noopener noreferrer" data-plan-action data-plan-name={plan.name} data-store-name={storeType.name} data-period-name={pricing.duration} data-plan-total={pricing.total} aria-label={`Elegir ${plan.name} y consultar por WhatsApp`}>Elegir {plan.name.toLowerCase()}</a>
+                          ) : (
+                            <button class="commercial-plan-action is-unavailable" type="button" disabled title="WhatsApp del Master no configurado">Elegir {plan.name.toLowerCase()}</button>
+                          )}
                           <div class="commercial-plan-detail"><h4>Límites principales</h4><ul>{limitLabels(plan, storeType.code).map((label) => <li><span aria-hidden="true">✓</span>{label}</li>)}</ul></div>
                           <div class="commercial-plan-detail"><h4>Funciones incluidas</h4><ul>{featureLabels(plan, storeType.code).map((label) => <li><span aria-hidden="true">✓</span>{label}</li>)}</ul></div>
                           <div class="commercial-app-summary">
