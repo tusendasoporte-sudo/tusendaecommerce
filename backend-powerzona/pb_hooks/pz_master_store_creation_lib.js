@@ -1,11 +1,15 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+const promoPlans = typeof __hooks === "undefined"
+  ? require("./pz_promo_plan_lib.js")
+  : require(`${__hooks}/pz_promo_plan_lib.js`);
+
 const STORE_STATUSES = Object.freeze(["active", "suspended"]);
 const STORE_TYPES = Object.freeze(["commerce", "promo"]);
 const STORE_NAME_MAX_LENGTH = 140;
 const STORE_SLUG_MAX_LENGTH = 80;
 const OWNER_PHONE_MAX_LENGTH = 60;
-const PROMO_PLAN_CODES = Object.freeze(["free", "basic"]);
+const PROMO_PLAN_CODES = promoPlans.PROMO_PLAN_CODES;
 const PROMO_THEME_IDS = Object.freeze([
   "promo.black-gold", "promo.minimal", "promo.artisan",
   "promo.vibrant", "promo.professional", "promo.portfolio",
@@ -185,7 +189,7 @@ function parseCreateStorePayload(body) {
   const promoIsPermanent = configurablePromoPayload ? body.promo_is_permanent : false;
   const promoImageLimit = configurablePromoPayload
     ? Number(body.promo_image_limit)
-    : (promoPlan === "basic" ? 300 : 150);
+    : (promoPlans.isPromoPlanCode(promoPlan) ? promoPlans.imageLimitForPlan(promoPlan) : 0);
   const promoThemeId = (themedPromoPlanPayload || configurableThemedPromoPlanPayload) && typeof body.promo_theme_id === "string"
     ? body.promo_theme_id.trim()
     : "promo.black-gold";
@@ -196,11 +200,15 @@ function parseCreateStorePayload(body) {
   if (promoPlanPayload && (storeType !== "promo" || !PROMO_PLAN_CODES.includes(promoPlan))) return null;
   if (typeof promoIsPermanent !== "boolean") return null;
   if (storeType === "promo" && (
-    (promoPlan === "free" && (promoIsPermanent || promoDurationMonths !== 0 || promoImageLimit !== 150))
+    (promoPlan === "free" && (
+      promoIsPermanent
+      || promoDurationMonths !== 0
+      || promoImageLimit !== promoPlans.PROMO_PLAN_IMAGE_LIMITS.free
+    ))
     || (promoPlan === "basic" && (
       (promoIsPermanent && promoDurationMonths !== 0)
       || (!promoIsPermanent && (!Number.isInteger(promoDurationMonths) || promoDurationMonths < 1 || promoDurationMonths > 12))
-      || ![150, 300].includes(promoImageLimit)
+      || !promoPlans.PROMO_PLAN_IMAGE_QUOTA_OPTIONS.basic.includes(promoImageLimit)
     ))
   )) return null;
   if (storeType === "promo" && !PROMO_THEME_IDS.includes(promoThemeId)) return null;
@@ -333,10 +341,7 @@ function createStoreForMaster(app, actorId, payload) {
   const actor = findRecord(app, "users", actorId);
   if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
   const store = createBaseStore(app, actor, payload);
-  const promoPlan = typeof __hooks === "undefined"
-    ? require("./pz_promo_plan_lib.js")
-    : require(`${__hooks}/pz_promo_plan_lib.js`);
-  promoPlan.assignInitialPromoPlan(
+  promoPlans.assignInitialPromoPlan(
     app, store, actor, payload.promoPlan, payload.promoDurationMonths, payload.promoIsPermanent,
   );
   const promoMaster = typeof __hooks === "undefined"

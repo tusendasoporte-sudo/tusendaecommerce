@@ -1,74 +1,25 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+const catalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HAVANA_TIME_ZONE = "America/Havana";
-const FREE_TRIAL_DAYS = 30;
+const FREE_TRIAL_DAYS = catalog.getPlanDefinition("ecommerce", "free").duration.days;
 const STORE_PLAN_AUDIT_COLLECTION = "store_plan_audit";
 const MASTER_ROLE = "master_admin";
-const PERMANENT_PLAN_CODES = Object.freeze(["basic", "premium"]);
-const MONTHLY_PRICES_USD = Object.freeze({ free: 0, basic: 5, premium: 10 });
-
-const BASIC_CAPABILITIES = Object.freeze({
-  max_active_users: 1,
-  max_devices_per_user: 5,
-  max_store_devices: 5,
-  max_product_images: 2,
-  raffles_enabled: false,
-  security_enabled: false,
-  landing_qr_enabled: false,
-  product_expiration_tools_enabled: false,
-  push_campaigns_enabled: false,
-});
-
-const PREMIUM_CAPABILITIES = Object.freeze({
-  max_active_users: 4,
-  max_devices_per_user: 5,
-  max_store_devices: 20,
-  max_product_images: 4,
-  raffles_enabled: true,
-  security_enabled: true,
-  landing_qr_enabled: true,
-  product_expiration_tools_enabled: true,
-  push_campaigns_enabled: true,
-});
-
-const PLAN_CODES = Object.freeze(["free", "basic", "premium"]);
-
-const PLAN_DEFINITIONS = Object.freeze({
-  free: Object.freeze({
-    code: "free",
-    name: "Prueba gratuita",
-    duration: Object.freeze({
-      kind: "fixed_days",
-      days: FREE_TRIAL_DAYS,
-      min_months: 0,
-      max_months: 0,
-    }),
-    capabilities: BASIC_CAPABILITIES,
-  }),
-  basic: Object.freeze({
-    code: "basic",
-    name: "Plan Básico",
-    duration: Object.freeze({
-      kind: "calendar_months",
-      days: null,
-      min_months: 1,
-      max_months: 12,
-    }),
-    capabilities: BASIC_CAPABILITIES,
-  }),
-  premium: Object.freeze({
-    code: "premium",
-    name: "Plan Premium",
-    duration: Object.freeze({
-      kind: "calendar_months",
-      days: null,
-      min_months: 1,
-      max_months: 12,
-    }),
-    capabilities: PREMIUM_CAPABILITIES,
-  }),
-});
+const PLAN_CODES = Object.freeze(catalog.getPlanCodes("ecommerce"));
+const PLAN_DEFINITIONS = Object.freeze(PLAN_CODES.reduce((definitions, code) => {
+  definitions[code] = catalog.getPlanDefinition("ecommerce", code);
+  return definitions;
+}, {}));
+const PERMANENT_PLAN_CODES = Object.freeze(PLAN_CODES.filter(
+  (code) => PLAN_DEFINITIONS[code].supports_permanent,
+));
+// Campo legado conservado para consumidores anteriores. El catálogo comercial
+// vigente no publica precios USD y todos los importes autoritativos son CUP.
+const MONTHLY_PRICES_USD = Object.freeze({ free: 0, basic: 0, premium: 0 });
 
 function isValidPlanCode(value) {
   return typeof value === "string" && PLAN_CODES.includes(value);
@@ -83,17 +34,7 @@ function getPlanDefinition(plan) {
 
 function getPlanCapabilities(plan) {
   const capabilities = getPlanDefinition(plan).capabilities;
-  return {
-    max_active_users: capabilities.max_active_users,
-    max_devices_per_user: capabilities.max_devices_per_user,
-    max_store_devices: capabilities.max_store_devices,
-    max_product_images: capabilities.max_product_images,
-    raffles_enabled: capabilities.raffles_enabled,
-    security_enabled: capabilities.security_enabled,
-    landing_qr_enabled: capabilities.landing_qr_enabled,
-    product_expiration_tools_enabled: capabilities.product_expiration_tools_enabled,
-    push_campaigns_enabled: capabilities.push_campaigns_enabled,
-  };
+  return { ...capabilities };
 }
 
 function parseDate(value, allowEmpty) {
@@ -259,6 +200,9 @@ function resolvePlanState(storeOrValues, now) {
     isExpired: state === "expired",
     can_renew: !isPermanent && plan !== "free",
     monthly_price_usd: MONTHLY_PRICES_USD[plan],
+    monthly_price_cup: catalog.getMonthlyPriceCup("ecommerce", plan),
+    pricing: catalog.getPlanPricing("ecommerce", plan),
+    catalog_contract: catalog.CATALOG_CONTRACT,
     capabilities: getPlanCapabilities(plan),
   };
 }
@@ -330,6 +274,16 @@ function normalizeDurationMonths(value) {
 function getMonthlyPriceUsd(plan) {
   getPlanDefinition(plan);
   return MONTHLY_PRICES_USD[plan];
+}
+
+function getMonthlyPriceCup(plan) {
+  getPlanDefinition(plan);
+  return catalog.getMonthlyPriceCup("ecommerce", plan);
+}
+
+function getPlanPricing(plan) {
+  getPlanDefinition(plan);
+  return catalog.getPlanPricing("ecommerce", plan);
 }
 
 function buildPlanChangeValues(storeOrValues, input, now, actorId) {
@@ -459,9 +413,11 @@ module.exports = {
   buildPlanRenewalValues,
   getDaysRemaining,
   getHavanaCivilDateKey,
+  getMonthlyPriceCup,
   getMonthlyPriceUsd,
   getPlanCapabilities,
   getPlanDefinition,
+  getPlanPricing,
   handleStoreCreate,
   handleStoreCreateRequest,
   initializeNewStoreRecord,

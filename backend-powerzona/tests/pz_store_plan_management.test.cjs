@@ -130,13 +130,19 @@ test('el historial normaliza DateTime, actor vacío y valores anteriores vacíos
   });
 });
 
-test('las tres definiciones y precios informativos son exactos', () => {
+test('las tres definiciones consumen precios CUP del catálogo central', () => {
   const definitions = management.definitionsResponse();
-  assert.deepEqual(definitions.map(({ code, monthly_price_usd }) => ({ code, monthly_price_usd })), [
-    { code: 'free', monthly_price_usd: 0 },
-    { code: 'basic', monthly_price_usd: 5 },
-    { code: 'premium', monthly_price_usd: 10 },
+  assert.deepEqual(definitions.map(({ code, monthly_price_usd, monthly_price_cup }) => ({
+    code, monthly_price_usd, monthly_price_cup,
+  })), [
+    { code: 'free', monthly_price_usd: 0, monthly_price_cup: 0 },
+    { code: 'basic', monthly_price_usd: 0, monthly_price_cup: 1500 },
+    { code: 'premium', monthly_price_usd: 0, monthly_price_cup: 2500 },
   ]);
+  assert.deepEqual(definitions[1].pricing.periods.map((period) => period.months), [1, 6, 12]);
+  assert.equal(definitions[0].capabilities.max_products, 100);
+  assert.equal(definitions[1].capabilities.max_products, 700);
+  assert.equal(definitions[2].capabilities.max_products, 1600);
 });
 
 test('uso vacío o inválido siempre devuelve enteros no negativos', () => {

@@ -29,6 +29,9 @@ const themeApi = typeof __hooks === "undefined"
 const domain = typeof __hooks === "undefined"
   ? require("./pz_promo_domain_lib.js")
   : require(`${__hooks}/pz_promo_domain_lib.js`);
+const planCatalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
 
 const CATALOG_READ_CONTRACT = "promo.master.store.catalog.read.v1";
 const CATALOG_RESPONSE_CONTRACT = "promo.master.store.catalog.v1";
@@ -40,21 +43,7 @@ const PREFERENCES_UPDATE_CONTRACT = "promo.master.preferences.update.v1";
 const PREFERENCES_RESPONSE_CONTRACT = "promo.master.preferences.v1";
 const DEFAULT_PROMO_THEME_ID = "promo.black-gold";
 const DEFAULT_PROMO_THEME_VERSION = "1.0.0";
-const DEFAULT_PROMO_CAPABILITIES = Object.freeze({
-  promo_site_enabled: true,
-  publish_enabled: true,
-  custom_domain_enabled: false,
-  theme_customization_enabled: true,
-  multilanguage_enabled: true,
-  language_selector_enabled: false,
-  video_enabled: false,
-  analytics_enabled: true,
-  landing_qr_bridge_enabled: false,
-  max_services: 12,
-  max_locales: 2,
-  max_videos: 0,
-  max_storage_bytes: 250 * 1024 * 1024,
-});
+const DEFAULT_PROMO_CAPABILITIES = planCatalog.PROMOTIONAL_BASE_CAPABILITIES;
 const LIFECYCLE_REASON_CODES = Object.freeze([
   "administrative_request", "contract_change", "incident_recovery", "incident_response",
 ]);

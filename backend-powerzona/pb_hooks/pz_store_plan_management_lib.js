@@ -3,6 +3,9 @@
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const planCatalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
 const productExpiration = typeof __hooks === "undefined"
   ? require("./pz_product_expiration_lib.js")
   : require(`${__hooks}/pz_product_expiration_lib.js`);
@@ -210,8 +213,11 @@ function definitionsResponse() {
       code,
       name: definition.name,
       monthly_price_usd: plans.getMonthlyPriceUsd(code),
+      monthly_price_cup: plans.getMonthlyPriceCup(code),
+      pricing: plans.getPlanPricing(code),
+      catalog_contract: planCatalog.CATALOG_CONTRACT,
       duration: definition.duration,
-      supports_permanent: plans.PERMANENT_PLAN_CODES.includes(code),
+      supports_permanent: definition.supports_permanent,
       capabilities: plans.getPlanCapabilities(code),
     };
   });
@@ -252,10 +258,23 @@ function buildPlanResponse(app, store) {
     plan: state,
     usage,
     expiration_cleanup: productExpiration.getStoreExpirationCleanupPreview(app, store.id),
+    catalog_contract: planCatalog.CATALOG_CONTRACT,
     definitions,
     last_change: history.length ? history[0] : null,
     history,
   };
+}
+
+function handlePlanCatalog(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isMaster(info)) return e.json(403, { ok: false, error: "unauthorized" });
+    return e.json(200, { ok: true, ...planCatalog.getCatalogDto() });
+  } catch (error) {
+    logFailure("PZ_MASTER_PLAN_CATALOG_FAILED", error);
+    return e.json(500, { ok: false, error: "plan_catalog_failed" });
+  }
 }
 
 function parseDetailPayload(body) {
@@ -543,6 +562,7 @@ function handlePlanRenew(e) {
 module.exports = {
   buildPlanResponse,
   definitionsResponse,
+  handlePlanCatalog,
   handlePlanChange,
   handlePlanDetail,
   handlePlanRenew,

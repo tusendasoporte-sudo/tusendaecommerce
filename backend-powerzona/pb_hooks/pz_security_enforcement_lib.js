@@ -262,7 +262,7 @@ function protectionSettings(app, storeId, action, existingSettings) {
 function activeStoreWithSecurity(app, storeOrId) {
   const store = typeof storeOrId === "string" ? findRecord(app, "stores", storeOrId) : storeOrId;
   if (!store || recordString(store, "status") !== "active") return null;
-  return capabilities.hasStoreCapability(store, "security_enabled", { enforceExpiration: true }) ? store : null;
+  return capabilities.hasStoreCapability(store, "security_enabled", { app, enforceExpiration: true }) ? store : null;
 }
 
 function sourceType(action) {

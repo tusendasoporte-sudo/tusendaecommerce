@@ -18,7 +18,7 @@ function planStore(overrides = {}) {
   };
 }
 
-test('planes Promo son Gratis 30/150 y Básico configurable 1-12 o permanente con 150/300', () => {
+test('planes Promo son Gratis 30/150 y Básico 300 con precios CUP autoritativos', () => {
   const definitions = promoPlans.promoPlanDefinitions();
   assert.deepEqual(definitions.map((item) => item.code), ['free', 'basic']);
   assert.equal(definitions[0].duration.kind, 'fixed_days');
@@ -27,7 +27,11 @@ test('planes Promo son Gratis 30/150 y Básico configurable 1-12 o permanente co
   assert.equal(definitions[1].duration.kind, 'calendar_months');
   assert.equal(definitions[1].duration.min_months, 1);
   assert.equal(definitions[1].duration.max_months, 12);
+  assert.deepEqual(definitions[1].duration.allowed_months, [1, 6, 12]);
   assert.equal(definitions[1].capabilities.max_gallery_assets, 300);
+  assert.equal(definitions[1].capabilities.max_total_images, 300);
+  assert.equal(definitions[1].monthly_price_cup, 1400);
+  assert.deepEqual(definitions[1].pricing.periods.map((period) => period.total_cup), [1400, 7200, 12000]);
   assert.deepEqual(definitions[0].image_quota_options, [150]);
   assert.deepEqual(definitions[1].image_quota_options, [150, 300]);
   assert.equal(definitions[0].supports_permanent, false);

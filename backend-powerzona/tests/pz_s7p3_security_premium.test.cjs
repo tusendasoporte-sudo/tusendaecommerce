@@ -102,28 +102,31 @@ function endpointEvent(app, user, body) {
   };
 }
 
-test('S7P3: solo Premium vigente habilita la capacidad privada de Seguridad', () => {
-  for (const options of [
-    { plan: 'free' },
-    { plan: 'basic' },
-    { plan: 'premium', expiresAt: '2000-01-01T00:00:00.000Z' },
-  ]) {
+test('Seguridad avanzada depende del switch Master y no viene incluida por Premium', () => {
+  for (const options of [{ plan: 'free' }, { plan: 'basic' }, { plan: 'premium' }]) {
     const data = fixture(options);
-    assert.equal(monitoring._test.securityCapabilityAllowed(data.app, STORE_ID, data.store), false);
+    assert.equal(monitoring._test.securityCapabilityAllowed(data.app, STORE_ID, data.store), true);
     global.$app = data.app;
-    assert.equal(identity._test.securityCapabilityAllowed(data.app, STORE_ID, data.store), false);
-    assert.equal(enforcement.securityCapabilityAllowed(data.store), false);
+    assert.equal(identity._test.securityCapabilityAllowed(data.app, STORE_ID, data.store), true);
+    assert.equal(enforcement.securityCapabilityAllowed(data.app, data.store), true);
   }
 
-  const premium = fixture();
-  assert.equal(monitoring._test.securityCapabilityAllowed(premium.app, STORE_ID, premium.store), true);
-  global.$app = premium.app;
-  assert.equal(identity._test.securityCapabilityAllowed(premium.app, STORE_ID, premium.store), true);
-  assert.equal(enforcement.securityCapabilityAllowed(premium.store), true);
+  const disabled = fixture();
+  disabled.settings.enabled = false;
+  disabled.settings.mode = 'disabled';
+  assert.equal(monitoring._test.securityCapabilityAllowed(disabled.app, STORE_ID, disabled.store), false);
+  global.$app = disabled.app;
+  assert.equal(identity._test.securityCapabilityAllowed(disabled.app, STORE_ID, disabled.store), false);
+  assert.equal(enforcement.securityCapabilityAllowed(disabled.app, disabled.store), false);
+
+  const expired = fixture({ plan: 'premium', expiresAt: '2000-01-01T00:00:00.000Z' });
+  assert.equal(monitoring._test.securityCapabilityAllowed(expired.app, STORE_ID, expired.store), false);
 });
 
 test('S7P3: Principal sin capacidad recibe 403 en endpoints privados y Master conserva autoridad', () => {
   const data = fixture({ plan: 'basic' });
+  data.settings.enabled = false;
+  data.settings.mode = 'disabled';
   global.$app = data.app;
 
   assert.equal(
@@ -155,6 +158,8 @@ test('S7P3: Principal sin capacidad recibe 403 en endpoints privados y Master co
 
 test('S7P3: REST y realtime privados fallan cerrados sin capacidad', () => {
   const data = fixture({ plan: 'basic' });
+  data.settings.enabled = false;
+  data.settings.mode = 'disabled';
   let nextCalls = 0;
   assert.throws(() => enforcement.enforceRead({
     app: data.app,
@@ -167,7 +172,8 @@ test('S7P3: REST y realtime privados fallan cerrados sin capacidad', () => {
   assert.equal(nextCalls, 0);
   assert.equal(enforcement.hasCollectionReadAccess(data.app, data.user, 'store_security_events'), false);
 
-  data.store.plan = 'premium';
+  data.settings.enabled = true;
+  data.settings.mode = 'protection';
   assert.doesNotThrow(() => enforcement.enforceRead({
     app: data.app,
     auth: data.user,
@@ -179,7 +185,7 @@ test('S7P3: REST y realtime privados fallan cerrados sin capacidad', () => {
   assert.equal(enforcement.hasCollectionReadAccess(data.app, data.user, 'store_security_events'), true);
 });
 
-test('S7P3: downgrade y restauración no mutan configuración, clientes, eventos, bloqueos ni auditoría', () => {
+test('S7P3: cambiar de plan no activa ni borra la configuración opcional', () => {
   const data = fixture();
   const securitySnapshot = JSON.stringify({
     settings: data.tables.store_security_settings,
@@ -190,7 +196,7 @@ test('S7P3: downgrade y restauración no mutan configuración, clientes, eventos
   });
 
   data.store.plan = 'basic';
-  assert.equal(enforcement.securityCapabilityAllowed(data.store), false);
+  assert.equal(enforcement.securityCapabilityAllowed(data.app, data.store), true);
   assert.equal(JSON.stringify({
     settings: data.tables.store_security_settings,
     customers: data.tables.store_customers,
@@ -200,7 +206,7 @@ test('S7P3: downgrade y restauración no mutan configuración, clientes, eventos
   }), securitySnapshot);
 
   data.store.plan = 'premium';
-  assert.equal(enforcement.securityCapabilityAllowed(data.store), true);
+  assert.equal(enforcement.securityCapabilityAllowed(data.app, data.store), true);
   assert.equal(JSON.stringify({
     settings: data.tables.store_security_settings,
     customers: data.tables.store_customers,
@@ -208,6 +214,10 @@ test('S7P3: downgrade y restauración no mutan configuración, clientes, eventos
     blocks: data.tables.store_security_blocks,
     audit: data.tables.store_security_audit,
   }), securitySnapshot);
+
+  data.settings.enabled = false;
+  data.settings.mode = 'disabled';
+  assert.equal(enforcement.securityCapabilityAllowed(data.app, data.store), false);
 });
 
 test('S7P3: el gate no amplía el enforcement público existente', () => {

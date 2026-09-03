@@ -3,11 +3,16 @@ const test = require('node:test');
 
 const plans = require('../pb_hooks/pz_store_plans_lib.js');
 
-const BASIC_CAPABILITIES = {
+const FREE_CAPABILITIES = {
+  max_products: 100,
   max_active_users: 1,
   max_devices_per_user: 5,
   max_store_devices: 5,
   max_product_images: 2,
+  categories_enabled: true,
+  subcategories_enabled: true,
+  admin_android_app_enabled: false,
+  customer_android_app_enabled: false,
   raffles_enabled: false,
   security_enabled: false,
   landing_qr_enabled: false,
@@ -15,13 +20,25 @@ const BASIC_CAPABILITIES = {
   push_campaigns_enabled: false,
 };
 
+const BASIC_CAPABILITIES = {
+  ...FREE_CAPABILITIES,
+  max_products: 700,
+  max_active_users: 2,
+  admin_android_app_enabled: true,
+};
+
 const PREMIUM_CAPABILITIES = {
+  max_products: 1600,
   max_active_users: 4,
   max_devices_per_user: 5,
   max_store_devices: 20,
   max_product_images: 4,
+  categories_enabled: true,
+  subcategories_enabled: true,
+  admin_android_app_enabled: true,
+  customer_android_app_enabled: true,
   raffles_enabled: true,
-  security_enabled: true,
+  security_enabled: false,
   landing_qr_enabled: true,
   product_expiration_tools_enabled: true,
   push_campaigns_enabled: true,
@@ -38,30 +55,29 @@ function pocketBaseDateTime(value) {
 }
 
 test('la matriz de Free es exacta', () => {
-  assert.deepEqual(plans.getPlanDefinition('free'), {
-    code: 'free',
-    name: 'Prueba gratuita',
-    duration: { kind: 'fixed_days', days: 30, min_months: 0, max_months: 0 },
-    capabilities: BASIC_CAPABILITIES,
+  const definition = plans.getPlanDefinition('free');
+  assert.equal(definition.code, 'free');
+  assert.equal(definition.name, 'Prueba gratis');
+  assert.deepEqual(definition.duration, {
+    kind: 'fixed_days', days: 30, min_months: 0, max_months: 0, allowed_months: [],
   });
+  assert.deepEqual(definition.capabilities, FREE_CAPABILITIES);
 });
 
 test('la matriz de Básico es exacta', () => {
-  assert.deepEqual(plans.getPlanDefinition('basic'), {
-    code: 'basic',
-    name: 'Plan Básico',
-    duration: { kind: 'calendar_months', days: null, min_months: 1, max_months: 12 },
-    capabilities: BASIC_CAPABILITIES,
-  });
+  const definition = plans.getPlanDefinition('basic');
+  assert.equal(definition.code, 'basic');
+  assert.equal(definition.name, 'Básico');
+  assert.deepEqual(definition.duration.allowed_months, [1, 6, 12]);
+  assert.deepEqual(definition.capabilities, BASIC_CAPABILITIES);
 });
 
 test('la matriz de Premium es exacta', () => {
-  assert.deepEqual(plans.getPlanDefinition('premium'), {
-    code: 'premium',
-    name: 'Plan Premium',
-    duration: { kind: 'calendar_months', days: null, min_months: 1, max_months: 12 },
-    capabilities: PREMIUM_CAPABILITIES,
-  });
+  const definition = plans.getPlanDefinition('premium');
+  assert.equal(definition.code, 'premium');
+  assert.equal(definition.name, 'Premium');
+  assert.deepEqual(definition.duration.allowed_months, [1, 6, 12]);
+  assert.deepEqual(definition.capabilities, PREMIUM_CAPABILITIES);
 });
 
 test('Free permite un usuario, cinco dispositivos y dos fotos', () => {
@@ -80,9 +96,8 @@ test('Premium permite cuatro usuarios, cinco dispositivos por usuario, veinte po
   assert.equal(capabilities.max_product_images, 4);
 });
 
-test('solo Premium habilita las cinco capacidades avanzadas', () => {
+test('solo Premium habilita las cuatro capacidades avanzadas incluidas', () => {
   const advancedKeys = [
-    'security_enabled',
     'raffles_enabled',
     'landing_qr_enabled',
     'product_expiration_tools_enabled',
@@ -93,6 +108,7 @@ test('solo Premium habilita las cinco capacidades avanzadas', () => {
     assert.equal(plans.getPlanCapabilities('basic')[key], false);
     assert.equal(plans.getPlanCapabilities('premium')[key], true);
   }
+  assert.equal(plans.getPlanCapabilities('premium').security_enabled, false);
 });
 
 test('una tienda heredada sin vencimiento queda unconfigured', () => {

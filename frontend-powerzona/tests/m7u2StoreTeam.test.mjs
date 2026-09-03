@@ -149,8 +149,8 @@ test('M7U2: contador y disponibilidad cubren 1/4, 4/4 y ausencia de cupo', () =>
   }), false);
   assert.equal(canCreateStoreTeamUser({
     can_create: false,
-    user_counts: { active: 1, total: 4, available: 0 },
-    plan: { code: 'basic', label: 'Plan Básico', max_active_users: 1 },
+    user_counts: { active: 2, total: 4, available: 0 },
+    plan: { code: 'basic', label: 'Plan Básico', max_active_users: 2 },
   }), false);
 });
 

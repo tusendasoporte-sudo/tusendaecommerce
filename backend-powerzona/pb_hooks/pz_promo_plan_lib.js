@@ -3,14 +3,22 @@
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const catalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const PROMO_PLAN_CODES = Object.freeze(["free", "basic"]);
+const PROMO_PLAN_CODES = Object.freeze(catalog.getPlanCodes("promotional"));
 const PROMO_PLAN_GRACE_DAYS = 3;
-const PROMO_PLAN_IMAGE_LIMITS = Object.freeze({ free: 150, basic: 300 });
+const PROMO_PLAN_IMAGE_LIMITS = Object.freeze(PROMO_PLAN_CODES.reduce((limits, code) => {
+  limits[code] = catalog.getPlanCapabilities("promotional", code).max_total_images;
+  return limits;
+}, {}));
 const PROMO_PLAN_IMAGE_QUOTA_OPTIONS = Object.freeze({
-  free: Object.freeze([150]),
-  basic: Object.freeze([150, 300]),
+  free: Object.freeze([PROMO_PLAN_IMAGE_LIMITS.free]),
+  // 150 se acepta para no romper contratos Promo ya configurados; 300 es el
+  // límite comercial autoritativo del plan Básico.
+  basic: Object.freeze([PROMO_PLAN_IMAGE_LIMITS.free, PROMO_PLAN_IMAGE_LIMITS.basic]),
 });
 const PROMO_READ_ONLY_ACTIONS = Object.freeze(["promo.site.view", "promo.analytics.view"]);
 
@@ -77,15 +85,19 @@ function imageLimitForPlan(plan, requestedLimit) {
 
 function promoPlanDefinitions() {
   return PROMO_PLAN_CODES.map((code) => {
-    const base = plans.getPlanDefinition(code);
+    const base = catalog.getPlanDefinition("promotional", code);
     return {
       code,
-      name: code === "free" ? "Plan Gratis Promo" : "Plan Básico Promo",
+      name: base.name,
       monthly_price_usd: 0,
+      monthly_price_cup: catalog.getMonthlyPriceCup("promotional", code),
+      pricing: base.pricing,
+      catalog_contract: catalog.CATALOG_CONTRACT,
       duration: base.duration,
-      supports_permanent: code === "basic",
+      supports_permanent: base.supports_permanent,
       image_quota_options: PROMO_PLAN_IMAGE_QUOTA_OPTIONS[code].slice(),
       capabilities: {
+        ...base.capabilities,
         max_active_users: 0,
         max_devices_per_user: 0,
         max_store_devices: 0,
@@ -106,6 +118,7 @@ function resolvePromoPlanState(storeOrValues, now) {
   const storedPlan = recordString(storeOrValues, "plan");
   const legacyPremium = storedPlan === "premium" && recordBool(storeOrValues, "plan_is_permanent");
   if (!isPromoPlanCode(storedPlan) && !legacyPremium) {
+    const definition = promoPlanDefinitions()[0];
     return {
       plan: "free",
       plan_name: "Plan Promo sin configurar",
@@ -119,7 +132,10 @@ function resolvePromoPlanState(storeOrValues, now) {
       isExpired: false,
       can_renew: false,
       monthly_price_usd: 0,
-      capabilities: promoPlanDefinitions()[0].capabilities,
+      monthly_price_cup: definition.monthly_price_cup,
+      pricing: definition.pricing,
+      catalog_contract: catalog.CATALOG_CONTRACT,
+      capabilities: definition.capabilities,
       in_grace: false,
       grace_days: PROMO_PLAN_GRACE_DAYS,
       grace_expires_at: null,
@@ -146,10 +162,15 @@ function resolvePromoPlanState(storeOrValues, now) {
     && current.getTime() < graceExpiration.getTime();
   const operational = ["active", "expiring", "critical"].includes(base.state);
   const finalExpired = base.state === "expired" && !inGrace;
+  const definition = promoPlanDefinitions().find((item) => item.code === base.plan);
   return {
     ...base,
     plan_name: legacyPremium ? "Plan Básico Promo (legado)" : base.plan === "free" ? "Plan Gratis Promo" : "Plan Básico Promo",
     monthly_price_usd: 0,
+    monthly_price_cup: definition.monthly_price_cup,
+    pricing: definition.pricing,
+    catalog_contract: catalog.CATALOG_CONTRACT,
+    capabilities: definition.capabilities,
     state: inGrace ? "grace" : base.state,
     isExpired: finalExpired,
     in_grace: inGrace,

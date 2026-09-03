@@ -287,7 +287,7 @@ function securityCapabilityAllowed(app, storeId, storeRecord) {
   return !!store && capabilities.hasStoreCapability(
     store,
     "security_enabled",
-    { enforceExpiration: true }
+    { app, enforceExpiration: true }
   );
 }
 

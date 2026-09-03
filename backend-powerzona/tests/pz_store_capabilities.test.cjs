@@ -17,20 +17,25 @@ const store = (plan, overrides = {}) => ({
 });
 const pocketBaseDateTime = (value) => ({ string() { return value; } });
 
-test('expone únicamente las nueve capacidades oficiales', () => {
+test('expone los límites y accesos comerciales oficiales', () => {
   assert.deepEqual(capabilities.CAPABILITY_KEYS, [
+    'max_products',
     'max_active_users',
     'max_devices_per_user',
     'max_store_devices',
     'max_product_images',
+    'categories_enabled',
+    'subcategories_enabled',
+    'admin_android_app_enabled',
+    'customer_android_app_enabled',
     'raffles_enabled',
     'security_enabled',
     'landing_qr_enabled',
     'product_expiration_tools_enabled',
     'push_campaigns_enabled',
   ]);
-  assert.deepEqual(capabilities.NUMERIC_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(0, 4));
-  assert.deepEqual(capabilities.BOOLEAN_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(4));
+  assert.deepEqual(capabilities.NUMERIC_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(0, 5));
+  assert.deepEqual(capabilities.BOOLEAN_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(5));
 });
 
 test('rechaza una capability desconocida sin reflejar el payload', () => {
@@ -41,8 +46,10 @@ test('rechaza una capability desconocida sin reflejar el payload', () => {
   assert.equal(access.reason, 'invalid_capability');
 });
 
-test('Free no incluye Seguridad', () => {
-  assert.equal(capabilities.resolveStoreCapabilityAccess(store('free'), 'security_enabled').reason, 'capability_not_in_plan');
+test('Seguridad avanzada no se habilita automáticamente en ningún plan', () => {
+  for (const plan of ['free', 'basic', 'premium']) {
+    assert.equal(capabilities.resolveStoreCapabilityAccess(store(plan), 'security_enabled').reason, 'capability_not_enabled');
+  }
 });
 
 test('Básico no incluye Rifas', () => {
@@ -57,17 +64,25 @@ test('Básico no incluye herramientas de vencimiento', () => {
   assert.equal(capabilities.hasStoreCapability(store('basic'), 'product_expiration_tools_enabled'), false);
 });
 
-test('Premium incluye las cinco capacidades booleanas', () => {
-  for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS) {
+test('Premium incluye sus accesos de catálogo y Android, salvo Seguridad opcional', () => {
+  for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS.filter((item) => item !== 'security_enabled')) {
     const access = capabilities.resolveStoreCapabilityAccess(store('premium'), key);
     assert.equal(access.kind, 'boolean');
     assert.equal(access.entitled, true);
     assert.equal(access.allowed, true);
   }
+  assert.equal(capabilities.hasStoreCapability(store('premium'), 'security_enabled'), false);
 });
 
 test('Free permite como máximo un usuario activo', () => {
   assert.equal(capabilities.resolveStoreCapabilityAccess(store('free'), 'max_active_users').limit, 1);
+});
+
+test('Básico permite dos usuarios y los tres planes separan max_products', () => {
+  assert.equal(capabilities.resolveStoreCapabilityAccess(store('basic'), 'max_active_users').limit, 2);
+  assert.deepEqual(['free', 'basic', 'premium'].map((plan) => (
+    capabilities.resolveStoreCapabilityAccess(store(plan), 'max_products').limit
+  )), [100, 700, 1600]);
 });
 
 test('Premium permite como máximo cuatro usuarios activos', () => {
@@ -105,11 +120,12 @@ test('requiredAmount superior al límite devuelve limit_exceeded', () => {
   assert.equal(access.reason, 'limit_exceeded');
 });
 
-test('PowerZona Premium permanente conserva todas las capacidades Premium', () => {
+test('PowerZona Premium permanente conserva las capacidades incluidas de Premium', () => {
   const permanent = store('premium', { plan_is_permanent: true, plan_expires_at: '' });
-  for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS) {
+  for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS.filter((item) => item !== 'security_enabled')) {
     assert.equal(capabilities.hasStoreCapability(permanent, key, { now: NOW }), true);
   }
+  assert.equal(capabilities.hasStoreCapability(permanent, 'security_enabled', { now: NOW }), false);
   assert.equal(capabilities.resolveStoreCapabilityAccess(permanent, 'max_devices_per_user', { now: NOW }).limit, 5);
   assert.equal(capabilities.resolveStoreCapabilityAccess(permanent, 'max_store_devices', { now: NOW }).limit, 20);
 });
@@ -128,7 +144,7 @@ test('un plan permanente ignora una fecha residual vencida', () => {
 test('una tienda Premium heredada unconfigured conserva capacidades Premium', () => {
   const access = capabilities.resolveStoreCapabilityAccess(
     store('premium', { plan_expires_at: '' }),
-    'security_enabled',
+    'raffles_enabled',
     { now: NOW },
   );
   assert.equal(access.plan_state, 'unconfigured');
@@ -144,7 +160,7 @@ test('una tienda Básico heredada unconfigured no recibe capacidades Premium', (
   );
   assert.equal(access.plan_state, 'unconfigured');
   assert.equal(access.allowed, false);
-  assert.equal(access.reason, 'capability_not_in_plan');
+  assert.equal(access.reason, 'capability_not_enabled');
 });
 
 test('un plan vencido se informa sin bloquear cuando enforceExpiration es false', () => {
@@ -201,7 +217,7 @@ test('acepta DateTime simulado de PocketBase', () => {
 });
 
 test('el resultado está congelado y no contiene datos privados de la tienda', () => {
-  const access = capabilities.resolveStoreCapabilityAccess(store('premium'), 'security_enabled', { now: NOW });
+  const access = capabilities.resolveStoreCapabilityAccess(store('premium'), 'raffles_enabled', { now: NOW });
   assert.equal(Object.isFrozen(access), true);
   assert.deepEqual(Object.keys(access), [
     'capability',
@@ -224,20 +240,23 @@ test('el resultado está congelado y no contiene datos privados de la tienda', (
 
 test('requireStoreCapability devuelve acceso o lanza códigos seguros', () => {
   assert.equal(
-    capabilities.requireStoreCapability(store('premium'), 'security_enabled', { now: NOW }).allowed,
+    capabilities.requireStoreCapability(store('premium'), 'security_enabled', {
+      now: NOW, optionalCapabilityEnabled: true,
+    }).allowed,
     true,
   );
   assert.throws(
     () => capabilities.requireStoreCapability(store('basic'), 'security_enabled', { now: NOW }),
     (error) => error instanceof capabilities.StoreCapabilityError
-      && error.code === 'capability_not_in_plan'
-      && error.access.reason === 'capability_not_in_plan',
+      && error.code === 'capability_not_enabled'
+      && error.access.reason === 'capability_not_enabled',
   );
 });
 
 test('getSafeCapabilityError devuelve HTTP y mensajes sanitizados', () => {
   const expected = {
     capability_not_in_plan: 403,
+    capability_not_enabled: 403,
     limit_exceeded: 403,
     plan_expired: 403,
     invalid_capability: 500,
@@ -256,6 +275,23 @@ test('getSafeCapabilityError devuelve HTTP y mensajes sanitizados', () => {
     code: 'internal_error',
     message: 'Esta función no está disponible temporalmente.',
   });
+});
+
+test('Seguridad avanzada usa únicamente la configuración Master activa de la tienda', () => {
+  const premium = store('premium');
+  const settings = { store: premium.id, enabled: true, mode: 'protection' };
+  const app = {
+    findRecordsByFilter(collection, _filter, _sort, _limit, _offset, params) {
+      assert.equal(collection, 'store_security_settings');
+      return params.store === premium.id ? [settings] : [];
+    },
+  };
+  assert.equal(capabilities.hasStoreCapability(premium, 'security_enabled', { app, now: NOW }), true);
+  settings.enabled = false;
+  assert.equal(capabilities.hasStoreCapability(premium, 'security_enabled', { app, now: NOW }), false);
+  settings.enabled = true;
+  settings.mode = 'disabled';
+  assert.equal(capabilities.hasStoreCapability(premium, 'security_enabled', { app, now: NOW }), false);
 });
 
 test('requiredAmount inválido falla cerrado', () => {

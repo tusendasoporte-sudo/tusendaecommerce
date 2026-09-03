@@ -29,12 +29,17 @@ const store = (plan, overrides = {}) => ({
 });
 const pocketBaseDateTime = (value) => ({ string() { return value; } });
 
-test('la lista frontend contiene exactamente las nueve capacidades oficiales', () => {
+test('la lista frontend contiene las capacidades comerciales oficiales', () => {
   assert.deepEqual(STORE_CAPABILITY_KEYS, [
+    'max_products',
     'max_active_users',
     'max_devices_per_user',
     'max_store_devices',
     'max_product_images',
+    'categories_enabled',
+    'subcategories_enabled',
+    'admin_android_app_enabled',
+    'customer_android_app_enabled',
     'raffles_enabled',
     'security_enabled',
     'landing_qr_enabled',
@@ -54,23 +59,28 @@ test('la matriz frontend mantiene paridad completa con la fuente backend', () =>
   }
 });
 
-test('Free y Básico conservan las reglas numéricas y booleanas oficiales', () => {
+test('Free y Básico tienen límites separados y Seguridad opcional apagada', () => {
+  assert.equal(resolveStoreCapabilityAccess(store('free'), 'max_active_users', { now: NOW }).limit, 1);
+  assert.equal(resolveStoreCapabilityAccess(store('basic'), 'max_active_users', { now: NOW }).limit, 2);
+  assert.equal(resolveStoreCapabilityAccess(store('free'), 'max_products', { now: NOW }).limit, 100);
+  assert.equal(resolveStoreCapabilityAccess(store('basic'), 'max_products', { now: NOW }).limit, 700);
   for (const plan of ['free', 'basic']) {
-    assert.equal(resolveStoreCapabilityAccess(store(plan), 'max_active_users', { now: NOW }).limit, 1);
     assert.equal(resolveStoreCapabilityAccess(store(plan), 'max_product_images', { now: NOW }).limit, 2);
     assert.equal(hasStoreCapability(store(plan), 'security_enabled', { now: NOW }), false);
     assert.equal(hasStoreCapability(store(plan), 'landing_qr_enabled', { now: NOW }), false);
   }
 });
 
-test('Premium incluye límites ampliados y las cinco capacidades booleanas', () => {
+test('Premium incluye límites ampliados y accesos, salvo Seguridad opcional', () => {
+  assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_products', { now: NOW }).limit, 1600);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_active_users', { now: NOW }).limit, 4);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_devices_per_user', { now: NOW }).limit, 5);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_store_devices', { now: NOW }).limit, 20);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_product_images', { now: NOW }).limit, 4);
-  for (const key of STORE_CAPABILITY_KEYS.slice(4)) {
+  for (const key of STORE_CAPABILITY_KEYS.slice(5).filter((item) => item !== 'security_enabled')) {
     assert.equal(hasStoreCapability(store('premium'), key, { now: NOW }), true);
   }
+  assert.equal(hasStoreCapability(store('premium'), 'security_enabled', { now: NOW }), false);
 });
 
 test('un plan permanente conserva su capacidad e ignora una fecha residual', () => {
@@ -118,7 +128,7 @@ test('un plan vencido solo informa el estado con enforcement apagado', () => {
   const access = resolveStoreCapabilityAccess(
     store('premium', { plan_expires_at: expiresIn(-1) }),
     'security_enabled',
-    { enforceExpiration: false, now: NOW },
+    { enforceExpiration: false, now: NOW, optionalCapabilityEnabled: true },
   );
   assert.equal(access.plan_state, 'expired');
   assert.equal(access.is_expired, true);
@@ -129,7 +139,7 @@ test('un plan vencido devuelve plan_expired con enforcement encendido', () => {
   const access = resolveStoreCapabilityAccess(
     store('premium', { plan_expires_at: expiresIn(-1) }),
     'security_enabled',
-    { enforceExpiration: true, now: NOW },
+    { enforceExpiration: true, now: NOW, optionalCapabilityEnabled: true },
   );
   assert.equal(access.allowed, false);
   assert.equal(access.reason, 'plan_expired');
@@ -191,11 +201,13 @@ test('una capability desconocida falla cerrada y no refleja el valor recibido', 
 });
 
 test('requireStoreCapability lanza StoreCapabilityAccessError controlado', () => {
-  assert.equal(requireStoreCapability(store('premium'), 'security_enabled', { now: NOW }).allowed, true);
+  assert.equal(requireStoreCapability(store('premium'), 'security_enabled', {
+    now: NOW, optionalCapabilityEnabled: true,
+  }).allowed, true);
   assert.throws(
     () => requireStoreCapability(store('basic'), 'security_enabled', { now: NOW }),
     (error) => error instanceof StoreCapabilityAccessError
-      && error.code === 'capability_not_in_plan'
+      && error.code === 'capability_not_enabled'
       && error.access.allowed === false,
   );
 });
@@ -219,17 +231,18 @@ test('el wrapper Admin evalúa únicamente adminContext.store', () => {
     store_id: 'client-supplied-other-store',
     alternateStore: store('premium'),
   };
-  const access = resolveAdminStoreCapability(adminContext, 'security_enabled', { now: NOW });
+  const access = resolveAdminStoreCapability(adminContext, 'max_active_users', { now: NOW });
   assert.equal(access.plan, 'basic');
-  assert.equal(access.allowed, false);
+  assert.equal(access.allowed, true);
+  assert.equal(access.limit, 2);
   assert.throws(
     () => requireAdminStoreCapability(adminContext, 'security_enabled', { now: NOW }),
-    (error) => error instanceof StoreCapabilityAccessError && error.code === 'capability_not_in_plan',
+    (error) => error instanceof StoreCapabilityAccessError && error.code === 'capability_not_enabled',
   );
 });
 
 test('el resultado sanitizado es inmutable y no incluye el registro de tienda', () => {
-  const access = resolveStoreCapabilityAccess(store('premium'), 'security_enabled', { now: NOW });
+  const access = resolveStoreCapabilityAccess(store('premium'), 'raffles_enabled', { now: NOW });
   assert.equal(Object.isFrozen(access), true);
   assert.equal('id' in access, false);
   assert.equal('owner_phone' in access, false);

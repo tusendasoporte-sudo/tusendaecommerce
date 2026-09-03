@@ -40,11 +40,20 @@ const PROMO_CAPABILITY_KEYS = Object.freeze([
   ...PROMO_NUMERIC_CAPABILITY_KEYS,
 ]);
 
-const PROMO_IMAGE_QUOTA_OPTIONS = Object.freeze([150, 300]);
+const PROMO_IMAGE_QUOTA_OPTIONS = Object.freeze(Array.from(new Set(
+  promoPlanImageQuotaOptions(),
+)).sort((left, right) => left - right));
+
+function promoPlanImageQuotaOptions() {
+  return promoPlans.PROMO_PLAN_CODES.reduce(
+    (values, code) => values.concat(promoPlans.PROMO_PLAN_IMAGE_QUOTA_OPTIONS[code]),
+    [],
+  );
+}
 
 const PROMO_CAPABILITY_LIMITS = Object.freeze({
   max_services: 50,
-  max_gallery_assets: 300,
+  max_gallery_assets: Math.max(...PROMO_IMAGE_QUOTA_OPTIONS),
   max_locales: 10,
   max_videos: 3,
   max_storage_bytes: 250 * 1024 * 1024,

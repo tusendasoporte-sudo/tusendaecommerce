@@ -242,12 +242,14 @@ test("BLOCKS03B: modo/configuración/capacidad y scope no aplicable no bloquean"
     { mode: "monitoring" },
     { enabled: false },
     { manual: false },
-    { plan: "basic" },
     { scope: "reviews" },
   ]) {
     const fx = fixture(options);
     assert.equal(enforcement.evaluatePublicAccess(fx.app, fx.event, fx.store, "orders", { now }).blocked, false);
   }
+
+  const basic = fixture({ plan: "basic" });
+  assert.equal(enforcement.evaluatePublicAccess(basic.app, basic.event, basic.store, "orders", { now }).blocked, true);
 });
 
 test("BLOCKS03B: full_access respeta su flag y el aislamiento por tienda", () => {

@@ -136,6 +136,7 @@ function buildResponse(app, store, now) {
       free_trial_used: recordBool(store, "free_trial_used"),
     },
     plan: state,
+    catalog_contract: resolvedState.catalog_contract,
     definitions: promoPlans.promoPlanDefinitions(),
     last_change: planHistory.length ? planHistory[0] : null,
     history: planHistory,
@@ -168,7 +169,11 @@ function parseChangePayload(body) {
   if (typeof isPermanent !== "boolean") return null;
   if (!Number.isInteger(maxGalleryAssets)) return null;
   if (typeof reason !== "string" || reason.length > 500) return null;
-  if (plan === "free" && (isPermanent || durationMonths !== 0 || maxGalleryAssets !== 150)) return null;
+  if (plan === "free" && (
+    isPermanent
+    || durationMonths !== 0
+    || maxGalleryAssets !== promoPlans.PROMO_PLAN_IMAGE_LIMITS.free
+  )) return null;
   if (plan === "basic" && (
     (isPermanent && durationMonths !== 0)
     || (!isPermanent && durationMonths < 1)

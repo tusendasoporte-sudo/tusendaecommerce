@@ -15,11 +15,11 @@ export type SecurityAdminAccess = Readonly<{
   allowed: boolean;
 }>;
 
-export function resolveSecurityCapability(store: unknown) {
+export function resolveSecurityCapability(store: unknown, optionalCapabilityEnabled = false) {
   return resolveStoreCapabilityAccess(
     store && typeof store === 'object' ? store as Record<string, unknown> : null,
     'security_enabled',
-    { enforceExpiration: true },
+    { enforceExpiration: true, optionalCapabilityEnabled },
   );
 }
 
@@ -27,7 +27,6 @@ export async function resolveSecurityAdminAccess(
   adminContext: Pick<AdminStoreContext, 'store' | 'storeId' | 'isMasterSupport'>,
   options: { baseUrl?: string; token: string },
 ): Promise<SecurityAdminAccess> {
-  const capability = resolveSecurityCapability(adminContext?.store);
   const storeAccess = await getStoreAccessContext({
     ...options,
     supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
@@ -42,6 +41,7 @@ export async function resolveSecurityAdminAccess(
   const isPrimaryAdmin = storeAccess?.access.is_primary_admin === true;
   const canView = Boolean(storeAccess && hasStorePermission(permissionContext, 'security.view'));
   const canManage = Boolean(storeAccess && hasStorePermission(permissionContext, 'security.manage'));
+  const capability = resolveSecurityCapability(adminContext?.store, canView);
 
   return Object.freeze({
     capability,

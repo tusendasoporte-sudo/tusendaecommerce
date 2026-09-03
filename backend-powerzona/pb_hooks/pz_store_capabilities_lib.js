@@ -3,8 +3,15 @@
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const catalog = typeof __hooks === "undefined"
+  ? require("./pz_plan_catalog_lib.js")
+  : require(`${__hooks}/pz_plan_catalog_lib.js`);
 
 const BOOLEAN_CAPABILITY_KEYS = Object.freeze([
+  "categories_enabled",
+  "subcategories_enabled",
+  "admin_android_app_enabled",
+  "customer_android_app_enabled",
   "raffles_enabled",
   "security_enabled",
   "landing_qr_enabled",
@@ -13,6 +20,7 @@ const BOOLEAN_CAPABILITY_KEYS = Object.freeze([
 ]);
 
 const NUMERIC_CAPABILITY_KEYS = Object.freeze([
+  "max_products",
   "max_active_users",
   "max_devices_per_user",
   "max_store_devices",
@@ -36,6 +44,10 @@ const SAFE_ERROR_DEFINITIONS = Object.freeze({
   capability_not_in_plan: Object.freeze({
     status: 403,
     message: "Esta función no está incluida en el plan actual.",
+  }),
+  capability_not_enabled: Object.freeze({
+    status: 403,
+    message: "Esta función opcional no está habilitada para la tienda.",
   }),
   limit_exceeded: Object.freeze({
     status: 403,
@@ -85,6 +97,58 @@ function capabilityKind(capabilityKey) {
 function knownPlanFromStore(storeOrValues) {
   const plan = safeText(recordValue(storeOrValues, "plan"));
   return plans.isValidPlanCode(plan) ? plan : null;
+}
+
+function recordId(recordOrValues) {
+  return safeText(recordValue(recordOrValues, "id") || (recordOrValues && recordOrValues.id));
+}
+
+function optionalCapabilityEnabledByStore(app, storeOrValues, capabilityKey) {
+  const policy = catalog.getOptionalCapabilityPolicy(capabilityKey);
+  const storeId = recordId(storeOrValues);
+  if (!policy || policy.setting_collection !== "store_security_settings" || !app || !storeId) return false;
+  let settings = null;
+  if (typeof app.findRecordsByFilter === "function") {
+    try {
+      const records = Array.from(app.findRecordsByFilter(
+        policy.setting_collection,
+        "store = {:store}",
+        "id",
+        2,
+        0,
+        { store: storeId },
+      ) || []);
+      settings = records.length === 1 ? records[0] : null;
+    } catch (_) {
+      settings = null;
+    }
+  } else if (typeof app.findFirstRecordByFilter === "function") {
+    try {
+      settings = app.findFirstRecordByFilter(
+        policy.setting_collection,
+        "store = {:store}",
+        { store: storeId },
+      );
+    } catch (_) {
+      settings = null;
+    }
+  }
+  const mode = safeText(recordValue(settings, "mode"));
+  return !!settings
+    && booleanValue(recordValue(settings, "enabled"))
+    && ["monitoring", "protection"].includes(mode);
+}
+
+function resolveOptionalCapabilityEnabled(storeOrValues, capabilityKey, options) {
+  const policy = catalog.getOptionalCapabilityPolicy(capabilityKey);
+  if (!policy) return null;
+  if (options && Object.prototype.hasOwnProperty.call(options, "optionalCapabilityEnabled")) {
+    if (typeof options.optionalCapabilityEnabled !== "boolean") {
+      throw new TypeError("invalid_optional_capability_state");
+    }
+    return options.optionalCapabilityEnabled;
+  }
+  return optionalCapabilityEnabledByStore(options && options.app, storeOrValues, capabilityKey);
 }
 
 function invalidAccess(capabilityKey, reason, plan) {
@@ -142,7 +206,8 @@ function resolveStoreCapabilityAccess(storeOrValues, capabilityKey, options) {
 
     if (kind === "boolean") {
       if (typeof capabilityValue !== "boolean") throw new TypeError("invalid_capability_value");
-      entitled = capabilityValue;
+      const optionalEnabled = resolveOptionalCapabilityEnabled(storeOrValues, capabilityKey, options);
+      entitled = optionalEnabled === null ? capabilityValue : optionalEnabled;
     } else {
       if (!Number.isInteger(capabilityValue) || capabilityValue < 0) {
         throw new TypeError("invalid_capability_limit");
@@ -153,7 +218,8 @@ function resolveStoreCapabilityAccess(storeOrValues, capabilityKey, options) {
     }
 
     let allowed = entitled;
-    let reason = entitled ? "allowed" : "capability_not_in_plan";
+    const optionalPolicy = catalog.getOptionalCapabilityPolicy(capabilityKey);
+    let reason = entitled ? "allowed" : optionalPolicy ? "capability_not_enabled" : "capability_not_in_plan";
     if (state.isExpired && options && options.enforceExpiration === true) {
       allowed = false;
       reason = "plan_expired";
@@ -217,6 +283,7 @@ module.exports = {
   BOOLEAN_CAPABILITY_KEYS,
   CAPABILITY_KEYS,
   NUMERIC_CAPABILITY_KEYS,
+  optionalCapabilityEnabledByStore,
   StoreCapabilityError,
   getSafeCapabilityError,
   hasStoreCapability,

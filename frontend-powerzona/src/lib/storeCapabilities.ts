@@ -1,10 +1,15 @@
 import type { AdminStoreContext } from './storeContext';
 
 export const STORE_CAPABILITY_KEYS = [
+  'max_products',
   'max_active_users',
   'max_devices_per_user',
   'max_store_devices',
   'max_product_images',
+  'categories_enabled',
+  'subcategories_enabled',
+  'admin_android_app_enabled',
+  'customer_android_app_enabled',
   'raffles_enabled',
   'security_enabled',
   'landing_qr_enabled',
@@ -12,7 +17,7 @@ export const STORE_CAPABILITY_KEYS = [
   'push_campaigns_enabled',
 ] as const;
 
-const NUMERIC_CAPABILITY_KEYS = STORE_CAPABILITY_KEYS.slice(0, 4) as readonly StoreCapabilityKey[];
+const NUMERIC_CAPABILITY_KEYS = STORE_CAPABILITY_KEYS.slice(0, 5) as readonly StoreCapabilityKey[];
 const STORE_PLAN_CODES = ['free', 'basic', 'premium'] as const;
 
 export type StoreCapabilityKey = (typeof STORE_CAPABILITY_KEYS)[number];
@@ -20,6 +25,7 @@ export type StoreCapabilityPlan = (typeof STORE_PLAN_CODES)[number];
 export type StoreCapabilityReason =
   | 'allowed'
   | 'capability_not_in_plan'
+  | 'capability_not_enabled'
   | 'limit_exceeded'
   | 'plan_expired'
   | 'invalid_capability'
@@ -50,6 +56,7 @@ export type StoreCapabilityAccess = Readonly<{
 export type StoreCapabilityOptions = {
   requiredAmount?: number;
   enforceExpiration?: boolean;
+  optionalCapabilityEnabled?: boolean;
   now?: Date | string | number;
 };
 
@@ -65,11 +72,16 @@ export type StoreCapabilityValues = {
 
 type CapabilityMatrix = Record<StoreCapabilityPlan, Record<StoreCapabilityKey, number | boolean>>;
 
-const BASIC_CAPABILITIES = Object.freeze({
+const FREE_CAPABILITIES = Object.freeze({
+  max_products: 100,
   max_active_users: 1,
   max_devices_per_user: 5,
   max_store_devices: 5,
   max_product_images: 2,
+  categories_enabled: true,
+  subcategories_enabled: true,
+  admin_android_app_enabled: false,
+  customer_android_app_enabled: false,
   raffles_enabled: false,
   security_enabled: false,
   landing_qr_enabled: false,
@@ -78,15 +90,25 @@ const BASIC_CAPABILITIES = Object.freeze({
 });
 
 const STORE_PLAN_CAPABILITIES: CapabilityMatrix = Object.freeze({
-  free: BASIC_CAPABILITIES,
-  basic: BASIC_CAPABILITIES,
+  free: FREE_CAPABILITIES,
+  basic: Object.freeze({
+    ...FREE_CAPABILITIES,
+    max_products: 700,
+    max_active_users: 2,
+    admin_android_app_enabled: true,
+  }),
   premium: Object.freeze({
+    max_products: 1600,
     max_active_users: 4,
     max_devices_per_user: 5,
     max_store_devices: 20,
     max_product_images: 4,
+    categories_enabled: true,
+    subcategories_enabled: true,
+    admin_android_app_enabled: true,
+    customer_android_app_enabled: true,
     raffles_enabled: true,
-    security_enabled: true,
+    security_enabled: false,
     landing_qr_enabled: true,
     product_expiration_tools_enabled: true,
     push_campaigns_enabled: true,
@@ -105,6 +127,10 @@ const SAFE_ERROR_DEFINITIONS = Object.freeze({
   capability_not_in_plan: Object.freeze({
     status: 403,
     message: 'Esta función no está incluida en el plan actual.',
+  }),
+  capability_not_enabled: Object.freeze({
+    status: 403,
+    message: 'Esta función opcional no está habilitada para la tienda.',
   }),
   limit_exceeded: Object.freeze({
     status: 403,
@@ -280,7 +306,15 @@ export function resolveStoreCapabilityAccess(
 
     if (kind === 'boolean') {
       if (typeof capabilityValue !== 'boolean') throw new TypeError('invalid_capability_value');
-      entitled = capabilityValue;
+      if (capabilityKey === 'security_enabled') {
+        if (options && Object.prototype.hasOwnProperty.call(options, 'optionalCapabilityEnabled')
+          && typeof options.optionalCapabilityEnabled !== 'boolean') {
+          throw new TypeError('invalid_optional_capability_state');
+        }
+        entitled = options?.optionalCapabilityEnabled === true;
+      } else {
+        entitled = capabilityValue;
+      }
     } else {
       if (!Number.isInteger(capabilityValue) || (capabilityValue as number) < 0) {
         throw new TypeError('invalid_capability_limit');
@@ -291,7 +325,9 @@ export function resolveStoreCapabilityAccess(
     }
 
     let allowed = entitled;
-    let reason: StoreCapabilityReason = entitled ? 'allowed' : 'capability_not_in_plan';
+    let reason: StoreCapabilityReason = entitled
+      ? 'allowed'
+      : capabilityKey === 'security_enabled' ? 'capability_not_enabled' : 'capability_not_in_plan';
     if (planState.isExpired && options?.enforceExpiration === true) {
       allowed = false;
       reason = 'plan_expired';

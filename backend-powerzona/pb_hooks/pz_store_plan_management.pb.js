@@ -1,6 +1,15 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 routerAdd(
+  "GET",
+  "/api/pz/master/plan-catalog",
+  (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).handlePlanCatalog(e),
+  (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "POST",
   "/api/pz/master/store-plan",
   (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).handlePlanDetail(e),

@@ -171,7 +171,7 @@ function fixture() {
   };
 }
 
-test('catálogos Promo quedan separados de los 29 permisos, seis reservados y nueve capacidades Commerce vigentes', () => {
+test('catálogos Promo quedan separados de los permisos y capacidades Commerce vigentes', () => {
   assert.equal(promo.PROMO_ASSIGNABLE_PERMISSION_KEYS.length, 10);
   assert.equal(promo.PROMO_RESERVED_PERMISSION_KEYS.length, 6);
   assert.equal(promo.PROMO_CAPABILITY_KEYS.length, 14);
@@ -181,7 +181,7 @@ test('catálogos Promo quedan separados de los 29 permisos, seis reservados y nu
   assert.equal(commercePermissions.ASSIGNABLE_PERMISSION_KEYS.length, 29);
   assert.equal(commercePermissions.RESERVED_PERMISSIONS.length, 5);
   assert.equal(Object.keys(commercePermissions.PERMISSION_TEMPLATES).length, 6);
-  assert.equal(commerceCapabilities.CAPABILITY_KEYS.length, 9);
+  assert.equal(commerceCapabilities.CAPABILITY_KEYS.length, 14);
   assert.equal(commercePermissions.ASSIGNABLE_PERMISSION_KEYS.some((key) => key.startsWith('promo.')), false);
   assert.equal(JSON.stringify(commercePermissions.PERMISSION_TEMPLATES).includes('promo.'), false);
   assert.equal(commerceCapabilities.CAPABILITY_KEYS.some((key) => key.startsWith('promo')), false);
@@ -277,7 +277,9 @@ test('gates combinan sesión viva, usuario, tienda, sitio, capacidad, permiso y 
 
 test('bloqueo de usuario por plan se conserva y no elimina permisos persistidos', () => {
   const data = fixture();
-  data.storeA.plan = 'basic';
+  data.storeA.plan = 'free';
+  data.storeA.plan_is_permanent = false;
+  data.storeA.plan_expires_at = '2099-08-01T00:00:00.000Z';
   assert.equal(promo.canPromoAction(data.app, data.secondaryA, 'promo.site.view'), false);
   assert.deepEqual(data.accessSecondaryA.promo_permissions_json, [
     'promo.content.manage',

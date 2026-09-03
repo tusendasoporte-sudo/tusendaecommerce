@@ -538,11 +538,11 @@ function storeDeviceLimit(store) {
   return access.limit;
 }
 
-function storeCapability(store, capabilityKey) {
+function storeCapability(store, capabilityKey, app) {
   const access = capabilities.resolveStoreCapabilityAccess(
     store,
     capabilityKey,
-    { enforceExpiration: false }
+    { app, enforceExpiration: false }
   );
   if (!access || ["invalid_plan_data", "invalid_capability"].includes(access.reason)) {
     throw codedError("user_management_unavailable");
@@ -564,7 +564,7 @@ function planResponse(store, counts, app) {
   const access = planAccess(store);
   const deviceAccess = storeCapability(store, "max_devices_per_user");
   const storeDeviceAccess = storeCapability(store, "max_store_devices");
-  const securityAccess = storeCapability(store, "security_enabled");
+  const securityAccess = storeCapability(store, "security_enabled", app);
   const rafflesAccess = storeCapability(store, "raffles_enabled");
   const landingAccess = storeCapability(store, "landing_qr_enabled");
   return {

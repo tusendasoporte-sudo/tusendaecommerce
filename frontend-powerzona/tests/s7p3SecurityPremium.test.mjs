@@ -17,13 +17,14 @@ const store = (plan, overrides = {}) => ({
   ...overrides,
 });
 
-test('S7P3: capacidad efectiva permite solo Premium vigente y falla cerrada', () => {
-  assert.equal(resolveSecurityCapability(store('premium')).allowed, true);
-  assert.equal(resolveSecurityCapability(store('free')).allowed, false);
-  assert.equal(resolveSecurityCapability(store('basic')).allowed, false);
+test('Seguridad avanzada requiere habilitación opcional y un plan vigente', () => {
+  assert.equal(resolveSecurityCapability(store('premium')).allowed, false);
+  assert.equal(resolveSecurityCapability(store('free'), true).allowed, true);
+  assert.equal(resolveSecurityCapability(store('basic'), true).allowed, true);
+  assert.equal(resolveSecurityCapability(store('premium'), true).allowed, true);
   assert.equal(resolveSecurityCapability(store('premium', {
     plan_expires_at: '2000-01-01T00:00:00.000Z',
-  })).reason, 'plan_expired');
+  }), true).reason, 'plan_expired');
   assert.equal(resolveSecurityCapability(store('desconocido')).reason, 'invalid_plan_data');
   assert.equal(resolveSecurityCapability(null).allowed, false);
 });
@@ -36,7 +37,7 @@ test('S7P3: Principal sin capacidad ve gate sin cargar datos ni montar monitoreo
   const privateGuard = page.indexOf('if (canRenderSecurity) {');
   const summaryRead = page.indexOf('await getSecurityMonitoringSummary');
 
-  assert.match(access, /'security_enabled',[\s\S]*?enforceExpiration: true/);
+  assert.match(access, /'security_enabled',[\s\S]*?enforceExpiration: true[\s\S]*?optionalCapabilityEnabled/);
   assert.match(access, /allowed: capability\.allowed && canView/);
   assert.ok(accessResolution > -1);
   assert.ok(settingsRead > accessResolution);
@@ -93,6 +94,7 @@ test('S7P3: sidebar descubre el gate sin consultar configuración privada durant
   const settingsIndex = sidebar.indexOf('await getStoreSecuritySettingsForToken');
 
   assert.ok(capabilityIndex > -1);
+  assert.match(sidebar, /optionalCapabilityEnabled: canViewSecurity/);
   assert.ok(gateIndex > capabilityIndex);
   assert.ok(settingsIndex > gateIndex);
   assert.match(sidebar, /if \(securityAccess\.allowed && canViewSecurity\) \{[\s\S]*?getStoreSecuritySettingsForToken/);

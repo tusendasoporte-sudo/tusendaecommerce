@@ -139,9 +139,9 @@ test('Free permite exactamente un usuario activo', () => {
   assert.equal(users.planAccess(store('free'), 1).limit, 1);
 });
 
-test('Basico permite exactamente un usuario activo', () => {
-  assert.equal(users.planAccess(store('basic'), 1).allowed, true);
-  assert.equal(users.planAccess(store('basic'), 1).limit, 1);
+test('Basico permite exactamente dos usuarios activos', () => {
+  assert.equal(users.planAccess(store('basic'), 2).allowed, true);
+  assert.equal(users.planAccess(store('basic'), 2).limit, 2);
 });
 
 test('Premium permite exactamente cuatro usuarios activos', () => {
@@ -151,6 +151,7 @@ test('Premium permite exactamente cuatro usuarios activos', () => {
 
 test('un usuario adicional al limite se rechaza por capacidad', () => {
   assert.equal(users.planAccess(store('free'), 2).allowed, false);
+  assert.equal(users.planAccess(store('basic'), 3).allowed, false);
   assert.equal(users.planAccess(store('premium'), 5).allowed, false);
 });
 

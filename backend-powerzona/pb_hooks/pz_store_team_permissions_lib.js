@@ -432,14 +432,14 @@ function findAccessRecord(app, storeId, userId) {
   return null;
 }
 
-function capabilityAllowsPermission(store, permission) {
+function capabilityAllowsPermission(app, store, permission) {
   const capability = PERMISSION_CAPABILITIES[permission];
   if (!capability) return true;
-  return capabilities.hasStoreCapability(store, capability, { enforceExpiration: true });
+  return capabilities.hasStoreCapability(store, capability, { app, enforceExpiration: true });
 }
 
-function filterPlanCapabilities(store, permissions) {
-  return permissions.filter((permission) => capabilityAllowsPermission(store, permission));
+function filterPlanCapabilities(app, store, permissions) {
+  return permissions.filter((permission) => capabilityAllowsPermission(app, store, permission));
 }
 
 function resolveEffectiveStorePermissions(app, userOrId, storeOrId) {
@@ -479,7 +479,7 @@ function resolveEffectiveStorePermissions(app, userOrId, storeOrId) {
     }
   }
 
-  return filterPlanCapabilities(store, assigned);
+  return filterPlanCapabilities(app, store, assigned);
 }
 
 function hasStorePermission(app, user, store, permission) {

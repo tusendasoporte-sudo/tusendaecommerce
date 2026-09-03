@@ -831,7 +831,7 @@ function enforce(e, required, collection) {
   if (targetStoreId && targetStoreId !== actorStoreId) return e.next();
   const store = findRecord(app, "stores", actorStoreId);
   if (!store) return e.next();
-  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) {
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(app, store)) {
     denyPermission(required[0] || "security.view");
   }
   for (const permission of required) {
@@ -850,7 +850,7 @@ function enforceAny(e, required, collection) {
   if (targetStoreId && targetStoreId !== actorStoreId) return e.next();
   const store = findRecord(app, "stores", actorStoreId);
   if (!store) return e.next();
-  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) {
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(app, store)) {
     denyPermission(required[0] || "security.view");
   }
   if (!required.some((permission) => permissions.hasStorePermission(app, auth, store, permission))) {
@@ -1036,11 +1036,11 @@ function landingQrCapabilityAllowed(store) {
   );
 }
 
-function securityCapabilityAllowed(store) {
+function securityCapabilityAllowed(app, store) {
   return !!store && capabilities.hasStoreCapability(
     store,
     "security_enabled",
-    { enforceExpiration: true },
+    { app, enforceExpiration: true },
   );
 }
 
@@ -1805,7 +1805,7 @@ function hasCollectionReadAccess(app, auth, collection) {
   if (DENIED_STORE_READS[collection]) return false;
   const store = findRecord(app, "stores", relationId(auth, "store"));
   if (!store) return false;
-  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) return false;
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(app, store)) return false;
   const all = READ_ALL_PERMISSIONS[collection];
   if (all) return all.every((permission) => permissions.hasStorePermission(app, auth, store, permission));
   const exact = READ_PERMISSIONS[collection];

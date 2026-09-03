@@ -199,7 +199,7 @@ test('un usuario adicional Premium usa permisos persistidos y la retirada es inm
   );
 });
 
-test('Free/Básico bloquea extras y V7E9 requiere permiso más capability del plan', () => {
+test('Free bloquea extras, Básico admite un adicional y V7E9 requiere capability', () => {
   const staff = user(STAFF_ID);
   const assigned = [{
     store: STORE_ID,
@@ -209,8 +209,13 @@ test('Free/Básico bloquea extras y V7E9 requiere permiso más capability del pl
   }];
   const basic = planStore('basic');
   const basicApp = fakeApp({ store: basic, users: [staff], access: assigned });
-  assert.equal(permissions.isBlockedByPlan(basicApp, staff, basic), true);
-  assert.deepEqual(permissions.resolveEffectiveStorePermissions(basicApp, staff, basic), []);
+  assert.equal(permissions.isBlockedByPlan(basicApp, staff, basic), false);
+  assert.deepEqual(permissions.resolveEffectiveStorePermissions(basicApp, staff, basic), ['catalog.view']);
+
+  const free = planStore('free');
+  const freeApp = fakeApp({ store: free, users: [staff], access: assigned });
+  assert.equal(permissions.isBlockedByPlan(freeApp, staff, free), true);
+  assert.deepEqual(permissions.resolveEffectiveStorePermissions(freeApp, staff, free), []);
 
   const basicPrimary = user(PRIMARY_ID);
   const primaryApp = fakeApp({ store: basic, users: [basicPrimary] });
