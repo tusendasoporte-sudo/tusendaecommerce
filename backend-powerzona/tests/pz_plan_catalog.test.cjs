@@ -193,6 +193,25 @@ test('el endpoint privado expone el DTO unificado sin depender de una tienda', (
   assert.deepEqual(denied, { status: 403, payload: { ok: false, error: 'unauthorized' } });
 });
 
+test('la portada puede leer el mismo catálogo por un endpoint público cacheable', () => {
+  const route = fs.readFileSync(path.join(__dirname, '../pb_hooks/pz_store_plan_management.pb.js'), 'utf8');
+  assert.match(route, /"GET",\s*"\/api\/pz\/public\/plan-catalog"/);
+  const publicRoute = route.slice(route.indexOf('/api/pz/public/plan-catalog'), route.indexOf('/api/pz/master/plan-catalog'));
+  assert.match(publicRoute, /handlePublicPlanCatalog/);
+  assert.doesNotMatch(publicRoute, /requireAuth|requireAuthenticatedUser/);
+
+  const headers = new Map();
+  const event = {
+    response: { header() { return { set(key, value) { headers.set(key, value); } }; } },
+    json(status, payload) { return { status, payload }; },
+  };
+  const response = management.handlePublicPlanCatalog(event);
+  assert.equal(response.status, 200);
+  assert.equal(response.payload.ok, true);
+  assert.equal(response.payload.contract, catalog.CATALOG_CONTRACT);
+  assert.equal(headers.get('Cache-Control'), 'public, max-age=300, stale-while-revalidate=600');
+});
+
 test('el catálogo interno está congelado y rechaza tipos o planes desconocidos', () => {
   assert.equal(Object.isFrozen(catalog.PLAN_CATALOG), true);
   assert.equal(Object.isFrozen(catalog.getPlanDefinition('ecommerce', 'premium').capabilities), true);

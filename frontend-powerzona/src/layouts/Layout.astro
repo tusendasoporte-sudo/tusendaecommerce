@@ -35,7 +35,7 @@ const currentStoreInitials = getStoreInitials(currentStore?.name || currentStore
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
-const contentContainerClass = isMaster
+const contentContainerClass = isMaster || isBazar
 	? 'w-full min-w-0'
 	: 'w-full max-w-7xl mx-auto p-4 sm:p-6';
 const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htmlLang) : 'es';

@@ -321,6 +321,34 @@ export async function getMasterCommercialPlanCatalog(
   }
 }
 
+export async function getPublicCommercialPlanCatalog(
+  pocketbaseUrl: string,
+): Promise<CommercialPlanCatalogRequest> {
+  const baseUrl = text(pocketbaseUrl, 500).replace(/\/$/, '');
+  if (!baseUrl) return { available: false, status: 0, error: 'unavailable', data: null };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${baseUrl}/api/pz/public/plan-catalog`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    const data = response.status === 200 ? normalizeCommercialPlanCatalog(payload) : null;
+    return Object.freeze({
+      available: response.status === 200 && data !== null,
+      status: response.status,
+      error: data ? '' : text(payload?.error, 80) || (response.status === 200 ? 'invalid_response' : 'unavailable'),
+      data,
+    });
+  } catch (_) {
+    return { available: false, status: 0, error: 'unavailable', data: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function commercialStoreType(
   catalog: CommercialPlanCatalog,
   storeType: CommercialStoreTypeCode | CommercialStorageCode,

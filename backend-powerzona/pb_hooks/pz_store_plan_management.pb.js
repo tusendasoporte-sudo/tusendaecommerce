@@ -2,6 +2,13 @@
 
 routerAdd(
   "GET",
+  "/api/pz/public/plan-catalog",
+  (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).handlePublicPlanCatalog(e),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "GET",
   "/api/pz/master/plan-catalog",
   (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).handlePlanCatalog(e),
   (e) => require(`${__hooks}/pz_store_plan_management_lib.js`).requireAuthenticatedUser(e),

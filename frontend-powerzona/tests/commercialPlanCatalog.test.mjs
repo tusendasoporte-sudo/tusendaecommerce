@@ -11,6 +11,7 @@ import {
   commercialStoreType,
   formatCommercialCup,
   getMasterCommercialPlanCatalog,
+  getPublicCommercialPlanCatalog,
   normalizeCommercialPlanCatalog,
 } from '../src/lib/commercialPlanCatalog.ts';
 import { normalizeCommercialPlanAuditTerms } from '../src/lib/commercialPlanAudit.ts';
@@ -103,6 +104,25 @@ test('interfaces Master no contienen precios USD, periodos 1..12 ni cuotas Promo
   assert.match(read('src/pages/master/stores/[storeId]/plan.astro'), /getMasterCommercialPlanCatalog/);
   assert.match(read('src/pages/master/stores/index.astro'), /showCreateStore=\{commercialCatalog\.available\}/);
   assert.match(formatCommercialCup(1400), /CUP$/);
+});
+
+test('la portada consulta el catálogo público sin credenciales y conserva la validación contractual', async () => {
+  let request;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(JSON.stringify(payload()), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const result = await getPublicCommercialPlanCatalog('https://pb.example.test/');
+    assert.equal(result.available, true);
+    assert.equal(request.url, 'https://pb.example.test/api/pz/public/plan-catalog');
+    assert.equal(request.options.method, 'GET');
+    assert.equal(request.options.cache, 'no-store');
+    assert.equal(Object.hasOwn(request.options, 'headers'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('el cliente normaliza el snapshot comercial histórico sin recalcularlo con el catálogo actual', () => {

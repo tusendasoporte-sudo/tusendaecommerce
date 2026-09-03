@@ -49,6 +49,15 @@ function setPrivateHeaders(e) {
   } catch (_) {}
 }
 
+function setPublicCatalogHeaders(e) {
+  try {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Referrer-Policy", "no-referrer");
+  } catch (_) {}
+}
+
 function requireAuthenticatedUser(e) {
   setPrivateHeaders(e);
   if (!e.auth) return e.json(403, { ok: false, error: "unauthorized" });
@@ -284,6 +293,16 @@ function handlePlanCatalog(e) {
     return e.json(200, { ok: true, ...planCatalog.getCatalogDto() });
   } catch (error) {
     logFailure("PZ_MASTER_PLAN_CATALOG_FAILED", error);
+    return e.json(500, { ok: false, error: "plan_catalog_failed" });
+  }
+}
+
+function handlePublicPlanCatalog(e) {
+  setPublicCatalogHeaders(e);
+  try {
+    return e.json(200, { ok: true, ...planCatalog.getCatalogDto() });
+  } catch (error) {
+    logFailure("PZ_PUBLIC_PLAN_CATALOG_FAILED", error);
     return e.json(500, { ok: false, error: "plan_catalog_failed" });
   }
 }
@@ -571,6 +590,7 @@ module.exports = {
   buildPlanResponse,
   definitionsResponse,
   handlePlanCatalog,
+  handlePublicPlanCatalog,
   handlePlanChange,
   handlePlanDetail,
   handlePlanRenew,

@@ -1,9 +1,21 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getFeaturedStores } from '../lib/stores';
 import { getSettings } from '../lib/api';
+import {
+  formatCommercialCup,
+  getPublicCommercialPlanCatalog,
+  type CommercialPlanDefinition,
+  type CommercialStoreTypeCode,
+  type CommercialStoreTypeDefinition,
+} from '../lib/commercialPlanCatalog';
+import { serverPocketBaseUrl } from '../lib/pocketBaseServerUrl';
+import { getFeaturedStores } from '../lib/stores';
+import '../styles/commercial-home.css';
 
-const featuredStores = await getFeaturedStores();
+const [featuredStores, commercialCatalogResult] = await Promise.all([
+  getFeaturedStores(),
+  getPublicCommercialPlanCatalog(serverPocketBaseUrl()),
+]);
 const visibleStores = await Promise.all(featuredStores.map(async (store) => {
   const settings = await getSettings({ storeId: store.id }).catch(() => null);
   return {
@@ -12,6 +24,14 @@ const visibleStores = await Promise.all(featuredStores.map(async (store) => {
     description: String(settings?.store_description || '').trim(),
   };
 }));
+const commercialCatalog = commercialCatalogResult.data;
+const commercialPeriods = commercialCatalog?.commercial_period_months || [1, 6, 12];
+
+const periodLabels: Record<number, string> = {
+  1: 'Mensual',
+  6: '6 meses',
+  12: 'Anual',
+};
 
 function storeInitials(name: string) {
   return String(name || 'TS')
@@ -25,108 +45,374 @@ function storeInitials(name: string) {
 function storeHref(store: any) {
   return `/t/${encodeURIComponent(String(store.slug || '').trim().toLowerCase())}`;
 }
+
+function periodFor(plan: CommercialPlanDefinition, months: number) {
+  return plan.pricing.periods.find((period) => period.months === months) || null;
+}
+
+function durationLabel(plan: CommercialPlanDefinition, months: number) {
+  return plan.pricing.trial ? `${plan.pricing.trial.days} días` : `${months} ${months === 1 ? 'mes' : 'meses'}`;
+}
+
+function pricingView(plan: CommercialPlanDefinition, months: number) {
+  if (plan.pricing.trial) {
+    return {
+      equivalent: 'Gratis',
+      equivalentDetail: 'prueba única',
+      total: formatCommercialCup(plan.pricing.trial.total_cup),
+      savings: 'Sin pago durante la prueba',
+      duration: `${plan.pricing.trial.days} días`,
+    };
+  }
+  const period = periodFor(plan, months);
+  if (!period) return null;
+  return {
+    equivalent: formatCommercialCup(period.monthly_equivalent_cup),
+    equivalentDetail: '/mes equivalente',
+    total: formatCommercialCup(period.total_cup),
+    savings: period.savings_cup > 0
+      ? `Ahorras ${formatCommercialCup(period.savings_cup)} · ${period.savings_percent}%`
+      : 'Precio mensual de referencia',
+    duration: durationLabel(plan, months),
+  };
+}
+
+function storageLabel(value: unknown) {
+  const megabytes = Math.round(Number(value || 0) / (1024 * 1024));
+  return `${new Intl.NumberFormat('es-CU').format(megabytes)} MB de archivos`;
+}
+
+function limitLabels(plan: CommercialPlanDefinition, storeType: CommercialStoreTypeCode) {
+  const capabilities = plan.capabilities as Record<string, any>;
+  if (storeType === 'promotional') {
+    return [
+      `${capabilities.max_services} servicios`,
+      `${capabilities.max_total_images} imágenes totales`,
+      `${capabilities.max_locales} idiomas`,
+      storageLabel(capabilities.max_storage_bytes),
+    ];
+  }
+  return [
+    `${capabilities.max_products} productos`,
+    `${capabilities.max_active_users} ${capabilities.max_active_users === 1 ? 'usuario activo' : 'usuarios activos'}`,
+    `${capabilities.max_store_devices} dispositivos administrativos`,
+    `${capabilities.max_product_images} ${capabilities.max_product_images === 1 ? 'foto' : 'fotos'} por producto`,
+  ];
+}
+
+function featureLabels(plan: CommercialPlanDefinition, storeType: CommercialStoreTypeCode) {
+  const capabilities = plan.capabilities as Record<string, any>;
+  if (storeType === 'promotional') {
+    return [
+      'Panel administrativo web',
+      'Catálogo promocional y publicación',
+      'Reseñas y contactos',
+      'Personalización de tema',
+      'Analítica de visitas',
+      'Contenido multilenguaje',
+    ];
+  }
+  const features = [
+    'Categorías y subcategorías',
+    capabilities.admin_android_app_enabled ? 'Aplicación administrativa Android' : 'Administración desde la web',
+  ];
+  if (capabilities.customer_android_app_enabled) features.push('Aplicación Android para clientes');
+  if (capabilities.raffles_enabled) features.push('Rifas Premium');
+  if (capabilities.landing_qr_enabled) features.push('Landing QR');
+  if (capabilities.product_expiration_tools_enabled) features.push('Herramientas de vencimiento');
+  if (capabilities.push_campaigns_enabled) features.push('Campañas push');
+  return features;
+}
+
+function appLabel(plan: CommercialPlanDefinition, key: 'admin_android_app_enabled' | 'customer_android_app_enabled') {
+  return plan.capabilities[key] === true ? 'Incluida' : 'No incluida';
+}
+
+function comparisonRows(storeType: CommercialStoreTypeDefinition) {
+  if (storeType.code === 'promotional') {
+    return [
+      { label: 'Servicios', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_services) },
+      { label: 'Imágenes totales', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_total_images) },
+      { label: 'Idiomas', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_locales) },
+      { label: 'Almacenamiento', value: (plan: CommercialPlanDefinition) => storageLabel(plan.capabilities.max_storage_bytes) },
+      { label: 'Panel administrativo web', value: (plan: CommercialPlanDefinition) => plan.capabilities.admin_panel_enabled === true },
+      { label: 'Reseñas y contactos', value: (plan: CommercialPlanDefinition) => plan.capabilities.reviews_management_enabled === true && plan.capabilities.contacts_management_enabled === true },
+      { label: 'Analítica', value: (plan: CommercialPlanDefinition) => plan.capabilities.analytics_enabled === true },
+      { label: 'App administrativa Android', value: () => false },
+      { label: 'App Android para clientes', value: () => false },
+      { label: 'Seguridad avanzada', value: () => 'No incluida' },
+    ];
+  }
+  return [
+    { label: 'Productos', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_products) },
+    { label: 'Usuarios activos', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_active_users) },
+    { label: 'Dispositivos administrativos', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_store_devices) },
+    { label: 'Fotos por producto', value: (plan: CommercialPlanDefinition) => String(plan.capabilities.max_product_images) },
+    { label: 'Categorías y subcategorías', value: (plan: CommercialPlanDefinition) => plan.capabilities.categories_enabled === true && plan.capabilities.subcategories_enabled === true },
+    { label: 'App administrativa Android', value: (plan: CommercialPlanDefinition) => plan.capabilities.admin_android_app_enabled === true },
+    { label: 'App Android para clientes', value: (plan: CommercialPlanDefinition) => plan.capabilities.customer_android_app_enabled === true },
+    { label: 'Rifas Premium', value: (plan: CommercialPlanDefinition) => plan.capabilities.raffles_enabled === true },
+    { label: 'Landing QR', value: (plan: CommercialPlanDefinition) => plan.capabilities.landing_qr_enabled === true },
+    { label: 'Vencimientos y campañas push', value: (plan: CommercialPlanDefinition) => plan.capabilities.product_expiration_tools_enabled === true && plan.capabilities.push_campaigns_enabled === true },
+    { label: 'Seguridad avanzada', value: () => 'Opcional · apagada por defecto' },
+  ];
+}
+
+function comparisonValue(value: string | boolean) {
+  if (value === true) return { label: 'Incluido', tone: 'yes', symbol: '✓' };
+  if (value === false) return { label: 'No incluido', tone: 'no', symbol: '—' };
+  return { label: value, tone: value.startsWith('No incluida') ? 'no' : 'plain', symbol: '' };
+}
 ---
 
 <Layout
   isBazar={true}
   seo={{
-    title: 'Tu Senda 84',
-    description: 'Tu Senda 84',
+    title: 'Tu Senda 84 | Crea tu tienda online',
+    description: 'Crea una tienda promocional o ecommerce con planes claros, catálogo, administración y aplicaciones Android según el plan.',
     image: '/brand/tusenda84-bazzar-logo.webp',
     canonical: '/',
     type: 'website',
     siteName: 'Tu Senda 84',
   }}
 >
-  <style>
-    .bazar-shell { display: grid; gap: 28px; color: #111827; }
-    .bazar-hero { position: relative; overflow: hidden; border-radius: 30px; border: 1px solid rgba(226,232,240,.95); background: #0f172a; box-shadow: 0 24px 70px rgba(15,23,42,.14); }
-    .bazar-hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 12%, rgba(34,197,94,.26), transparent 30%), radial-gradient(circle at 85% 18%, rgba(14,165,233,.22), transparent 28%), linear-gradient(135deg,#0f172a,#172554 52%,#164e63); }
-    .bazar-hero-content { position: relative; z-index: 1; display: grid; gap: 18px; padding: clamp(26px, 6vw, 54px); min-height: 320px; align-content: center; color: #fff; }
-    .bazar-kicker { width: max-content; max-width: 100%; border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: rgba(255,255,255,.9); font-size: 12px; font-weight: 900; }
-    .bazar-title { margin: 0; font-size: clamp(40px, 9vw, 76px); line-height: .92; font-weight: 1000; letter-spacing: 0; }
-    .bazar-copy { margin: 0; max-width: 640px; color: rgba(255,255,255,.84); font-size: clamp(16px, 2.2vw, 19px); line-height: 1.55; font-weight: 750; }
-    .bazar-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
-    .bazar-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 18px; padding: 13px 17px; background: #22c55e; color: #052e16; font-size: 14px; font-weight: 1000; text-decoration: none; box-shadow: 0 18px 42px rgba(34,197,94,.2); }
-    .bazar-btn.secondary { background: rgba(255,255,255,.96); color: #111827; box-shadow: 0 14px 34px rgba(15,23,42,.12); }
-    .bazar-section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
-    .bazar-section-title { margin: 0; font-size: clamp(25px, 4vw, 36px); line-height: 1; font-weight: 1000; letter-spacing: 0; color: #111827; }
-    .bazar-section-text { margin: 7px 0 0; color: #64748b; font-size: 14px; line-height: 1.45; font-weight: 800; }
-    .store-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
-    .store-card { overflow: hidden; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: inherit; text-decoration: none; box-shadow: 0 16px 40px rgba(15,23,42,.07); transition: transform .18s ease, box-shadow .18s ease; }
-    .store-card:hover { transform: translateY(-2px); box-shadow: 0 22px 52px rgba(15,23,42,.11); }
-    .store-banner { position: relative; min-height: 150px; aspect-ratio: 16 / 8; background: linear-gradient(135deg,#f1f5f9,#dbeafe); display: grid; place-items: center; overflow: hidden; }
-    .store-banner img { width: 100%; height: 100%; object-fit: cover; }
-    .store-fallback { width: 72px; height: 72px; border-radius: 24px; display: grid; place-items: center; background: #111827; color: #fff; font-size: 23px; font-weight: 1000; box-shadow: 0 16px 40px rgba(15,23,42,.18); }
-    .store-featured { position: absolute; top: 12px; left: 12px; border-radius: 999px; padding: 7px 10px; background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.95); color: #166534; font-size: 11px; font-weight: 1000; }
-    .store-body { display: grid; gap: 12px; padding: 18px; }
-    .store-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .store-name { margin: 0; min-width: 0; color: #111827; font-size: 21px; line-height: 1.05; font-weight: 1000; letter-spacing: 0; }
-    .store-status { flex: 0 0 auto; border-radius: 999px; padding: 7px 10px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; font-size: 11px; font-weight: 1000; }
-    .store-description { margin: 0; color: #64748b; font-size: 14px; line-height: 1.45; font-weight: 750; }
-    .store-cta { display: inline-flex; align-items: center; justify-content: center; width: 100%; border-radius: 8px; padding: 13px 14px; background: #111827; color: #fff; font-size: 14px; font-weight: 1000; }
-    .bazar-coming { display: grid; gap: 8px; border-radius: 8px; border: 1px dashed #cbd5e1; background: #f8fafc; padding: clamp(20px, 4vw, 30px); }
-    .bazar-coming h2 { margin: 0; color: #111827; font-size: 22px; font-weight: 1000; letter-spacing: 0; }
-    .bazar-coming p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 800; }
-    .empty-stores { border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: 22px; color: #64748b; font-size: 14px; font-weight: 800; }
+  <div class="commercial-home" data-commercial-home>
+    <header class="commercial-hero" id="inicio">
+      <nav class="commercial-nav commercial-shell" aria-label="Navegación principal">
+        <a class="commercial-brand" href="#inicio" aria-label="Tu Senda 84, inicio">
+          <span class="commercial-brand-mark"><img src="/brand/tu-senda-84-admin-icon-512.png" alt="" width="42" height="42" /></span>
+          <span>Tu Senda 84</span>
+        </a>
+        <div class="commercial-nav-links">
+          <a href="#soluciones">Soluciones</a>
+          <a href="#planes">Planes</a>
+          <a href="#aplicaciones">Aplicaciones</a>
+          <a href="#preguntas">Preguntas</a>
+          <a class="commercial-button commercial-button-light" href="#planes">Comparar planes</a>
+        </div>
+      </nav>
 
-    @media (max-width: 640px) {
-      .bazar-hero { border-radius: 24px; }
-      .bazar-hero-content { min-height: 300px; }
-      .bazar-actions { display: grid; grid-template-columns: 1fr; }
-      .bazar-btn { width: 100%; }
-      .bazar-section-head { display: grid; }
-    }
-  </style>
-
-  <main class="bazar-shell">
-    <section class="bazar-hero" aria-label="Tu Senda 84">
-      <div class="bazar-hero-content">
-        <span class="bazar-kicker">Bazar principal</span>
-        <h1 class="bazar-title">Tu Senda 84</h1>
-        <p class="bazar-copy">Explora tiendas, ofertas y negocios disponibles en Tu Senda 84.</p>
-        <div class="bazar-actions">
-          <a class="bazar-btn" href="/t/powerzona">Entrar a PowerZona</a>
-          <a class="bazar-btn secondary" href="#tiendas">Ver tiendas destacadas</a>
+      <div class="commercial-hero-grid commercial-shell">
+        <div class="commercial-hero-copy">
+          <span class="commercial-kicker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Zm6 11 .9 2.6 2.6.9-2.6.9L18 21l-.9-2.6-2.6-.9 2.6-.9L18 14Z" /></svg>
+            Tu negocio, en su mejor versión digital
+          </span>
+          <h1>Abre una tienda que se sienta <em>tan tuya</em> como tu marca.</h1>
+          <p>Presenta tus productos, recibe pedidos y administra tu negocio desde un solo lugar. Empieza con una vitrina promocional o da el salto a una experiencia ecommerce completa.</p>
+          <div class="commercial-hero-actions">
+            <a class="commercial-button commercial-button-light" href="#planes">Explorar planes <span aria-hidden="true">↓</span></a>
+            <a class="commercial-button commercial-button-ghost" href="#tiendas">Ver tiendas destacadas <span aria-hidden="true">↗</span></a>
+          </div>
+          <ul class="commercial-hero-points" aria-label="Características principales">
+            <li>Precios en CUP</li>
+            <li>Periodos de 1, 6 y 12 meses</li>
+            <li>Prueba gratis de 30 días</li>
+          </ul>
+        </div>
+        <div class="commercial-hero-visual" aria-label="Plataforma de tiendas Tu Senda 84">
+          <div class="commercial-visual-orbit" aria-hidden="true"></div>
+          <img src="/brand/tusenda84-storefront-platform-v2.webp" alt="Ilustración de una tienda digital con panel administrativo y catálogo móvil" width="840" height="1000" fetchpriority="high" />
+          <div class="commercial-visual-note commercial-visual-note-top"><strong>2 modalidades</strong><span>Promocional y Ecommerce</span></div>
+          <div class="commercial-visual-note commercial-visual-note-bottom"><strong>Todo conectado</strong><span>Web, administración y Android</span></div>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section id="tiendas" class="bazar-stores" aria-label="Tiendas destacadas">
-      <div class="bazar-section-head">
-        <div>
-          <h2 class="bazar-section-title">Tiendas destacadas</h2>
-          <p class="bazar-section-text">Negocios disponibles para comprar y explorar desde un solo lugar.</p>
+    <div class="commercial-main">
+      <section class="commercial-section" id="soluciones" aria-labelledby="soluciones-title">
+        <div class="commercial-shell">
+          <div class="commercial-section-head">
+            <span class="commercial-eyebrow">Dos formas de empezar</span>
+            <h2 id="soluciones-title">Dos maneras de llevar tu negocio a internet.</h2>
+            <p>Comienza con la solución que mejor encaja con tu etapa actual y conserva un camino claro para crecer.</p>
+          </div>
+
+          <div class="commercial-type-grid">
+            <article class="commercial-type-card">
+              <span class="commercial-type-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7M3 13h18l-2 7H5l-2-7Zm5 0V8h8v5" /></svg></span>
+              <span class="commercial-type-tag">Promocional</span>
+              <h3>Convierte visitas en contactos.</h3>
+              <p>Presenta servicios, catálogo, reseñas y vías de contacto en una presencia pública diseñada para promocionar tu negocio.</p>
+              <ul><li>Hasta 12 servicios</li><li>Reseñas y contactos</li><li>Analítica incluida</li><li>Contenido en 2 idiomas</li></ul>
+            </article>
+
+            <article class="commercial-type-card commercial-type-card-accent">
+              <span class="commercial-type-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm9 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" /></svg></span>
+              <span class="commercial-type-tag">Ecommerce</span>
+              <h3>Vende y gestiona de principio a fin.</h3>
+              <p>Organiza productos, inventario y pedidos, con aplicaciones Android disponibles según el plan seleccionado.</p>
+              <ul><li>Hasta 1,600 productos</li><li>Categorías y subcategorías</li><li>Administración Android</li><li>Funciones Premium</li></ul>
+            </article>
+          </div>
+
+          <div class="commercial-benefit-grid" aria-label="Beneficios de Tu Senda 84">
+            <article><span>01</span><h3>Tu identidad primero</h3><p>Una presencia visual preparada para representar la personalidad de cada negocio.</p></article>
+            <article><span>02</span><h3>Lista para móviles</h3><p>Una experiencia clara y rápida para clientes y administradores desde cualquier pantalla.</p></article>
+            <article><span>03</span><h3>Control del negocio</h3><p>Catálogo, pedidos, equipo y herramientas organizadas según la modalidad y el plan.</p></article>
+            <article><span>04</span><h3>Crece por etapas</h3><p>Empieza con una prueba y amplía límites o funciones cuando el negocio lo necesite.</p></article>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {visibleStores.length > 0 ? (
-        <div class="store-grid">
-          {visibleStores.map((store) => (
-            <a class="store-card" href={storeHref(store)} aria-label={`Entrar a ${store.name}`}>
-              <div class="store-banner">
-                {store.bazarImageUrl ? <img src={store.bazarImageUrl} alt={store.name} loading="lazy" /> : <div class="store-fallback">{storeInitials(store.name)}</div>}
-                {store.featured === true && <span class="store-featured">Destacada</span>}
-              </div>
-              <div class="store-body">
-                <div class="store-meta">
-                  <h3 class="store-name">{store.name || 'Tienda'}</h3>
-                  <span class="store-status">Abierta</span>
+      <section class="commercial-section commercial-pricing" id="planes" aria-labelledby="planes-title">
+        <div class="commercial-shell">
+          <div class="commercial-pricing-head">
+            <div class="commercial-section-head">
+              <span class="commercial-eyebrow">Planes claros</span>
+              <h2 id="planes-title">La tienda que necesitas hoy, lista para crecer mañana.</h2>
+              <p>Elige una presencia promocional para mostrar tu catálogo y recibir contactos, o activa ecommerce para vender y gestionar pedidos de principio a fin.</p>
+            </div>
+            {commercialCatalog && (
+              <div class="commercial-price-controls" aria-label="Configurar comparación de planes">
+                <div class="commercial-segment" role="group" aria-label="Tipo de tienda"><button type="button" data-store-mode="promotional" aria-pressed="true">Promocional</button><button type="button" data-store-mode="ecommerce" aria-pressed="false">Ecommerce</button></div>
+                <div class="commercial-segment" role="group" aria-label="Periodo de pago">
+                  {commercialPeriods.map((months) => <button type="button" data-billing-period={months} aria-pressed={months === 1 ? 'true' : 'false'}>{periodLabels[months] || `${months} meses`}</button>)}
                 </div>
-                {store.description && <p class="store-description">{store.description}</p>}
-                <span class="store-cta">Ver tienda</span>
               </div>
-            </a>
-          ))}
-        </div>
-      ) : (
-        <div class="empty-stores">Próximamente estarán disponibles las primeras tiendas.</div>
-      )}
-    </section>
+            )}
+          </div>
 
-    <section class="bazar-coming" aria-label="Próximamente">
-      <h2>Próximamente más tiendas, promociones y negocios.</h2>
-      <p>Tu Senda 84 seguirá creciendo con nuevas opciones para descubrir comercios disponibles.</p>
-    </section>
-  </main>
+          {commercialCatalog ? (
+            <>
+              {commercialCatalog.store_types.flatMap((storeType) => commercialPeriods.map((months) => (
+                <section class:list={['commercial-plan-panel', storeType.code === 'ecommerce' && 'commercial-plan-panel-three']} data-plan-panel data-panel-mode={storeType.code} data-panel-period={months} hidden={storeType.code !== 'promotional' || months !== 1} aria-label={`${storeType.name}, ${periodLabels[months] || `${months} meses`}`}>
+                  <div class="commercial-period-summary"><span>{storeType.name}</span><strong>{months === 1 ? 'Pago mensual, sin permanencia.' : `Pago por ${months} meses con ahorro frente al precio mensual.`}</strong></div>
+                  <div class="commercial-plan-grid">
+                    {storeType.plans.map((plan) => {
+                      const pricing = pricingView(plan, months);
+                      if (!pricing) return null;
+                      const featured = plan.code === 'basic';
+                      return (
+                        <article class:list={['commercial-plan-card', featured && 'is-featured']}>
+                          <div class="commercial-plan-ribbon">{featured && <span>Más elegido</span>}</div>
+                          <h3>{plan.name}</h3>
+                          <p class="commercial-plan-purpose">{plan.code === 'free' ? 'Para conocer la plataforma sin pago inicial.' : plan.code === 'premium' ? 'Para operaciones que necesitan todas las herramientas.' : 'Para negocios listos para operar y crecer.'}</p>
+                          <div class="commercial-plan-price"><strong>{pricing.equivalent}</strong><span>{pricing.equivalentDetail}</span></div>
+                          <p class="commercial-plan-total">Total a pagar: <strong>{pricing.total}</strong></p>
+                          <p class="commercial-plan-saving">{pricing.savings}</p>
+                          <p class="commercial-plan-duration"><span>Duración</span><strong>{pricing.duration}</strong></p>
+                          <button class="commercial-plan-action" type="button" data-plan-action data-plan-name={plan.name} data-store-name={storeType.name} data-period-name={pricing.duration} data-plan-total={pricing.total}>Elegir {plan.name.toLowerCase()}</button>
+                          <div class="commercial-plan-detail"><h4>Límites principales</h4><ul>{limitLabels(plan, storeType.code).map((label) => <li><span aria-hidden="true">✓</span>{label}</li>)}</ul></div>
+                          <div class="commercial-plan-detail"><h4>Funciones incluidas</h4><ul>{featureLabels(plan, storeType.code).map((label) => <li><span aria-hidden="true">✓</span>{label}</li>)}</ul></div>
+                          <div class="commercial-app-summary">
+                            <p><span>App administrativa Android</span><strong>{storeType.code === 'ecommerce' ? appLabel(plan, 'admin_android_app_enabled') : 'No incluida'}</strong></p>
+                            <p><span>App Android para clientes</span><strong>{storeType.code === 'ecommerce' ? appLabel(plan, 'customer_android_app_enabled') : 'No incluida'}</strong></p>
+                          </div>
+                          <div class="commercial-security-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.7 8.3 7 10 4.3-1.7 7-5.5 7-10V6l-7-3Zm-6 2 12 14M8.5 7.5l7 7" /></svg><p><strong>Seguridad avanzada no incluida por defecto.</strong> {storeType.code === 'ecommerce' ? 'Es opcional por tienda, la controla Master y permanece apagada al crearla.' : 'La capacidad opcional solo aplica a tiendas Ecommerce.'}</p></div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              )))}
+              <div class="commercial-selection" data-plan-selection hidden aria-live="polite"><div><strong data-selection-title>Plan seleccionado</strong><span data-selection-detail></span></div><a href="#comparacion">Revisar comparación <span aria-hidden="true">↓</span></a></div>
+            </>
+          ) : (
+            <div class="commercial-catalog-unavailable" role="status"><strong>Los planes no están disponibles temporalmente.</strong><span>Vuelve a intentarlo en unos minutos para consultar precios, límites y periodos vigentes.</span></div>
+          )}
+        </div>
+      </section>
+
+      {commercialCatalog && (
+        <section class="commercial-section commercial-comparison" id="comparacion" aria-labelledby="comparacion-title">
+          <div class="commercial-shell">
+            <div class="commercial-section-head"><span class="commercial-eyebrow">Comparación rápida</span><h2 id="comparacion-title">Lo esencial, lado a lado.</h2><p>La tabla cambia junto con la modalidad seleccionada en Planes claros.</p></div>
+            {commercialCatalog.store_types.map((storeType) => (
+              <div class="commercial-table-wrap" data-comparison-table={storeType.code} hidden={storeType.code !== 'promotional'}>
+                <table>
+                  <thead><tr><th scope="col">Función o límite</th>{storeType.plans.map((plan) => <th scope="col">{plan.name}</th>)}</tr></thead>
+                  <tbody>{comparisonRows(storeType).map((row) => <tr><th scope="row">{row.label}</th>{storeType.plans.map((plan) => { const display = comparisonValue(row.value(plan)); return <td><span class:list={['commercial-table-value', `is-${display.tone}`]}>{display.symbol && <b aria-hidden="true">{display.symbol}</b>}{display.label}</span></td>; })}</tr>)}</tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section class="commercial-section commercial-apps" id="aplicaciones" aria-labelledby="aplicaciones-title">
+        <div class="commercial-shell">
+          <div class="commercial-section-head"><span class="commercial-eyebrow">Aplicaciones Android</span><h2 id="aplicaciones-title">Una aplicación para gestionar. Otra para comprar.</h2><p>Son experiencias diferentes y su disponibilidad depende de la modalidad Ecommerce y del plan contratado.</p></div>
+          <div class="commercial-app-grid">
+            <article class="commercial-app-card commercial-app-admin"><div><span class="commercial-app-label">Para ti y tu equipo</span><h3>Aplicación administrativa</h3><p>El centro de control móvil para gestionar catálogo y operación. Está incluida en los planes Ecommerce Básico y Premium.</p><ul><li>Administración desde Android</li><li>Acceso de usuarios autorizados</li><li>Hasta 20 dispositivos en Premium</li></ul></div><img src="/brand/tu-senda-84-admin-icon-512.png" alt="Icono de Tu Senda 84 Admin para Android" width="512" height="512" loading="lazy" /></article>
+            <article class="commercial-app-card commercial-app-customer"><div><span class="commercial-app-label">Para tus compradores</span><h3>Aplicación para clientes</h3><p>Una app con la identidad de la tienda para que los clientes exploren y compren. Está incluida en Ecommerce Premium.</p><ul><li>Marca propia de la tienda</li><li>Catálogo y experiencia de compra</li><li>Campañas push en Premium</li></ul></div><figure><img src="/brand/powerzona-app-preview-android.png" alt="Ejemplo de aplicación Android para clientes: PowerZona" width="512" height="512" loading="lazy" /><figcaption>Ejemplo: PowerZona</figcaption></figure></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="commercial-section commercial-stores" id="tiendas" aria-labelledby="tiendas-title">
+        <div class="commercial-shell">
+          <div class="commercial-section-head commercial-section-head-row"><div><span class="commercial-eyebrow">Tiendas destacadas</span><h2 id="tiendas-title">Negocios que ya forman parte de la senda.</h2><p>Explora tiendas reales publicadas dentro de Tu Senda 84.</p></div><a class="commercial-text-link" href="#planes">Ver planes <span aria-hidden="true">↑</span></a></div>
+          {visibleStores.length > 0 ? (
+            <div class="commercial-store-grid">
+              {visibleStores.map((store) => (
+                <a class="commercial-store-card" href={storeHref(store)} aria-label={`Entrar a ${store.name}`}>
+                  <div class="commercial-store-image">{store.bazarImageUrl ? <img src={store.bazarImageUrl} alt={store.name} loading="lazy" /> : <span>{storeInitials(store.name)}</span>}{store.featured === true && <small>Destacada</small>}</div>
+                  <div class="commercial-store-copy"><div><h3>{store.name || 'Tienda'}</h3><span>Abierta</span></div>{store.description && <p>{store.description}</p>}<strong>Ver tienda <span aria-hidden="true">↗</span></strong></div>
+                </a>
+              ))}
+            </div>
+          ) : <div class="commercial-empty-stores">Próximamente estarán disponibles las primeras tiendas destacadas.</div>}
+        </div>
+      </section>
+
+      <section class="commercial-section commercial-faq" id="preguntas" aria-labelledby="preguntas-title">
+        <div class="commercial-shell commercial-faq-grid">
+          <div class="commercial-section-head"><span class="commercial-eyebrow">Preguntas frecuentes</span><h2 id="preguntas-title">Antes de comenzar.</h2><p>Los precios y límites mostrados provienen del catálogo comercial vigente de Tu Senda 84.</p></div>
+          <div class="commercial-faq-list">
+            <details><summary>¿Cuál es la diferencia entre Promocional y Ecommerce?</summary><p>Promocional está orientada a presentar servicios, catálogo, reseñas y contacto. Ecommerce añade productos, pedidos y herramientas operativas de venta.</p></details>
+            <details><summary>¿Qué significa precio mensual equivalente?</summary><p>En los periodos de 6 y 12 meses permite comparar el valor mensual, pero el total indicado corresponde al pago completo del periodo.</p></details>
+            <details><summary>¿Cómo funciona la prueba gratis?</summary><p>La prueba dura 30 días, tiene un total de 0 CUP y puede utilizarse una sola vez por tienda.</p></details>
+            <details><summary>¿Las dos aplicaciones Android son iguales?</summary><p>No. La aplicación administrativa es para el equipo que gestiona el negocio. La aplicación para clientes lleva la identidad de la tienda y está pensada para comprar.</p></details>
+            <details><summary>¿Seguridad avanzada viene activada al crear la tienda?</summary><p>No. No está incluida ni activada por defecto. En Ecommerce es una capacidad opcional por tienda y solo Master puede controlarla.</p></details>
+            <details><summary>¿Puedo cambiar o renovar el plan?</summary><p>Sí. La administración Master gestiona la asignación, el cambio y la renovación dentro de los periodos comerciales disponibles.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="commercial-final-cta" aria-label="Comenzar con Tu Senda 84"><div><span>Tu próxima tienda empieza aquí</span><h2>Encuentra el plan que acompaña tu próximo paso.</h2><p>Compara precios, duración, límites, aplicaciones y funciones incluidas.</p></div><div><a class="commercial-button commercial-button-light" href="#planes">Elegir modalidad</a><a class="commercial-button commercial-button-ghost" href="#tiendas">Explorar tiendas</a></div></section>
+    </div>
+
+    <footer class="commercial-footer commercial-shell"><a class="commercial-brand commercial-brand-footer" href="#inicio"><span class="commercial-brand-mark"><img src="/brand/tu-senda-84-admin-icon-512.png" alt="" width="42" height="42" /></span><span>Tu Senda 84</span></a><p>Tiendas promocionales y ecommerce para negocios que quieren crecer.</p></footer>
+  </div>
+
+  <script>
+    const root = document.querySelector('[data-commercial-home]');
+    if (root instanceof HTMLElement) {
+      const modeButtons = Array.from(root.querySelectorAll('[data-store-mode]'));
+      const periodButtons = Array.from(root.querySelectorAll('[data-billing-period]'));
+      const planPanels = Array.from(root.querySelectorAll('[data-plan-panel]'));
+      const comparisonTables = Array.from(root.querySelectorAll('[data-comparison-table]'));
+      const selection = root.querySelector('[data-plan-selection]');
+      const selectionTitle = root.querySelector('[data-selection-title]');
+      const selectionDetail = root.querySelector('[data-selection-detail]');
+      let activeMode = 'promotional';
+      let activePeriod = '1';
+
+      const clearSelection = () => { if (selection instanceof HTMLElement) selection.hidden = true; };
+      const updatePricing = () => {
+        modeButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.getAttribute('data-store-mode') === activeMode)));
+        periodButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.getAttribute('data-billing-period') === activePeriod)));
+        planPanels.forEach((panel) => { if (panel instanceof HTMLElement) panel.hidden = panel.dataset.panelMode !== activeMode || panel.dataset.panelPeriod !== activePeriod; });
+        comparisonTables.forEach((table) => { if (table instanceof HTMLElement) table.hidden = table.dataset.comparisonTable !== activeMode; });
+        clearSelection();
+      };
+
+      modeButtons.forEach((button) => button.addEventListener('click', () => { activeMode = button.getAttribute('data-store-mode') || 'promotional'; updatePricing(); }));
+      periodButtons.forEach((button) => button.addEventListener('click', () => { activePeriod = button.getAttribute('data-billing-period') || '1'; updatePricing(); }));
+      root.querySelectorAll('[data-plan-action]').forEach((button) => button.addEventListener('click', () => {
+        if (!(button instanceof HTMLElement) || !(selection instanceof HTMLElement)) return;
+        if (selectionTitle) selectionTitle.textContent = `${button.dataset.planName} · ${button.dataset.storeName}`;
+        if (selectionDetail) selectionDetail.textContent = `${button.dataset.periodName} · Total ${button.dataset.planTotal}`;
+        selection.hidden = false;
+        selection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }));
+
+      const faqs = Array.from(root.querySelectorAll('.commercial-faq-list details'));
+      faqs.forEach((detail) => detail.addEventListener('toggle', () => {
+        if (!(detail instanceof HTMLDetailsElement) || !detail.open) return;
+        faqs.forEach((other) => { if (other instanceof HTMLDetailsElement && other !== detail) other.open = false; });
+      }));
+    }
+  </script>
 </Layout>
