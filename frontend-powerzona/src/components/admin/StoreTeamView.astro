@@ -29,7 +29,7 @@ const {
     <AdminSectionHeader
       kicker="Accesos de la tienda"
       title="Mi equipo"
-      description="Administra los accesos y permisos de tu tienda."
+      description="Como propietario, administra invitaciones, accesos y permisos de tu tienda."
     />
 
     <nav class="store-team-tabs" role="tablist" aria-label="Secciones de Mi equipo">
@@ -96,7 +96,7 @@ const {
           <h2 id="store-team-list-title">Usuarios de la tienda</h2>
           <p data-team-list-summary>Cargando el equipo…</p>
         </div>
-        <button class="store-team-primary-button" type="button" data-team-create disabled>Nuevo usuario</button>
+        <button class="store-team-primary-button" type="button" data-team-create disabled>Invitar usuario</button>
       </div>
 
       <div class="store-team-table__header" aria-hidden="true">
@@ -169,7 +169,7 @@ const {
     <form class="store-team-dialog__layout" data-team-editor-form>
       <header class="store-team-dialog__head">
         <div>
-          <h2 id="store-team-editor-title" data-team-editor-title>Nuevo usuario</h2>
+          <h2 id="store-team-editor-title" data-team-editor-title>Invitar usuario</h2>
           <p data-team-editor-subtitle>Define los datos y permisos de este acceso.</p>
         </div>
         <button class="store-team-dialog__close" type="button" data-team-dialog-close aria-label="Cerrar">×</button>
@@ -250,7 +250,7 @@ const {
 
       <footer class="store-team-dialog__foot">
         <button class="store-team-secondary-button" type="button" data-team-dialog-close>Cancelar</button>
-        <button class="store-team-primary-button" type="submit" data-team-editor-submit>Crear usuario</button>
+        <button class="store-team-primary-button" type="submit" data-team-editor-submit>Enviar invitación</button>
       </footer>
     </form>
   </dialog>
@@ -409,7 +409,6 @@ const {
 
 <script>
   import {
-    createStoreTeamUser,
     canCreateStoreTeamUser,
     deleteStoreTeamUser,
     formatStoreTeamActiveCount,
@@ -419,6 +418,7 @@ const {
     getStoreTeamUserAudit,
     getStoreTeamUserDetail,
     issueStoreTeamTemporaryAccess,
+    inviteStoreTeamUser,
     listStoreTeamUsers,
     reactivateStoreTeamUser,
     revokeStoreTeamUserDevices,
@@ -674,7 +674,7 @@ const {
     }
 
     function roleLabel(user: StoreTeamUser) {
-      if (user.is_primary_admin) return 'Administrador principal';
+      if (user.is_primary_admin) return 'Propietario';
       return user.role === 'store_admin' ? 'Administrador' : 'Colaborador';
     }
 
@@ -804,7 +804,7 @@ const {
         userByRef.set(reference, user);
         const state = statePresentation(user);
         const primaryBadge = user.is_primary_admin
-          ? '<span class="store-team-badge is-primary">Administrador principal</span>'
+          ? '<span class="store-team-badge is-primary">Propietario</span>'
           : '';
         return `
           <article class="store-team-row" data-user-ref="${reference}">
@@ -836,8 +836,8 @@ const {
             </div>
             <div class="store-team-row__cell">
               <span class="store-team-cell-label">Dispositivos</span>
-              <strong>${Math.max(0, Number(user.authorized_device_count || 0))}</strong>
-              <small>autorizados</small>
+              <strong>${Math.max(0, Number(user.authorized_device_count || 0))} / ${Math.max(0, Number(summary?.plan?.max_devices_per_user || 0))}</strong>
+              <small>autorizados por usuario</small>
             </div>
             <div class="store-team-actions">${actionMenu(user)}</div>
           </article>`;
@@ -851,28 +851,31 @@ const {
         ? 'premium'
         : (['basic', 'basico', 'básico'].includes(rawCode) ? 'basic' : (rawCode === 'free' ? 'free' : 'unknown'));
       const maxUsers = Math.max(0, Number(plan?.max_active_users || 0));
+      const maxDevicesPerUser = Math.max(0, Number(plan?.max_devices_per_user || 0));
+      const maxStoreDevices = Math.max(0, Number(plan?.max_store_devices || 0));
+      const deviceLimits = `${maxDevicesPerUser} por usuario · ${maxStoreDevices} por tienda`;
       if (code === 'premium') {
         return {
           code,
           label: plan?.label || 'Plan Premium',
-          limit: `Hasta ${maxUsers || 4} usuarios activos`,
-          feature: 'Funciones Premium habilitadas',
+          limit: `Hasta ${maxUsers} usuarios activos`,
+          feature: deviceLimits,
         };
       }
       if (code === 'basic') {
         return {
           code,
           label: plan?.label || 'Plan Básico',
-          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers || 1} usuarios activos`,
-          feature: 'Funciones esenciales habilitadas',
+          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers} usuarios activos`,
+          feature: deviceLimits,
         };
       }
       if (code === 'free') {
         return {
           code,
           label: plan?.label || 'Plan Free',
-          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers || 1} usuarios activos`,
-          feature: 'Acceso inicial habilitado',
+          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers} usuarios activos`,
+          feature: deviceLimits,
         };
       }
       return {
@@ -995,11 +998,11 @@ const {
       selectedPermissions = user
         ? normalizeStorePermissions(user.permissions)
         : getStorePermissionTemplatePermissions(templateCode);
-      if (editorTitle) editorTitle.textContent = mode === 'create' ? 'Nuevo usuario' : 'Editar usuario';
+      if (editorTitle) editorTitle.textContent = mode === 'create' ? 'Invitar usuario' : 'Editar usuario';
       if (editorSubtitle) editorSubtitle.textContent = mode === 'create'
         ? 'Define los datos y permisos de este acceso.'
         : 'Actualiza los datos y permisos sin cambiar el nombre silenciosamente.';
-      if (editorSubmit) editorSubmit.textContent = mode === 'create' ? 'Crear usuario' : 'Guardar cambios';
+      if (editorSubmit) editorSubmit.textContent = mode === 'create' ? 'Enviar invitación' : 'Guardar cambios';
       closePermissionGroups();
       syncPermissionInputs();
     }
@@ -1290,9 +1293,9 @@ const {
           closeDialog(editorDialog);
           await loadTeam('Usuario actualizado correctamente');
         } else {
-          const response = await createStoreTeamUser(payload, client);
+          const response = await inviteStoreTeamUser(payload, client);
           closeDialog(editorDialog);
-          await loadTeam('Usuario creado correctamente');
+          await loadTeam('Invitación creada correctamente');
           showTemporarySecret(response.temporary_password, response.temporary_password_expires_at);
         }
       } catch (error) {

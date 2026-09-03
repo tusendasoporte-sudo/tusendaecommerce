@@ -19,6 +19,11 @@ export const STORE_CAPABILITY_KEYS = [
 
 const NUMERIC_CAPABILITY_KEYS = STORE_CAPABILITY_KEYS.slice(0, 5) as readonly StoreCapabilityKey[];
 const STORE_PLAN_CODES = ['free', 'basic', 'premium'] as const;
+const BACKEND_TEAM_DEVICE_LIMIT_KEYS = Object.freeze([
+  'max_active_users',
+  'max_devices_per_user',
+  'max_store_devices',
+] as const);
 
 export type StoreCapabilityKey = (typeof STORE_CAPABILITY_KEYS)[number];
 export type StoreCapabilityPlan = (typeof STORE_PLAN_CODES)[number];
@@ -65,18 +70,18 @@ export type StoreCapabilityValues = {
   plan_started_at?: unknown;
   plan_expires_at?: unknown;
   plan_is_permanent?: unknown;
+  commercial_capabilities?: Partial<Record<StoreCapabilityKey, unknown>>;
   get?: (key: string) => unknown;
   getString?: (key: string) => unknown;
   [key: string]: unknown;
 };
 
-type CapabilityMatrix = Record<StoreCapabilityPlan, Record<StoreCapabilityKey, number | boolean>>;
+type BackendTeamDeviceLimitKey = (typeof BACKEND_TEAM_DEVICE_LIMIT_KEYS)[number];
+type StaticStoreCapabilityKey = Exclude<StoreCapabilityKey, BackendTeamDeviceLimitKey>;
+type CapabilityMatrix = Record<StoreCapabilityPlan, Record<StaticStoreCapabilityKey, number | boolean>>;
 
 const FREE_CAPABILITIES = Object.freeze({
   max_products: 100,
-  max_active_users: 1,
-  max_devices_per_user: 5,
-  max_store_devices: 5,
   max_product_images: 2,
   categories_enabled: true,
   subcategories_enabled: true,
@@ -94,14 +99,10 @@ const STORE_PLAN_CAPABILITIES: CapabilityMatrix = Object.freeze({
   basic: Object.freeze({
     ...FREE_CAPABILITIES,
     max_products: 700,
-    max_active_users: 2,
     admin_android_app_enabled: true,
   }),
   premium: Object.freeze({
     max_products: 1600,
-    max_active_users: 4,
-    max_devices_per_user: 5,
-    max_store_devices: 20,
     max_product_images: 4,
     categories_enabled: true,
     subcategories_enabled: true,
@@ -179,6 +180,21 @@ function isStoreCapabilityPlan(value: unknown): value is StoreCapabilityPlan {
 
 function capabilityKind(capabilityKey: StoreCapabilityKey): 'boolean' | 'limit' {
   return NUMERIC_CAPABILITY_KEYS.includes(capabilityKey) ? 'limit' : 'boolean';
+}
+
+function capabilityValue(
+  storeValues: StoreCapabilityValues,
+  planCapabilities: CapabilityMatrix[StoreCapabilityPlan],
+  capabilityKey: StoreCapabilityKey,
+) {
+  if (BACKEND_TEAM_DEVICE_LIMIT_KEYS.includes(capabilityKey as BackendTeamDeviceLimitKey)) {
+    const commercialCapabilities = recordValue(storeValues, 'commercial_capabilities');
+    if (!commercialCapabilities || typeof commercialCapabilities !== 'object' || Array.isArray(commercialCapabilities)) {
+      throw new TypeError('missing_commercial_capabilities');
+    }
+    return recordValue(commercialCapabilities as StoreCapabilityValues, capabilityKey);
+  }
+  return planCapabilities[capabilityKey as StaticStoreCapabilityKey];
 }
 
 function knownPlanFromStore(storeValues: StoreCapabilityValues | null | undefined) {
@@ -299,13 +315,13 @@ export function resolveStoreCapabilityAccess(
 
     const planState = resolvePlanState(storeValues, knownPlan, options?.now);
     const kind = capabilityKind(capabilityKey);
-    const capabilityValue = planState.capabilities[capabilityKey];
+    const resolvedCapabilityValue = capabilityValue(storeValues, planState.capabilities, capabilityKey);
     let entitled = false;
     let limit: number | null = null;
     let requiredAmount: number | null = null;
 
     if (kind === 'boolean') {
-      if (typeof capabilityValue !== 'boolean') throw new TypeError('invalid_capability_value');
+      if (typeof resolvedCapabilityValue !== 'boolean') throw new TypeError('invalid_capability_value');
       if (capabilityKey === 'security_enabled') {
         if (options && Object.prototype.hasOwnProperty.call(options, 'optionalCapabilityEnabled')
           && typeof options.optionalCapabilityEnabled !== 'boolean') {
@@ -313,13 +329,13 @@ export function resolveStoreCapabilityAccess(
         }
         entitled = options?.optionalCapabilityEnabled === true;
       } else {
-        entitled = capabilityValue;
+        entitled = resolvedCapabilityValue;
       }
     } else {
-      if (!Number.isInteger(capabilityValue) || (capabilityValue as number) < 0) {
+      if (!Number.isInteger(resolvedCapabilityValue) || (resolvedCapabilityValue as number) < 0) {
         throw new TypeError('invalid_capability_limit');
       }
-      limit = capabilityValue as number;
+      limit = resolvedCapabilityValue as number;
       requiredAmount = normalizeRequiredAmount(options);
       entitled = true;
     }

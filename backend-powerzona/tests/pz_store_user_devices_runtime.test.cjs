@@ -70,10 +70,10 @@ async function createStore(name, slug, plan, superToken) {
   if (plan === 'free') return created;
   return updateRecord('stores', created.id, {
     plan,
-    plan_started_at: '2026-07-15T20:00:00.000Z',
-    plan_expires_at: '2026-08-15T20:00:00.000Z',
+    plan_started_at: new Date().toISOString(),
+    plan_expires_at: '',
     plan_duration_months: 1,
-    plan_is_permanent: false,
+    plan_is_permanent: true,
   }, superToken);
 }
 
@@ -150,6 +150,24 @@ runtimeTest('PocketBase 0.39.8 aplica límites, concurrencia, aislamiento y revo
   const refreshInvented = await refresh(basicLogins[0].data.token, deviceToken(99));
   assert.equal(refreshInvented.status, 400);
   assert.equal(safeCode(refreshInvented), 'device_not_authorized');
+  const basicSecondEmail = `d7a6-basic-${nonce}-second@example.test`;
+  const basicSecondUser = await createUser(basicSecondEmail, 'store_staff', basicStore.id, superToken);
+  for (let index = 0; index < 5; index += 1) {
+    const result = await login(basicSecondEmail, deviceToken(40 + index));
+    assert.equal(result.status, 200, `basic second user device ${index + 1}: ${result.text}`);
+  }
+  const basicStoreUsage = await masterPost('/api/pz/master/store-user-devices/list', masterToken, {
+    store_id: basicStore.id,
+    user_id: basicSecondUser.id,
+    page: 1,
+    per_page: 10,
+    status: 'all',
+  });
+  assert.equal(basicStoreUsage.status, 200, basicStoreUsage.text);
+  assert.equal(basicStoreUsage.data.authorized_for_user, 5);
+  assert.equal(basicStoreUsage.data.user_limit, 5);
+  assert.equal(basicStoreUsage.data.distinct_authorized_for_store, 10);
+  assert.equal(basicStoreUsage.data.store_limit, 10);
 
   const freeStore = await createStore(`D7A6 Free ${nonce}`, `d7a6-free-${nonce}`, 'free', superToken);
   const freeEmail = `d7a6-free-${nonce}@example.test`;

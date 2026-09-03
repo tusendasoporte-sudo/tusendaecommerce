@@ -66,6 +66,14 @@ test('Gratis, Básico y Premium Ecommerce tienen límites y accesos separados', 
     [free.max_active_users, basic.max_active_users, premium.max_active_users],
     [1, 2, 4],
   );
+  assert.deepEqual(
+    [free.max_devices_per_user, basic.max_devices_per_user, premium.max_devices_per_user],
+    [5, 5, 5],
+  );
+  assert.deepEqual(
+    [free.max_store_devices, basic.max_store_devices, premium.max_store_devices],
+    [5, 10, 20],
+  );
   for (const capabilities of [free, basic, premium]) {
     assert.equal(capabilities.categories_enabled, true);
     assert.equal(capabilities.subcategories_enabled, true);

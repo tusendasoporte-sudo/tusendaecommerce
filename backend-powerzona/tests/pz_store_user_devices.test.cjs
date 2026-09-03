@@ -110,14 +110,24 @@ test('usuario suspendido y usuario sin tienda no son usuarios activos válidos',
   })), false);
 });
 
-test('Free y Básico permiten exactamente cinco por usuario y tienda', () => {
-  for (const plan of ['free', 'basic']) {
-    const exact = devices.evaluateNewDeviceCapacity(store(plan), 4, 4, false);
-    assert.equal(exact.projected_user_count, 5);
-    assert.equal(exact.projected_store_count, 5);
-    assert.equal(exact.user_limit, 5);
-    assert.equal(exact.store_limit, 5);
-  }
+test('Free conserva exactamente cinco dispositivos por usuario y tienda', () => {
+  const exact = devices.evaluateNewDeviceCapacity(store('free'), 4, 4, false);
+  assert.equal(exact.projected_user_count, 5);
+  assert.equal(exact.projected_store_count, 5);
+  assert.equal(exact.user_limit, 5);
+  assert.equal(exact.store_limit, 5);
+});
+
+test('Básico permite cinco dispositivos por usuario y diez distintos por tienda', () => {
+  const exact = devices.evaluateNewDeviceCapacity(store('basic'), 4, 9, false);
+  assert.equal(exact.projected_user_count, 5);
+  assert.equal(exact.projected_store_count, 10);
+  assert.equal(exact.user_limit, 5);
+  assert.equal(exact.store_limit, 10);
+  assert.throws(
+    () => devices.evaluateNewDeviceCapacity(store('basic'), 3, 10, false),
+    (error) => error.code === 'store_device_limit_reached',
+  );
 });
 
 test('el sexto dispositivo por usuario se bloquea en todos los planes', () => {
@@ -145,9 +155,9 @@ test('Premium bloquea el vigésimo primer digest distinto', () => {
 });
 
 test('el mismo digest para dos usuarios no incrementa el conteo de tienda', () => {
-  const result = devices.evaluateNewDeviceCapacity(store('basic'), 0, 5, true);
+  const result = devices.evaluateNewDeviceCapacity(store('basic'), 0, 10, true);
   assert.equal(result.projected_user_count, 1);
-  assert.equal(result.projected_store_count, 5);
+  assert.equal(result.projected_store_count, 10);
 });
 
 test('permanente, vencido y unconfigured usan el código real con expiration desactivado', () => {
@@ -156,7 +166,7 @@ test('permanente, vencido y unconfigured usan el código real con expiration des
   }), 4, 19, false).store_limit, 20);
   assert.equal(devices.evaluateNewDeviceCapacity(store('basic', {
     plan_expires_at: '2026-01-01T00:00:00.000Z',
-  }), 4, 4, false).store_limit, 5);
+  }), 4, 9, false).store_limit, 10);
   assert.equal(devices.evaluateNewDeviceCapacity(store('premium', {
     plan_expires_at: '',
   }), 4, 19, false).store_limit, 20);

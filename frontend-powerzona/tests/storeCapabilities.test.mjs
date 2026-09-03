@@ -25,6 +25,9 @@ const store = (plan, overrides = {}) => ({
   plan_started_at: NOW.toISOString(),
   plan_expires_at: expiresIn(30),
   plan_is_permanent: false,
+  commercial_capabilities: backendPlans.isValidPlanCode(plan)
+    ? backendPlans.getPlanCapabilities(plan)
+    : undefined,
   ...overrides,
 });
 const pocketBaseDateTime = (value) => ({ string() { return value; } });
@@ -64,6 +67,8 @@ test('Free y Básico tienen límites separados y Seguridad opcional apagada', ()
   assert.equal(resolveStoreCapabilityAccess(store('basic'), 'max_active_users', { now: NOW }).limit, 2);
   assert.equal(resolveStoreCapabilityAccess(store('free'), 'max_products', { now: NOW }).limit, 100);
   assert.equal(resolveStoreCapabilityAccess(store('basic'), 'max_products', { now: NOW }).limit, 700);
+  assert.equal(resolveStoreCapabilityAccess(store('free'), 'max_store_devices', { now: NOW }).limit, 5);
+  assert.equal(resolveStoreCapabilityAccess(store('basic'), 'max_store_devices', { now: NOW }).limit, 10);
   for (const plan of ['free', 'basic']) {
     assert.equal(resolveStoreCapabilityAccess(store(plan), 'max_product_images', { now: NOW }).limit, 2);
     assert.equal(hasStoreCapability(store(plan), 'security_enabled', { now: NOW }), false);

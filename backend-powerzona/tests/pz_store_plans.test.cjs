@@ -24,6 +24,7 @@ const BASIC_CAPABILITIES = {
   ...FREE_CAPABILITIES,
   max_products: 700,
   max_active_users: 2,
+  max_store_devices: 10,
   admin_android_app_enabled: true,
 };
 
@@ -85,6 +86,14 @@ test('Free permite un usuario, cinco dispositivos y dos fotos', () => {
   assert.equal(capabilities.max_active_users, 1);
   assert.equal(capabilities.max_devices_per_user, 5);
   assert.equal(capabilities.max_store_devices, 5);
+  assert.equal(capabilities.max_product_images, 2);
+});
+
+test('Básico permite dos usuarios, cinco dispositivos por usuario y diez por tienda', () => {
+  const capabilities = plans.getPlanCapabilities('basic');
+  assert.equal(capabilities.max_active_users, 2);
+  assert.equal(capabilities.max_devices_per_user, 5);
+  assert.equal(capabilities.max_store_devices, 10);
   assert.equal(capabilities.max_product_images, 2);
 });
 

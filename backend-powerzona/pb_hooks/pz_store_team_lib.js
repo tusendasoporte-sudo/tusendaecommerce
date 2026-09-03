@@ -18,7 +18,7 @@ const deleteReasons = typeof __hooks === "undefined"
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_ASSIGNABLE_PERMISSIONS = 28;
+const MAX_ASSIGNABLE_PERMISSIONS = permissions.ASSIGNABLE_PERMISSION_KEYS.length;
 const STORE_ROLES = Object.freeze(["store_admin", "store_staff"]);
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const TEMPLATE_CODES = Object.freeze([
@@ -263,13 +263,21 @@ function teamReady(app) {
 
 function storePlan(store) {
   const maxAccess = capabilities.resolveStoreCapabilityAccess(store, "max_active_users", { enforceExpiration: true });
+  const maxDevicesPerUserAccess = capabilities.resolveStoreCapabilityAccess(store, "max_devices_per_user", { enforceExpiration: false });
+  const maxStoreDevicesAccess = capabilities.resolveStoreCapabilityAccess(store, "max_store_devices", { enforceExpiration: false });
   const expirationAccess = capabilities.resolveStoreCapabilityAccess(store, "product_expiration_tools_enabled", { enforceExpiration: true });
   const pushAccess = capabilities.resolveStoreCapabilityAccess(store, "push_campaigns_enabled", { enforceExpiration: true });
-  if (!maxAccess || !Number.isInteger(maxAccess.limit) || maxAccess.limit < 1) throw codedError("team_unavailable");
+  if (!maxAccess || !Number.isInteger(maxAccess.limit) || maxAccess.limit < 1
+    || !maxDevicesPerUserAccess || !Number.isInteger(maxDevicesPerUserAccess.limit) || maxDevicesPerUserAccess.limit < 1
+    || !maxStoreDevicesAccess || !Number.isInteger(maxStoreDevicesAccess.limit) || maxStoreDevicesAccess.limit < 1) {
+    throw codedError("team_unavailable");
+  }
   return {
     code: bounded(maxAccess.plan, 30),
     label: maxAccess.plan === "premium" ? "Plan Premium" : maxAccess.plan === "basic" ? "Plan Básico" : "Plan Free",
     max_active_users: permissions.effectiveMaxActiveUsers(store),
+    max_devices_per_user: maxDevicesPerUserAccess.limit,
+    max_store_devices: maxStoreDevicesAccess.limit,
     product_expiration_tools_enabled: expirationAccess && expirationAccess.allowed === true,
     push_campaigns_enabled: pushAccess && pushAccess.allowed === true,
   };

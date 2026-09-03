@@ -143,6 +143,9 @@ test('las tres definiciones consumen precios CUP del catálogo central', () => {
   assert.equal(definitions[0].capabilities.max_products, 100);
   assert.equal(definitions[1].capabilities.max_products, 700);
   assert.equal(definitions[2].capabilities.max_products, 1600);
+  assert.deepEqual(definitions.map((definition) => definition.capabilities.max_active_users), [1, 2, 4]);
+  assert.deepEqual(definitions.map((definition) => definition.capabilities.max_devices_per_user), [5, 5, 5]);
+  assert.deepEqual(definitions.map((definition) => definition.capabilities.max_store_devices), [5, 10, 20]);
 });
 
 test('uso vacío o inválido siempre devuelve enteros no negativos', () => {

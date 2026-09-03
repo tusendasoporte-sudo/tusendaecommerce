@@ -26,6 +26,8 @@ import {
   getStoreAccessContext,
   getStoreTeamErrorMessage,
   getStoreTeamSummary,
+  inviteStoreTeamUser,
+  suspendStoreTeamUser,
 } from '../src/lib/storeTeam.ts';
 
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
@@ -194,6 +196,51 @@ test('M7U2: cliente privado usa POST JSON y nunca envía tienda ni actor desde e
   assert.equal(response.temporary_password, 'Once-Only-123');
 });
 
+test('Prompt 5: invitación reutiliza el contrato privado y el catálogo configurable de permisos', async () => {
+  let body;
+  const permissions = [...STORE_PERMISSION_TEMPLATES.secondary_admin.permissions];
+  const response = await inviteStoreTeamUser({
+    email: 'owner-invite@example.test',
+    display_name: 'Administrador invitado',
+    template_code: 'secondary_admin',
+    permissions,
+  }, {
+    baseUrl: 'https://pb.example.test',
+    token: 'owner-token',
+    fetcher: async (_url, options) => {
+      body = JSON.parse(String(options.body || '{}'));
+      return new Response(JSON.stringify({
+        ok: true,
+        user: { id: 'invite000000001', email: body.email, display_name: body.display_name },
+        temporary_password: 'Temporary-Invite-84!',
+        temporary_password_expires_at: '2026-09-04T00:00:00.000Z',
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  });
+  assert.deepEqual(body.permissions, permissions);
+  assert.equal(body.template_code, 'secondary_admin');
+  assert.equal(Object.hasOwn(body, 'store_id'), false);
+  assert.equal(response.temporary_password, 'Temporary-Invite-84!');
+});
+
+test('Prompt 5: desactivación usa el endpoint privado sin aceptar tienda desde la aplicación', async () => {
+  let request;
+  await suspendStoreTeamUser('member00000001', 'Salida del equipo', {
+    baseUrl: 'https://pb.example.test',
+    token: 'owner-token',
+    fetcher: async (url, options) => {
+      request = { url, body: JSON.parse(String(options.body || '{}')) };
+      return new Response(JSON.stringify({ ok: true, sessions_revoked: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+  });
+  assert.equal(request.url, `https://pb.example.test${STORE_TEAM_API_PATHS.suspend}`);
+  assert.deepEqual(request.body, { user_id: 'member00000001', reason: 'Salida del equipo' });
+  assert.equal(Object.hasOwn(request.body, 'store_id'), false);
+});
+
 test('M7U2: contexto de acceso se normaliza y el 403 tiene mensaje amigable', async () => {
   const context = await getStoreAccessContext({
     baseUrl: 'https://pb.example.test',
@@ -266,6 +313,8 @@ test('M7U2: vista funcional cubre estados, acciones, secreto único y downgrade 
   assert.match(view, /Acceso temporal pendiente/);
   assert.match(view, /Contraseña temporal vencida/);
   assert.match(view, /Editar usuario/);
+  assert.match(view, /Invitar usuario/);
+  assert.match(view, /inviteStoreTeamUser\(payload, client\)/);
   assert.match(view, /Restablecer acceso/);
   assert.match(view, /Cerrar sesiones/);
   assert.match(view, /Revocar dispositivos/);
@@ -275,6 +324,9 @@ test('M7U2: vista funcional cubre estados, acciones, secreto único y downgrade 
   assert.match(view, /Tu plan permite un solo usuario activo/);
   assert.match(view, /permisos se muestran en modo lectura/);
   assert.match(view, /createButton\.disabled = !canCreateStoreTeamUser\(summary\)/);
+  assert.match(view, /max_devices_per_user/);
+  assert.match(view, /max_store_devices/);
+  assert.doesNotMatch(view, /maxUsers \|\| [14]/);
   assert.match(view, /clearTemporarySecret\(\)/);
   assert.match(view, /secretValue\.textContent = ''/);
   assert.match(view, /secretDialog\?\.addEventListener\('close', \(\) => clearTemporarySecret\(\), listenerOptions\)/);
@@ -290,6 +342,29 @@ test('M7U2: UI no expone permisos reservados y aplica selección dependiente', (
     assert.equal(view.includes(`value="${key}"`), false);
   }
   assert.match(permissions, /'catalog\.expirations\.manage': 'product_expiration_tools_enabled'/);
+});
+
+test('Prompt 5: equipo y suscripción quedan visibles solo para el propietario', () => {
+  const teamPage = read('../src/pages/admin/team.astro');
+  const accountPage = read('../src/pages/t/[storeSlug]/admin/account.astro');
+  assert.match(teamPage, /isPrimaryAdmin = accessContext\.access\.is_primary_admin === true/);
+  assert.match(teamPage, /Solo el propietario puede administrar el equipo y sus permisos/);
+  assert.match(accountPage, /\{isPrimaryStoreAdmin && planPresentation && \(/);
+  assert.match(accountPage, /Solo el propietario puede consultar la suscripción de la tienda/);
+  for (const permission of RESERVED_STORE_PERMISSION_KEYS) {
+    assert.equal(STORE_PERMISSION_TEMPLATES.secondary_admin.permissions.includes(permission), false);
+  }
+});
+
+test('Prompt 5: los cupos de equipo y dispositivos no se duplican en la matriz frontend', () => {
+  const capabilities = read('../src/lib/storeCapabilities.ts');
+  const middleware = read('../src/middleware.ts');
+  assert.match(capabilities, /BACKEND_TEAM_DEVICE_LIMIT_KEYS/);
+  assert.match(capabilities, /commercial_capabilities/);
+  assert.doesNotMatch(capabilities, /max_active_users:\s*[124]/);
+  assert.doesNotMatch(capabilities, /max_devices_per_user:\s*5/);
+  assert.doesNotMatch(capabilities, /max_store_devices:\s*(?:5|10|20)/);
+  assert.match(middleware, /adminContext\.store\.commercial_capabilities = storeAccess\.plan/);
 });
 
 test('M7U2: gating evita notificaciones sin permiso y mantiene responsive de tabla a tarjetas', () => {
@@ -368,7 +443,7 @@ test('M7U2-C1: tarjeta de plan deriva Premium, Básico, Free y fallback sin cons
 
   assert.match(view, /data-team-plan-card data-plan-code="unknown"/);
   assert.match(view, /class="store-team-plan-card__icon"[\s\S]*?aria-hidden="true"/);
-  assert.match(view, /Funciones Premium habilitadas/);
+  assert.match(view, /maxDevicesPerUser} por usuario · \$\{maxStoreDevices} por tienda/);
   assert.match(view, /Plan Básico/);
   assert.match(view, /Plan Free/);
   assert.match(view, /Configuración del plan pendiente/);

@@ -31,6 +31,14 @@ test('normaliza el contrato backend completo sin redefinir sus valores comercial
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'free')?.capabilities.max_products, 100);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'basic')?.capabilities.max_products, 700);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'premium')?.capabilities.max_products, 1600);
+  assert.deepEqual(
+    ['free', 'basic', 'premium'].map((code) => commercialPlan(commercialStoreType(catalog, 'ecommerce'), code)?.capabilities.max_active_users),
+    [1, 2, 4],
+  );
+  assert.deepEqual(
+    ['free', 'basic', 'premium'].map((code) => commercialPlan(commercialStoreType(catalog, 'ecommerce'), code)?.capabilities.max_store_devices),
+    [5, 10, 20],
+  );
   assert.equal(commercialPlan(commercialStoreType(catalog, 'promotional'), 'free')?.capabilities.max_total_images, 150);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'promotional'), 'basic')?.capabilities.max_total_images, 300);
   assert.equal(Object.isFrozen(catalog), true);

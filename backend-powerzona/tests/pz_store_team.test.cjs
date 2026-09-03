@@ -71,6 +71,15 @@ test('Administrador secundario conserva rol administrativo sin recibir team.mana
   assert.equal(permissionCatalog.PERMISSION_TEMPLATES.secondary_admin.permissions.includes('team.manage'), false);
 });
 
+test('una invitación de Administrador secundario acepta todo el catálogo configurable vigente', () => {
+  const selected = team.permissionSelection(
+    'secondary_admin',
+    permissionCatalog.PERMISSION_TEMPLATES.secondary_admin.permissions,
+  );
+  assert.equal(selected.templateCode, 'secondary_admin');
+  assert.deepEqual(selected.permissions, [...permissionCatalog.ASSIGNABLE_PERMISSION_KEYS].sort());
+});
+
 test('temporal se genera server-side con entropía y nunca forma parte del payload', () => {
   const previous = global.$security;
   global.$security = {

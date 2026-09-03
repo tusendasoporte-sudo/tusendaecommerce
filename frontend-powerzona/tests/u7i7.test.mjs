@@ -105,7 +105,7 @@ test('listado implementa filtros debounce abort paginacion y evita pending como 
   assert.doesNotMatch(listView, /value="pending"/);
 });
 
-test('limites 1 1 4 y 5 5 20 se consumen desde la respuesta dinamica', () => {
+test('límites 1/2/4 usuarios y 5/10/20 dispositivos se consumen desde la respuesta dinámica', () => {
   assert.match(listView, /plan\.active_users.*plan\.max_active_users/);
   assert.match(listView, /plan\.max_devices_per_user/);
   assert.match(listView, /plan\.max_store_devices/);

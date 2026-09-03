@@ -101,6 +101,27 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     for (const row of rows) await remove(collection, row.id);
   }
 
+  async function removeStoreOfficially(storeId) {
+    if (!masterToken) return false;
+    const preview = await request('/api/pz/master/store-delete-preview', {
+      token: masterToken,
+      body: { store_id: storeId },
+    });
+    if (preview.status === 404) return true;
+    if (preview.status !== 200) return false;
+    const execution = await request('/api/pz/master/store-delete-execute', {
+      token: masterToken,
+      body: {
+        store_id: storeId,
+        expected_slug: preview.data.store.slug,
+        expected_updated: preview.data.store.updated,
+        confirmation: preview.data.confirmation_phrase,
+      },
+    });
+    assertStatus(execution, 200, `eliminar tienda ${storeId} por flujo oficial`);
+    return true;
+  }
+
   async function login(email, password, device = '') {
     return request('/api/collections/users/auth-with-password', {
       body: { identity: email, password },
@@ -249,11 +270,56 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     assertStatus(freeSummary, 200, 'resumen Free');
     assert.equal(freeSummary.data.plan.code, 'free');
     assert.equal(freeSummary.data.plan.max_active_users, 1);
+    assert.equal(freeSummary.data.plan.max_devices_per_user, 5);
+    assert.equal(freeSummary.data.plan.max_store_devices, 5);
     assert.equal(freeSummary.data.plan.product_expiration_tools_enabled, false);
     assert.equal(freeSummary.data.user_counts.active, 1);
     assert.equal(freeSummary.data.user_counts.stored_active, 1);
     assert.equal(freeSummary.data.user_counts.available, 0);
     assert.equal(freeSummary.data.can_create, false);
+
+    const freeInvite = await team(primaryBToken, 'create', {
+      email: `${slugPrefix}-free-invite@example.test`,
+      display_name: `${prefix} Free invite`,
+      phone: '',
+      template_code: 'read_only',
+      permissions: permissionCatalog.resolveTemplatePermissions('read_only'),
+      reason: `${prefix} validar cupo Free`,
+    });
+    assertStatus(freeInvite, 409, 'Free rechaza invitaciones adicionales');
+    assert.equal(freeInvite.data.error, 'active_user_limit_reached');
+
+    const basicPlanB = await changePlan(storeB.id, 'basic', false);
+    assertStatus(basicPlanB, 200, 'upgrade Free a Básico en tienda B');
+    assert.equal(basicPlanB.data.plan.plan, 'basic');
+    const basicInviteB = await createTeamUser(
+      primaryBToken,
+      'basic-invite',
+      'read_only',
+      permissionCatalog.resolveTemplatePermissions('read_only'),
+    );
+    const basicSummaryB = await team(primaryBToken, 'summary', {});
+    assertStatus(basicSummaryB, 200, 'Básico admite propietario más una invitación');
+    assert.equal(basicSummaryB.data.plan.max_active_users, 2);
+    assert.equal(basicSummaryB.data.plan.max_devices_per_user, 5);
+    assert.equal(basicSummaryB.data.plan.max_store_devices, 10);
+    assert.equal(basicSummaryB.data.user_counts.active, 2);
+    assert.equal(basicSummaryB.data.user_counts.available, 0);
+    const secondBasicInvite = await team(primaryBToken, 'create', {
+      email: `${slugPrefix}-basic-over@example.test`,
+      display_name: `${prefix} Basic over`,
+      phone: '',
+      template_code: 'custom',
+      permissions: [],
+      reason: `${prefix} validar cupo Básico`,
+    });
+    assertStatus(secondBasicInvite, 409, 'Básico rechaza una segunda invitación adicional');
+    assert.equal(secondBasicInvite.data.error, 'active_user_limit_reached');
+    const backToFreeB = await changePlan(storeB.id, 'free', false);
+    assertStatus(backToFreeB, 200, 'downgrade Básico a Free en tienda B');
+    assert.equal(backToFreeB.data.team_access_transition.locked, 1);
+    const invitedBlockedByFree = await login(basicInviteB.user.email, basicInviteB.password, 'L'.repeat(43));
+    assert.ok([400, 401, 403].includes(invitedBlockedByFree.status), `invitado bloqueado por Free: ${invitedBlockedByFree.raw}`);
 
     const primaryAAuth = await login(primaryA.email, passwords.primaryA, 'A'.repeat(43));
     assertStatus(primaryAAuth, 200, 'login principal A');
@@ -271,6 +337,8 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     assert.equal(initialSummary.data.primary_admin.id, primaryA.id);
     assert.equal(initialSummary.data.user_counts.active, 1);
     assert.equal(initialSummary.data.user_counts.available, 3);
+    assert.equal(initialSummary.data.plan.max_devices_per_user, 5);
+    assert.equal(initialSummary.data.plan.max_store_devices, 20);
 
     const forgedStore = await team(primaryAToken, 'summary', { store_id: storeB.id });
     assertStatus(forgedStore, 400, 'rechazar store_id controlado por cliente');
@@ -357,6 +425,7 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     assert.equal(memberContext.data.access.is_primary_admin, false);
     assert.deepEqual(memberContext.data.access.permissions, expirationPermissions.slice().sort());
     assert.equal(memberContext.data.access.permissions.includes('team.manage'), false);
+    assert.equal(memberContext.data.access.permissions.includes('plan.manage'), false);
 
     const memberSummary = await team(memberAToken, 'summary', {});
     assertStatus(memberSummary, 403, 'miembro no administra equipo');
@@ -364,7 +433,8 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     const privateAccess = await request('/api/collections/store_user_access/records?perPage=20', { token: memberAToken });
     assert.ok([403, 404].includes(privateAccess.status), `store_user_access privado: ${privateAccess.raw}`);
     const deleteRoute = await team(primaryAToken, 'delete', { user_id: memberA.user.id });
-    assertStatus(deleteRoute, 404, 'sin borrado fisico');
+    assertStatus(deleteRoute, 400, 'sin borrado físico');
+    assert.equal(deleteRoute.data.error, 'invalid_payload');
 
     const productA = await create('products', {
       store: storeA.id,
@@ -535,22 +605,25 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     }
 
     const preDowngradeDevice = 'F'.repeat(43);
-    memberAAuth = await login(memberA.user.email, memberA.password, preDowngradeDevice);
-    assertStatus(memberAAuth, 200, 'login antes de downgrade');
-    memberAToken = memberAAuth.data.token;
+    let memberCAuth = await login(memberC.user.email, memberC.password, preDowngradeDevice);
+    assertStatus(memberCAuth, 200, 'login del último colaborador antes de downgrade');
+    let memberCToken = memberCAuth.data.token;
 
     const downgrade = await changePlan(storeA.id, 'basic', true);
     assertStatus(downgrade, 200, 'downgrade Premium a Basic');
-    assert.equal(downgrade.data.team_access_transition.locked, 3);
+    assert.equal(downgrade.data.team_access_transition.locked, 2);
     assert.equal(downgrade.data.team_access_transition.restored, 0);
-    assertStatus(await refresh(memberAToken, preDowngradeDevice), 401, 'downgrade revoca sesion');
-    const blockedLogin = await login(memberA.user.email, memberA.password, 'G'.repeat(43));
+    assertStatus(await refresh(memberCToken, preDowngradeDevice), 401, 'downgrade revoca sesión fuera del cupo Básico');
+    const blockedLogin = await login(memberC.user.email, memberC.password, 'G'.repeat(43));
     assert.ok([400, 401].includes(blockedLogin.status), `login bloqueado por plan: ${blockedLogin.raw}`);
 
     const basicSummary = await team(primaryAToken, 'summary', {});
     assertStatus(basicSummary, 200, 'principal conserva acceso tras downgrade');
     assert.equal(basicSummary.data.plan.code, 'basic');
-    assert.equal(basicSummary.data.user_counts.active, 1);
+    assert.equal(basicSummary.data.plan.max_active_users, 2);
+    assert.equal(basicSummary.data.plan.max_devices_per_user, 5);
+    assert.equal(basicSummary.data.plan.max_store_devices, 10);
+    assert.equal(basicSummary.data.user_counts.active, 2);
     assert.equal(basicSummary.data.user_counts.stored_active, 4);
     const persistedMember = await request(`/api/collections/users/records/${memberA.user.id}`, { token: superToken });
     assertStatus(persistedMember, 200, 'miembro persiste tras downgrade');
@@ -573,7 +646,13 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     const upgrade = await changePlan(storeA.id, 'premium', false);
     assertStatus(upgrade, 200, 'upgrade Basic a Premium');
     assert.equal(upgrade.data.team_access_transition.locked, 0);
-    assert.equal(upgrade.data.team_access_transition.restored, 3);
+    assert.equal(upgrade.data.team_access_transition.restored, 2);
+    memberCAuth = await login(memberC.user.email, memberC.password, 'H'.repeat(43));
+    assertStatus(memberCAuth, 200, 'login del colaborador restaurado tras upgrade');
+    memberCToken = memberCAuth.data.token;
+    const restoredMemberContext = await accessContext(memberCToken);
+    assertStatus(restoredMemberContext, 200, 'permisos configurados restaurados tras upgrade');
+    assert.equal(restoredMemberContext.data.access.permissions.includes('orders.view'), true);
     memberAAuth = await login(memberA.user.email, memberA.password, 'H'.repeat(43));
     assertStatus(memberAAuth, 200, 'login restaurado tras upgrade');
     memberAToken = memberAAuth.data.token;
@@ -584,7 +663,7 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     assertStatus(restoredExpiration, 200, 'V7E9 restaurado tras upgrade');
 
     const finalAudit = await team(primaryAToken, 'audit', {
-      user_id: memberA.user.id,
+      user_id: memberC.user.id,
       page: 1,
       per_page: 50,
     });
@@ -603,6 +682,7 @@ test('M7U2 HTTP runtime valida equipo, permisos, cuota, aislamiento, plan y V7E9
     if (superToken) {
       try {
         for (const storeId of ids.stores) {
+          if (await removeStoreOfficially(storeId)) continue;
           for (const collection of [
             'product_expiration_cycles',
             'store_notifications',

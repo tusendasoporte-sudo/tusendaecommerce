@@ -47,7 +47,7 @@ try {
   const accessContext = Astro.locals.storeAccessContext
     ?? await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined });
   isPrimaryAdmin = accessContext.access.is_primary_admin === true;
-  if (!isPrimaryAdmin) accessMessage = 'No tienes permiso para administrar el equipo de esta tienda.';
+  if (!isPrimaryAdmin) accessMessage = 'Solo el propietario puede administrar el equipo y sus permisos.';
 } catch (error) {
   accessMessage = getStoreTeamErrorMessage(error);
 }
@@ -113,7 +113,7 @@ try {
     ) : (
       <main class="store-team-access-denied">
         <h1>No tienes permiso</h1>
-        <p>{accessMessage || 'Solo el Administrador principal puede administrar el equipo de esta tienda.'}</p>
+        <p>{accessMessage || 'Solo el propietario puede administrar el equipo y sus permisos.'}</p>
         <a href={getStoreAdminPath(currentStoreSlug)}>Volver al Resumen</a>
       </main>
     )}

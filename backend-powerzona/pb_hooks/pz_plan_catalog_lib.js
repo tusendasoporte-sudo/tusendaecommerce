@@ -177,7 +177,7 @@ const PLAN_CATALOG = deepFreeze({
           maxProducts: 700,
           maxProductImages: 2,
           maxActiveUsers: 2,
-          maxStoreDevices: 5,
+          maxStoreDevices: 10,
           adminAndroid: true,
           customerAndroid: false,
           premiumFeatures: false,

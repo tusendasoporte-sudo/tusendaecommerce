@@ -46,6 +46,8 @@ export type StoreAccessContext = {
   plan: {
     code: string;
     max_active_users: number;
+    max_devices_per_user: number;
+    max_store_devices: number;
     product_expiration_tools_enabled: boolean;
     push_campaigns_enabled: boolean;
     [key: string]: unknown;
@@ -56,6 +58,8 @@ export type StoreTeamPlan = {
   code: string;
   label: string;
   max_active_users: number;
+  max_devices_per_user: number;
+  max_store_devices: number;
   [key: string]: unknown;
 };
 
@@ -248,6 +252,8 @@ function normalizePlan(value: any): StoreTeamPlan {
     code: text(value?.code),
     label: text(value?.label || value?.name),
     max_active_users: nonNegativeInteger(value?.max_active_users),
+    max_devices_per_user: nonNegativeInteger(value?.max_devices_per_user),
+    max_store_devices: nonNegativeInteger(value?.max_store_devices),
   };
 }
 
@@ -368,6 +374,8 @@ export async function getStoreAccessContext(options: StoreTeamClientOptions): Pr
       ...(result?.plan || {}),
       code: text(result?.plan?.code),
       max_active_users: nonNegativeInteger(result?.plan?.max_active_users),
+      max_devices_per_user: nonNegativeInteger(result?.plan?.max_devices_per_user),
+      max_store_devices: nonNegativeInteger(result?.plan?.max_store_devices),
       product_expiration_tools_enabled: result?.plan?.product_expiration_tools_enabled === true,
       push_campaigns_enabled: result?.plan?.push_campaigns_enabled === true,
     },
@@ -397,6 +405,12 @@ export async function createStoreTeamUser(input: StoreTeamUserInput, options: St
     temporary_password_expires_at: text(result.temporary_password_expires_at),
     plan: result.plan ? normalizePlan(result.plan) : undefined,
   } as StoreTeamTemporaryAccessResponse & { user: StoreTeamUser };
+}
+
+// Alias comercial: una invitación crea el acceso con contraseña temporal
+// usando el mismo contrato privado y el sistema configurable de permisos.
+export function inviteStoreTeamUser(input: StoreTeamUserInput, options: StoreTeamClientOptions) {
+  return createStoreTeamUser(input, options);
 }
 
 export async function updateStoreTeamUser(userId: string, input: StoreTeamUserInput, options: StoreTeamClientOptions) {

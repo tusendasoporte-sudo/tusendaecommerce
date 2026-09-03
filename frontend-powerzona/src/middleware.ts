@@ -497,6 +497,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
           });
           permissionDurationMs = performance.now() - permissionStartedAt;
           context.locals.storeAccessContext = storeAccess;
+          adminContext.store.commercial_capabilities = storeAccess.plan;
         } catch (_) {
           return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');
         }
