@@ -1,3 +1,5 @@
+import { normalizeProductQuota, type ProductQuota } from './productQuota';
+
 export type MasterPlanCode = 'free' | 'basic' | 'premium';
 
 export type MasterPlanAudit = {
@@ -36,7 +38,8 @@ export type MasterStorePlan = {
     isExpired: boolean;
     can_renew: boolean;
   };
-  usage: { active_users: number; store_devices: number; max_devices_per_user: number };
+  usage: { active_users: number; store_devices: number; max_devices_per_user: number; products: number };
+  product_quota: ProductQuota;
   expiration_cleanup: { products: number; variations: number; notifications: number; cycles: number };
   last_change: MasterPlanAudit | null;
   history: MasterPlanAudit[];
@@ -108,6 +111,8 @@ function normalizeResponse(value: any): MasterStorePlan | null {
     || !isPlanCode(planCode)) return null;
   const history = Array.isArray(value.history) ? value.history.map(audit).filter(Boolean) as MasterPlanAudit[] : [];
   const lastChange = value.last_change ? audit(value.last_change) : null;
+  const productQuota = normalizeProductQuota(value.product_quota);
+  if (!productQuota) return null;
   const states = ['unconfigured', 'active', 'expiring', 'critical', 'expired'] as const;
   const state = states.includes(value.plan.state) ? value.plan.state : 'unconfigured';
   const daysRemaining = value.plan.days_remaining === null ? null : integer(value.plan.days_remaining);
@@ -137,7 +142,9 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       active_users: integer(value.usage?.active_users),
       store_devices: integer(value.usage?.store_devices),
       max_devices_per_user: integer(value.usage?.max_devices_per_user),
+      products: integer(value.usage?.products),
     },
+    product_quota: productQuota,
     expiration_cleanup: {
       products: integer(value.expiration_cleanup?.products),
       variations: integer(value.expiration_cleanup?.variations),

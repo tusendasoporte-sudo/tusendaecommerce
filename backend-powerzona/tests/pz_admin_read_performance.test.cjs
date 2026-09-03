@@ -71,14 +71,16 @@ test('bootstrap de productos consolida colecciones y proyecta campos livianos', 
     master: true,
     storeId: 'store0000000001',
     actor: {},
-    store: {},
+    store: record({ id: 'store0000000001', plan: 'basic' }),
   });
   assert.equal(data.products.length, 1);
   assert.equal(data.products[0].name, 'Producto');
   assert.equal(data.products[0].description, undefined);
   assert.equal(data.active_shipping_zone_count, 1);
+  assert.equal(data.product_quota.state, 'unavailable');
+  assert.equal(data.product_quota.can_create, false);
   assert.deepEqual(calls.map((call) => call.collection), [
-    'categories', 'subcategories', 'products', 'currencies', 'shipping_zones',
+    'categories', 'subcategories', 'products', 'currencies', 'shipping_zones', 'promo_sites',
   ]);
 });
 

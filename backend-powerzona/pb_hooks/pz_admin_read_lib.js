@@ -4,9 +4,12 @@ const activity = typeof __hooks === "undefined"
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const productQuota = typeof __hooks === "undefined"
+  ? require("./pz_product_quota_lib.js")
+  : require(`${__hooks}/pz_product_quota_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
-const PRODUCT_LIST_LIMIT = 1000;
+const PRODUCT_LIST_LIMIT = 2000;
 const ORDER_LIST_LIMIT = 200;
 const ORDER_ITEM_LIMIT = 500;
 
@@ -156,6 +159,7 @@ function productsBootstrap(app, context) {
     products,
     currencies,
     active_shipping_zone_count: activeShippingZones.length,
+    product_quota: productQuota.productQuotaView(app, context.store),
   };
 }
 

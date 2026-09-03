@@ -1,5 +1,9 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+const productQuota = typeof __hooks === "undefined"
+  ? require("./pz_product_quota_lib.js")
+  : require(`${__hooks}/pz_product_quota_lib.js`);
+
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PAGE_SIZE = 10;
 const MAX_VARIATIONS = 500;
@@ -662,6 +666,7 @@ function handleStoreProducts(e) {
       ok: true,
       generated_at: new Date().toISOString(),
       store,
+      product_quota: productQuota.productQuotaView($app, storeRecord),
       summary: summaryRow($app, bindings),
       filters: { categories, subcategories },
       page: listProducts($app, payload, store.status === "active"),

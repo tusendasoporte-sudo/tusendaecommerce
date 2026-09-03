@@ -150,6 +150,7 @@ test('uso vacío o inválido siempre devuelve enteros no negativos', () => {
     active_users: 0,
     store_devices: 0,
     max_devices_per_user: 0,
+    products: 0,
   });
   assert.deepEqual(management.normalizeUsageRow({
     activeUsers: -2,
@@ -159,6 +160,7 @@ test('uso vacío o inválido siempre devuelve enteros no negativos', () => {
     active_users: 0,
     store_devices: 3,
     max_devices_per_user: 0,
+    products: 0,
   });
 });
 

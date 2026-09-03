@@ -1,4 +1,5 @@
 import { getPocketBaseFileUrl } from './pocketbase';
+import { normalizeProductQuota, type ProductQuota } from './productQuota';
 
 export const MASTER_PRODUCT_STATUSES = [
   'all',
@@ -173,6 +174,7 @@ export type MasterRelatedProduct = {
 export type MasterProductsResult = {
   generated_at: string;
   store: MasterProductsStore;
+  product_quota: ProductQuota | null;
   summary: MasterProductSummary;
   filters: {
     categories: MasterProductTaxonomy[];
@@ -402,6 +404,8 @@ function normalizeProducts(input: any): MasterProductsResult | null {
   if (input?.ok !== true) return null;
   const store = normalizeStore(input?.store);
   if (!store) return null;
+  const productQuota = input?.product_quota === null ? null : normalizeProductQuota(input?.product_quota);
+  if (input?.product_quota !== null && !productQuota) return null;
   const categories = Array.isArray(input?.filters?.categories)
     ? input.filters.categories.map(normalizeTaxonomy).filter(Boolean) as MasterProductTaxonomy[]
     : [];
@@ -413,6 +417,7 @@ function normalizeProducts(input: any): MasterProductsResult | null {
   return {
     generated_at: safeIsoDate(input?.generated_at),
     store,
+    product_quota: productQuota,
     summary: normalizeSummary(input?.summary),
     filters: { categories, subcategories },
     page: {

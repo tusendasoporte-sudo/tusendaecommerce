@@ -7,6 +7,7 @@ import type {
   MasterProductsResult,
   MasterProductsStore,
 } from '../../lib/masterStoreProducts';
+import { productQuotaLabel, productQuotaMessage } from '../../lib/productQuota';
 
 interface Props {
   products: MasterProductsResult | null;
@@ -135,6 +136,7 @@ const categories = products?.filters.categories || [];
 const subcategories = products?.filters.subcategories || [];
 const currentPage = products?.page.page || 1;
 const totalPages = products?.page.total_pages || 1;
+const productQuota = products?.product_quota || null;
 ---
 
 <main class="products-shell" data-master-products-store={store.id}>
@@ -160,6 +162,16 @@ const totalPages = products?.page.total_pages || 1;
     <section class="products-error" role="alert">
       <strong>Catálogo temporalmente no disponible</strong>
       <p>{viewError}</p>
+    </section>
+  )}
+
+  {productQuota && (
+    <section class:list={['products-quota', `is-${productQuota.state}`]} role="status" aria-label="Consumo del plan">
+      <div>
+        <span>Uso del plan</span>
+        <strong>{productQuotaLabel(productQuota)}</strong>
+      </div>
+      <p>{productQuotaMessage(productQuota)}</p>
     </section>
   )}
 
@@ -366,6 +378,13 @@ const totalPages = products?.page.total_pages || 1;
   .primary-action, .filters-card button { border-color: #1d4ed8; background: #1d4ed8; color: #fff; }
   .products-error { border: 1px solid #fed7aa; border-radius: 14px; background: #fff7ed; color: #9a3412; padding: 17px; }
   .products-error p { margin: 5px 0 0; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 700; }
+  .products-quota { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; color: #1e3a8a; padding: 16px 18px; }
+  .products-quota > div { display: grid; gap: 4px; }
+  .products-quota span { font-size: var(--master-font-caption); font-weight: 1000; letter-spacing: .06em; text-transform: uppercase; }
+  .products-quota strong { font-size: var(--master-font-section-title); font-weight: 1000; }
+  .products-quota p { max-width: 760px; margin: 0; font-size: var(--master-font-meta); line-height: var(--master-line-relaxed); font-weight: 750; }
+  .products-quota.is-near_limit { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+  .products-quota.is-limit_reached, .products-quota.is-over_limit, .products-quota.is-unavailable { border-color: #fecaca; background: #fff1f2; color: #9f1239; }
   .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
   .kpi-grid article { display: grid; gap: 8px; min-height: 140px; border: 1px solid #dbeafe; border-radius: 15px; background: #eff6ff; padding: 19px; }
   .kpi-grid article.is-green { border-color: #a7f3d0; background: #ecfdf5; }
@@ -436,6 +455,7 @@ const totalPages = products?.page.total_pages || 1;
 
   @media (max-width: 780px) {
     .products-hero { align-items: stretch; flex-direction: column; }
+    .products-quota { align-items: flex-start; flex-direction: column; }
     .hero-actions { justify-content: flex-start; }
     .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .filters-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }

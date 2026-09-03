@@ -13,6 +13,7 @@ import {
   type CommercialStoreTypeDefinition,
 } from '../../lib/commercialPlanCatalog';
 import { resolveStorePlanPresentation } from '../../lib/storePlanPresentation';
+import { productQuotaLabel, productQuotaMessage } from '../../lib/productQuota';
 
 interface Props {
   data: MasterStorePlan;
@@ -33,6 +34,7 @@ const { store, plan, usage, last_change: lastChange, history } = data;
 const definitions = catalog.plans;
 const currentDefinition = commercialPlan(catalog, plan.plan) as CommercialPlanDefinition;
 const expirationCleanup = data.expiration_cleanup;
+const productQuota = data.product_quota;
 const headerStore = { ...store, featured: storeMeta.featured, security_label: storeMeta.securityLabel };
 const planPresentation = resolveStorePlanPresentation(plan, data.generated_at || new Date());
 const cup = (value: unknown) => formatCommercialCup(value, currencyDecimals);
@@ -117,7 +119,7 @@ function booleanCapability(definition: CommercialPlanDefinition, key: string) {
 }
 
 const currentCapabilities = [
-  { label: 'Productos', value: numericCapability(currentDefinition, 'max_products'), icon: 'products' as const },
+  { label: 'Productos', value: productQuotaLabel(productQuota), icon: 'products' as const },
   { label: 'Usuarios', value: `${usage.active_users} / ${numericCapability(currentDefinition, 'max_active_users')}`, icon: 'users' as const },
   { label: 'Dispositivos por usuario', value: `${usage.max_devices_per_user} / ${numericCapability(currentDefinition, 'max_devices_per_user')}`, icon: 'security' as const },
   { label: 'Dispositivos por tienda', value: `${usage.store_devices} / ${numericCapability(currentDefinition, 'max_store_devices')}`, icon: 'stores' as const },
@@ -176,6 +178,13 @@ function planFeatures(definition: CommercialPlanDefinition) {
   <header class="master-plan-heading">
     <div><h1>Plan y límites</h1><p>Gestiona el plan activo, la vigencia y las capacidades de {catalog.name}.</p></div>
   </header>
+
+  {productQuota.state !== 'available' && (
+    <section class:list={['master-notice', productQuota.state === 'near_limit' ? 'master-notice--warning' : 'master-notice--danger']} role="status">
+      <strong>{productQuotaLabel(productQuota)}</strong><br />
+      {productQuotaMessage(productQuota)}
+    </section>
+  )}
 
   <div class="master-plan-kpis" aria-label="Resumen del plan">
     <article class="master-store-kpi"><span class="master-store-kpi__label">Plan actual</span><strong class="master-store-kpi__value">{planName(plan.plan)}</strong><span class="master-store-kpi__meta">{plan.plan_name}</span></article>

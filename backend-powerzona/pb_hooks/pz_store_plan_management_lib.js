@@ -18,6 +18,9 @@ const storeActivity = typeof __hooks === "undefined"
 const storefrontAppAdmin = typeof __hooks === "undefined"
   ? require("./pz_storefront_app_admin_lib.js")
   : require(`${__hooks}/pz_storefront_app_admin_lib.js`);
+const productQuota = typeof __hooks === "undefined"
+  ? require("./pz_product_quota_lib.js")
+  : require(`${__hooks}/pz_product_quota_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const AUDIT_COLLECTION = "store_plan_audit";
@@ -158,8 +161,9 @@ function storeUsage(app, storeId) {
         FROM store_user_devices
         WHERE store = {:storeId} AND status = 'authorized'
         GROUP BY user
-      )), 0) AS maxDevicesPerUser
-  `, { storeId }, { activeUsers: 0, storeDevices: 0, maxDevicesPerUser: 0 }) || {};
+      )), 0) AS maxDevicesPerUser,
+      (SELECT COUNT(*) FROM products WHERE store = {:storeId}) AS products
+  `, { storeId }, { activeUsers: 0, storeDevices: 0, maxDevicesPerUser: 0, products: 0 }) || {};
   return normalizeUsageRow(row);
 }
 
@@ -229,6 +233,7 @@ function normalizeUsageRow(row) {
     active_users: nonNegativeInteger(source.activeUsers),
     store_devices: nonNegativeInteger(source.storeDevices),
     max_devices_per_user: nonNegativeInteger(source.maxDevicesPerUser),
+    products: nonNegativeInteger(source.products),
   };
 }
 
@@ -257,6 +262,7 @@ function buildPlanResponse(app, store) {
     },
     plan: state,
     usage,
+    product_quota: productQuota.productQuotaView(app, store, usage.products),
     expiration_cleanup: productExpiration.getStoreExpirationCleanupPreview(app, store.id),
     catalog_contract: planCatalog.CATALOG_CONTRACT,
     definitions,
