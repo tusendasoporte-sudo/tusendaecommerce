@@ -353,6 +353,7 @@ html.master-drawer-open { overflow: hidden; }
 .master-plan-option > .master-btn { width: 100%; margin-top: auto; white-space: normal; }
 .master-plan-capability--optional { grid-column: 1 / -1; border-color: #f0d58c; background: #fffaf0; }
 .master-plan-capability--optional small { display: block; margin-top: 3px; color: var(--master-muted); font-size: var(--master-font-caption); }
+.master-plan-capability__actions { display: flex; flex-flow: row wrap; align-items: center; gap: 8px; margin-top: 5px; }
 .master-commercial-create-summary { display: grid; gap: 10px; margin-top: 14px; border: 1px solid #bfdbfe; border-radius: 10px; background: #f8fbff; padding: 14px; }
 .master-commercial-create-summary article { display: grid; gap: 5px; }
 .master-commercial-create-summary p { margin: 0; color: #475569; font-size: var(--master-font-meta); line-height: 1.45; }

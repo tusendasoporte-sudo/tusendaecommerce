@@ -88,7 +88,6 @@ function promoPlanDefinitions() {
     return {
       code,
       name: base.name,
-      monthly_price_usd: 0,
       monthly_price_cup: catalog.getMonthlyPriceCup("promotional", code),
       pricing: base.pricing,
       catalog_contract: catalog.CATALOG_CONTRACT,
@@ -130,7 +129,6 @@ function resolvePromoPlanState(storeOrValues, now) {
       isConfigured: false,
       isExpired: false,
       can_renew: false,
-      monthly_price_usd: 0,
       monthly_price_cup: definition.monthly_price_cup,
       pricing: definition.pricing,
       catalog_contract: catalog.CATALOG_CONTRACT,
@@ -159,7 +157,6 @@ function resolvePromoPlanState(storeOrValues, now) {
   return {
     ...base,
     plan_name: legacyPremium ? "Plan Básico Promo (legado)" : base.plan === "free" ? "Plan Gratis Promo" : "Plan Básico Promo",
-    monthly_price_usd: 0,
     monthly_price_cup: definition.monthly_price_cup,
     pricing: definition.pricing,
     catalog_contract: catalog.CATALOG_CONTRACT,
@@ -227,6 +224,10 @@ function createInitialPromoPlanAudit(app, store, actor, previous, next, duration
   audit.set("previous_is_permanent", previous.plan_is_permanent);
   audit.set("new_is_permanent", next.plan_is_permanent);
   audit.set("duration_months", durationMonths);
+  audit.set("commercial_snapshot_json", catalog.getCommercialAuditSnapshot("promotional", next.plan, {
+    months: durationMonths,
+    is_permanent: next.plan_is_permanent,
+  }));
   audit.set("reason", "Asignación inicial de plan Promo");
   app.save(audit);
   return audit;

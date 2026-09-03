@@ -1,4 +1,5 @@
 import { normalizeProductQuota, type ProductQuota } from './productQuota';
+import { normalizeCommercialPlanAuditTerms, type CommercialPlanAuditTerms } from './commercialPlanAudit';
 
 export type MasterPlanCode = 'free' | 'basic' | 'premium';
 
@@ -17,6 +18,7 @@ export type MasterPlanAudit = {
   previous_is_permanent: boolean;
   new_is_permanent: boolean;
   duration_months: number;
+  commercial_terms: CommercialPlanAuditTerms | null;
   reason: string;
   created: string;
 };
@@ -101,6 +103,7 @@ function audit(value: any): MasterPlanAudit | null {
     previous_is_permanent: value.previous_is_permanent === true,
     new_is_permanent: value.new_is_permanent === true,
     duration_months: integer(value.duration_months),
+    commercial_terms: normalizeCommercialPlanAuditTerms(value.commercial_terms),
     reason: text(value.reason, 500),
     created: isoDate(value.created),
   };

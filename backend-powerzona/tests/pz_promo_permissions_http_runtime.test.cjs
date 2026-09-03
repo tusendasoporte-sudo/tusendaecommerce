@@ -39,6 +39,7 @@ const POST_PERMISSION_MIGRATIONS = [
   '1788440400_storefront_resilient_installations.js',
   '1788447600_taxonomy_contract_indexes.js',
   '1788447700_store_plan_lifecycle_notifications.js',
+  '1788447800_store_plan_commercial_audit.js',
 ];
 
 function runtimeEnvironment() {
@@ -302,6 +303,7 @@ test('gate runtime PERM: actores, capacidades, permisos, sesiones, aislamiento, 
     const suspendedA = await createStoreUser(storeA, 'suspended-a', 'store_staff');
     const primaryB = await createStoreUser(storeB, 'primary-b', 'store_admin');
     await assignPrimary(storeB, primaryB);
+    await createStoreUser(storeB, 'allowed-b', 'store_staff');
     const blockedB = await createStoreUser(storeB, 'blocked-b', 'store_staff');
     const commerceAdmin = await createStoreUser(storeCommerce, 'commerce', 'store_admin');
 

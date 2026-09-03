@@ -126,6 +126,7 @@ test('el historial normaliza DateTime, actor vacío y valores anteriores vacíos
     previous_is_permanent: false,
     new_is_permanent: true,
     duration_months: 0,
+    commercial_terms: null,
     reason: '',
     created: '2026-07-15T18:00:00.000Z',
   });
@@ -133,13 +134,14 @@ test('el historial normaliza DateTime, actor vacío y valores anteriores vacíos
 
 test('las tres definiciones consumen precios CUP del catálogo central', () => {
   const definitions = management.definitionsResponse();
-  assert.deepEqual(definitions.map(({ code, monthly_price_usd, monthly_price_cup }) => ({
-    code, monthly_price_usd, monthly_price_cup,
+  assert.deepEqual(definitions.map(({ code, monthly_price_cup }) => ({
+    code, monthly_price_cup,
   })), [
-    { code: 'free', monthly_price_usd: 0, monthly_price_cup: 0 },
-    { code: 'basic', monthly_price_usd: 0, monthly_price_cup: 1500 },
-    { code: 'premium', monthly_price_usd: 0, monthly_price_cup: 2500 },
+    { code: 'free', monthly_price_cup: 0 },
+    { code: 'basic', monthly_price_cup: 1500 },
+    { code: 'premium', monthly_price_cup: 2500 },
   ]);
+  assert.equal(definitions.some((definition) => Object.hasOwn(definition, 'monthly_price_usd')), false);
   assert.deepEqual(definitions[1].pricing.periods.map((period) => period.months), [1, 6, 12]);
   assert.deepEqual(definitions.map((definition) => definition.grace_days), [0, 3, 3]);
   assert.equal(definitions[0].capabilities.max_products, 100);
@@ -180,6 +182,26 @@ test('Plan y límites cuenta solo dispositivos administrativos autorizados', () 
   assert.match(usage, /COUNT\(DISTINCT device_digest\)/);
   assert.match(usage, /status = 'authorized'/);
   assert.equal(usage.includes('store_customer_devices'), false);
+});
+
+test('el historial entrega los términos comerciales CUP inmutables del evento', () => {
+  const snapshot = require('../pb_hooks/pz_plan_catalog_lib.js').getCommercialAuditSnapshot('ecommerce', 'premium', {
+    months: 12,
+    is_permanent: false,
+  });
+  const values = {
+    action: 'plan_renewed',
+    new_plan: 'premium',
+    duration_months: 12,
+    commercial_snapshot_json: snapshot,
+    created: pocketBaseDateTime('2026-07-15 18:00:00.000Z'),
+  };
+  const result = management.mapAudit({ id: 'audittestp9cup1', get(key) { return values[key]; } });
+  assert.equal(result.commercial_terms.currency, 'CUP');
+  assert.equal(result.commercial_terms.period_months, 12);
+  assert.equal(result.commercial_terms.total_cup, 19200);
+  assert.equal(result.commercial_terms.savings_cup, 10800);
+  assert.equal(result.commercial_terms.capabilities.max_products, 1600);
 });
 
 test('el downgrade conserva datos y no ejecuta la limpieza irreversible anterior', () => {

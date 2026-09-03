@@ -13,6 +13,7 @@ import {
   getMasterCommercialPlanCatalog,
   normalizeCommercialPlanCatalog,
 } from '../src/lib/commercialPlanCatalog.ts';
+import { normalizeCommercialPlanAuditTerms } from '../src/lib/commercialPlanAudit.ts';
 
 const require = createRequire(import.meta.url);
 const backendCatalog = require('../../backend-powerzona/pb_hooks/pz_plan_catalog_lib.js');
@@ -93,7 +94,29 @@ test('interfaces Master no contienen precios USD, periodos 1..12 ni cuotas Promo
   }
   assert.doesNotMatch(files[2], /name="promo_image_limit"/);
   assert.match(files[0], /Opcional por tienda · solo Master · apagada por defecto/);
+  assert.match(files[0], /data-action-configure-security/);
+  assert.match(files[0], /Precio y periodo CUP/);
+  assert.match(files[0], /Límites registrados/);
+  assert.match(files[1], /Precio y periodo CUP/);
+  assert.match(files[1], /Límites registrados/);
+  assert.match(files[2], /SECURITY_STATUS_LABELS/);
   assert.match(read('src/pages/master/stores/[storeId]/plan.astro'), /getMasterCommercialPlanCatalog/);
   assert.match(read('src/pages/master/stores/index.astro'), /showCreateStore=\{commercialCatalog\.available\}/);
   assert.match(formatCommercialCup(1400), /CUP$/);
+});
+
+test('el cliente normaliza el snapshot comercial histórico sin recalcularlo con el catálogo actual', () => {
+  const source = backendCatalog.getCommercialAuditSnapshot('promotional', 'basic', {
+    months: 12,
+    is_permanent: false,
+  });
+  const terms = normalizeCommercialPlanAuditTerms(source);
+  assert.ok(terms);
+  assert.equal(terms.currency, 'CUP');
+  assert.equal(terms.period_months, 12);
+  assert.equal(terms.monthly_equivalent_cup, 1000);
+  assert.equal(terms.total_cup, 12000);
+  assert.equal(terms.savings_cup, 4800);
+  assert.equal(terms.capabilities.max_total_images, 300);
+  assert.equal(normalizeCommercialPlanAuditTerms({ ...source, currency: 'USD' }), null);
 });

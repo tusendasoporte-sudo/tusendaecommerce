@@ -50,6 +50,7 @@ const POST_DATA_NON_PROMO_MIGRATIONS = [
   '1788440400_storefront_resilient_installations.js',
   '1788447600_taxonomy_contract_indexes.js',
   '1788447700_store_plan_lifecycle_notifications.js',
+  '1788447800_store_plan_commercial_audit.js',
 ];
 const PROMO_COLLECTIONS = [
   'promo_sites',

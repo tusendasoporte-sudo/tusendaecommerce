@@ -122,6 +122,54 @@ test('Seguridad avanzada es opcional, Master-only y apagada por defecto incluso 
   assert.equal(catalog.getPlanCapabilities('ecommerce', 'premium').security_enabled, false);
 });
 
+test('cada evento puede congelar precio CUP, ahorro, periodo y límites del contrato aplicado', () => {
+  const basicSemester = catalog.getCommercialAuditSnapshot('ecommerce', 'basic', {
+    months: 6,
+    is_permanent: false,
+  });
+  assert.deepEqual({
+    contract: basicSemester.contract,
+    store_type: basicSemester.store_type,
+    plan_code: basicSemester.plan_code,
+    currency: basicSemester.currency,
+    pricing_kind: basicSemester.pricing_kind,
+    period_months: basicSemester.period_months,
+    monthly_equivalent_cup: basicSemester.monthly_equivalent_cup,
+    total_cup: basicSemester.total_cup,
+    savings_cup: basicSemester.savings_cup,
+    savings_percent: basicSemester.savings_percent,
+    max_products: basicSemester.capabilities.max_products,
+  }, {
+    contract: 'tusenda84.commercial-plan-catalog.v1',
+    store_type: 'ecommerce',
+    plan_code: 'basic',
+    currency: 'CUP',
+    pricing_kind: 'period',
+    period_months: 6,
+    monthly_equivalent_cup: 1250,
+    total_cup: 7500,
+    savings_cup: 1500,
+    savings_percent: 16.67,
+    max_products: 700,
+  });
+  assert.deepEqual(catalog.normalizeCommercialAuditSnapshot(JSON.stringify(basicSemester)), basicSemester);
+
+  const trial = catalog.getCommercialAuditSnapshot('promotional', 'free', { months: 0, is_permanent: false });
+  assert.equal(trial.pricing_kind, 'trial');
+  assert.equal(trial.trial_days, 30);
+  assert.equal(trial.total_cup, 0);
+  assert.equal(trial.capabilities.max_total_images, 150);
+
+  const permanent = catalog.getCommercialAuditSnapshot('ecommerce', 'premium', { months: 0, is_permanent: true });
+  assert.equal(permanent.pricing_kind, 'permanent_compatibility');
+  assert.equal(permanent.total_cup, null);
+  assert.equal(permanent.period_months, null);
+  assert.throws(
+    () => catalog.getCommercialAuditSnapshot('ecommerce', 'basic', { months: 2, is_permanent: false }),
+    /invalid_plan_duration_months/,
+  );
+});
+
 test('el endpoint privado expone el DTO unificado sin depender de una tienda', () => {
   const route = fs.readFileSync(path.join(__dirname, '../pb_hooks/pz_store_plan_management.pb.js'), 'utf8');
   assert.match(route, /"GET",\s*"\/api\/pz\/master\/plan-catalog"/);

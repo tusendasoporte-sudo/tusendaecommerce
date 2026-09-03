@@ -187,6 +187,7 @@ function mapAudit(record) {
     previous_is_permanent: recordBool(record, "previous_is_permanent"),
     new_is_permanent: recordBool(record, "new_is_permanent"),
     duration_months: Math.max(0, Math.floor(recordNumber(record, "duration_months"))),
+    commercial_terms: planCatalog.normalizeCommercialAuditSnapshot(recordValue(record, "commercial_snapshot_json")),
     reason: boundedString(recordString(record, "reason"), 500),
     created: recordDate(record, "created"),
   };
@@ -219,7 +220,6 @@ function definitionsResponse() {
     return {
       code,
       name: definition.name,
-      monthly_price_usd: plans.getMonthlyPriceUsd(code),
       monthly_price_cup: plans.getMonthlyPriceCup(code),
       pricing: plans.getPlanPricing(code),
       catalog_contract: planCatalog.CATALOG_CONTRACT,
@@ -356,6 +356,10 @@ function createAudit(app, store, actor, action, previous, next, durationMonths, 
   audit.set("previous_is_permanent", previous.plan_is_permanent);
   audit.set("new_is_permanent", next.plan_is_permanent);
   audit.set("duration_months", durationMonths);
+  audit.set("commercial_snapshot_json", planCatalog.getCommercialAuditSnapshot("ecommerce", next.plan, {
+    months: durationMonths,
+    is_permanent: next.plan_is_permanent,
+  }));
   audit.set("reason", reason);
   app.save(audit);
   return audit;

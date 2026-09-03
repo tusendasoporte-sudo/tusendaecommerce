@@ -1,3 +1,5 @@
+import { normalizeCommercialPlanAuditTerms, type CommercialPlanAuditTerms } from './commercialPlanAudit';
+
 export type MasterPromoPlanCode = 'free' | 'basic';
 export type MasterPromoPlanState = 'unconfigured' | 'active' | 'expiring' | 'critical' | 'grace' | 'expired';
 
@@ -12,6 +14,7 @@ export type MasterPromoPlanAudit = {
   previous_is_permanent: boolean;
   new_is_permanent: boolean;
   duration_months: number;
+  commercial_terms: CommercialPlanAuditTerms | null;
   reason: string;
   created: string;
 };
@@ -99,6 +102,7 @@ function normalizeAudit(value: any): MasterPromoPlanAudit | null {
     previous_is_permanent: value.previous_is_permanent === true,
     new_is_permanent: value.new_is_permanent === true,
     duration_months: integer(value.duration_months),
+    commercial_terms: normalizeCommercialPlanAuditTerms(value.commercial_terms),
     reason: text(value.reason, 500),
     created: isoDate(value.created),
   };

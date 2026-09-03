@@ -263,6 +263,125 @@ function getMonthlyPriceCup(storeType, planCode) {
   return pricing.periods.length ? pricing.periods[0].monthly_equivalent_cup : 0;
 }
 
+function cloneSnapshotCapabilities(capabilities) {
+  return Object.keys(capabilities || {}).reduce((result, key) => {
+    const value = capabilities[key];
+    result[key] = Array.isArray(value) ? value.slice() : value;
+    return result;
+  }, {});
+}
+
+function getCommercialAuditSnapshot(storeType, planCode, options) {
+  const normalizedType = normalizeStoreType(storeType);
+  const definition = getPlanDefinition(normalizedType, planCode);
+  const input = options && typeof options === "object" ? options : {};
+  const isPermanent = input.is_permanent === true;
+  let pricingKind = "trial";
+  let trialDays = definition.pricing.trial ? definition.pricing.trial.days : null;
+  let periodMonths = null;
+  let monthlyEquivalentCup = null;
+  let totalCup = definition.pricing.trial ? definition.pricing.trial.total_cup : null;
+  let savingsCup = 0;
+  let savingsPercent = 0;
+
+  if (isPermanent) {
+    if (!definition.supports_permanent) throw new RangeError("permanent_plan_not_supported");
+    pricingKind = "permanent_compatibility";
+    trialDays = null;
+    totalCup = null;
+    savingsCup = null;
+    savingsPercent = null;
+  } else if (!definition.pricing.trial) {
+    const months = Number(input.months);
+    const period = definition.pricing.periods.find((item) => item.months === months);
+    if (!period) throw new RangeError("invalid_plan_duration_months");
+    pricingKind = "period";
+    periodMonths = period.months;
+    monthlyEquivalentCup = period.monthly_equivalent_cup;
+    totalCup = period.total_cup;
+    savingsCup = period.savings_cup;
+    savingsPercent = period.savings_percent;
+  }
+
+  return {
+    contract: CATALOG_CONTRACT,
+    version: CATALOG_VERSION,
+    store_type: normalizedType,
+    plan_code: definition.code,
+    plan_name: definition.name,
+    currency: CURRENCY.code,
+    pricing_kind: pricingKind,
+    trial_days: trialDays,
+    period_months: periodMonths,
+    monthly_equivalent_cup: monthlyEquivalentCup,
+    total_cup: totalCup,
+    savings_cup: savingsCup,
+    savings_percent: savingsPercent,
+    capabilities: cloneSnapshotCapabilities(definition.capabilities),
+  };
+}
+
+function finiteNonNegativeOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function normalizeSnapshotCapabilities(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const result = {};
+  const keys = Object.keys(value);
+  if (keys.length > 64) return null;
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (!/^[a-z0-9_]{1,80}$/.test(key)) return null;
+    const entry = value[key];
+    if (typeof entry === "boolean") result[key] = entry;
+    else if (typeof entry === "number" && Number.isFinite(entry) && entry >= 0) result[key] = entry;
+    else if (Array.isArray(entry) && entry.length <= 32
+      && entry.every((item) => typeof item === "string" && item.length <= 80)) {
+      result[key] = entry.slice();
+    } else return null;
+  }
+  return result;
+}
+
+function normalizeCommercialAuditSnapshot(value) {
+  let source = value;
+  if (typeof source === "string") {
+    try { source = JSON.parse(source); } catch (_) { return null; }
+  }
+  if (!source || typeof source !== "object" || Array.isArray(source)) return null;
+  if (source.contract !== CATALOG_CONTRACT || Number(source.version) !== CATALOG_VERSION) return null;
+  let storeType;
+  try { storeType = normalizeStoreType(source.store_type); } catch (_) { return null; }
+  if (!isValidPlanCode(storeType, source.plan_code) || source.currency !== CURRENCY.code) return null;
+  const pricingKind = String(source.pricing_kind || "");
+  if (!["trial", "period", "permanent_compatibility"].includes(pricingKind)) return null;
+  const capabilities = normalizeSnapshotCapabilities(source.capabilities);
+  if (!capabilities) return null;
+
+  const snapshot = {
+    contract: CATALOG_CONTRACT,
+    version: CATALOG_VERSION,
+    store_type: storeType,
+    plan_code: String(source.plan_code),
+    plan_name: String(source.plan_name || "").trim().slice(0, 80),
+    currency: CURRENCY.code,
+    pricing_kind: pricingKind,
+    trial_days: finiteNonNegativeOrNull(source.trial_days),
+    period_months: finiteNonNegativeOrNull(source.period_months),
+    monthly_equivalent_cup: finiteNonNegativeOrNull(source.monthly_equivalent_cup),
+    total_cup: finiteNonNegativeOrNull(source.total_cup),
+    savings_cup: finiteNonNegativeOrNull(source.savings_cup),
+    savings_percent: finiteNonNegativeOrNull(source.savings_percent),
+    capabilities,
+  };
+  if (!snapshot.plan_name) return null;
+  if (pricingKind === "period" && !COMMERCIAL_PERIOD_MONTHS.includes(snapshot.period_months)) return null;
+  return snapshot;
+}
+
 function getOptionalCapabilityPolicy(capabilityKey) {
   const key = String(capabilityKey || "").trim();
   return Object.prototype.hasOwnProperty.call(OPTIONAL_CAPABILITIES, key)
@@ -316,6 +435,7 @@ module.exports = {
   PLAN_CATALOG,
   PROMOTIONAL_BASE_CAPABILITIES,
   getCatalogDto,
+  getCommercialAuditSnapshot,
   getMonthlyPriceCup,
   getOptionalCapabilityPolicy,
   getPlanCapabilities,
@@ -324,5 +444,6 @@ module.exports = {
   getPlanDefinitions,
   getPlanPricing,
   isValidPlanCode,
+  normalizeCommercialAuditSnapshot,
   normalizeStoreType,
 };

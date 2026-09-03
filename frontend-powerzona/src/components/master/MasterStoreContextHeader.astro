@@ -32,8 +32,10 @@ function initials(value: string) {
           {store.status === 'active' ? 'Activa' : 'Suspendida'}
         </span>
         {store.featured && <span class="master-pill master-pill--warning">Destacada</span>}
-        <span class:list={['master-pill', store.security_label === 'Protección activa' ? 'master-pill--info' : '']}>
+        <span class:list={['master-pill', store.security_label === 'Protección activa' ? 'master-pill--info' : '']} data-security-status-pill>
+          <span data-security-status-label>
           {store.security_label}
+          </span>
         </span>
         <StorePlanIndicator presentation={planPresentation} variant="master-header" />
       </div>

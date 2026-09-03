@@ -18,9 +18,6 @@ const PLAN_DEFINITIONS = Object.freeze(PLAN_CODES.reduce((definitions, code) => 
 const PERMANENT_PLAN_CODES = Object.freeze(PLAN_CODES.filter(
   (code) => PLAN_DEFINITIONS[code].supports_permanent,
 ));
-// Campo legado conservado para consumidores anteriores. El catálogo comercial
-// vigente no publica precios USD y todos los importes autoritativos son CUP.
-const MONTHLY_PRICES_USD = Object.freeze({ free: 0, basic: 0, premium: 0 });
 
 function isValidPlanCode(value) {
   return typeof value === "string" && PLAN_CODES.includes(value);
@@ -217,7 +214,6 @@ function resolvePlanState(storeOrValues, now) {
     grace_days: graceDays,
     grace_expires_at: graceExpiration ? graceExpiration.toISOString() : null,
     can_renew: !isPermanent && plan !== "free",
-    monthly_price_usd: MONTHLY_PRICES_USD[plan],
     monthly_price_cup: catalog.getMonthlyPriceCup("ecommerce", plan),
     pricing: catalog.getPlanPricing("ecommerce", plan),
     catalog_contract: catalog.CATALOG_CONTRACT,
@@ -287,11 +283,6 @@ function normalizeDurationMonths(value) {
     throw new RangeError("invalid_plan_duration_months");
   }
   return months;
-}
-
-function getMonthlyPriceUsd(plan) {
-  getPlanDefinition(plan);
-  return MONTHLY_PRICES_USD[plan];
 }
 
 function getMonthlyPriceCup(plan) {
@@ -383,6 +374,10 @@ function createTrialStartedAudit(app, store, actor, values) {
   audit.set("new_started_at", values.plan_started_at);
   audit.set("new_expires_at", values.plan_expires_at);
   audit.set("duration_months", 0);
+  audit.set("commercial_snapshot_json", catalog.getCommercialAuditSnapshot("ecommerce", "free", {
+    months: 0,
+    is_permanent: false,
+  }));
   app.save(audit);
 }
 
@@ -423,7 +418,6 @@ function handleStoreCreate(e) {
 
 module.exports = {
   HAVANA_TIME_ZONE,
-  MONTHLY_PRICES_USD,
   PAID_PLAN_GRACE_DAYS,
   PERMANENT_PLAN_CODES,
   PLAN_CODES,
@@ -436,7 +430,6 @@ module.exports = {
   getDaysRemaining,
   getHavanaCivilDateKey,
   getMonthlyPriceCup,
-  getMonthlyPriceUsd,
   getPlanGraceDays,
   getPlanCapabilities,
   getPlanDefinition,

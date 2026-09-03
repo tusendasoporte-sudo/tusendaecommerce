@@ -57,9 +57,22 @@ function auditAction(entry: MasterPromoPlanAudit | null) {
   if (!entry) return 'Sin registro';
   return entry.action === 'plan_renewed' ? 'Plan renovado' : entry.action === 'trial_started' ? 'Prueba iniciada' : 'Plan asignado';
 }
-function auditDuration(entry: MasterPromoPlanAudit) {
-  const trial = entry.new_plan ? commercialPlan(catalog, entry.new_plan)?.pricing.trial : null;
-  return trial ? `${trial.days} días` : entry.new_is_permanent ? 'Permanente' : commercialMonthsLabel(entry.duration_months);
+function auditCommercialTerms(entry: MasterPromoPlanAudit | null) {
+  const terms = entry?.commercial_terms;
+  if (!terms) return 'No registrado · evento anterior al catálogo';
+  if (terms.pricing_kind === 'permanent_compatibility') return 'Permanente compatible · importe no aplicable';
+  if (terms.pricing_kind === 'trial') return `Prueba ${terms.trial_days || 0} días · total ${cup(terms.total_cup ?? 0)}`;
+  return `${commercialMonthsLabel(terms.period_months || 0)} · ${cup(terms.monthly_equivalent_cup ?? 0)}/mes · total ${cup(terms.total_cup ?? 0)} · ahorro ${cup(terms.savings_cup ?? 0)} (${terms.savings_percent ?? 0}%)`;
+}
+function auditExpiration(entry: MasterPromoPlanAudit) {
+  const previous = entry.previous_is_permanent ? 'Permanente' : date(entry.previous_expires_at);
+  const next = entry.new_is_permanent ? 'Permanente' : date(entry.new_expires_at);
+  return `${previous} → ${next}`;
+}
+function auditLimits(entry: MasterPromoPlanAudit | null) {
+  const capabilities = entry?.commercial_terms?.capabilities;
+  if (!capabilities) return 'No registrados';
+  return `${Number(capabilities.max_total_images || 0)} imágenes · ${Number(capabilities.max_services || 0)} servicios · ${Number(capabilities.max_locales || 0)} idiomas`;
 }
 function booleanCapability(definition: CommercialPlanDefinition, key: string) {
   return definition.capabilities[key] === true;
@@ -142,7 +155,7 @@ const historicalImageLimit = plan.max_gallery_assets !== catalogImageLimit;
 
     <section class="master-card master-plan-last-change">
       <header class="master-card-header"><h3 class="master-card-title">Último movimiento</h3></header>
-      <div class="master-card-body">{lastChange ? <dl class="master-plan-change-list"><div><dt>Acción</dt><dd>{auditAction(lastChange)}</dd></div><div><dt>Actor</dt><dd>{lastChange.actor_name}</dd></div><div><dt>Cambio</dt><dd>{planName(lastChange.previous_plan)} → {planName(lastChange.new_plan)}</dd></div><div><dt>Duración</dt><dd>{auditDuration(lastChange)}</dd></div><div><dt>Fecha</dt><dd>{dateTime(lastChange.created)}</dd></div></dl> : <p class="master-empty">Todavía no hay movimientos registrados.</p>}</div>
+      <div class="master-card-body">{lastChange ? <dl class="master-plan-change-list"><div><dt>Acción</dt><dd>{auditAction(lastChange)}</dd></div><div><dt>Actor</dt><dd>{lastChange.actor_name}</dd></div><div><dt>Cambio</dt><dd>{planName(lastChange.previous_plan)} → {planName(lastChange.new_plan)}</dd></div><div><dt>Contrato CUP</dt><dd>{auditCommercialTerms(lastChange)}</dd></div><div><dt>Vencimiento</dt><dd>{auditExpiration(lastChange)}</dd></div><div><dt>Fecha</dt><dd>{dateTime(lastChange.created)}</dd></div></dl> : <p class="master-empty">Todavía no hay movimientos registrados.</p>}</div>
       <footer class="master-plan-card-footer"><button class="master-btn master-btn--secondary" type="button" data-open-promo-plan-history disabled={!history.length}><MasterIcon name="clock" size={19} /> Ver historial</button></footer>
     </section>
   </div>
@@ -164,7 +177,7 @@ const historicalImageLimit = plan.max_gallery_assets !== catalogImageLimit;
   </MasterDialog>}
 
   <MasterDialog id="master-promo-plan-history-dialog" title="Historial de planes promocionales" description="Últimos movimientos registrados para esta tienda." size="lg">
-    {history.length ? <div class="master-table-wrap"><table class="master-table master-plan-history-table"><thead><tr><th>Fecha</th><th>Acción</th><th>Cambio</th><th>Duración</th><th>Actor</th><th>Motivo</th></tr></thead><tbody>{history.map((entry) => <tr><td>{dateTime(entry.created)}</td><td>{auditAction(entry)}</td><td>{planName(entry.previous_plan)} → {planName(entry.new_plan)}</td><td>{auditDuration(entry)}</td><td>{entry.actor_name}</td><td>{entry.reason || 'Sin motivo'}</td></tr>)}</tbody></table></div> : <p class="master-empty">No hay movimientos registrados.</p>}
+    {history.length ? <div class="master-table-wrap"><table class="master-table master-plan-history-table"><thead><tr><th>Fecha</th><th>Acción</th><th>Cambio</th><th>Precio y periodo CUP</th><th>Vencimiento</th><th>Límites registrados</th><th>Actor</th><th>Motivo</th></tr></thead><tbody>{history.map((entry) => <tr><td>{dateTime(entry.created)}</td><td>{auditAction(entry)}</td><td>{planName(entry.previous_plan)} → {planName(entry.new_plan)}</td><td>{auditCommercialTerms(entry)}</td><td>{auditExpiration(entry)}</td><td>{auditLimits(entry)}</td><td>{entry.actor_name}</td><td>{entry.reason || 'Sin motivo'}</td></tr>)}</tbody></table></div> : <p class="master-empty">No hay movimientos registrados.</p>}
     <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button></div>
   </MasterDialog>
 </section>

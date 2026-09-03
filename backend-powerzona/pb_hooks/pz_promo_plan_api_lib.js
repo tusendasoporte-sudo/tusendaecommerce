@@ -107,6 +107,7 @@ function mapAudit(record) {
     previous_is_permanent: recordBool(record, "previous_is_permanent"),
     new_is_permanent: recordBool(record, "new_is_permanent"),
     duration_months: Math.max(0, Math.floor(Number(recordValue(record, "duration_months") || 0))),
+    commercial_terms: planCatalog.normalizeCommercialAuditSnapshot(recordValue(record, "commercial_snapshot_json")),
     reason: safeText(recordString(record, "reason"), 500),
     created: safeDate(recordValue(record, "created")),
   };
@@ -219,6 +220,10 @@ function createAudit(app, store, actor, action, previous, next, months, reason) 
   audit.set("previous_is_permanent", previous.plan_is_permanent);
   audit.set("new_is_permanent", next.plan_is_permanent);
   audit.set("duration_months", months);
+  audit.set("commercial_snapshot_json", planCatalog.getCommercialAuditSnapshot("promotional", next.plan, {
+    months,
+    is_permanent: next.plan_is_permanent,
+  }));
   audit.set("reason", safeText(reason, 500));
   app.save(audit);
   return audit;
