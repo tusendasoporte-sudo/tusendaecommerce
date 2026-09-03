@@ -8,13 +8,15 @@ import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 interface Props {
   data: MasterStoreAppBuilds;
   planPresentation: StorePlanPresentation;
-  channel?: 'prepare' | 'publication' | 'analytics';
+  channel?: 'prepare' | 'publication' | 'analytics' | 'health';
 }
 
 const { data, planPresentation, channel = 'prepare' } = Astro.props;
 const { store, profile, jobs, artifacts, brand_assets: brandAssets } = data;
 const downloadAnalytics = data.download_analytics;
 const downloadSummary = downloadAnalytics.summary;
+const appHealth = data.app_health;
+const healthSummary = appHealth.summary;
 const premiumBuildAllowed = planPresentation.code === 'premium' && planPresentation.state !== 'expired';
 const appLifecycleActive = !profile || profile.lifecycle_status === 'active';
 const buildActionsAllowed = premiumBuildAllowed && appLifecycleActive;
@@ -122,9 +124,46 @@ function dateTime(value: string) {
 function activityDateTime(value: string) {
   return value ? dateTime(value) : 'Sin actividad';
 }
+
+function healthLabel(value: string) {
+  if (value === 'healthy') return 'Operativo';
+  if (value === 'warning') return 'Con avisos';
+  if (value === 'critical') return 'Requiere atención';
+  if (value === 'inactive') return 'Inactivo';
+  return 'Sin datos';
+}
+
+function healthPill(value: string) {
+  if (value === 'healthy') return 'master-pill--success';
+  if (value === 'critical') return 'master-pill--danger';
+  if (value === 'warning') return 'master-pill--warning';
+  return '';
+}
+
+function healthImportance(value: string) {
+  if (value === 'core') return 'Servicio esencial';
+  if (value === 'accelerator') return 'Acelerador';
+  if (value === 'optional') return 'Opcional';
+  if (value === 'user_setting') return 'Depende del usuario';
+  return 'Observabilidad';
+}
+
+function permissionLabel(value: string) {
+  if (value === 'granted') return 'Concedido';
+  if (value === 'denied') return 'Denegado';
+  return 'Sin confirmar';
+}
+
+function firebaseLabel(value: string) {
+  if (value === 'registered') return 'Registrado';
+  if (value === 'failed') return 'Falló';
+  if (value === 'unavailable') return 'No disponible';
+  if (value === 'registering') return 'Registrando';
+  return 'Sin confirmar';
+}
 ---
 
-<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)} data-runner-watch={String(!!activeExecutionJob)} data-channel={channel}>
+<section class="master-store-page master-app-build-page" data-store-app-build data-store-id={store.id} data-store-slug={store.slug} data-profile-id={profile?.id || ''} data-build-actions-allowed={String(buildActionsAllowed)} data-engine-release-ready={String(engineReleaseReady)} data-preview-engine-ready={String(currentPreviewEngineReady)} data-runner-watch={String(!!activeExecutionJob)} data-health-watch={String(channel === 'health')} data-channel={channel}>
   <MasterStoreContextHeader
     store={{
       id: store.id,
@@ -150,6 +189,7 @@ function activityDateTime(value: string) {
     <a class:list={[{ 'is-active': channel === 'prepare' }]} href={`/master/stores/${store.id}/app?channel=prepare`}>1. Preparar y probar</a>
     <a class:list={[{ 'is-active': channel === 'publication' }]} href={`/master/stores/${store.id}/app?channel=publication`}>2. Publicación</a>
     <a class:list={[{ 'is-active': channel === 'analytics' }]} href={`/master/stores/${store.id}/app?channel=analytics`}>3. Instalaciones y analítica</a>
+    <a class:list={[{ 'is-active': channel === 'health' }]} href={`/master/stores/${store.id}/app?channel=health`}>4. Estado y diagnóstico</a>
   </nav>
 
   <div class="master-app-build-policy" role="note">
@@ -747,6 +787,116 @@ function activityDateTime(value: string) {
     </div>
   </section>
 
+  <section class="master-card master-app-health" data-health-only>
+    <header class="master-card-header">
+      <div>
+        <h2 class="master-card-title">Estado y diagnóstico</h2>
+        <p class="master-card-subtitle">Salud técnica de los canales Android y de cada instalación, actualizada automáticamente cada minuto.</p>
+      </div>
+      <span class:list={['master-pill', healthPill(appHealth.overall_status)]}>
+        {healthLabel(appHealth.overall_status)}
+      </span>
+    </header>
+    <div class="master-card-body master-app-health__body">
+      <div class="master-app-health__toolbar">
+        <div>
+          <strong>Última comprobación: {dateTime(appHealth.generated_at)}</strong>
+          <span>Actividad reciente: últimas {appHealth.fresh_window_hours} horas · telemetría conservada {appHealth.retention_days} días.</span>
+        </div>
+        <a class="master-btn master-btn--secondary" href={`/master/stores/${store.id}/app?channel=health`}>
+          <MasterIcon name="analytics" size={17} /> Actualizar ahora
+        </a>
+      </div>
+
+      {!appHealth.available ? (
+        <div class="master-app-health__empty" role="status">
+          <MasterIcon name="alert" size={24} />
+          <div><strong>La telemetría detallada todavía no está disponible</strong><span>Las instalaciones continuarán funcionando; vuelve a comprobar después de desplegar el backend actualizado.</span></div>
+        </div>
+      ) : (
+        <>
+          <div class="master-app-health__summary" aria-label="Resumen del diagnóstico Android">
+            <article><span>Mostradas</span><strong>{healthSummary.total.toLocaleString('es-US')}</strong><small>{healthSummary.active} activas en esta vista</small></article>
+            <article><span>Recientes</span><strong>{healthSummary.recent.toLocaleString('es-US')}</strong><small>Actividad en 30 días</small></article>
+            <article><span>Saludables</span><strong>{healthSummary.healthy.toLocaleString('es-US')}</strong><small>Sin fallos activos</small></article>
+            <article><span>Con avisos</span><strong>{healthSummary.warning.toLocaleString('es-US')}</strong><small>Requieren observación</small></article>
+            <article><span>Críticas</span><strong>{healthSummary.critical.toLocaleString('es-US')}</strong><small>Requieren soporte</small></article>
+            <article><span>Monitoreadas</span><strong>{healthSummary.monitored.toLocaleString('es-US')}</strong><small>Con telemetría nueva</small></article>
+          </div>
+
+          <section class="master-app-health__services" aria-labelledby="app-health-services-title">
+            <div class="master-app-health__section-heading">
+              <div><h3 id="app-health-services-title">Servicios de la aplicación</h3><p>Un acelerador con avisos no invalida el canal nativo ni el registro de instalaciones.</p></div>
+            </div>
+            <div class="master-app-health__service-grid">
+              {appHealth.services.map((service) => (
+                <article class:list={['master-app-health__service', `is-${service.status}`]}>
+                  <header>
+                    <span class="master-app-health__service-icon">
+                      <MasterIcon name={service.status === 'healthy' ? 'check' : service.status === 'critical' ? 'close' : service.status === 'warning' ? 'alert' : 'clock'} size={19} />
+                    </span>
+                    <div><strong>{service.label}</strong><small>{healthImportance(service.importance)}</small></div>
+                    <span class:list={['master-pill', healthPill(service.status)]}>{healthLabel(service.status)}</span>
+                  </header>
+                  <p>{service.detail}</p>
+                  <time datetime={service.checked_at}>Comprobado {dateTime(service.checked_at)}</time>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section class="master-app-health__devices" aria-labelledby="app-health-devices-title">
+            <div class="master-app-health__section-heading">
+              <div><h3 id="app-health-devices-title">Instalaciones observadas</h3><p>Las referencias sirven para soporte y no contienen el UUID real del teléfono.</p></div>
+              <span class="master-pill master-pill--info">Hasta 100 recientes</span>
+            </div>
+            {appHealth.installations.length ? (
+              <div class="master-app-health__table-wrap">
+                <table class="master-app-health__table">
+                  <thead>
+                    <tr><th>Dispositivo</th><th>Estado</th><th>Versión</th><th>Backend</th><th>Firebase / FCM</th><th>Permiso</th><th>Último contacto</th><th>Push / error</th></tr>
+                  </thead>
+                  <tbody>
+                    {appHealth.installations.map((installation) => (
+                      <tr>
+                        <td>
+                          <span class="master-app-health__device">
+                            <strong>{installation.device_model}</strong>
+                            <code>{installation.support_ref}</code>
+                            <small>{installation.country_code || 'País no confirmado'}{installation.region_code ? ` · ${installation.region_code}` : ''}</small>
+                          </span>
+                        </td>
+                        <td><span class:list={['master-pill', healthPill(installation.health_status)]}>{healthLabel(installation.health_status)}</span><small class="master-app-health__substatus">{installation.monitoring_active ? 'Telemetría activa' : 'Telemetría anterior'}</small></td>
+                        <td><strong>{installation.app_version || 'Sin dato'} ({installation.app_version_code || '—'})</strong><small class="master-app-health__substatus">Android {installation.android_version || 'sin dato'}</small></td>
+                        <td><span class:list={['master-pill', healthPill(installation.backend_status)]}>API {healthLabel(installation.backend_status)}</span><small class="master-app-health__substatus">Registro {healthLabel(installation.registration_status).toLowerCase()}</small></td>
+                        <td><strong>{firebaseLabel(installation.firebase_status)}</strong><small class="master-app-health__substatus">Registro FCM (FID) {installation.fcm_registration_present ? 'presente' : 'no presente'} · {installation.identity_source === 'app_uuid' ? 'UUID propio' : installation.identity_source === 'firebase_fid' ? 'Identidad Firebase anterior' : 'Migrada'}</small></td>
+                        <td><span class:list={['master-pill', installation.notification_permission === 'granted' ? 'master-pill--success' : installation.notification_permission === 'denied' ? 'master-pill--warning' : '']}>{permissionLabel(installation.notification_permission)}</span></td>
+                        <td><strong>{activityDateTime(installation.last_contact_at)}</strong><small class="master-app-health__substatus">Sync {healthLabel(installation.native_sync_status).toLowerCase()}</small></td>
+                        <td>
+                          <strong>{installation.last_push_at ? dateTime(installation.last_push_at) : 'Sin push confirmado'}</strong>
+                          <small class:list={['master-app-health__substatus', { 'is-error': installation.last_error?.active }]}>{
+                            installation.last_error
+                              ? `${installation.last_error.active ? 'Error activo' : 'Recuperado'}: ${installation.last_error.code}`
+                              : 'Sin errores registrados'
+                          }</small>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p class="master-empty">No existen instalaciones registradas para esta tienda.</p>}
+          </section>
+
+          <div class="master-app-health__privacy" role="note">
+            <MasterIcon name="lock" size={20} />
+            <span>{appHealth.privacy_note} El estado cambia únicamente cuando la APK puede comunicarse; “sin datos” no equivale automáticamente a una caída.</span>
+          </div>
+        </>
+      )}
+    </div>
+  </section>
+
   <section class="master-card" data-publication-only>
     <header class="master-card-header"><div><h2 class="master-card-title">Artefactos registrados</h2><p class="master-card-subtitle">Los archivos privados no se almacenan en Git.</p></div></header>
     <div class="master-card-body master-app-build-history">
@@ -816,6 +966,17 @@ function activityDateTime(value: string) {
     let currentWhatsappPreview: any = null;
     if (root.dataset.runnerWatch === 'true') {
       window.setTimeout(() => window.location.reload(), 15_000);
+    }
+    if (root.dataset.healthWatch === 'true') {
+      const refreshHealth = () => {
+        if (!root.isConnected || root.dataset.healthWatch !== 'true') return;
+        if (document.visibilityState === 'visible') {
+          window.location.reload();
+          return;
+        }
+        window.setTimeout(refreshHealth, 30_000);
+      };
+      window.setTimeout(refreshHealth, 60_000);
     }
 
     const setAlert = (element: HTMLElement | null, message = '') => {
@@ -1225,11 +1386,17 @@ function activityDateTime(value: string) {
   .master-app-build-page { display: grid; gap: 1.25rem; }
   .master-app-build-page[data-channel="prepare"] [data-publication-only],
   .master-app-build-page[data-channel="prepare"] [data-analytics-only],
+  .master-app-build-page[data-channel="prepare"] [data-health-only],
   .master-app-build-page[data-channel="publication"] [data-prepare-only],
   .master-app-build-page[data-channel="publication"] [data-analytics-only],
+  .master-app-build-page[data-channel="publication"] [data-health-only],
   .master-app-build-page[data-channel="analytics"] [data-prepare-only],
-  .master-app-build-page[data-channel="analytics"] [data-publication-only] { display: none !important; }
-  .master-app-build-channels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; padding: .35rem; border: 1px solid #dce3ed; border-radius: 14px; background: #fff; }
+  .master-app-build-page[data-channel="analytics"] [data-publication-only],
+  .master-app-build-page[data-channel="analytics"] [data-health-only],
+  .master-app-build-page[data-channel="health"] [data-prepare-only],
+  .master-app-build-page[data-channel="health"] [data-publication-only],
+  .master-app-build-page[data-channel="health"] [data-analytics-only] { display: none !important; }
+  .master-app-build-channels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; padding: .35rem; border: 1px solid #dce3ed; border-radius: 14px; background: #fff; }
   .master-app-build-channels a { padding: .8rem 1rem; border-radius: 10px; color: #52617a; font-weight: 800; text-align: center; text-decoration: none; }
   .master-app-build-channels a.is-active { background: #14264b; color: #fff; }
   .master-app-build-aab-option { display: flex; align-items: flex-start; gap: .8rem; padding: 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; color: #14264b; }
@@ -1341,6 +1508,53 @@ function activityDateTime(value: string) {
   .master-app-download-analytics__version strong { color: #14264b; }
   .master-app-download-analytics__version small { color: #68748a; }
   .master-app-download-analytics__note { margin: 0; color: #68748a; font-size: .78rem; font-weight: 700; line-height: 1.5; }
+  .master-app-health__body { display: grid; gap: 1.25rem; }
+  .master-app-health__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .95rem 1rem; border: 1px solid #dce3ed; border-radius: 12px; background: #f8fafc; }
+  .master-app-health__toolbar > div { display: grid; gap: .25rem; }
+  .master-app-health__toolbar strong { color: #14264b; }
+  .master-app-health__toolbar span { color: #68748a; font-size: .78rem; line-height: 1.45; }
+  .master-app-health__summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+  .master-app-health__summary article { display: grid; gap: .3rem; padding: 1rem; border: 1px solid #dce3ed; border-radius: 12px; background: #fff; box-shadow: 0 8px 20px rgba(20, 38, 75, .04); }
+  .master-app-health__summary span { color: #68748a; font-size: .72rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+  .master-app-health__summary strong { color: #14264b; font-size: 1.65rem; }
+  .master-app-health__summary small { color: #68748a; line-height: 1.4; }
+  .master-app-health__services, .master-app-health__devices { display: grid; gap: .8rem; }
+  .master-app-health__section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+  .master-app-health__section-heading > div { display: grid; gap: .25rem; }
+  .master-app-health__section-heading h3 { margin: 0; color: #14264b; font-size: 1.05rem; }
+  .master-app-health__section-heading p { margin: 0; color: #68748a; font-size: .8rem; line-height: 1.45; }
+  .master-app-health__service-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+  .master-app-health__service { display: grid; gap: .7rem; padding: 1rem; border: 1px solid #dce3ed; border-left-width: 4px; border-radius: 12px; background: #fff; }
+  .master-app-health__service.is-healthy { border-left-color: #22a55b; }
+  .master-app-health__service.is-warning { border-left-color: #f59e0b; background: #fffcf5; }
+  .master-app-health__service.is-critical { border-left-color: #dc2626; background: #fff8f8; }
+  .master-app-health__service.is-unknown { border-left-color: #94a3b8; }
+  .master-app-health__service > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .7rem; }
+  .master-app-health__service > header > div { display: grid; gap: .15rem; }
+  .master-app-health__service > header strong { color: #14264b; }
+  .master-app-health__service > header small { color: #68748a; font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .master-app-health__service-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: #eef3fa; color: #52617a; }
+  .master-app-health__service.is-healthy .master-app-health__service-icon { background: #effaf3; color: #15803d; }
+  .master-app-health__service.is-warning .master-app-health__service-icon { background: #fff4dd; color: #b45309; }
+  .master-app-health__service.is-critical .master-app-health__service-icon { background: #fff0f0; color: #b91c1c; }
+  .master-app-health__service p { margin: 0; color: #3f4d63; line-height: 1.5; }
+  .master-app-health__service time { color: #7b879a; font-size: .72rem; }
+  .master-app-health__table-wrap { width: 100%; overflow-x: auto; border: 1px solid #dce3ed; border-radius: 12px; }
+  .master-app-health__table { width: 100%; min-width: 1320px; border-collapse: collapse; }
+  .master-app-health__table th, .master-app-health__table td { padding: .8rem .85rem; border-bottom: 1px solid #e6eaf1; color: #243858; font-size: .76rem; text-align: left; vertical-align: top; }
+  .master-app-health__table th { background: #f2f6fb; color: #5b6880; font-weight: 850; white-space: nowrap; }
+  .master-app-health__table tbody tr:last-child td { border-bottom: 0; }
+  .master-app-health__table tbody tr:hover { background: #fbfdff; }
+  .master-app-health__table td > strong { display: block; max-width: 210px; overflow-wrap: anywhere; color: #14264b; }
+  .master-app-health__device { display: grid; gap: .18rem; min-width: 150px; }
+  .master-app-health__device strong { color: #14264b; }
+  .master-app-health__device code { width: max-content; padding: .15rem .35rem; border-radius: 5px; background: #edf2f8; color: #27446f; font-size: .7rem; }
+  .master-app-health__device small, .master-app-health__substatus { display: block; margin-top: .28rem; color: #68748a; font-size: .7rem; line-height: 1.4; }
+  .master-app-health__substatus.is-error { color: #b91c1c; font-weight: 750; }
+  .master-app-health__privacy, .master-app-health__empty { display: flex; align-items: flex-start; gap: .7rem; padding: .9rem 1rem; border: 1px solid #b9cffb; border-radius: 12px; background: #f3f7ff; color: #27446f; line-height: 1.5; }
+  .master-app-health__empty { border-color: #e7b75b; background: #fff9e9; color: #6b4d0a; }
+  .master-app-health__empty > div { display: grid; gap: .2rem; }
+  .master-app-health__privacy span, .master-app-health__empty span { color: inherit; }
   .master-app-whatsapp__body { display: grid; gap: 1rem; }
   .master-app-whatsapp__notice { display: flex; align-items: flex-start; gap: .7rem; padding: .85rem 1rem; border: 1px solid #bbdfca; border-radius: 12px; background: #effaf3; color: #17643a; }
   .master-app-whatsapp__global-warning { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .75rem; padding: .85rem 1rem; border: 1px solid #e7b75b; border-radius: 12px; background: #fff9e9; color: #6b4d0a; }
@@ -1378,6 +1592,11 @@ function activityDateTime(value: string) {
     .master-app-build-preview-collapsed .master-btn { width: 100%; }
     .master-app-build-history article { align-items: flex-start; flex-direction: column; }
     .master-app-download-analytics__summary { grid-template-columns: 1fr; }
+    .master-app-health__toolbar, .master-app-health__section-heading { align-items: stretch; flex-direction: column; }
+    .master-app-health__toolbar .master-btn { width: 100%; }
+    .master-app-health__summary, .master-app-health__service-grid { grid-template-columns: 1fr; }
+    .master-app-health__service > header { grid-template-columns: auto minmax(0, 1fr); }
+    .master-app-health__service > header .master-pill { grid-column: 1 / -1; }
     .master-app-engine-alert { grid-template-columns: auto 1fr; }
     .master-app-build-queue-lock { grid-template-columns: auto 1fr; }
     .master-app-build-queue-lock .master-btn { grid-column: 1 / -1; width: 100%; }

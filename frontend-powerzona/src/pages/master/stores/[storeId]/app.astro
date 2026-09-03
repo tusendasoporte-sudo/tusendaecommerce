@@ -33,14 +33,17 @@ const storeRecord: any = await authPb.collection('stores').getOne(storeId, {
 if (!storeRecord) return Astro.redirect('/master/stores');
 
 const requestedChannel = Astro.url.searchParams.get('channel');
-const channel = requestedChannel === 'publication' || requestedChannel === 'analytics'
+const channel = requestedChannel === 'publication' || requestedChannel === 'analytics' || requestedChannel === 'health'
   ? requestedChannel
   : 'prepare';
 const result = await getMasterStoreAppBuilds(
   serverPocketBaseUrl(),
   authPb.authStore.token,
   storeId,
-  channel === 'analytics',
+  {
+    includeAnalytics: channel === 'analytics',
+    includeHealth: channel === 'health',
+  },
 );
 const currentStore = {
   id: storeId,

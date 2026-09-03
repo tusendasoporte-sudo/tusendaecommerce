@@ -12,6 +12,9 @@ const appAdmin = typeof __hooks === "undefined"
 const downloadAnalytics = typeof __hooks === "undefined"
   ? require("./pz_storefront_app_download_analytics_lib.js")
   : require(`${__hooks}/pz_storefront_app_download_analytics_lib.js`);
+const appHealth = typeof __hooks === "undefined"
+  ? require("./pz_storefront_app_health_lib.js")
+  : require(`${__hooks}/pz_storefront_app_health_lib.js`);
 
 const PROFILES = "storefront_app_build_profiles";
 const JOBS = "storefront_app_build_jobs";
@@ -1142,7 +1145,8 @@ function updatePolicySnapshot(app, profile) {
   };
 }
 
-function detailResponse(app, store, actor, includeAnalytics) {
+function detailResponse(app, store, actor, includeAnalytics, includeHealth, healthOptions) {
+  const generatedAt = new Date();
   const profile = findFirst(app, PROFILES, "store = {:store}", { store: store.id });
   const jobRecords = records(app, JOBS, "store = {:store}", "-created", 20, { store: store.id });
   const jobs = jobRecords.map(jobSnapshot);
@@ -1151,7 +1155,7 @@ function detailResponse(app, store, actor, includeAnalytics) {
   const administrative = appAdmin.adminDetail(app, profile);
   const response = {
     ok: true,
-    generated_at: new Date().toISOString(),
+    generated_at: generatedAt.toISOString(),
     store: {
       id: store.id,
       name: recordString(store, "name", 140),
@@ -1166,7 +1170,7 @@ function detailResponse(app, store, actor, includeAnalytics) {
     artifacts,
     update_policy: updatePolicySnapshot(app, profile),
     admin_actions: administrative.actions,
-    runner_control: runnerControlResponse(app, jobRecords, new Date()),
+    runner_control: runnerControlResponse(app, jobRecords, generatedAt),
     policy: {
       firebase_project_per_store: true,
       signing_custodian: "Tu Senda 84",
@@ -1182,7 +1186,18 @@ function detailResponse(app, store, actor, includeAnalytics) {
   if (includeAnalytics === true) {
     response.download_analytics = downloadAnalytics.buildDownloadAnalytics(app, store.id, {
       includeMaster: true,
-      now: new Date(),
+      now: generatedAt,
+    });
+  }
+  if (includeHealth === true) {
+    response.app_health = appHealth.buildStorefrontAppHealth(app, store.id, {
+      ...(healthOptions && typeof healthOptions === "object" ? healthOptions : {}),
+      now: generatedAt,
+      appState: {
+        profile: response.profile,
+        artifacts: response.artifacts,
+        update_policy: response.update_policy,
+      },
     });
   }
   return response;
@@ -1286,19 +1301,25 @@ function handleDetail(e) {
     const info = e.requestInfo();
     if (!isMaster(info.auth)) return e.json(403, { ok: false, error: "unauthorized" });
     const body = info.body || {};
-    const includesAnalyticsFlag = exactPayload(body, ["include_analytics", "store_id"]);
-    if (!exactPayload(body, ["store_id"]) && !includesAnalyticsFlag) {
+    const baseShape = exactPayload(body, ["store_id"]);
+    const analyticsShape = exactPayload(body, ["include_analytics", "store_id"]);
+    const healthShape = exactPayload(body, ["include_health", "store_id"]);
+    const combinedShape = exactPayload(body, ["include_analytics", "include_health", "store_id"]);
+    if (!baseShape && !analyticsShape && !healthShape && !combinedShape) {
       return e.json(400, { ok: false, error: "invalid_payload" });
     }
     const storeId = text(bodyValue(info.body, "store_id"), 15);
-    const includeAnalytics = includesAnalyticsFlag && bodyValue(body, "include_analytics") === true;
-    if (!RECORD_ID_PATTERN.test(storeId) || (includesAnalyticsFlag && !includeAnalytics)) {
+    const includeAnalytics = (analyticsShape || combinedShape) && bodyValue(body, "include_analytics") === true;
+    const includeHealth = (healthShape || combinedShape) && bodyValue(body, "include_health") === true;
+    if (!RECORD_ID_PATTERN.test(storeId)
+      || ((analyticsShape || combinedShape) && !includeAnalytics)
+      || ((healthShape || combinedShape) && !includeHealth)) {
       return e.json(400, { ok: false, error: "invalid_payload" });
     }
     if (!managementReady($app)) return e.json(503, { ok: false, error: "app_builds_unavailable" });
     const store = findRecord($app, "stores", storeId);
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
-    return e.json(200, detailResponse($app, store, info.auth, includeAnalytics));
+    return e.json(200, detailResponse($app, store, info.auth, includeAnalytics, includeHealth));
   } catch (error) {
     return e.json(500, { ok: false, error: "app_build_detail_failed" });
   }

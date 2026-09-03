@@ -282,6 +282,93 @@ export type StorefrontAppDownloadAnalytics = {
   measurement_note: string;
 };
 
+export type StorefrontAppHealthState = 'healthy' | 'warning' | 'critical' | 'unknown';
+export type StorefrontInstallationHealthState = StorefrontAppHealthState | 'inactive';
+
+export type StorefrontAppHealthEvent = {
+  result: 'started' | 'success' | 'failure' | 'skipped';
+  error_code: string;
+  http_status: number;
+  latency_ms: number;
+  occurred_at: string;
+};
+
+export type StorefrontAppHealthService = {
+  key: 'api' | 'client_connectivity' | 'registration' | 'native_sync' | 'firebase_fcm'
+    | 'notification_permission' | 'push_receipts' | 'errors' | 'realtime' | 'updates';
+  label: string;
+  status: StorefrontAppHealthState;
+  importance: 'core' | 'accelerator' | 'optional' | 'user_setting' | 'observability';
+  detail: string;
+  checked_at: string;
+  metrics: Record<string, number | boolean>;
+};
+
+export type StorefrontInstallationHealth = {
+  support_ref: string;
+  health_status: StorefrontInstallationHealthState;
+  installation_status: 'active' | 'disabled' | 'invalid' | 'revoked';
+  monitoring_active: boolean;
+  app_version: string;
+  app_version_code: number;
+  android_version: string;
+  device_model: string;
+  locale: string;
+  timezone: string;
+  country_code: string;
+  region_code: string;
+  notification_permission: 'unknown' | 'granted' | 'denied';
+  identity_source: 'firebase_fid' | 'app_uuid' | 'migrated';
+  trust_level: 'basic' | 'firebase_verified' | 'revoked';
+  firebase_status: 'unknown' | 'unavailable' | 'registering' | 'registered' | 'failed';
+  firebase_synced_at: string;
+  fcm_registration_present: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+  last_heartbeat_at: string;
+  last_contact_at: string;
+  backend_status: StorefrontAppHealthState;
+  registration_status: StorefrontAppHealthState;
+  native_sync_status: StorefrontAppHealthState;
+  last_push_at: string;
+  last_error: { code: string; occurred_at: string; active: boolean } | null;
+  latest_events: {
+    internet: StorefrontAppHealthEvent | null;
+    backend: StorefrontAppHealthEvent | null;
+    registration: StorefrontAppHealthEvent | null;
+    firebase: StorefrontAppHealthEvent | null;
+    fcm: StorefrontAppHealthEvent | null;
+    permission: StorefrontAppHealthEvent | null;
+    push: StorefrontAppHealthEvent | null;
+    error: StorefrontAppHealthEvent | null;
+  };
+};
+
+export type StorefrontAppHealth = {
+  available: boolean;
+  generated_at: string;
+  overall_status: StorefrontAppHealthState;
+  fresh_window_hours: 24;
+  retention_days: 30;
+  summary: {
+    total: number;
+    active: number;
+    recent: number;
+    healthy: number;
+    warning: number;
+    critical: number;
+    unknown: number;
+    monitored: number;
+    firebase_registered: number;
+    fcm_registered: number;
+    notification_granted: number;
+    notification_denied: number;
+  };
+  services: StorefrontAppHealthService[];
+  installations: StorefrontInstallationHealth[];
+  privacy_note: string;
+};
+
 export type ManualWhatsappDeliveryPreview = {
   schema_version: 2;
   mode: 'manual_wa_me';
@@ -318,6 +405,7 @@ export type MasterStoreAppBuilds = {
   jobs: StorefrontAppBuildJob[];
   artifacts: StorefrontAppArtifact[];
   download_analytics: StorefrontAppDownloadAnalytics;
+  app_health: StorefrontAppHealth;
   admin_actions: StorefrontAppAdminAction[];
   runner_control: StorefrontAppRunnerControl;
   update_policy: {
@@ -896,6 +984,189 @@ function emptyDownloadAnalytics(generatedAt: unknown): StorefrontAppDownloadAnal
   };
 }
 
+const APP_HEALTH_SERVICE_KEYS = [
+  'api', 'client_connectivity', 'registration', 'native_sync', 'firebase_fcm',
+  'notification_permission', 'push_receipts', 'errors', 'realtime', 'updates',
+] as const;
+const APP_HEALTH_EVENT_KEYS = [
+  'internet', 'backend', 'registration', 'firebase', 'fcm', 'permission', 'push', 'error',
+] as const;
+
+function appHealthState(value: unknown, inactive = false): StorefrontInstallationHealthState | '' {
+  const state = text(value, 20);
+  return ['healthy', 'warning', 'critical', 'unknown', ...(inactive ? ['inactive'] : [])].includes(state)
+    ? state as StorefrontInstallationHealthState : '';
+}
+
+function appHealthEvent(value: any): StorefrontAppHealthEvent | null {
+  if (value === null || value === undefined) return null;
+  const result = text(value.result, 20);
+  const occurredAt = isoDate(value.occurred_at);
+  const httpStatus = integer(value.http_status);
+  const latencyMs = integer(value.latency_ms);
+  const errorCode = text(value.error_code, 80);
+  if (!['started', 'success', 'failure', 'skipped'].includes(result) || !occurredAt
+    || httpStatus > 599 || latencyMs > 600000
+    || (errorCode && !/^[a-z0-9_:-]{1,80}$/.test(errorCode))) return null;
+  return {
+    result: result as StorefrontAppHealthEvent['result'],
+    error_code: errorCode,
+    http_status: httpStatus,
+    latency_ms: latencyMs,
+    occurred_at: occurredAt,
+  };
+}
+
+function appHealthService(value: any): StorefrontAppHealthService | null {
+  const key = text(value?.key, 40);
+  const status = appHealthState(value?.status);
+  const importance = text(value?.importance, 30);
+  const checkedAt = isoDate(value?.checked_at);
+  const label = text(value?.label, 80);
+  const detailValue = text(value?.detail, 240);
+  if (!APP_HEALTH_SERVICE_KEYS.includes(key as (typeof APP_HEALTH_SERVICE_KEYS)[number])
+    || !status || status === 'inactive'
+    || !['core', 'accelerator', 'optional', 'user_setting', 'observability'].includes(importance)
+    || !checkedAt || !label || !detailValue || !value.metrics || typeof value.metrics !== 'object'
+    || Array.isArray(value.metrics)) return null;
+  const metrics: Record<string, number | boolean> = {};
+  for (const [metricKey, metricValue] of Object.entries(value.metrics)) {
+    if (!/^[a-z][a-z0-9_]{0,49}$/.test(metricKey)) return null;
+    if (typeof metricValue === 'boolean') metrics[metricKey] = metricValue;
+    else if (typeof metricValue === 'number' && Number.isSafeInteger(metricValue) && metricValue >= 0) metrics[metricKey] = metricValue;
+    else return null;
+  }
+  return {
+    key: key as StorefrontAppHealthService['key'],
+    label,
+    status: status as StorefrontAppHealthState,
+    importance: importance as StorefrontAppHealthService['importance'],
+    detail: detailValue,
+    checked_at: checkedAt,
+    metrics,
+  };
+}
+
+function appInstallationHealth(value: any): StorefrontInstallationHealth | null {
+  const supportRef = text(value?.support_ref, 20);
+  const healthStatus = appHealthState(value?.health_status, true);
+  const installationStatus = text(value?.installation_status, 20);
+  const notificationPermission = text(value?.notification_permission, 20);
+  const identitySource = text(value?.identity_source, 30);
+  const trustLevel = text(value?.trust_level, 30);
+  const firebaseStatus = text(value?.firebase_status, 30);
+  const countryCode = text(value?.country_code, 2).toUpperCase();
+  const backendStatus = appHealthState(value?.backend_status);
+  const registrationStatus = appHealthState(value?.registration_status);
+  const nativeSyncStatus = appHealthState(value?.native_sync_status);
+  if (!/^APP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(supportRef) || !healthStatus
+    || !['active', 'disabled', 'invalid', 'revoked'].includes(installationStatus)
+    || typeof value?.monitoring_active !== 'boolean'
+    || !['unknown', 'granted', 'denied'].includes(notificationPermission)
+    || !['firebase_fid', 'app_uuid', 'migrated'].includes(identitySource)
+    || !['basic', 'firebase_verified', 'revoked'].includes(trustLevel)
+    || !['unknown', 'unavailable', 'registering', 'registered', 'failed'].includes(firebaseStatus)
+    || (countryCode && !/^[A-Z]{2}$/.test(countryCode))
+    || typeof value?.fcm_registration_present !== 'boolean'
+    || !backendStatus || backendStatus === 'inactive'
+    || !registrationStatus || registrationStatus === 'inactive'
+    || !nativeSyncStatus || nativeSyncStatus === 'inactive'
+    || !value.latest_events || typeof value.latest_events !== 'object') return null;
+  const latestEvents = {} as StorefrontInstallationHealth['latest_events'];
+  for (const key of APP_HEALTH_EVENT_KEYS) {
+    const rawEvent = value.latest_events[key];
+    const normalizedEvent = appHealthEvent(rawEvent);
+    if (rawEvent !== null && rawEvent !== undefined && !normalizedEvent) return null;
+    latestEvents[key] = normalizedEvent;
+  }
+  let lastError: StorefrontInstallationHealth['last_error'] = null;
+  if (value.last_error !== null && value.last_error !== undefined) {
+    const code = text(value.last_error.code, 80);
+    const occurredAt = isoDate(value.last_error.occurred_at);
+    if (!/^[a-z0-9_:-]{1,80}$/.test(code) || !occurredAt || typeof value.last_error.active !== 'boolean') return null;
+    lastError = { code, occurred_at: occurredAt, active: value.last_error.active };
+  }
+  return {
+    support_ref: supportRef,
+    health_status: healthStatus,
+    installation_status: installationStatus as StorefrontInstallationHealth['installation_status'],
+    monitoring_active: value.monitoring_active,
+    app_version: text(value.app_version, 40),
+    app_version_code: integer(value.app_version_code),
+    android_version: text(value.android_version, 40),
+    device_model: text(value.device_model, 120),
+    locale: text(value.locale, 35),
+    timezone: text(value.timezone, 80),
+    country_code: countryCode,
+    region_code: text(value.region_code, 80),
+    notification_permission: notificationPermission as StorefrontInstallationHealth['notification_permission'],
+    identity_source: identitySource as StorefrontInstallationHealth['identity_source'],
+    trust_level: trustLevel as StorefrontInstallationHealth['trust_level'],
+    firebase_status: firebaseStatus as StorefrontInstallationHealth['firebase_status'],
+    firebase_synced_at: isoDate(value.firebase_synced_at),
+    fcm_registration_present: value.fcm_registration_present,
+    first_seen_at: isoDate(value.first_seen_at),
+    last_seen_at: isoDate(value.last_seen_at),
+    last_heartbeat_at: isoDate(value.last_heartbeat_at),
+    last_contact_at: isoDate(value.last_contact_at),
+    backend_status: backendStatus as StorefrontAppHealthState,
+    registration_status: registrationStatus as StorefrontAppHealthState,
+    native_sync_status: nativeSyncStatus as StorefrontAppHealthState,
+    last_push_at: isoDate(value.last_push_at),
+    last_error: lastError,
+    latest_events: latestEvents,
+  };
+}
+
+export function normalizeStorefrontAppHealth(value: any): StorefrontAppHealth | null {
+  const generatedAt = isoDate(value?.generated_at);
+  const overallStatus = appHealthState(value?.overall_status);
+  const summaryKeys = [
+    'total', 'active', 'recent', 'healthy', 'warning', 'critical', 'unknown', 'monitored',
+    'firebase_registered', 'fcm_registered', 'notification_granted', 'notification_denied',
+  ] as const;
+  if (typeof value?.available !== 'boolean' || !generatedAt || !overallStatus || overallStatus === 'inactive'
+    || value.fresh_window_hours !== 24 || value.retention_days !== 30
+    || !value.summary || summaryKeys.some((key) => !Number.isSafeInteger(value.summary[key]) || value.summary[key] < 0)
+    || !Array.isArray(value.services) || !Array.isArray(value.installations)
+    || !text(value.privacy_note, 300)) return null;
+  const services = value.services.map(appHealthService).filter(Boolean) as StorefrontAppHealthService[];
+  const installations = value.installations.map(appInstallationHealth).filter(Boolean) as StorefrontInstallationHealth[];
+  if (services.length !== value.services.length || installations.length !== value.installations.length
+    || new Set(services.map((item) => item.key)).size !== services.length
+    || new Set(installations.map((item) => item.support_ref)).size !== installations.length) return null;
+  const summary = Object.fromEntries(summaryKeys.map((key) => [key, Number(value.summary[key])])) as StorefrontAppHealth['summary'];
+  return {
+    available: value.available,
+    generated_at: generatedAt,
+    overall_status: overallStatus as StorefrontAppHealthState,
+    fresh_window_hours: 24,
+    retention_days: 30,
+    summary,
+    services,
+    installations,
+    privacy_note: text(value.privacy_note, 300),
+  };
+}
+
+function emptyAppHealth(generatedAt: unknown): StorefrontAppHealth {
+  return {
+    available: false,
+    generated_at: isoDate(generatedAt) || new Date(0).toISOString(),
+    overall_status: 'unknown',
+    fresh_window_hours: 24,
+    retention_days: 30,
+    summary: {
+      total: 0, active: 0, recent: 0, healthy: 0, warning: 0, critical: 0, unknown: 0,
+      monitored: 0, firebase_registered: 0, fcm_registered: 0, notification_granted: 0,
+      notification_denied: 0,
+    },
+    services: [],
+    installations: [],
+    privacy_note: 'Abre Estado y diagnóstico para consultar la telemetría privada.',
+  };
+}
+
 function runnerAgent(value: any): StorefrontAppRunnerAgent | null {
   const runnerId = text(value?.runner_id, 100);
   const mode = text(value?.mode, 20);
@@ -983,6 +1254,9 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const normalizedDownloadAnalytics = value.download_analytics === undefined
     ? emptyDownloadAnalytics(value.generated_at)
     : downloadAnalytics(value.download_analytics);
+  const normalizedAppHealth = value.app_health === undefined
+    ? emptyAppHealth(value.generated_at)
+    : normalizeStorefrontAppHealth(value.app_health);
   const normalizedRunnerControl = runnerControl(value.runner_control);
   const updatePolicy = value.update_policy || {
     minimum_supported_version_code: 0,
@@ -993,6 +1267,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
   const policy = value.policy;
   const activeJobId = jobs.find((item) => ['queued', 'claimed'].includes(item.status))?.id || '';
   if (!normalizedEngineRelease || !normalizedManualWhatsappDelivery || !normalizedBrandAssets || !normalizedDownloadAnalytics
+    || !normalizedAppHealth
     || !normalizedRunnerControl
     || (value.runner_control !== undefined && normalizedRunnerControl.active_job_id !== activeJobId)
     || !Number.isSafeInteger(Number(updatePolicy.minimum_supported_version_code))
@@ -1018,6 +1293,7 @@ function detail(value: any): MasterStoreAppBuilds | null {
     jobs,
     artifacts,
     download_analytics: normalizedDownloadAnalytics,
+    app_health: normalizedAppHealth,
     admin_actions: adminActions,
     runner_control: normalizedRunnerControl,
     update_policy: {
@@ -1195,14 +1471,20 @@ export function getMasterStoreAppBuilds(
   pocketbaseUrl: string,
   token: string,
   storeId: string,
-  includeAnalytics = false,
+  options: boolean | { includeAnalytics?: boolean; includeHealth?: boolean } = false,
 ) {
   if (!RECORD_ID_PATTERN.test(storeId)) return Promise.resolve({ available: false, status: 400, error: 'invalid_payload', data: null });
+  const includeAnalytics = typeof options === 'boolean' ? options : options.includeAnalytics === true;
+  const includeHealth = typeof options === 'object' && options.includeHealth === true;
   return post(
     pocketbaseUrl,
     token,
     '/api/pz/master/storefront-app-builds',
-    { store_id: storeId, ...(includeAnalytics ? { include_analytics: true } : {}) },
+    {
+      store_id: storeId,
+      ...(includeAnalytics ? { include_analytics: true } : {}),
+      ...(includeHealth ? { include_health: true } : {}),
+    },
     detail,
   );
 }

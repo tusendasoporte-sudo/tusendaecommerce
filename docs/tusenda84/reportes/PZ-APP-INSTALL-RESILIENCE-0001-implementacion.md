@@ -144,6 +144,22 @@ Servicio nuevo:
 - `GET wss://realtime.tusenda84.com/v1/connect` mediante Upgrade WebSocket
 - `POST /internal/wakeup`, exclusivamente con firma HMAC servidor a servidor
 
+## Estado y diagnóstico en Master Admin
+
+La pantalla **App Android** de cada tienda incorpora una cuarta vista, **Estado y diagnóstico**. La consulta es exclusiva de Master, usa `Cache-Control: private, no-store` y solicita el bloque `app_health` solamente al abrir esa vista.
+
+El resumen diferencia explícitamente:
+
+- servicios críticos: API/PocketBase, registro propio, heartbeat/sincronización nativa y actualizaciones;
+- acelerador: disponibilidad en vivo del gateway WebSocket;
+- servicio opcional: Firebase/FCM;
+- configuración del usuario: permiso Android para notificaciones;
+- observabilidad: confirmaciones de push y errores activos.
+
+También muestra hasta 100 instalaciones recientes de la tienda, cada una mediante una referencia opaca de soporte. Nunca devuelve al navegador UUID, FID, token FCM, credencial, hashes internos, IP ni el JSON libre de diagnóstico. La respuesta se construye únicamente con las colecciones privadas `storefront_installations` y `storefront_installation_diagnostics`, filtradas de nuevo por tienda.
+
+La vista se vuelve a comprobar cada 60 segundos mientras permanece visible. La sonda WebSocket transforma exclusivamente la URL configurada `wss://.../v1/connect` en `https://.../healthz`; una caída del acelerador aparece como aviso y no convierte Firebase en dependencia crítica. Este panel es una mejora web/backend y no obliga a reconstruir la APK.
+
 ## Cloudflare
 
 Antes del piloto en Cuba se debe revisar Security Events filtrando `country=CU` y las rutas `/api/storefront/`. Una regla geográfica, Managed Challenge o Bot rule puede impedir el alta aun con Firebase desacoplado.
