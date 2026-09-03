@@ -1,0 +1,311 @@
+---
+import MasterIcon from './MasterIcon.astro';
+import type { PublicHomepageSettings } from '../../lib/publicHomepageSettings';
+
+type HomepageStoreOption = {
+  id: string;
+  name: string;
+  slug: string;
+  featured: boolean;
+};
+
+interface Props {
+  settings: PublicHomepageSettings;
+  stores: HomepageStoreOption[];
+  loadError?: boolean;
+}
+
+const { settings, stores, loadError = false } = Astro.props;
+---
+
+<section class="master-page master-homepage-page" data-master-homepage-settings>
+  <header class="master-homepage-heading">
+    <div>
+      <p>Presencia pública</p>
+      <h2>Portada comercial</h2>
+      <span>Administra desde un solo lugar las secciones públicas que necesitan contenido variable.</span>
+    </div>
+    <a class="master-btn master-btn--secondary" href="/" target="_blank" rel="noopener noreferrer">
+      <MasterIcon name="external" size={18} /> Ver portada
+    </a>
+  </header>
+
+  {loadError && (
+    <div class="master-error" role="alert">
+      La configuración de portada todavía no está disponible. Aplica la migración del backend antes de guardar cambios.
+    </div>
+  )}
+
+  <form
+    class="master-homepage-form"
+    data-master-homepage-settings-form
+    data-record-id={settings.recordId}
+    aria-disabled={loadError ? 'true' : undefined}
+  >
+    <section class="master-card master-homepage-block" aria-labelledby="homepage-stores-title">
+      <header class="master-card-header master-homepage-block__heading">
+        <div>
+          <span class="master-homepage-kicker">NEGOCIOS</span>
+          <h3 class="master-card-title" id="homepage-stores-title">Tiendas destacadas</h3>
+          <p class="master-card-subtitle">Elige cuáles negocios aparecen en la portada. El enlace del encabezado se oculta cuando esta sección está desactivada o no tiene tiendas.</p>
+        </div>
+        <label class="master-homepage-switch">
+          <input type="checkbox" data-homepage-stores-enabled checked={settings.storesSectionEnabled} disabled={loadError} />
+          <span aria-hidden="true"></span>
+          <strong>Mostrar sección</strong>
+        </label>
+      </header>
+
+      <div class="master-card-body">
+        {stores.length > 0 ? (
+          <div class="master-homepage-store-grid" data-homepage-store-list>
+            {stores.map((store) => (
+              <label class="master-homepage-store-option">
+                <input type="checkbox" value={store.id} data-homepage-featured-store checked={store.featured} disabled={loadError} />
+                <span class="master-homepage-store-option__mark" aria-hidden="true">✓</span>
+                <span><strong>{store.name || 'Tienda'}</strong><small>/{store.slug || 'sin-slug'}</small></span>
+              </label>
+            ))}
+          </div>
+        ) : <p class="master-homepage-empty">No hay tiendas Ecommerce activas disponibles para destacar.</p>}
+      </div>
+    </section>
+
+    <section class="master-card master-homepage-block" aria-labelledby="homepage-faq-title">
+      <header class="master-card-header master-homepage-block__heading">
+        <div>
+          <span class="master-homepage-kicker">CONTENIDO</span>
+          <h3 class="master-card-title" id="homepage-faq-title">Preguntas frecuentes</h3>
+          <p class="master-card-subtitle">Edita el encabezado, la introducción y hasta 10 preguntas. También puedes ocultar una pregunta sin perder su contenido.</p>
+        </div>
+        <label class="master-homepage-switch">
+          <input type="checkbox" data-homepage-faq-enabled checked={settings.faqSectionEnabled} disabled={loadError} />
+          <span aria-hidden="true"></span>
+          <strong>Mostrar sección</strong>
+        </label>
+      </header>
+
+      <div class="master-card-body master-homepage-faq-body">
+        <div class="master-homepage-copy-grid">
+          <label class="master-field"><span>Etiqueta superior</span><input type="text" value={settings.faqEyebrow} maxlength="80" required data-homepage-faq-eyebrow disabled={loadError} /></label>
+          <label class="master-field"><span>Título</span><input type="text" value={settings.faqTitle} maxlength="140" required data-homepage-faq-title disabled={loadError} /></label>
+          <label class="master-field master-homepage-copy-grid__wide"><span>Introducción</span><textarea rows="3" maxlength="360" required data-homepage-faq-intro disabled={loadError}>{settings.faqIntro}</textarea></label>
+        </div>
+
+        <div class="master-homepage-faq-list" data-homepage-faq-list>
+          {settings.faqs.map((faq, index) => (
+            <article class="master-homepage-faq-item" data-homepage-faq-item data-faq-id={faq.id}>
+              <header><strong>Pregunta {index + 1}</strong><label><input type="checkbox" data-homepage-faq-visible checked={faq.visible} disabled={loadError} /> Visible</label></header>
+              <label class="master-field"><span>Pregunta</span><input type="text" value={faq.question} maxlength="180" required data-homepage-faq-question disabled={loadError} /></label>
+              <label class="master-field"><span>Respuesta</span><textarea rows="3" maxlength="800" required data-homepage-faq-answer disabled={loadError}>{faq.answer}</textarea></label>
+              <button class="master-btn master-btn--secondary" type="button" data-homepage-faq-remove disabled={loadError}>Quitar pregunta</button>
+            </article>
+          ))}
+        </div>
+
+        <button class="master-btn master-btn--secondary master-homepage-add" type="button" data-homepage-faq-add disabled={loadError}>+ Agregar pregunta</button>
+      </div>
+    </section>
+
+    <p class="master-form-alert" data-master-homepage-settings-alert aria-live="polite" hidden></p>
+    <div class="master-homepage-actions">
+      <span>Los cambios se reflejan en la portada pública después de guardar.</span>
+      <button class="master-btn master-btn--primary" type="submit" data-master-homepage-settings-save disabled={loadError}>
+        <MasterIcon name="save" size={18} /> Guardar portada
+      </button>
+    </div>
+  </form>
+
+  <template data-homepage-faq-template>
+    <article class="master-homepage-faq-item" data-homepage-faq-item data-faq-id="">
+      <header><strong>Nueva pregunta</strong><label><input type="checkbox" data-homepage-faq-visible checked /> Visible</label></header>
+      <label class="master-field"><span>Pregunta</span><input type="text" maxlength="180" required data-homepage-faq-question /></label>
+      <label class="master-field"><span>Respuesta</span><textarea rows="3" maxlength="800" required data-homepage-faq-answer></textarea></label>
+      <button class="master-btn master-btn--secondary" type="button" data-homepage-faq-remove>Quitar pregunta</button>
+    </article>
+  </template>
+</section>
+
+<script>
+  function initializeMasterHomepageSettings() {
+    const root = document.querySelector<HTMLElement>('[data-master-homepage-settings]');
+    if (!root || root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
+    const form = root.querySelector<HTMLFormElement>('[data-master-homepage-settings-form]');
+    const faqList = root.querySelector<HTMLElement>('[data-homepage-faq-list]');
+    const template = root.querySelector<HTMLTemplateElement>('[data-homepage-faq-template]');
+    const addButton = root.querySelector<HTMLButtonElement>('[data-homepage-faq-add]');
+    const saveButton = root.querySelector<HTMLButtonElement>('[data-master-homepage-settings-save]');
+    const alert = root.querySelector<HTMLElement>('[data-master-homepage-settings-alert]');
+    if (!form || !faqList) return;
+
+    const setAlert = (message = '', success = false) => {
+      if (!alert) return;
+      alert.textContent = message;
+      alert.hidden = !message;
+      alert.classList.toggle('is-success', success);
+    };
+
+    const refreshQuestionLabels = () => {
+      faqList.querySelectorAll<HTMLElement>('[data-homepage-faq-item]').forEach((item, index) => {
+        const title = item.querySelector<HTMLElement>('header > strong');
+        if (title) title.textContent = `Pregunta ${index + 1}`;
+      });
+    };
+
+    faqList.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest<HTMLButtonElement>('[data-homepage-faq-remove]');
+      if (!button) return;
+      const items = faqList.querySelectorAll('[data-homepage-faq-item]');
+      if (items.length <= 1) {
+        setAlert('La configuración debe conservar al menos una pregunta. Puedes ocultarla si no deseas publicarla.');
+        return;
+      }
+      button.closest('[data-homepage-faq-item]')?.remove();
+      refreshQuestionLabels();
+      setAlert();
+    });
+
+    addButton?.addEventListener('click', () => {
+      const count = faqList.querySelectorAll('[data-homepage-faq-item]').length;
+      if (count >= 10) {
+        setAlert('Puedes configurar hasta 10 preguntas frecuentes.');
+        return;
+      }
+      if (!template) return;
+      const fragment = template.content.cloneNode(true) as DocumentFragment;
+      const item = fragment.querySelector<HTMLElement>('[data-homepage-faq-item]');
+      if (!item) return;
+      const random = Math.random().toString(36).slice(2, 7);
+      item.dataset.faqId = `faq-${Date.now().toString(36)}-${random}`;
+      faqList.append(fragment);
+      refreshQuestionLabels();
+      item.querySelector<HTMLInputElement>('[data-homepage-faq-question]')?.focus();
+      setAlert();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setAlert();
+      if (!form.reportValidity()) return;
+      const storesEnabled = form.querySelector<HTMLInputElement>('[data-homepage-stores-enabled]');
+      const faqEnabled = form.querySelector<HTMLInputElement>('[data-homepage-faq-enabled]');
+      const faqEyebrow = form.querySelector<HTMLInputElement>('[data-homepage-faq-eyebrow]');
+      const faqTitle = form.querySelector<HTMLInputElement>('[data-homepage-faq-title]');
+      const faqIntro = form.querySelector<HTMLTextAreaElement>('[data-homepage-faq-intro]');
+      if (!storesEnabled || !faqEnabled || !faqEyebrow || !faqTitle || !faqIntro) return;
+
+      const faqs = Array.from(faqList.querySelectorAll<HTMLElement>('[data-homepage-faq-item]')).map((item) => ({
+        id: String(item.dataset.faqId || ''),
+        visible: item.querySelector<HTMLInputElement>('[data-homepage-faq-visible]')?.checked !== false,
+        question: String(item.querySelector<HTMLInputElement>('[data-homepage-faq-question]')?.value || '').trim(),
+        answer: String(item.querySelector<HTMLTextAreaElement>('[data-homepage-faq-answer]')?.value || '').trim(),
+      }));
+      const featuredStoreIds = Array.from(form.querySelectorAll<HTMLInputElement>('[data-homepage-featured-store]:checked')).map((input) => input.value);
+      if (faqs.some((faq) => !faq.id || !faq.question || !faq.answer)) {
+        setAlert('Completa todas las preguntas y respuestas antes de guardar.');
+        return;
+      }
+
+      if (saveButton) saveButton.disabled = true;
+      try {
+        const response = await fetch('/api/master/homepage-settings', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            record_id: String(form.dataset.recordId || ''),
+            stores_section_enabled: storesEnabled.checked,
+            faq_section_enabled: faqEnabled.checked,
+            faq_eyebrow: faqEyebrow.value.trim(),
+            faq_title: faqTitle.value.trim(),
+            faq_intro: faqIntro.value.trim(),
+            faqs,
+            featured_store_ids: featuredStoreIds,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok !== true) {
+          const message = payload?.error === 'settings_changed'
+            ? 'La configuración cambió en otra sesión. Recarga la página antes de guardar.'
+            : payload?.error === 'invalid_store_selection'
+              ? 'Una de las tiendas seleccionadas ya no está disponible.'
+              : 'No fue posible guardar la portada. Revisa el backend e inténtalo nuevamente.';
+          setAlert(message);
+          return;
+        }
+        if (payload.settings?.recordId) form.dataset.recordId = String(payload.settings.recordId);
+        setAlert('Portada comercial guardada correctamente.', true);
+      } catch (_) {
+        setAlert('No fue posible conectar con el servidor para guardar la portada.');
+      } finally {
+        if (saveButton) saveButton.disabled = false;
+      }
+    });
+  }
+
+  document.addEventListener('astro:page-load', initializeMasterHomepageSettings);
+  initializeMasterHomepageSettings();
+</script>
+
+<style>
+  .master-homepage-page { gap: 1.25rem; }
+  .master-homepage-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+  .master-homepage-heading > div { display: grid; gap: .35rem; }
+  .master-homepage-heading p { margin: 0; color: #155eeb; font-size: .75rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+  .master-homepage-heading h2 { margin: 0; color: #0b1d43; font-size: clamp(1.65rem, 3vw, 2.25rem); }
+  .master-homepage-heading span { color: #5b6880; line-height: 1.5; }
+  .master-homepage-form { display: grid; gap: 1.25rem; }
+  .master-homepage-block { overflow: hidden; }
+  .master-homepage-block__heading { align-items: flex-start; }
+  .master-homepage-block__heading > div { max-width: 760px; }
+  .master-homepage-kicker { display: block; margin-bottom: .4rem; color: #155eeb; font-size: .69rem; font-weight: 900; letter-spacing: .1em; }
+  .master-homepage-switch { flex: 0 0 auto; display: grid; grid-template-columns: 46px auto; align-items: center; gap: .25rem .65rem; color: #243655; cursor: pointer; }
+  .master-homepage-switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .master-homepage-switch > span { position: relative; grid-row: 1; width: 46px; height: 26px; border-radius: 999px; background: #cbd5e1; transition: background-color 160ms ease; }
+  .master-homepage-switch > span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 2px 7px rgba(15,23,42,.24); transition: transform 160ms ease; }
+  .master-homepage-switch input:checked + span { background: #155eeb; }
+  .master-homepage-switch input:checked + span::after { transform: translateX(20px); }
+  .master-homepage-switch input:focus-visible + span { outline: 3px solid rgba(21,94,235,.25); outline-offset: 2px; }
+  .master-homepage-switch strong { grid-column: 2; grid-row: 1; font-size: .84rem; white-space: nowrap; }
+  .master-homepage-store-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; }
+  .master-homepage-store-option { position: relative; display: flex; align-items: center; gap: .75rem; border: 1px solid #dce3ef; border-radius: 14px; background: #fbfcff; padding: .9rem; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease; }
+  .master-homepage-store-option:has(input:checked) { border-color: #8eb8ff; background: #f1f6ff; box-shadow: 0 8px 20px rgba(21,94,235,.08); }
+  .master-homepage-store-option input { position: absolute; opacity: 0; }
+  .master-homepage-store-option__mark { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: transparent; font-weight: 900; }
+  .master-homepage-store-option input:checked + .master-homepage-store-option__mark { border-color: #155eeb; background: #155eeb; color: #fff; }
+  .master-homepage-store-option input:focus-visible + .master-homepage-store-option__mark { outline: 3px solid rgba(21,94,235,.25); outline-offset: 2px; }
+  .master-homepage-store-option > span:last-child { min-width: 0; display: grid; gap: .15rem; }
+  .master-homepage-store-option strong { overflow: hidden; color: #142646; text-overflow: ellipsis; white-space: nowrap; }
+  .master-homepage-store-option small { overflow: hidden; color: #748198; text-overflow: ellipsis; white-space: nowrap; }
+  .master-homepage-empty { margin: 0; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; padding: 1rem; }
+  .master-homepage-faq-body { display: grid; gap: 1rem; }
+  .master-homepage-copy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+  .master-homepage-copy-grid__wide { grid-column: 1 / -1; }
+  .master-homepage-copy-grid textarea,
+  .master-homepage-faq-item textarea { resize: vertical; }
+  .master-homepage-faq-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+  .master-homepage-faq-item { min-width: 0; display: grid; align-content: start; gap: .8rem; border: 1px solid #dce3ef; border-radius: 15px; background: #f8faff; padding: 1rem; }
+  .master-homepage-faq-item > header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; color: #142646; }
+  .master-homepage-faq-item > header label { display: inline-flex; align-items: center; gap: .4rem; color: #52627c; font-size: .8rem; font-weight: 750; }
+  .master-homepage-faq-item > .master-btn { justify-self: end; }
+  .master-homepage-add { justify-self: start; }
+  .master-homepage-actions { position: sticky; bottom: 1rem; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border: 1px solid #bfd3f7; border-radius: 15px; background: rgba(246,249,255,.96); padding: .85rem 1rem; box-shadow: 0 18px 42px rgba(15,49,107,.16); backdrop-filter: blur(12px); }
+  .master-homepage-actions span { color: #5b6880; font-size: .84rem; }
+  @media (max-width: 900px) {
+    .master-homepage-faq-list { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 700px) {
+    .master-homepage-heading,
+    .master-homepage-block__heading,
+    .master-homepage-actions { align-items: stretch; flex-direction: column; }
+    .master-homepage-heading .master-btn,
+    .master-homepage-actions .master-btn { width: 100%; }
+    .master-homepage-switch { align-self: flex-start; }
+    .master-homepage-copy-grid { grid-template-columns: 1fr; }
+    .master-homepage-copy-grid__wide { grid-column: auto; }
+  }
+</style>

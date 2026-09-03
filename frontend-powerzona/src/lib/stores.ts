@@ -87,6 +87,7 @@ function addStoreImages(store: PublicStore) {
   return {
     ...store,
     logoUrl: logo ? getPocketBaseFileUrl('stores', store.id, logo, { thumb: '300x300' }) : null,
+    logoCardUrl: logo ? getPocketBaseFileUrl('stores', store.id, logo) : null,
     bannerUrl: banner ? getPocketBaseFileUrl('stores', store.id, banner, { thumb: '1400x500' }) : null,
     bannerHeroUrl: banner ? getPocketBaseFileUrl('stores', store.id, banner) : null,
     bazaarImageUrl: bazaar ? getPocketBaseFileUrl('stores', store.id, bazaar, { thumb: '1200x520' }) : null,

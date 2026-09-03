@@ -1,0 +1,43 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import MasterHomepageSettingsView from '../../components/master/MasterHomepageSettingsView.astro';
+import MasterShell from '../../components/master/MasterShell.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { getPromoMasterCatalog } from '../../lib/promoMaster';
+import { getPublicHomepageSettings } from '../../lib/publicHomepageSettings';
+import { serverPocketBaseUrl } from '../../lib/pocketBaseServerUrl';
+import { getAllStoresForMaster } from '../../lib/stores';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const pocketbaseUrl = serverPocketBaseUrl();
+const [homepageSettings, allStores, promoCatalog] = await Promise.all([
+  getPublicHomepageSettings(authPb),
+  getAllStoresForMaster(authPb),
+  getPromoMasterCatalog(pocketbaseUrl, authPb.authStore.token),
+]);
+const homepageStores = allStores
+  .filter((store) => store.status === 'active' && (!promoCatalog.available || !promoCatalog.map.has(store.id)))
+  .map((store) => ({ id: store.id, name: store.name, slug: store.slug, featured: store.featured === true }));
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Portada comercial">
+    <MasterHomepageSettingsView
+      settings={homepageSettings}
+      stores={homepageStores}
+      loadError={!homepageSettings.available}
+    />
+  </MasterShell>
+</Layout>

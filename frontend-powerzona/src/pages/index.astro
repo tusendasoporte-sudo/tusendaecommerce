@@ -9,12 +9,14 @@ import {
   type CommercialStoreTypeDefinition,
 } from '../lib/commercialPlanCatalog';
 import { serverPocketBaseUrl } from '../lib/pocketBaseServerUrl';
+import { getPublicHomepageSettings } from '../lib/publicHomepageSettings';
 import { getFeaturedStores } from '../lib/stores';
 import '../styles/commercial-home.css';
 
-const [featuredStores, commercialCatalogResult] = await Promise.all([
+const [featuredStores, commercialCatalogResult, homepageSettings] = await Promise.all([
   getFeaturedStores(),
   getPublicCommercialPlanCatalog(serverPocketBaseUrl()),
+  getPublicHomepageSettings(),
 ]);
 const visibleStores = await Promise.all(featuredStores.map(async (store) => {
   const settings = await getSettings({ storeId: store.id }).catch(() => null);
@@ -26,6 +28,9 @@ const visibleStores = await Promise.all(featuredStores.map(async (store) => {
 }));
 const commercialCatalog = commercialCatalogResult.data;
 const commercialPeriods = commercialCatalog?.commercial_period_months || [1, 6, 12];
+const visibleFaqs = homepageSettings.faqs.filter((faq) => faq.visible);
+const showFeaturedStores = homepageSettings.storesSectionEnabled && visibleStores.length > 0;
+const showFaqSection = homepageSettings.faqSectionEnabled && visibleFaqs.length > 0;
 
 const periodLabels: Record<number, string> = {
   1: 'Mensual',
@@ -154,7 +159,7 @@ function comparisonRows(storeType: CommercialStoreTypeDefinition) {
     { label: 'Rifas Premium', value: (plan: CommercialPlanDefinition) => plan.capabilities.raffles_enabled === true },
     { label: 'Landing QR', value: (plan: CommercialPlanDefinition) => plan.capabilities.landing_qr_enabled === true },
     { label: 'Vencimientos y campañas push', value: (plan: CommercialPlanDefinition) => plan.capabilities.product_expiration_tools_enabled === true && plan.capabilities.push_campaigns_enabled === true },
-    { label: 'Seguridad avanzada', value: () => 'Opcional · apagada por defecto' },
+    { label: 'Seguridad avanzada', value: () => 'No incluida' },
   ];
 }
 
@@ -202,7 +207,7 @@ function comparisonValue(value: string | boolean) {
           <p>Presenta tus productos, recibe pedidos y administra tu negocio desde un solo lugar. Empieza con una vitrina promocional o da el salto a una experiencia ecommerce completa.</p>
           <div class="commercial-hero-actions">
             <a class="commercial-button commercial-button-light" href="#planes">Explorar planes <span aria-hidden="true">↓</span></a>
-            <a class="commercial-button commercial-button-ghost" href="#tiendas">Ver tiendas destacadas <span aria-hidden="true">↗</span></a>
+            {showFeaturedStores && <a class="commercial-button commercial-button-ghost" href="#tiendas">Ver tiendas destacadas <span aria-hidden="true">↗</span></a>}
           </div>
           <ul class="commercial-hero-points" aria-label="Características principales">
             <li>Precios en CUP</li>
@@ -299,7 +304,6 @@ function comparisonValue(value: string | boolean) {
                             <p><span>App administrativa Android</span><strong>{storeType.code === 'ecommerce' ? appLabel(plan, 'admin_android_app_enabled') : 'No incluida'}</strong></p>
                             <p><span>App Android para clientes</span><strong>{storeType.code === 'ecommerce' ? appLabel(plan, 'customer_android_app_enabled') : 'No incluida'}</strong></p>
                           </div>
-                          <div class="commercial-security-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.7 8.3 7 10 4.3-1.7 7-5.5 7-10V6l-7-3Zm-6 2 12 14M8.5 7.5l7 7" /></svg><p><strong>Seguridad avanzada no incluida por defecto.</strong> {storeType.code === 'ecommerce' ? 'Es opcional por tienda, la controla Master y permanece apagada al crearla.' : 'La capacidad opcional solo aplica a tiendas Ecommerce.'}</p></div>
                         </article>
                       );
                     })}
@@ -335,42 +339,49 @@ function comparisonValue(value: string | boolean) {
           <div class="commercial-section-head"><span class="commercial-eyebrow">Aplicaciones Android</span><h2 id="aplicaciones-title">Una aplicación para gestionar. Otra para comprar.</h2><p>Son experiencias diferentes y su disponibilidad depende de la modalidad Ecommerce y del plan contratado.</p></div>
           <div class="commercial-app-grid">
             <article class="commercial-app-card commercial-app-admin"><div><span class="commercial-app-label">Para ti y tu equipo</span><h3>Aplicación administrativa</h3><p>El centro de control móvil para gestionar catálogo y operación. Está incluida en los planes Ecommerce Básico y Premium.</p><ul><li>Administración desde Android</li><li>Acceso de usuarios autorizados</li><li>Hasta 20 dispositivos en Premium</li></ul></div><img src="/brand/tu-senda-84-admin-icon-512.png" alt="Icono de Tu Senda 84 Admin para Android" width="512" height="512" loading="lazy" /></article>
-            <article class="commercial-app-card commercial-app-customer"><div><span class="commercial-app-label">Para tus compradores</span><h3>Aplicación para clientes</h3><p>Una app con la identidad de la tienda para que los clientes exploren y compren. Está incluida en Ecommerce Premium.</p><ul><li>Marca propia de la tienda</li><li>Catálogo y experiencia de compra</li><li>Campañas push en Premium</li></ul></div><figure><img src="/brand/powerzona-app-preview-android.png" alt="Ejemplo de aplicación Android para clientes: PowerZona" width="512" height="512" loading="lazy" /><figcaption>Ejemplo: PowerZona</figcaption></figure></article>
+            <article class="commercial-app-card commercial-app-customer"><div><span class="commercial-app-label">Para tus compradores</span><h3>Aplicación para clientes</h3><p>Una app con la identidad de la tienda para que los clientes exploren y compren. Está incluida en Ecommerce Premium.</p><ul><li>Marca propia de la tienda</li><li>Catálogo y experiencia de compra</li><li>Campañas push en Premium</li></ul></div><figure><img src="/brand/android-platform-icon.svg" alt="Icono de Android para la aplicación de clientes" width="512" height="512" loading="lazy" /><figcaption>Disponible para Android</figcaption></figure></article>
           </div>
         </div>
       </section>
 
+      {homepageSettings.storesSectionEnabled && (
       <section class="commercial-section commercial-stores" id="tiendas" aria-labelledby="tiendas-title">
         <div class="commercial-shell">
           <div class="commercial-section-head commercial-section-head-row"><div><span class="commercial-eyebrow">Tiendas destacadas</span><h2 id="tiendas-title">Negocios que ya forman parte de la senda.</h2><p>Explora tiendas reales publicadas dentro de Tu Senda 84.</p></div><a class="commercial-text-link" href="#planes">Ver planes <span aria-hidden="true">↑</span></a></div>
           {visibleStores.length > 0 ? (
-            <div class="commercial-store-grid">
-              {visibleStores.map((store) => (
-                <a class="commercial-store-card" href={storeHref(store)} aria-label={`Entrar a ${store.name}`}>
-                  <div class="commercial-store-image">{store.bazarImageUrl ? <img src={store.bazarImageUrl} alt={store.name} loading="lazy" /> : <span>{storeInitials(store.name)}</span>}{store.featured === true && <small>Destacada</small>}</div>
-                  <div class="commercial-store-copy"><div><h3>{store.name || 'Tienda'}</h3><span>Abierta</span></div>{store.description && <p>{store.description}</p>}<strong>Ver tienda <span aria-hidden="true">↗</span></strong></div>
-                </a>
-              ))}
+            <div class="commercial-store-carousel" data-store-carousel>
+              <div class="commercial-store-grid" data-store-rail role="list" aria-label="Tiendas destacadas">
+                {visibleStores.map((store) => (
+                  <a class="commercial-store-card" href={storeHref(store)} aria-label={`Entrar a ${store.name}`} role="listitem">
+                    <div class="commercial-store-image">
+                      {store.logoCardUrl || store.logoUrl || store.bazarImageUrl ? <img src={store.logoCardUrl || store.logoUrl || store.bazarImageUrl || ''} alt={`Logo de ${store.name}`} loading="lazy" /> : <span>{storeInitials(store.name)}</span>}
+                    </div>
+                    <div class="commercial-store-copy"><h3>{store.name || 'Tienda'}</h3><span><i aria-hidden="true"></i>Abierta</span></div>
+                  </a>
+                ))}
+              </div>
+              <div class="commercial-store-controls" data-store-controls hidden>
+                <button type="button" data-store-scroll="-1" aria-label="Ver tiendas anteriores">←</button>
+                <button type="button" data-store-scroll="1" aria-label="Ver más tiendas">→</button>
+              </div>
             </div>
           ) : <div class="commercial-empty-stores">Próximamente estarán disponibles las primeras tiendas destacadas.</div>}
         </div>
       </section>
+      )}
 
+      {showFaqSection && (
       <section class="commercial-section commercial-faq" id="preguntas" aria-labelledby="preguntas-title">
         <div class="commercial-shell commercial-faq-grid">
-          <div class="commercial-section-head"><span class="commercial-eyebrow">Preguntas frecuentes</span><h2 id="preguntas-title">Antes de comenzar.</h2><p>Los precios y límites mostrados provienen del catálogo comercial vigente de Tu Senda 84.</p></div>
+          <div class="commercial-section-head"><span class="commercial-eyebrow">{homepageSettings.faqEyebrow}</span><h2 id="preguntas-title">{homepageSettings.faqTitle}</h2><p>{homepageSettings.faqIntro}</p></div>
           <div class="commercial-faq-list">
-            <details><summary>¿Cuál es la diferencia entre Promocional y Ecommerce?</summary><p>Promocional está orientada a presentar servicios, catálogo, reseñas y contacto. Ecommerce añade productos, pedidos y herramientas operativas de venta.</p></details>
-            <details><summary>¿Qué significa precio mensual equivalente?</summary><p>En los periodos de 6 y 12 meses permite comparar el valor mensual, pero el total indicado corresponde al pago completo del periodo.</p></details>
-            <details><summary>¿Cómo funciona la prueba gratis?</summary><p>La prueba dura 30 días, tiene un total de 0 CUP y puede utilizarse una sola vez por tienda.</p></details>
-            <details><summary>¿Las dos aplicaciones Android son iguales?</summary><p>No. La aplicación administrativa es para el equipo que gestiona el negocio. La aplicación para clientes lleva la identidad de la tienda y está pensada para comprar.</p></details>
-            <details><summary>¿Seguridad avanzada viene activada al crear la tienda?</summary><p>No. No está incluida ni activada por defecto. En Ecommerce es una capacidad opcional por tienda y solo Master puede controlarla.</p></details>
-            <details><summary>¿Puedo cambiar o renovar el plan?</summary><p>Sí. La administración Master gestiona la asignación, el cambio y la renovación dentro de los periodos comerciales disponibles.</p></details>
+            {visibleFaqs.map((faq) => <details><summary>{faq.question}</summary><p>{faq.answer}</p></details>)}
           </div>
         </div>
       </section>
+      )}
 
-      <section class="commercial-final-cta" aria-label="Comenzar con Tu Senda 84"><div><span>Tu próxima tienda empieza aquí</span><h2>Encuentra el plan que acompaña tu próximo paso.</h2><p>Compara precios, duración, límites, aplicaciones y funciones incluidas.</p></div><div><a class="commercial-button commercial-button-light" href="#planes">Elegir modalidad</a><a class="commercial-button commercial-button-ghost" href="#tiendas">Explorar tiendas</a></div></section>
+      <section class="commercial-final-cta" aria-label="Comenzar con Tu Senda 84"><div><span>Tu próxima tienda empieza aquí</span><h2>Encuentra el plan que acompaña tu próximo paso.</h2><p>Compara precios, duración, límites, aplicaciones y funciones incluidas.</p></div><div><a class="commercial-button commercial-button-light" href="#planes">Elegir modalidad</a>{showFeaturedStores && <a class="commercial-button commercial-button-ghost" href="#tiendas">Explorar tiendas</a>}</div></section>
     </div>
 
     <footer class="commercial-footer commercial-shell"><a class="commercial-brand commercial-brand-footer" href="#inicio"><span class="commercial-brand-mark"><img src="/brand/tu-senda-84-admin-icon-512.png" alt="" width="42" height="42" /></span><span>Tu Senda 84</span></a><p>Tiendas promocionales y ecommerce para negocios que quieren crecer.</p></footer>
@@ -407,6 +418,22 @@ function comparisonValue(value: string | boolean) {
         selection.hidden = false;
         selection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }));
+
+      const storeRail = root.querySelector('[data-store-rail]');
+      const storeControls = root.querySelector('[data-store-controls]');
+      const updateStoreControls = () => {
+        if (!(storeRail instanceof HTMLElement) || !(storeControls instanceof HTMLElement)) return;
+        storeControls.hidden = storeRail.scrollWidth <= storeRail.clientWidth + 2;
+      };
+      root.querySelectorAll('[data-store-scroll]').forEach((button) => button.addEventListener('click', () => {
+        if (!(button instanceof HTMLElement) || !(storeRail instanceof HTMLElement)) return;
+        const direction = Number(button.dataset.storeScroll || 1);
+        storeRail.scrollBy({ left: direction * Math.max(180, storeRail.clientWidth * 0.72), behavior: 'smooth' });
+      }));
+      if (storeRail instanceof HTMLElement) {
+        requestAnimationFrame(updateStoreControls);
+        window.addEventListener('resize', updateStoreControls, { passive: true });
+      }
 
       const faqs = Array.from(root.querySelectorAll('.commercial-faq-list details'));
       faqs.forEach((detail) => detail.addEventListener('toggle', () => {
