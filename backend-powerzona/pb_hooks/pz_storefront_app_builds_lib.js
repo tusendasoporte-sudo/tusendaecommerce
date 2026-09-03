@@ -1872,6 +1872,7 @@ function parseReleasePayload(body) {
     storeId: text(bodyValue(body, "store_id"), 15),
   };
   const confirmations = {
+    discard_candidate: "DESCARTAR APK CANDIDATA",
     approve_candidate: "APROBAR APK CLIENTES",
     publish_candidate: "PUBLICAR APK CLIENTES",
     require_update: "EXIGIR ACTUALIZACION CLIENTES",
@@ -1917,7 +1918,18 @@ function handleReleaseAction(e) {
       }
       const previousStatus = artifactReleaseStatus(artifact);
       let idempotent = false;
-      if (parsed.action === "approve_candidate") {
+      if (parsed.action === "discard_candidate") {
+        if (previousStatus === "candidate" || previousStatus === "approved") {
+          artifact.set("release_status", "");
+          artifact.set("approved_at", "");
+          artifact.set("approved_by", "");
+          app.save(artifact);
+          createActivity(app, store, actor, "app_candidate_discarded", job,
+            "El Master descartó una APK privada tras la prueba; la publicación activa no cambió");
+        } else {
+          throw new Error("candidate_not_ready");
+        }
+      } else if (parsed.action === "approve_candidate") {
         if (previousStatus === "approved" || previousStatus === "published") {
           idempotent = true;
         } else if (previousStatus === "candidate") {

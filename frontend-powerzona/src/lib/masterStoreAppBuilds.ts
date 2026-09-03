@@ -1235,7 +1235,7 @@ export type UpdatePreviewInput = {
   version_name: string;
 };
 
-export type StorefrontAppReleaseAction = 'approve_candidate' | 'publish_candidate'
+export type StorefrontAppReleaseAction = 'discard_candidate' | 'approve_candidate' | 'publish_candidate'
   | 'require_update' | 'optional_update' | 'pause_update' | 'resume_update' | 'withdraw_update';
 
 export type AdoptExistingStorefrontAppInput = {
@@ -1312,7 +1312,7 @@ export function runMasterStoreAppReleaseAction(
     store_id: string;
     artifact_id: string;
     action: StorefrontAppReleaseAction;
-    confirmation: 'APROBAR APK CLIENTES' | 'PUBLICAR APK CLIENTES'
+    confirmation: 'DESCARTAR APK CANDIDATA' | 'APROBAR APK CLIENTES' | 'PUBLICAR APK CLIENTES'
       | 'EXIGIR ACTUALIZACION CLIENTES' | 'HACER OPCIONAL ACTUALIZACION CLIENTES'
       | 'PAUSAR ACTUALIZACION CLIENTES' | 'REANUDAR ACTUALIZACION CLIENTES'
       | 'RETIRAR ACTUALIZACION CLIENTES';

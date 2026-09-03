@@ -327,6 +327,7 @@ test('UX separa primer aprovisionamiento de actualización y exige confirmación
   assert.match(view, /Publicar la misma APK probada/);
   assert.match(view, /data-app-release-action="approve_candidate"/);
   assert.match(view, /data-app-release-action="publish_candidate"/);
+  assert.match(view, /data-app-release-action="discard_candidate"/);
   assert.match(view, /data-app-master-download/);
   assert.match(view, /proposeFirebaseProjectId\(store\.name, store\.id\)/);
   assert.match(view, /value=\{proposedFirebaseProjectId\}/);

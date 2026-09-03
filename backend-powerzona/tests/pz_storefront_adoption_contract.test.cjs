@@ -48,6 +48,7 @@ test('adopción exige la identidad histórica completa y confirmación exacta', 
 
 test('Master controla obligatoriedad, pausa, reanudación y retirada con frases distintas', () => {
   const actions = {
+    discard_candidate: 'DESCARTAR APK CANDIDATA',
     require_update: 'EXIGIR ACTUALIZACION CLIENTES',
     optional_update: 'HACER OPCIONAL ACTUALIZACION CLIENTES',
     pause_update: 'PAUSAR ACTUALIZACION CLIENTES',

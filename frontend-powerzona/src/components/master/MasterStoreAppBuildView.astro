@@ -561,6 +561,7 @@ function activityDateTime(value: string) {
           <div class="master-app-release__actions">
             <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={candidateApk.master_download_path} data-file-name={candidateApk.file_name}><MasterIcon name="download" size={18} /> Descargar APK para probar</button>
             {candidateAab && <button class="master-btn master-btn--secondary" type="button" data-app-master-download data-download-path={candidateAab.master_download_path} data-file-name={candidateAab.file_name}><MasterIcon name="download" size={18} /> Descargar AAB</button>}
+            <button class="master-btn master-btn--secondary" type="button" data-app-release-action="discard_candidate" data-artifact-id={candidateApk.id}><MasterIcon name="trash" size={18} /> Descartar candidata</button>
             {candidateApk.release_status === 'candidate' && <button class="master-btn master-btn--primary" type="button" data-app-release-action="approve_candidate" data-artifact-id={candidateApk.id}><MasterIcon name="check" size={18} /> Marcar APK como aprobada</button>}
             {candidateApk.release_status === 'approved' && <button class="master-btn master-btn--primary" type="button" data-app-release-action="publish_candidate" data-artifact-id={candidateApk.id}><MasterIcon name="external" size={18} /> Publicar APK aprobada</button>}
           </div>
@@ -1034,10 +1035,11 @@ function activityDateTime(value: string) {
     root.querySelectorAll<HTMLButtonElement>('[data-app-release-action]').forEach((button) => {
       button.addEventListener('click', async () => {
         const action = String(button.dataset.appReleaseAction || '') as
-          | 'approve_candidate' | 'publish_candidate' | 'require_update' | 'optional_update'
+          | 'discard_candidate' | 'approve_candidate' | 'publish_candidate' | 'require_update' | 'optional_update'
           | 'pause_update' | 'resume_update' | 'withdraw_update';
         const artifactId = String(button.dataset.artifactId || '');
         const contracts = {
+          discard_candidate: ['DESCARTAR APK CANDIDATA', 'La candidata quedará privada como histórico y podrás crear otra versión. La publicación actual no cambiará. ¿Descartarla?'],
           approve_candidate: ['APROBAR APK CLIENTES', 'Confirma que descargaste e instalaste esta misma APK y que la prueba fue satisfactoria. ¿Marcarla como aprobada?'],
           publish_candidate: ['PUBLICAR APK CLIENTES', 'Se publicará esta misma APK como actualización opcional. ¿Continuar?'],
           require_update: ['EXIGIR ACTUALIZACION CLIENTES', 'Las versiones anteriores quedarán bloqueadas hasta actualizar. ¿Hacer obligatoria esta versión?'],
