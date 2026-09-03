@@ -10,6 +10,7 @@ import {
   classifyProductImageDrop,
   getOrderedProductImageNames,
   getProductImageAdmission,
+  getProductImageUsageFromSlots,
   getProductImageSlotStates,
   getPublicProductImageNamesForLimit,
   resolveProductImageActiveLimitFromAccess,
@@ -35,6 +36,17 @@ test('F7P8: una tienda o capacidad inválida falla cerrada', () => {
   assert.equal(resolveProductImageActiveLimitFromAccess(null), 0);
   assert.equal(resolveProductImageActiveLimitFromAccess(access(4, false)), 0);
   assert.equal(resolveProductImageActiveLimitFromAccess(access(5)), 0);
+});
+
+test('Prompt 4: borrar una foto libera inmediatamente un espacio reutilizable', () => {
+  const full = getProductImageUsageFromSlots(['a.webp', 'b.webp', '', ''], 2);
+  assert.deepEqual(full, { used: 2, limit: 2, remaining: 0, conserved: 0, full: true });
+
+  const afterDelete = getProductImageUsageFromSlots(['', 'b.webp', '', ''], 2);
+  assert.deepEqual(afterDelete, { used: 1, limit: 2, remaining: 1, conserved: 0, full: false });
+
+  const reused = getProductImageUsageFromSlots(['c.webp', 'b.webp', '', ''], 2);
+  assert.deepEqual(reused, { used: 2, limit: 2, remaining: 0, conserved: 0, full: true });
 });
 
 test('F7P8: ordena antes de aplicar el recorte público', () => {
@@ -200,6 +212,8 @@ test('F7P8: el admin usa capacidad SSR, MIME cerrado y drag/drop real', () => {
   assert.equal(source.includes('singleSlotExtraCount'), true);
   assert.equal(source.includes('planLimitRejectedCount'), true);
   assert.equal(source.includes('buildProductImageDropFeedback'), true);
+  assert.equal(source.includes('getProductImageUsageFromSlots'), true);
+  assert.equal(source.includes('al borrar una foto se libera uno'), true);
   assert.equal(source.includes('localStorage'), false);
 });
 

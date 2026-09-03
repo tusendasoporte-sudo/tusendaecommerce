@@ -1665,6 +1665,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         );
       }
 
+      function subcategoryRouteExists(name, exceptId = '') {
+        const slug = slugify(name);
+        return subcategories.some((subcategory) => (
+          subcategory.id !== exceptId && String(subcategory.slug || '') === slug
+        ));
+      }
+
       async function patchRecord(collection, id, changes) {
         return apiRequest(`/api/collections/${collection}/records/${id}`, {
           method: 'PATCH',
@@ -2042,6 +2049,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setAlert(alertBox, `Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
           return;
         }
+        if (subcategoryRouteExists(name)) {
+          setAlert(alertBox, 'Ese nombre ya genera una ruta usada por otra subcategoría de la tienda.', 'error');
+          return;
+        }
 
         setAlert(alertBox, 'Creando subcategoría...', 'info');
         const siblings = subcategories.filter((item) => item.category === category.id);
@@ -2330,6 +2341,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         if (subcategoryNameExists(name, categoryId)) {
           setAlert(subcategoryAlert, `Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
+          return;
+        }
+        if (subcategoryRouteExists(name)) {
+          setAlert(subcategoryAlert, 'Ese nombre ya genera una ruta usada por otra subcategoría de la tienda.', 'error');
           return;
         }
 
@@ -2752,6 +2767,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   showAdminToast(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
                   return;
                 }
+                if (subcategoryRouteExists(name, subcategory.id)) {
+                  showAdminToast('Ese nombre ya genera una ruta usada por otra subcategoría de la tienda.', 'error');
+                  return;
+                }
                 await updateSubcategory(inlineRow, { category, name, slug: slugify(name) });
                 openCategoryEditor(category);
                 return;
@@ -2915,6 +2934,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             }
             if (subcategoryNameExists(name, category, subcategory.id)) {
               showAdminToast(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
+              return;
+            }
+            if (subcategoryRouteExists(name, subcategory.id)) {
+              showAdminToast('Ese nombre ya genera una ruta usada por otra subcategoría de la tienda.', 'error');
               return;
             }
             const siblings = subcategories.filter((item) => item.category === category && item.id !== subcategory.id);

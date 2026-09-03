@@ -3800,6 +3800,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       import {
         buildProductImageDropFeedback,
         classifyProductImageDrop,
+        getProductImageUsageFromSlots,
       } from '../../lib/productImageLimitsCore.js';
       import { optimizeTaxonomyImageFile } from '../../lib/taxonomyImageOptimizationCore.js';
       import {
@@ -3815,7 +3816,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       import { normalizeProductQuota, productQuotaLabel, productQuotaMessage } from '../../lib/productQuota';
 
       Object.defineProperty(globalThis, 'pzProductImageDropCore', {
-        value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
+        value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop, getProductImageUsageFromSlots }),
         configurable: false,
         enumerable: false,
         writable: false,
@@ -4731,9 +4732,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function updateProductImagePlanMessage() {
         if (!productImagePlanMessage) return;
-        productImagePlanMessage.textContent = ACTIVE_IMAGE_LIMIT === PRODUCT_IMAGE_PHYSICAL_LIMIT
-          ? 'Tu Plan Premium permite hasta 4 fotos por producto.'
-          : `Tu plan permite hasta ${ACTIVE_IMAGE_LIMIT} fotos por producto. Premium permite hasta 4.`;
+        const usage = globalThis.pzProductImageDropCore.getProductImageUsageFromSlots(
+          productImageSlotExisting.map((existing, index) => productImageSlotFiles[index] || existing),
+          ACTIVE_IMAGE_LIMIT,
+        );
+        const availability = usage.remaining === 0
+          ? 'Sin espacios disponibles; al borrar una foto se libera uno.'
+          : `${usage.remaining} ${usage.remaining === 1 ? 'espacio disponible' : 'espacios disponibles'}.`;
+        const premiumNote = ACTIVE_IMAGE_LIMIT === PRODUCT_IMAGE_PHYSICAL_LIMIT
+          ? ''
+          : ' Premium permite hasta 4.';
+        const conservedNote = usage.conserved > 0
+          ? ` ${usage.conserved} ${usage.conserved === 1 ? 'foto Premium conservada' : 'fotos Premium conservadas'}.`
+          : '';
+        productImagePlanMessage.textContent = `${usage.used} de ${usage.limit} fotos activas. ${availability}${premiumNote}${conservedNote}`;
       }
       function productImageOrderControls(index, hasImage) {
         if (!isActiveProductImageSlot(index) || !hasImage) return '';
@@ -6669,12 +6681,21 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setQuickAlert(quickCategoryAlert, 'Escribe el nombre de la categoría.', 'error');
           return;
         }
+        const slug = slugify(name);
+        const duplicateCategory = categories.find((item) => (
+          normalizeDuplicateText(item.name) === normalizeDuplicateText(name)
+          || normalizeDuplicateText(item.slug) === normalizeDuplicateText(slug)
+        ));
+        if (duplicateCategory) {
+          setQuickAlert(quickCategoryAlert, `Ya existe la categoría "${duplicateCategory.name || name}".`, 'error');
+          return;
+        }
         quickCategorySave.disabled = true;
         setQuickAlert(quickCategoryAlert, 'Creando categoría...', 'info');
         try {
           const formData = new FormData();
           formData.append('name', name);
-          formData.append('slug', slugify(name));
+          formData.append('slug', slug);
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(categories)));
           formData.append('store', CURRENT_STORE_ID);
@@ -6714,13 +6735,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setQuickAlert(quickSubcategoryAlert, 'La categoria seleccionada no pertenece a esta tienda.', 'error');
           return;
         }
+        const slug = slugify(name);
+        const duplicateSubcategory = subcategories.find((item) => (
+          (item.category === categoryId && normalizeDuplicateText(item.name) === normalizeDuplicateText(name))
+          || normalizeDuplicateText(item.slug) === normalizeDuplicateText(slug)
+        ));
+        if (duplicateSubcategory) {
+          setQuickAlert(
+            quickSubcategoryAlert,
+            duplicateSubcategory.category === categoryId
+              ? `Ya existe la subcategoría "${duplicateSubcategory.name || name}" dentro de esta categoría.`
+              : 'Ese nombre ya genera una ruta usada por otra subcategoría de la tienda.',
+            'error',
+          );
+          return;
+        }
         quickSubcategorySave.disabled = true;
         setQuickAlert(quickSubcategoryAlert, 'Creando subcategoría...', 'info');
         try {
           const sameCategoryItems = subcategories.filter((item) => item.category === categoryId);
           const formData = new FormData();
           formData.append('name', name);
-          formData.append('slug', slugify(name));
+          formData.append('slug', slug);
           formData.append('category', categoryId);
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(sameCategoryItems)));

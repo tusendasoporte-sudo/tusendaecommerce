@@ -97,6 +97,23 @@ export function getProductImageAdmission(input) {
   });
 }
 
+export function getProductImageUsageFromSlots(slotsValue, activeImageLimit) {
+  const limit = normalizeProductImageLimit(activeImageLimit);
+  const slots = Array.from(slotsValue || [])
+    .slice(0, PRODUCT_IMAGE_PHYSICAL_LIMIT)
+    .map((value) => Boolean(value));
+  while (slots.length < PRODUCT_IMAGE_PHYSICAL_LIMIT) slots.push(false);
+  const used = slots.slice(0, limit).filter(Boolean).length;
+  const conserved = slots.slice(limit).filter(Boolean).length;
+  return Object.freeze({
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    conserved,
+    full: used >= limit,
+  });
+}
+
 export function classifyProductImageDrop(input) {
   const incomingFiles = normalizeNonNegativeInteger(input?.incomingFiles);
   if (input?.context === 'single-slot') {

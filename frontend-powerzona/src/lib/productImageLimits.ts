@@ -12,6 +12,7 @@ export {
   classifyProductImageDrop,
   getOrderedProductImageNames,
   getProductImageAdmission,
+  getProductImageUsageFromSlots,
   getProductImageSlotStates,
   getPublicProductImageNamesForLimit,
   normalizeProductImageLimit,

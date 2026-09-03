@@ -173,6 +173,22 @@ test('F7P8 HTTP runtime protege multipart y bypass directos', { skip: SKIP_REASO
     assert.equal(basicAppend.status, 400);
     assert.equal(errorCode(basicAppend), 'product_image_limit_exceeded');
 
+    const basicDelete = await request(`/api/collections/products/records/${basicTwo.data.id}`, {
+      token: superToken,
+      method: 'PATCH',
+      body: patchImages('images-', [], { 'images-': basicTwo.data.images[0] }),
+    });
+    assert.equal(basicDelete.status, 200, JSON.stringify(basicDelete.data));
+    assert.equal(basicDelete.data.images.length, 1, 'borrar una foto debe liberar un espacio');
+
+    const basicAppendAfterDelete = await request(`/api/collections/products/records/${basicTwo.data.id}`, {
+      token: superToken,
+      method: 'PATCH',
+      body: patchImages('images+', [validFiles[2]]),
+    });
+    assert.equal(basicAppendAfterDelete.status, 200, JSON.stringify(basicAppendAfterDelete.data));
+    assert.equal(basicAppendAfterDelete.data.images.length, 2, 'el espacio liberado debe poder reutilizarse');
+
     const basicReplaceThree = await request(`/api/collections/products/records/${basicTwo.data.id}`, {
       token: superToken,
       method: 'PATCH',
@@ -319,12 +335,11 @@ test('F7P8 HTTP runtime protege multipart y bypass directos', { skip: SKIP_REASO
     await rm(fixtureDir, { recursive: true, force: true });
 
     if (superToken) {
-      for (const collection of ['products', 'users', 'stores']) {
-        const filter = collection === 'users'
-          ? `email~"${prefix}"`
-          : collection === 'stores'
-            ? `slug~"${prefix}"`
-            : `slug~"${prefix}"`;
+      // El borrado directo de tiendas está cerrado por diseño y requiere el flujo
+      // administrativo con vista previa/confirmación. Este gate verifica que los
+      // recursos mutables creados para la galería sí queden limpios.
+      for (const collection of ['products', 'users']) {
+        const filter = collection === 'users' ? `email~"${prefix}"` : `slug~"${prefix}"`;
         const remaining = await request(`/api/collections/${collection}/records?perPage=200&filter=${encodeURIComponent(filter)}`, { token: superToken });
         assert.equal(remaining.status, 200, JSON.stringify(remaining.data));
         assert.equal(remaining.data?.totalItems || 0, 0, `${collection} conserva fixtures ${prefix}`);
