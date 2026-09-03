@@ -18,6 +18,7 @@ export type MasterPromoPlanAudit = {
 
 export type MasterPromoStorePlan = {
   generated_at: string;
+  catalog_contract: 'tusenda84.commercial-plan-catalog.v1';
   store: {
     id: string;
     name: string;
@@ -46,14 +47,6 @@ export type MasterPromoStorePlan = {
     max_gallery_assets: number;
     legacy_contract: boolean;
   };
-  definitions: Array<{
-    code: MasterPromoPlanCode;
-    name: string;
-    duration: { kind: 'fixed_days' | 'calendar_months'; days: number | null; min_months: number; max_months: number };
-    supports_permanent: boolean;
-    image_quota_options: number[];
-    capabilities: { max_gallery_assets: number };
-  }>;
   last_change: MasterPromoPlanAudit | null;
   history: MasterPromoPlanAudit[];
 };
@@ -105,7 +98,7 @@ function normalizeAudit(value: any): MasterPromoPlanAudit | null {
     new_expires_at: isoDate(value.new_expires_at),
     previous_is_permanent: value.previous_is_permanent === true,
     new_is_permanent: value.new_is_permanent === true,
-    duration_months: integer(value.duration_months, 12),
+    duration_months: integer(value.duration_months),
     reason: text(value.reason, 500),
     created: isoDate(value.created),
   };
@@ -114,23 +107,16 @@ function normalizeAudit(value: any): MasterPromoPlanAudit | null {
 function normalizeResponse(value: any): MasterPromoStorePlan | null {
   const storeId = text(value?.store?.id, 15);
   const planCode = value?.plan?.plan;
-  if (value?.ok !== true || !RECORD_ID_PATTERN.test(storeId) || value?.store?.type !== 'promo' || !isPlanCode(planCode)) return null;
-  const definitions = Array.isArray(value.definitions) ? value.definitions.filter((item: any) => (
-    isPlanCode(item?.code)
-    && item?.supports_permanent === (item.code === 'basic')
-    && Array.isArray(item?.image_quota_options)
-    && item.image_quota_options.length === (item.code === 'basic' ? 2 : 1)
-    && item.image_quota_options.every((limit: unknown) => Number.isInteger(limit) && [150, 300].includes(limit as number))
-    && item.image_quota_options.includes(150)
-    && (item.code !== 'basic' || item.image_quota_options.includes(300))
-    && Number.isInteger(item?.capabilities?.max_gallery_assets)
-    && [150, 300].includes(item.capabilities.max_gallery_assets)
-  )) : [];
-  if (definitions.length !== 2 || PLAN_CODES.some((code) => !definitions.some((item: any) => item.code === code))) return null;
+  if (value?.ok !== true
+    || value?.catalog_contract !== 'tusenda84.commercial-plan-catalog.v1'
+    || !RECORD_ID_PATTERN.test(storeId)
+    || value?.store?.type !== 'promo'
+    || !isPlanCode(planCode)) return null;
   const state = PLAN_STATES.includes(value.plan.state) ? value.plan.state : 'unconfigured';
   const history = Array.isArray(value.history) ? value.history.map(normalizeAudit).filter(Boolean) as MasterPromoPlanAudit[] : [];
   return {
     generated_at: isoDate(value.generated_at),
+    catalog_contract: 'tusenda84.commercial-plan-catalog.v1',
     store: {
       id: storeId,
       name: text(value.store.name, 160) || 'Tienda Promo',
@@ -144,7 +130,7 @@ function normalizeResponse(value: any): MasterPromoStorePlan | null {
       plan_name: text(value.plan.plan_name, 100),
       plan_started_at: isoDate(value.plan.plan_started_at),
       plan_expires_at: isoDate(value.plan.plan_expires_at),
-      plan_duration_months: integer(value.plan.plan_duration_months, 12),
+      plan_duration_months: integer(value.plan.plan_duration_months),
       plan_is_permanent: value.plan.plan_is_permanent === true,
       days_remaining: value.plan.days_remaining === null ? null : integer(value.plan.days_remaining, 10000),
       state,
@@ -152,26 +138,13 @@ function normalizeResponse(value: any): MasterPromoStorePlan | null {
       isExpired: value.plan.isExpired === true,
       can_renew: value.plan.can_renew === true,
       in_grace: value.plan.in_grace === true,
-      grace_days: integer(value.plan.grace_days, 30),
+      grace_days: integer(value.plan.grace_days),
       grace_expires_at: isoDate(value.plan.grace_expires_at),
       can_mutate: value.plan.can_mutate === true,
       public_allowed: value.plan.public_allowed === true,
-      max_gallery_assets: integer(value.plan.max_gallery_assets, 300),
+      max_gallery_assets: integer(value.plan.max_gallery_assets),
       legacy_contract: value.plan.legacy_contract === true,
     },
-    definitions: definitions.map((item: any) => ({
-      code: item.code,
-      name: text(item.name, 100),
-      duration: {
-        kind: item.duration?.kind === 'fixed_days' ? 'fixed_days' : 'calendar_months',
-        days: item.duration?.days === null ? null : integer(item.duration?.days, 365),
-        min_months: integer(item.duration?.min_months, 12),
-        max_months: integer(item.duration?.max_months, 12),
-      },
-      supports_permanent: item.supports_permanent === true,
-      image_quota_options: item.image_quota_options.map((limit: unknown) => integer(limit, 300)),
-      capabilities: { max_gallery_assets: integer(item.capabilities.max_gallery_assets, 300) },
-    })),
     last_change: value.last_change ? normalizeAudit(value.last_change) : null,
     history,
   };
@@ -214,10 +187,10 @@ async function postEndpoint(
 export function getMasterPromoPlanErrorMessage(error: string) {
   const messages: Record<string, string> = {
     invalid_payload: 'Revisa los datos seleccionados antes de continuar.',
-    invalid_plan_duration_months: 'Selecciona una duración entre 1 y 12 meses.',
+    invalid_plan_duration_months: 'Selecciona uno de los periodos comerciales disponibles.',
     invalid_promo_plan_code: 'Ese plan no pertenece a Tiendas Promo.',
     invalid_promo_plan_permanence: 'El plan Gratis no admite vigencia permanente.',
-    invalid_promo_image_limit: 'Selecciona una cuota de 150 o 300 fotos para el plan Básico.',
+    invalid_promo_image_limit: 'La cuota enviada no coincide con el catálogo comercial vigente.',
     promo_free_trial_already_used: 'El plan Gratis solo puede utilizarse una vez por tienda.',
     free_plan_not_renewable: 'El plan Gratis no admite renovaciones.',
     permanent_plan_not_renewable: 'Asigna primero una vigencia real al contrato Promo legado.',

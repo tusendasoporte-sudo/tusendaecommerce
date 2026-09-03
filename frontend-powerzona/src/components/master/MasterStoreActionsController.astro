@@ -3,9 +3,39 @@ import MasterActionMenu from './MasterActionMenu.astro';
 import MasterDialog from './MasterDialog.astro';
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
+import {
+  commercialMonthsLabel,
+  formatCommercialCup,
+  type CommercialPlanCatalog,
+  type CommercialPlanDefinition,
+} from '../../lib/commercialPlanCatalog';
+
+interface Props { catalog: CommercialPlanCatalog | null }
+const { catalog } = Astro.props;
+const storeTypes = catalog?.store_types || [];
+const promoType = storeTypes.find((item) => item.storage_code === 'promo') || null;
+const ecommerceType = storeTypes.find((item) => item.storage_code === 'commerce') || null;
+const ecommerceInitialPlan = ecommerceType?.plans.find((plan) => plan.code === 'free') || null;
+const commercialPlanData = Object.fromEntries(storeTypes.map((storeType) => [storeType.storage_code, {
+  name: storeType.name,
+  plans: Object.fromEntries(storeType.plans.map((plan) => [plan.code, {
+    name: plan.name,
+    trialDays: plan.pricing.trial?.days || 0,
+    trialTotalCup: plan.pricing.trial?.total_cup || 0,
+    supportsPermanent: plan.supports_permanent,
+    imageLimit: Number(plan.capabilities.max_total_images || 0),
+    periods: plan.pricing.periods,
+  }])),
+}]));
+const currencyDecimals = catalog?.currency.decimals || 0;
+const cup = (value: unknown) => formatCommercialCup(value, currencyDecimals);
+function planCapability(plan: CommercialPlanDefinition, key: string) {
+  const value = plan.capabilities[key];
+  return Number.isSafeInteger(value) ? Number(value) : value === true;
+}
 ---
 
-<div data-master-store-actions-controller>
+<div data-master-store-actions-controller data-commercial-plans={JSON.stringify(commercialPlanData)} data-currency-decimals={String(currencyDecimals)}>
   <MasterActionMenu id="master-security-actions" label="Acciones de Seguridad">
     <a class="master-action-menu__item" data-menu-security-view role="menuitem">
       <MasterIcon name="security" size={19} /> Ver seguridad
@@ -37,40 +67,35 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         <div class="master-field master-field--full" data-store-type-field>
           <label for="master-store-type">Tipo de tienda</label>
           <select id="master-store-type" name="store_type">
-            <option value="commerce">Commerce</option>
-            <option value="promo">Promo</option>
+            {storeTypes.map((storeType) => <option value={storeType.storage_code}>{storeType.name}</option>)}
           </select>
-          <span class="master-muted">El tipo se fija al crear. Promo usa entitlements independientes y no habilita Commerce.</span>
+          <span class="master-muted">El tipo se fija al crear y mantiene sus contratos administrativos independientes.</span>
         </div>
         <div class="master-field master-field--full"><label for="master-store-name">Nombre de tienda</label><input id="master-store-name" name="name" type="text" maxlength="140" autocomplete="off" required /></div>
         <div class="master-field"><label for="master-store-slug">Slug público</label><input id="master-store-slug" name="slug" type="text" maxlength="80" autocomplete="off" required /></div>
         <div class="master-field" data-store-commerce-only><label for="master-store-phone">WhatsApp</label><input id="master-store-phone" name="owner_phone" type="tel" maxlength="60" autocomplete="off" /></div>
-        <div class="master-field" data-store-promo-only hidden>
-          <label for="master-store-promo-plan">Plan Promo inicial</label>
+        {ecommerceInitialPlan && <div class="master-field master-field--full" data-store-commerce-plan hidden>
+          <label>Plan inicial</label>
+          <span class="master-muted">Las nuevas tiendas comienzan con {ecommerceInitialPlan.name}: {ecommerceInitialPlan.pricing.trial?.days} días, total {cup(ecommerceInitialPlan.pricing.trial?.total_cup)}. Después puedes asignar otro plan desde Plan y límites.</span>
+        </div>}
+        {promoType && <div class="master-field" data-store-promo-only hidden>
+          <label for="master-store-promo-plan">Plan inicial</label>
           <select id="master-store-promo-plan" name="promo_plan">
-            <option value="free">Gratis — 30 días · 150 fotos</option>
-            <option value="basic">Básico — vigencia y fotos configurables</option>
+            {promoType.plans.map((plan) => <option value={plan.code}>{plan.name} — {plan.pricing.trial ? `${plan.pricing.trial.days} días · ${planCapability(plan, 'max_total_images')} imágenes · total ${cup(plan.pricing.trial.total_cup)}` : `desde ${cup(plan.pricing.periods[0]?.monthly_equivalent_cup)}/mes · ${planCapability(plan, 'max_total_images')} imágenes`}</option>)}
           </select>
-          <span class="master-muted">La prueba Gratis solo puede utilizarse una vez por tienda.</span>
-        </div>
+          <span class="master-muted">Los límites e importes se aplican desde el catálogo comercial vigente.</span>
+        </div>}
         <div class="master-field" data-store-promo-basic hidden>
           <label for="master-store-promo-validity">Tipo de vigencia</label>
           <select id="master-store-promo-validity" name="promo_validity">
             <option value="temporary">Temporal</option>
-            <option value="permanent">Permanente · sin vencimiento</option>
+            <option value="permanent">Permanente compatible · sin vencimiento</option>
           </select>
         </div>
         <div class="master-field" data-store-promo-months hidden>
-          <label for="master-store-promo-months">Vigencia del plan Básico</label>
+          <label for="master-store-promo-months">Vigencia comercial</label>
           <select id="master-store-promo-months" name="promo_duration_months">
-            {Array.from({ length: 12 }, (_, index) => index + 1).map((months) => <option value={String(months)}>{months} {months === 1 ? 'mes' : 'meses'}</option>)}
-          </select>
-        </div>
-        <div class="master-field" data-store-promo-basic hidden>
-          <label for="master-store-promo-image-limit">Fotos permitidas</label>
-          <select id="master-store-promo-image-limit" name="promo_image_limit">
-            <option value="150">150 fotos</option>
-            <option value="300" selected>300 fotos</option>
+            {catalog?.commercial_period_months.map((months) => <option value={String(months)}>{commercialMonthsLabel(months)}</option>)}
           </select>
         </div>
         <div class="master-field master-field--full" data-store-promo-only hidden>
@@ -87,6 +112,14 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         </div>
         <div class="master-field master-field--full" data-store-status-field><label for="master-store-status">Estado</label><select id="master-store-status" name="status"><option value="active">Activa</option><option value="suspended">Suspendida</option></select></div>
       </div>
+      {catalog && <section class="master-commercial-create-summary" aria-live="polite">
+        {storeTypes.flatMap((storeType) => storeType.plans.map((plan) => <article data-create-plan-summary data-summary-store-type={storeType.storage_code} data-summary-plan={plan.code} hidden>
+          <strong>{storeType.name} · {plan.name}</strong>
+          {plan.pricing.trial ? <p>{plan.pricing.trial.days} días · total {cup(plan.pricing.trial.total_cup)} · {planCapability(plan, storeType.storage_code === 'promo' ? 'max_total_images' : 'max_products')} {storeType.storage_code === 'promo' ? 'imágenes' : 'productos'}</p> : <div>{plan.pricing.periods.map((period) => <p>{commercialMonthsLabel(period.months)}: {cup(period.monthly_equivalent_cup)}/mes equivalente · total {cup(period.total_cup)} · ahorro {cup(period.savings_cup)} ({period.savings_percent}%)</p>)}</div>}
+        </article>))}
+        <p><strong>Seguridad avanzada:</strong> capacidad opcional por tienda, solo Master y apagada por defecto.</p>
+      </section>}
+      {!catalog && <p class="master-form-alert" role="alert">El catálogo comercial no está disponible. La creación de tiendas permanece cerrada para evitar aplicar valores locales.</p>}
       <p class="master-form-alert" data-store-form-alert role="alert" hidden></p>
     </form>
     <div slot="footer">
@@ -158,6 +191,10 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     controller.dataset.initialized = 'true';
     pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
 
+    type CreatePlan = { name: string; trialDays: number; trialTotalCup: number; supportsPermanent: boolean; imageLimit: number; periods: Array<{ months: number }> };
+    type CreateCatalog = Record<'commerce' | 'promo', { name: string; plans: Record<string, CreatePlan> }>;
+    const commercialCatalog = JSON.parse(String(controller.dataset.commercialPlans || '{}')) as Partial<CreateCatalog>;
+
     const storeMenu = controller.querySelector<HTMLElement>('#master-store-actions');
     const securityMenu = controller.querySelector<HTMLElement>('#master-security-actions');
     const storeDialog = controller.querySelector<HTMLDialogElement>('#master-store-dialog');
@@ -198,12 +235,13 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           if (!commerce) input.value = '';
         });
       });
+      storeForm.querySelectorAll<HTMLElement>('[data-store-commerce-plan]').forEach((field) => { field.hidden = Boolean(id) || !commerce; });
       const promo = !id && type === 'promo';
       storeForm.querySelectorAll<HTMLElement>('[data-store-promo-only]').forEach((field) => {
         field.hidden = !promo;
         field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
           input.disabled = !promo;
-          if (!promo) input.value = input.name === 'promo_theme_id' ? 'promo.black-gold' : 'free';
+          if (!promo) input.selectedIndex = 0;
         });
       });
       syncCreatePromoPlan();
@@ -214,26 +252,45 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         statusInput.disabled = !commerce;
         if (!commerce) statusInput.value = 'active';
       }
+      syncCreatePlanSummary();
     }
 
     function syncCreatePromoPlan() {
       if (!storeForm) return;
       const type = String((storeForm.elements.namedItem('store_type') as HTMLSelectElement | null)?.value || 'commerce');
       const plan = String((storeForm.elements.namedItem('promo_plan') as HTMLSelectElement | null)?.value || 'free');
-      const basic = !storeForm.dataset.storeId && type === 'promo' && plan === 'basic';
-      const permanent = basic && String((storeForm.elements.namedItem('promo_validity') as HTMLSelectElement | null)?.value || 'temporary') === 'permanent';
+      const definition = commercialCatalog.promo?.plans[plan];
+      const paid = !storeForm.dataset.storeId && type === 'promo' && Boolean(definition) && definition.trialDays === 0;
+      const validity = storeForm.elements.namedItem('promo_validity') as HTMLSelectElement | null;
+      const permanentOption = validity?.querySelector<HTMLOptionElement>('option[value="permanent"]');
+      if (permanentOption) permanentOption.disabled = definition?.supportsPermanent !== true;
+      if (validity && definition?.supportsPermanent !== true && validity.value === 'permanent') validity.value = 'temporary';
+      const permanent = paid && definition?.supportsPermanent === true && validity?.value === 'permanent';
       storeForm.querySelectorAll<HTMLElement>('[data-store-promo-basic]').forEach((field) => {
-        field.hidden = !basic;
+        field.hidden = !paid;
         field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
-          input.disabled = !basic;
+          input.disabled = !paid;
         });
       });
       storeForm.querySelectorAll<HTMLElement>('[data-store-promo-months]').forEach((field) => {
-        field.hidden = !basic || permanent;
+        field.hidden = !paid || permanent;
         field.querySelectorAll<HTMLSelectElement>('select').forEach((input) => {
-          input.disabled = !basic || permanent;
-          if (!basic || permanent) input.value = '1';
+          input.disabled = !paid || permanent;
+          if (!paid || permanent) input.selectedIndex = 0;
         });
+      });
+      syncCreatePlanSummary();
+    }
+
+    function syncCreatePlanSummary() {
+      if (!storeForm) return;
+      const editing = Boolean(String((storeForm.elements.namedItem('store_id') as HTMLInputElement | null)?.value || ''));
+      const storeType = String((storeForm.elements.namedItem('store_type') as HTMLSelectElement | null)?.value || 'commerce');
+      const selectedPlan = storeType === 'promo'
+        ? String((storeForm.elements.namedItem('promo_plan') as HTMLSelectElement | null)?.value || '')
+        : commercialCatalog.commerce?.plans.free ? 'free' : '';
+      controller.querySelectorAll<HTMLElement>('[data-create-plan-summary]').forEach((summary) => {
+        summary.hidden = editing || summary.dataset.summaryStoreType !== storeType || summary.dataset.summaryPlan !== selectedPlan;
       });
     }
 
@@ -603,11 +660,13 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       try {
         const storeType = String(data.get('store_type') || 'commerce') === 'promo' ? 'promo' : 'commerce';
         const promoPlan = String(data.get('promo_plan') || 'free') === 'basic' ? 'basic' : 'free';
-        const promoIsPermanent = promoPlan === 'basic' && String(data.get('promo_validity') || 'temporary') === 'permanent';
-        const promoDurationMonths = promoPlan === 'basic' && !promoIsPermanent
-          ? Math.min(12, Math.max(1, Number(data.get('promo_duration_months') || 1)))
+        const promoDefinition = commercialCatalog.promo?.plans[promoPlan];
+        if (storeType === 'promo' && !promoDefinition) throw new Error('El catálogo comercial ya no contiene el plan seleccionado.');
+        const promoIsPermanent = promoDefinition?.trialDays === 0 && promoDefinition.supportsPermanent && String(data.get('promo_validity') || 'temporary') === 'permanent';
+        const promoDurationMonths = promoDefinition?.trialDays === 0 && !promoIsPermanent
+          ? Number(data.get('promo_duration_months'))
           : 0;
-        const promoImageLimit = promoPlan === 'basic' && Number(data.get('promo_image_limit')) === 300 ? 300 : 150;
+        const promoImageLimit = Number(promoDefinition?.imageLimit || 0);
         const promoThemeId = String(data.get('promo_theme_id') || 'promo.black-gold');
         const payload = {
           name: String(data.get('name') || ''), slug: String(data.get('slug') || ''),

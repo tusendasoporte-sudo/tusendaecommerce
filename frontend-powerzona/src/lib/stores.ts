@@ -56,7 +56,7 @@ export type MasterStoreInput = {
   promo_plan?: 'free' | 'basic';
   promo_duration_months?: number;
   promo_is_permanent?: boolean;
-  promo_image_limit?: 150 | 300;
+  promo_image_limit?: number;
   promo_theme_id?: string;
 };
 
@@ -372,13 +372,16 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   requireMasterClient(client);
   const basePayload = getMasterStorePayload(input);
   const storeType = input.store_type === 'promo' ? 'promo' : 'commerce';
-  const promoPlan = input.promo_plan === 'basic' ? 'basic' : 'free';
-  const promoIsPermanent = promoPlan === 'basic' && input.promo_is_permanent === true;
-  const promoDurationMonths = promoPlan === 'basic' && !promoIsPermanent
-    ? Math.min(12, Math.max(1, Math.floor(Number(input.promo_duration_months || 1))))
-    : 0;
-  const promoImageLimit = promoPlan === 'basic' && Number(input.promo_image_limit) === 300 ? 300 : 150;
+  const promoPlan = input.promo_plan;
+  const promoIsPermanent = input.promo_is_permanent === true;
+  const promoDurationMonths = Number(input.promo_duration_months);
+  const promoImageLimit = Number(input.promo_image_limit);
   const promoThemeId = String(input.promo_theme_id || 'promo.black-gold').trim();
+  if (storeType === 'promo' && (
+    !['free', 'basic'].includes(String(promoPlan || ''))
+    || !Number.isSafeInteger(promoDurationMonths) || promoDurationMonths < 0
+    || !Number.isSafeInteger(promoImageLimit) || promoImageLimit < 1
+  )) throw new Error('Los datos comerciales no coinciden con el catálogo vigente.');
   const payload = {
     ...basePayload,
     store_type: storeType,

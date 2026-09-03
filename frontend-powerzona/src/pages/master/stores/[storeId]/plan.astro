@@ -11,6 +11,7 @@ import { serverPocketBaseUrl } from '../../../../lib/pocketBaseServerUrl';
 import { getMasterStorePlan } from '../../../../lib/masterStorePlans';
 import { getMasterPromoPlan } from '../../../../lib/masterPromoPlans';
 import { getMasterStoreKind } from '../../../../lib/promoMaster';
+import { commercialStoreType, getMasterCommercialPlanCatalog } from '../../../../lib/commercialPlanCatalog';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 import { getStoreSecuritySettings, SECURITY_STATUS_LABELS } from '../../../../lib/security';
 import { DEFAULT_STORE_SLUG } from '../../../../lib/stores';
@@ -37,6 +38,11 @@ const storeResult = await authPb.collection('stores').getOne(storeId, {
 const planResult = storeKind === 'promo'
   ? await getMasterPromoPlan(serverPocketBaseUrl(), authPb.authStore.token, storeId)
   : await getMasterStorePlan(serverPocketBaseUrl(), authPb.authStore.token, storeId);
+const commercialCatalogResult = await getMasterCommercialPlanCatalog(serverPocketBaseUrl(), authPb.authStore.token);
+const commercialStore = commercialCatalogResult.data
+  ? commercialStoreType(commercialCatalogResult.data, storeKind)
+  : null;
+const securityPolicy = commercialCatalogResult.data?.optional_capabilities.find((item) => item.key === 'security_enabled') || null;
 const securitySettings = storeKind === 'commerce'
   ? await getStoreSecuritySettings(storeId, authPb)
   : { exists: false, enabled: false, mode: 'disabled' as const };
@@ -62,15 +68,18 @@ const securityLabel = SECURITY_STATUS_LABELS[securityMode];
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={currentStore.name} currentStore={currentStore}>
-    {planResult.data && storeKind === 'promo' ? (
+    {planResult.data && commercialCatalogResult.data && commercialStore && storeKind === 'promo' ? (
       <>
-        <MasterPromoStorePlanView data={planResult.data as any} />
-        <MasterStoreActionsController />
+        <MasterPromoStorePlanView data={planResult.data as any} catalog={commercialStore} currencyDecimals={commercialCatalogResult.data.currency.decimals} />
+        <MasterStoreActionsController catalog={commercialCatalogResult.data} />
       </>
-    ) : planResult.data && storeKind === 'commerce' ? (
+    ) : planResult.data && commercialCatalogResult.data && commercialStore && securityPolicy && storeKind === 'commerce' ? (
       <>
         <MasterStorePlanView
           data={planResult.data}
+          catalog={commercialStore}
+          currencyDecimals={commercialCatalogResult.data.currency.decimals}
+          securityPolicy={securityPolicy}
           storeMeta={{
             featured: storeRecord.featured === true,
             protected: protectedStore,
@@ -79,12 +88,12 @@ const securityLabel = SECURITY_STATUS_LABELS[securityMode];
             securityLabel,
           }}
         />
-        <MasterStoreActionsController />
+        <MasterStoreActionsController catalog={commercialCatalogResult.data} />
       </>
     ) : (
       <section class="master-error" role="alert">
         <strong>No se pudo cargar la información del plan.</strong><br />
-        Actualiza la página o vuelve a intentarlo en unos minutos.
+        El catálogo comercial o el estado de la tienda no están disponibles. No se aplicaron valores locales ({commercialCatalogResult.error || planResult.error || 'unavailable'}).
       </section>
     )}
   </MasterShell>

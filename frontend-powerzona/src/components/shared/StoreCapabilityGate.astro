@@ -18,7 +18,7 @@ const {
   featureName = 'Función',
   featureDescription,
   preservationMessage = 'Conservaremos tu configuración si cambias de plan.',
-  requiredPlanLabel = 'Plan Premium requerido',
+  requiredPlanLabel = 'No disponible en el plan actual',
   infoTitle = '',
   infoDescription = '',
   compact = false,
@@ -33,7 +33,7 @@ const title = isTechnicalState
   ? 'Función temporalmente no disponible'
   : isLimitState
     ? 'Límite alcanzado'
-    : compact ? 'Función Premium' : `${featureName} disponible en el Plan Premium`;
+    : compact ? 'Función no incluida' : `${featureName} no está incluida en el plan actual`;
 const description = isTechnicalState
   ? 'Intenta nuevamente más tarde o contacta al administrador principal.'
   : featureDescription || (isLimitState

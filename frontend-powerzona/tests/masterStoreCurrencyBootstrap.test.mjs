@@ -23,17 +23,21 @@ test('crear tienda usa el endpoint atómico y conserva el aprovisionamiento Comm
   assert.doesNotMatch(createSource, /collection\('stores'\)\.create/);
 });
 
-test('crear Tienda Promo permite escoger Gratis 30/150 o Básico configurable', () => {
+test('crear tiendas consume el catálogo y deriva plan, periodos, importes y cuota Promo', () => {
   const controller = fs.readFileSync(path.join(ROOT, 'src/components/master/MasterStoreActionsController.astro'), 'utf8');
+  assert.match(controller, /CommercialPlanCatalog/);
+  assert.match(controller, /storeTypes\.map/);
   assert.match(controller, /name="promo_plan"/);
-  assert.match(controller, /Gratis — 30 días · 150 fotos/);
-  assert.match(controller, /Básico — vigencia y fotos configurables/);
+  assert.match(controller, /plan\.pricing\.trial/);
+  assert.match(controller, /plan\.pricing\.periods/);
+  assert.match(controller, /monthly_equivalent_cup/);
+  assert.match(controller, /total_cup/);
+  assert.match(controller, /savings_cup/);
   assert.match(controller, /name="promo_duration_months"/);
   assert.match(controller, /name="promo_validity"/);
-  assert.match(controller, /Permanente · sin vencimiento/);
-  assert.match(controller, /name="promo_image_limit"/);
-  assert.match(controller, /150 fotos/);
-  assert.match(controller, /300 fotos/);
+  assert.match(controller, /Permanente compatible · sin vencimiento/);
+  assert.doesNotMatch(controller, /name="promo_image_limit"/);
+  assert.match(controller, /promoDefinition\?\.imageLimit/);
   assert.match(controller, /name="promo_theme_id"/);
   assert.match(controller, /Promo Black Gold/);
   assert.match(controller, /data-store-promo-only/);
@@ -42,5 +46,6 @@ test('crear Tienda Promo permite escoger Gratis 30/150 o Básico configurable', 
   assert.match(controller, /promo_image_limit: promoImageLimit/);
   assert.match(controller, /navigateToMasterStoreList\(1\)/);
   assert.match(controller, /if \(id\) window\.location\.reload\(\)/);
+  assert.doesNotMatch(controller, /Array\.from\(\{ length: 12/);
   assert.doesNotMatch(controller, /window\.location\.assign\(id \? window\.location\.href/);
 });

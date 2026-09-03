@@ -15,6 +15,7 @@ const sidebar = read('src/components/master/MasterSidebar.astro');
 const planPage = read('src/pages/master/stores/[storeId]/plan.astro');
 const promoPlanView = read('src/components/master/MasterPromoStorePlanView.astro');
 const promoPlanClient = read('src/lib/masterPromoPlans.ts');
+const commercialCatalog = read('src/lib/commercialPlanCatalog.ts');
 
 test('cliente Master Promo usa exclusivamente POST privados, contexto header y contratos exactos', () => {
   for (const route of [
@@ -101,22 +102,24 @@ test('UI Master conserva preferencias Promo y gestiona dominios solo tras habili
   assert.doesNotMatch(view, /landing_qr_bridge_enabled|Landing QR|CAS|Máximo de servicios|Almacenamiento máximo/);
 });
 
-test('planes Promo tienen pantalla y cliente aislados de Commerce', () => {
+test('planes Promo conservan endpoints de estado y consumen el catálogo comercial común', () => {
   for (const route of [
     '/api/pz/promo/master/v1/plan',
     '/api/pz/promo/master/v1/plan/change',
     '/api/pz/promo/master/v1/plan/renew',
   ]) assert.match(promoPlanClient, new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(promoPlanView, /Gratis — 30 días · 150 fotos/);
-  assert.match(promoPlanView, /Básico — vigencia y fotos configurables/);
-  assert.match(promoPlanView, /Permanente · sin vencimiento/);
-  assert.match(promoPlanView, /name="max_gallery_assets"/);
-  assert.match(promoPlanView, /150 fotos/);
-  assert.match(promoPlanView, /300 fotos/);
+  assert.match(commercialCatalog, /\/api\/pz\/master\/plan-catalog/);
+  assert.match(promoPlanView, /catalog\.plans/);
+  assert.match(promoPlanView, /monthly_equivalent_cup/);
+  assert.match(promoPlanView, /total_cup/);
+  assert.match(promoPlanView, /savings_cup/);
+  assert.match(promoPlanView, /Permanente compatible/);
+  assert.doesNotMatch(promoPlanView, /name="max_gallery_assets"/);
+  assert.doesNotMatch(promoPlanView, /Array\.from\(\{ length: 12/);
   assert.match(promoPlanClient, /is_permanent: boolean/);
   assert.match(promoPlanClient, /max_gallery_assets: number/);
-  assert.match(promoPlanView, /Gratis ya utilizado/);
-  assert.match(promoPlanView, /3 días de gracia/);
+  assert.match(promoPlanView, /Prueba ya utilizada/);
+  assert.match(promoPlanView, /plan\.grace_days/);
   assert.doesNotMatch(promoPlanView, /Premium|App Android|Productos|Pedidos|Landing QR/);
   assert.match(sidebar, /currentStore\.storeType === 'promo'[\s\S]*Plan y límites/);
 });

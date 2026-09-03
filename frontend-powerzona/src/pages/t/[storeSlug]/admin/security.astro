@@ -515,15 +515,15 @@ if (canRenderSecurity) {
             manualIpDeviceLookup={manualIpDeviceLookup}
           />
         ) : (
-          <section data-security-premium-gate>
+          <section data-security-optional-gate>
             <StoreCapabilityGate
               access={securityAdminAccess.capability}
               featureName="Seguridad"
-              featureDescription="Monitorea clientes, actividad y visitantes, y administra bloqueos privados desde el Plan Premium."
-              preservationMessage="Tu configuración, clientes, eventos, bloqueos y auditoría permanecen guardados y volverán a estar disponibles al regresar a Premium."
-              requiredPlanLabel="Plan Premium requerido"
+              featureDescription="Seguridad avanzada es opcional por tienda y solo Master Admin puede habilitarla. Ningún plan la activa automáticamente."
+              preservationMessage="La capacidad está apagada por defecto. Tu configuración, clientes, eventos, bloqueos y auditoría permanecen guardados mientras Master decide su activación."
+              requiredPlanLabel="Activación Master requerida"
               infoTitle="Tu historial está protegido"
-              infoDescription="El cambio de plan no elimina ni modifica la información de Seguridad existente."
+              infoDescription="Cambiar de plan no habilita, elimina ni modifica la información de Seguridad existente."
               planExpiredUsesPlanGate={true}
             />
           </section>

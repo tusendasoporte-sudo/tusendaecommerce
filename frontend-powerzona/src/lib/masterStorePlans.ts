@@ -1,26 +1,5 @@
 export type MasterPlanCode = 'free' | 'basic' | 'premium';
 
-export type MasterPlanCapabilities = {
-  max_active_users: number;
-  max_devices_per_user: number;
-  max_store_devices: number;
-  max_product_images: number;
-  raffles_enabled: boolean;
-  security_enabled: boolean;
-  landing_qr_enabled: boolean;
-  product_expiration_tools_enabled: boolean;
-  push_campaigns_enabled: boolean;
-};
-
-export type MasterPlanDefinition = {
-  code: MasterPlanCode;
-  name: string;
-  monthly_price_usd: number;
-  duration: { kind: 'fixed_days' | 'calendar_months'; days: number | null; min_months: number; max_months: number };
-  supports_permanent: boolean;
-  capabilities: MasterPlanCapabilities;
-};
-
 export type MasterPlanAudit = {
   id: string;
   action: string;
@@ -42,6 +21,7 @@ export type MasterPlanAudit = {
 
 export type MasterStorePlan = {
   generated_at: string;
+  catalog_contract: 'tusenda84.commercial-plan-catalog.v1';
   store: { id: string; name: string; slug: string; status: 'active' | 'suspended' };
   plan: {
     plan: MasterPlanCode;
@@ -55,12 +35,9 @@ export type MasterStorePlan = {
     isConfigured: boolean;
     isExpired: boolean;
     can_renew: boolean;
-    monthly_price_usd: number;
-    capabilities: MasterPlanCapabilities;
   };
   usage: { active_users: number; store_devices: number; max_devices_per_user: number };
   expiration_cleanup: { products: number; variations: number; notifications: number; cycles: number };
-  definitions: MasterPlanDefinition[];
   last_change: MasterPlanAudit | null;
   history: MasterPlanAudit[];
 };
@@ -96,24 +73,6 @@ function isoDate(value: unknown) {
   return Number.isFinite(date.getTime()) ? date.toISOString() : '';
 }
 
-function capabilities(value: any): MasterPlanCapabilities | null {
-  const numericKeys = ['max_active_users', 'max_devices_per_user', 'max_store_devices', 'max_product_images'] as const;
-  const booleanKeys = ['raffles_enabled', 'security_enabled', 'landing_qr_enabled', 'product_expiration_tools_enabled', 'push_campaigns_enabled'] as const;
-  if (!value || numericKeys.some((key) => !Number.isInteger(value[key]) || value[key] < 0)) return null;
-  if (booleanKeys.some((key) => typeof value[key] !== 'boolean')) return null;
-  return {
-    max_active_users: value.max_active_users,
-    max_devices_per_user: value.max_devices_per_user,
-    max_store_devices: value.max_store_devices,
-    max_product_images: value.max_product_images,
-    raffles_enabled: value.raffles_enabled,
-    security_enabled: value.security_enabled,
-    landing_qr_enabled: value.landing_qr_enabled,
-    product_expiration_tools_enabled: value.product_expiration_tools_enabled,
-    push_campaigns_enabled: value.push_campaigns_enabled,
-  };
-}
-
 function audit(value: any): MasterPlanAudit | null {
   if (!value || typeof value !== 'object') return null;
   const id = text(value.id, 15);
@@ -140,33 +99,13 @@ function audit(value: any): MasterPlanAudit | null {
   };
 }
 
-function definition(value: any): MasterPlanDefinition | null {
-  const code = value?.code;
-  const caps = capabilities(value?.capabilities);
-  const kind = value?.duration?.kind;
-  if (!isPlanCode(code) || !caps || !['fixed_days', 'calendar_months'].includes(kind)) return null;
-  return {
-    code,
-    name: text(value.name, 80),
-    monthly_price_usd: Math.max(0, Number(value.monthly_price_usd || 0)),
-    duration: {
-      kind,
-      days: value.duration.days === null ? null : integer(value.duration.days),
-      min_months: integer(value.duration.min_months),
-      max_months: integer(value.duration.max_months),
-    },
-    supports_permanent: value.supports_permanent === true,
-    capabilities: caps,
-  };
-}
-
 function normalizeResponse(value: any): MasterStorePlan | null {
   const id = text(value?.store?.id, 15);
   const planCode = value?.plan?.plan;
-  const caps = capabilities(value?.plan?.capabilities);
-  if (value?.ok !== true || !RECORD_ID_PATTERN.test(id) || !isPlanCode(planCode) || !caps) return null;
-  const definitions = Array.isArray(value.definitions) ? value.definitions.map(definition).filter(Boolean) as MasterPlanDefinition[] : [];
-  if (definitions.length !== 3 || PLAN_CODES.some((code) => !definitions.some((item) => item.code === code))) return null;
+  if (value?.ok !== true
+    || value?.catalog_contract !== 'tusenda84.commercial-plan-catalog.v1'
+    || !RECORD_ID_PATTERN.test(id)
+    || !isPlanCode(planCode)) return null;
   const history = Array.isArray(value.history) ? value.history.map(audit).filter(Boolean) as MasterPlanAudit[] : [];
   const lastChange = value.last_change ? audit(value.last_change) : null;
   const states = ['unconfigured', 'active', 'expiring', 'critical', 'expired'] as const;
@@ -174,6 +113,7 @@ function normalizeResponse(value: any): MasterStorePlan | null {
   const daysRemaining = value.plan.days_remaining === null ? null : integer(value.plan.days_remaining);
   return {
     generated_at: isoDate(value.generated_at),
+    catalog_contract: 'tusenda84.commercial-plan-catalog.v1',
     store: {
       id,
       name: text(value.store.name, 160) || 'Tienda',
@@ -192,8 +132,6 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       isConfigured: value.plan.isConfigured === true,
       isExpired: value.plan.isExpired === true,
       can_renew: value.plan.can_renew === true,
-      monthly_price_usd: Math.max(0, Number(value.plan.monthly_price_usd || 0)),
-      capabilities: caps,
     },
     usage: {
       active_users: integer(value.usage?.active_users),
@@ -206,7 +144,6 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       notifications: integer(value.expiration_cleanup?.notifications),
       cycles: integer(value.expiration_cleanup?.cycles),
     },
-    definitions,
     last_change: lastChange,
     history,
   };
@@ -249,8 +186,8 @@ async function postEndpoint(
 export function getMasterPlanErrorMessage(error: string) {
   const messages: Record<string, string> = {
     invalid_payload: 'Revisa los datos seleccionados antes de continuar.',
-    invalid_plan_duration_months: 'Selecciona una duración entre 1 y 12 meses.',
-    invalid_plan_permanence: 'El plan Free solo puede ser temporal por 30 días.',
+    invalid_plan_duration_months: 'Selecciona uno de los periodos comerciales disponibles.',
+    invalid_plan_permanence: 'La prueba gratuita solo puede usar su vigencia temporal.',
     permanent_plan_not_renewable: 'Los planes permanentes no se renuevan por meses.',
     free_plan_not_renewable: 'La prueba Free no admite renovaciones por meses.',
     expiration_cleanup_confirmation_required: 'Confirma la eliminación irreversible de fechas y alertas de vencimiento.',

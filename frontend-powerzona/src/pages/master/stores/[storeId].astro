@@ -13,6 +13,7 @@ import { getMasterStoreOverview } from '../../../lib/masterStoreOverview';
 import { getPromoMasterOverview } from '../../../lib/promoMaster';
 import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
 import { DEFAULT_STORE_SLUG } from '../../../lib/stores';
+import { getMasterCommercialPlanCatalog } from '../../../lib/commercialPlanCatalog';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -38,7 +39,10 @@ try {
 }
 
 const pocketbaseUrl = serverPocketBaseUrl();
-const promoResult = await getPromoMasterOverview(pocketbaseUrl, authPb.authStore.token, storeId);
+const [promoResult, commercialCatalog] = await Promise.all([
+  getPromoMasterOverview(pocketbaseUrl, authPb.authStore.token, storeId),
+  getMasterCommercialPlanCatalog(pocketbaseUrl, authPb.authStore.token),
+]);
 const explicitCommerce = promoResult.status === 404 && promoResult.error === 'store_not_promo';
 let commerceResult: Awaited<ReturnType<typeof getMasterStoreOverview>> | null = null;
 let securitySettings: Awaited<ReturnType<typeof getStoreSecuritySettings>> | null = null;
@@ -77,7 +81,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
           securityExists={securitySettings.exists}
           planPresentation={currentStore.planPresentation}
         />
-        <MasterStoreActionsController />
+        <MasterStoreActionsController catalog={commercialCatalog.data} />
       </>
     ) : (
       <section class="master-error" role="alert">

@@ -10,6 +10,7 @@ import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl';
 import { getMasterStoreUserSummary } from '../../../lib/masterUsers';
 import { getMasterStoreActivitySummary } from '../../../lib/masterStoreActivity';
 import { getPromoMasterCatalog } from '../../../lib/promoMaster';
+import { getMasterCommercialPlanCatalog } from '../../../lib/commercialPlanCatalog';
 import {
   getDefaultSecurityBackendHealth,
   getDefaultSecuritySettings,
@@ -41,10 +42,11 @@ const userSummary = await getMasterStoreUserSummary(authPb, storesPage.items.map
 const totalUsers = userSummary.total_users;
 const securityMap = await getMasterSecuritySettingsMap(authPb);
 const pocketbaseUrl = serverPocketBaseUrl();
-const [activity, securityHealth, promoCatalog] = await Promise.all([
+const [activity, securityHealth, promoCatalog, commercialCatalog] = await Promise.all([
   getMasterStoreActivitySummary(pocketbaseUrl, authPb.authStore.token),
   getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token).catch(() => getDefaultSecurityBackendHealth()),
   getPromoMasterCatalog(pocketbaseUrl, authPb.authStore.token),
+  getMasterCommercialPlanCatalog(pocketbaseUrl, authPb.authStore.token),
 ]);
 
 const usersByStore = new Map(userSummary.stores.map((item) => [item.store_id, item.total_users]));
@@ -89,13 +91,14 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
 ---
 
 <Layout isMaster={true}>
-  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Tiendas" showCreateStore={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Tiendas" showCreateStore={commercialCatalog.available}>
+    {!commercialCatalog.available && <section class="master-error" role="alert"><strong>Catálogo comercial no disponible.</strong><br />La creación de tiendas permanece deshabilitada para no usar planes o importes locales.</section>}
     <MasterStoresView
       stores={stores}
       counts={{ total: storeCounts.total, active: storeCounts.active, suspended: storeCounts.suspended, users: totalUsers }}
       page={storesPage}
       securityHealth={securityHealthView}
     />
-    <MasterStoreActionsController />
+    <MasterStoreActionsController catalog={commercialCatalog.data} />
   </MasterShell>
 </Layout>

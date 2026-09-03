@@ -46,11 +46,13 @@ test('S7P3: Principal sin capacidad ve gate sin cargar datos ni montar monitoreo
   assert.match(page, /const showSecurityGate = securityAdminAccess\.isPrimaryAdmin && !securityAdminAccess\.capability\.allowed/);
   assert.match(page, /if \(!canRenderSecurity && !showSecurityGate\)[\s\S]*?status: 404/);
   assert.match(page, /const securitySettings = canRenderSecurity[\s\S]*?\? await getStoreSecuritySettings[\s\S]*?: getDefaultSecuritySettings/);
-  assert.match(page, /\{canRenderSecurity \? \([\s\S]*?<SecurityMonitoringView[\s\S]*?\) : \([\s\S]*?data-security-premium-gate[\s\S]*?<StoreCapabilityGate/);
+  assert.match(page, /\{canRenderSecurity \? \([\s\S]*?<SecurityMonitoringView[\s\S]*?\) : \([\s\S]*?data-security-optional-gate[\s\S]*?<StoreCapabilityGate/);
   assert.match(page, /planExpiredUsesPlanGate=\{true\}/);
+  assert.match(page, /Seguridad avanzada es opcional por tienda/);
+  assert.match(page, /solo Master Admin puede habilitarla/);
   assert.match(page, /configuración, clientes, eventos, bloqueos y auditoría permanecen guardados/);
   assert.equal((page.match(/<SecurityMonitoringView/g) || []).length, 1);
-  assert.equal((page.match(/data-security-premium-gate/g) || []).length, 1);
+  assert.equal((page.match(/data-security-optional-gate/g) || []).length, 1);
 });
 
 test('S7P3: POST y acciones privadas se procesan únicamente con capacidad y permiso efectivos', () => {
