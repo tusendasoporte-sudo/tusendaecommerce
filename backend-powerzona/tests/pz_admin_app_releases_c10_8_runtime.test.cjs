@@ -347,6 +347,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       token: masterToken, body: { version_name: '1.0.3' },
     });
     assertStatus(preview, 201, 'crear preview C10.8');
+    assert.equal(preview.data.job.engine.api_base_url, 'https://api.tusenda84.com');
     const confirmed = await request('/api/pz/master/admin-app-releases/confirm', {
       token: masterToken,
       body: { job_id: preview.data.job.id, preview_hash: preview.data.job.preview_hash, confirmation: 'CONFIRMAR BUILD MOBILE ADMIN' },
@@ -446,6 +447,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assertStatus(detail, 200, 'consultar inventario C10.8');
     assert.equal(detail.data.engine.ready, true);
     assert.equal(detail.data.engine.api_base_url, 'https://api.tusenda84.com');
+    assert.equal(detail.data.jobs.every((job) => job.engine.api_base_url === 'https://api.tusenda84.com'), true);
     assert.equal(detail.data.runner_control.authorization_state, 'none');
     assert.equal(detail.data.runner_control.agents[0].runner_id, 'runtime-c108');
     assert.equal(detail.data.policy.runner_isolated, true);

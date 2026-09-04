@@ -445,6 +445,7 @@ function jobSnapshot(job) {
       contract_version: recordNumber(job, "engine_contract_version"),
       firebase_required: true,
       revision: recordString(job, "engine_revision", 40),
+      api_base_url: adminApiBaseUrl(),
     },
     failure_code: recordString(job, "failure_code", 80),
     started_at: iso(recordValue(job, "started_at")),
