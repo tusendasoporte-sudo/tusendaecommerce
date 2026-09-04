@@ -25,6 +25,7 @@ const adminPushPayload = readFileSync(new URL('../../mobile-admin/app/src/main/j
 const adminPushBackend = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience_lib.js', import.meta.url), 'utf8');
 const adminPushRoutes = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience.pb.js', import.meta.url), 'utf8');
 const verifier = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminApkVerifier.java', import.meta.url), 'utf8');
+const adminBuilder = readFileSync(new URL('../../scripts/build-admin-app.ps1', import.meta.url), 'utf8');
 const runner = readFileSync(new URL('../../mobile-admin/runner/run-admin-app-job-queue.ps1', import.meta.url), 'utf8');
 const runnerCustody = readFileSync(new URL('../../mobile-admin/runner/initialize-admin-runner-custody.ps1', import.meta.url), 'utf8');
 const runnerInvoker = readFileSync(new URL('../../mobile-admin/runner/invoke-admin-runner.ps1', import.meta.url), 'utf8');
@@ -165,12 +166,21 @@ test('panel Master separa preparación de publicación y reutiliza la APK aproba
   assert.match(masterView, /Retirar publicación/);
   assert.match(masterView, /resume_release/);
   assert.match(masterView, /Notificaciones Firebase incluidas/);
+  assert.match(masterView, /Una sola APK Admin/);
+  assert.match(masterView, /mismo archivo y el mismo SHA-256/);
   assert.doesNotMatch(masterView, /Firebase project ID|Firebase app ID|Firebase \(opcional\)/);
   assert.doesNotMatch(masterView, /Administrador y dispositivo|Oleada|data-assignment-form/);
   assert.match(masterView, /pb\.authStore\.loadFromCookie\(document\.cookie, 'pb_auth'\)/);
-  assert.match(masterPage, /channel.*production.*staging|production.*staging/s);
-  assert.match(masterView, /\?channel=staging/);
-  assert.match(masterView, /\?channel=production/);
+  assert.match(masterPage, /channel.*publication.*prepare|publication.*prepare/s);
+  assert.match(masterView, /\?channel=prepare/);
+  assert.match(masterView, /\?channel=publication/);
+  assert.doesNotMatch(masterView, /\?channel=staging|\?channel=production/);
+  assert.match(backendLib, /canonical_build_channel: "production"/);
+  assert.match(backendLib, /single_artifact_release: true/);
+  assert.match(backendLib, /publication_reuses_approved_artifact: true/);
+  assert.match(adminBuilder, /\[ValidateSet\('production'\)\]\[string\]\$Channel = 'production'/);
+  assert.doesNotMatch(adminBuilder, /ValidateSet\([^\r\n]*staging/);
+  assert.match(runner, /job\.preview\.channel -cne 'production'/);
   assert.doesNotMatch(masterView, /wa\.me|WhatsApp|Google Play|generate.*sign/i);
 });
 

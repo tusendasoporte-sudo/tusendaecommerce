@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Build')][string]$Operation,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$VersionCode,
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+$')][string]$VersionName,
-    [ValidateSet('staging', 'production')][string]$Channel = 'staging',
+    [ValidateSet('production')][string]$Channel = 'production',
     [ValidateSet('provision', 'update')][string]$ReleaseOperation = 'update',
     [ValidatePattern('^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')][string]$PackageName = 'com.tusenda84.admin',
     [string]$DisplayName = 'Tu Senda 84 Admin',

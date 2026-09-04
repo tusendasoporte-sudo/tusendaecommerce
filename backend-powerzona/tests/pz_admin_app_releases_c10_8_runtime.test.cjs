@@ -441,7 +441,7 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     }
 
     const detail = await request('/api/pz/master/admin-app-releases/detail', {
-      token: masterToken, body: { channel: 'staging' },
+      token: masterToken, body: { channel: 'production' },
     });
     assertStatus(detail, 200, 'consultar inventario C10.8');
     assert.equal(detail.data.engine.ready, true);
@@ -449,6 +449,9 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assert.equal(detail.data.runner_control.authorization_state, 'none');
     assert.equal(detail.data.runner_control.agents[0].runner_id, 'runtime-c108');
     assert.equal(detail.data.policy.runner_isolated, true);
+    assert.equal(detail.data.policy.canonical_build_channel, 'production');
+    assert.equal(detail.data.policy.single_artifact_release, true);
+    assert.equal(detail.data.policy.publication_reuses_approved_artifact, true);
     assert.equal(detail.data.notification_health.available, true);
     assert.equal(detail.data.notification_health.summary.active_installations, 1);
     assert.equal(detail.data.notification_health.summary.credential_ready, 1);
@@ -497,6 +500,9 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assertStatus(publishedDetail, 200, 'actualizar la versión vigente solo al publicar');
     assert.equal(publishedDetail.data.profile.latest_version_code, 4);
     assert.equal(publishedDetail.data.profile.latest_version_name, '1.0.3');
+    assert.equal(publishedDetail.data.artifacts.length, detail.data.artifacts.length, 'publicar no debe crear otro artefacto');
+    const publishedApk = publishedDetail.data.artifacts.find((item) => item.id === apk.id);
+    assert.equal(publishedApk?.sha256, apk.sha256, 'publicar debe conservar la APK y el SHA-256 aprobados');
 
     const assignments = await request('/api/collections/admin_app_release_assignments/records?page=1&perPage=20', { token: superToken });
     assertStatus(assignments, 200, 'verificar ausencia de asignaciones individuales');

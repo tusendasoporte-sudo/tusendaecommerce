@@ -798,6 +798,9 @@ function handleMasterDetail(e) {
         runner_isolated: true,
         runner_requires_explicit_authorization: true,
         exact_engine_revision_required: true,
+        canonical_build_channel: "production",
+        single_artifact_release: true,
+        publication_reuses_approved_artifact: true,
       },
     });
   } catch (_) { return e.json(500, { ok: false, error: "admin_app_detail_failed" }); }
@@ -883,7 +886,7 @@ function buildPreview(profile, parsed, app, approvedRelease) {
   const icon = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "icon_asset")) : null;
   const splash = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "splash_asset")) : null;
   return {
-    schema_version: 2, app: "mobile-admin", channel: "staging",
+    schema_version: 2, app: "mobile-admin", channel: "production",
     engine: engineDescriptor(approvedRelease),
     operation: recordNumber(profile, "latest_version_code") > 0 ? "update" : "provision",
     identity: {

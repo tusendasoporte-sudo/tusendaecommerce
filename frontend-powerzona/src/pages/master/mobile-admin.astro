@@ -16,12 +16,11 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const master = requireMasterAdmin(authPb.authStore.record as any);
 if (!authPb.authStore.isValid || !master) return Astro.redirect('/master-login');
-const channel = Astro.url.searchParams.get('channel') === 'production' ? 'production' : 'staging';
+const channel = Astro.url.searchParams.get('channel') === 'publication' ? 'publication' : 'prepare';
 
 const result = await getMasterAdminAppDetail(
   serverPocketBaseUrl(),
   authPb.authStore.token,
-  channel,
 );
 const displayName = String(master.display_name || master.name || master.email || '').trim();
 ---

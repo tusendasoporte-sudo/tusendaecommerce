@@ -43,7 +43,7 @@ test('configuración acepta app nueva o baseline existente y exige color y confi
 
 test('preview fija entrega autenticada, aprobación Master y publicación automática', () => {
   const profile = {
-    channel: 'staging', display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
+    channel: 'production', display_name: 'Tu Senda 84 Admin', package_name: 'com.tusenda84.admin',
     admin_url: 'https://tusenda84.com/admin', signing_cert_sha256: '11:'.repeat(31) + '11',
     firebase_app_id: '', latest_version_code: 3,
     get(key) { return this[key]; },
@@ -56,6 +56,7 @@ test('preview fija entrega autenticada, aprobación Master y publicación autom�
     contract_version: 2, firebase_required: true, api_base_url: 'https://api.tusenda84.com',
   });
   assert.deepEqual(preview.notifications, { firebase_required: true, managed_by_engine: true });
+  assert.equal(preview.channel, 'production');
   assert.equal(preview.identity.package_name, 'com.tusenda84.admin');
   assert.equal(preview.engine.api_base_url, 'https://api.tusenda84.com');
   assert.equal(preview.delivery.authenticated_only, true);
@@ -141,8 +142,11 @@ test('activos visuales son PNG cuadrados acotados y el navegador no decide secue
   assert.equal(releases.parseBuildPreview({ version_name: '1.0.3', version_code: 999 }), null);
 });
 
-test('una identidad global prepara en staging y controla la publicación por artefacto', () => {
+test('una identidad global construye en producción y publica el mismo artefacto aprobado', () => {
   assert.match(source, /CANONICAL_PROFILE_CHANNEL = "production"/);
+  assert.match(source, /channel: "production"/);
+  assert.match(source, /single_artifact_release: true/);
+  assert.match(source, /publication_reuses_approved_artifact: true/);
   assert.match(source, /const profile = masterProfile\(\$app\)/);
   assert.match(source, /\["pause_release", "resume_release", "withdraw_release"\]/);
   assert.match(source, /release_resumed/);

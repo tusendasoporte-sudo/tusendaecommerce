@@ -170,6 +170,11 @@ minutos. El acceso directo procesa como máximo un trabajo y no contiene el secr
 es necesario mantener un segundo proceso permanente; `-ServiceMode` queda disponible si
 en el futuro se decide operar el runner como servicio.
 
+Staging se usa únicamente para desarrollar y validar cambios del sistema. No existe una
+APK Admin de staging: el panel Master de producción construye una sola APK candidata, y
+la descarga de prueba, la aprobación y la publicación reutilizan ese mismo archivo y su
+SHA-256 sin recompilarlo.
+
 La vista previa reproducible puede generarse sin compilar ni acceder a secretos. El
 siguiente comando es una verificación técnica local; en operación normal el backend
 decide el código y el runner lo recibe:
@@ -177,7 +182,7 @@ decide el código y el runner lo recibe:
 ```powershell
 ../scripts/build-admin-app.ps1 -Operation Preview `
   -ReleaseOperation update -VersionCode 4 -VersionName 1.0.3 `
-  -Channel staging
+  -Channel production
 ```
 
 La app añade su versión real al User-Agent y al bridge `PZAndroidUpdate`. El portal

@@ -144,6 +144,7 @@ do {
         if ([string]$job.preview.engine.name -cne [string]$engineManifest.name -or [string]$job.preview.engine.version -cne [string]$engineManifest.version -or [string]$job.preview.engine.revision -cne $engineRevision -or [int]$job.preview.engine.contract_version -ne [int]$engineManifest.contract_version) {
             throw 'runner_engine_release_mismatch'
         }
+        if ([string]$job.preview.channel -cne 'production') { throw 'runner_build_channel_invalid' }
         New-Item -ItemType Directory -Path $brandDirectory | Out-Null
         $profile = $job.profile
         $iconPath = Receive-BrandAsset -Asset $profile.icon -Destination (Join-Path $brandDirectory 'icon.png')

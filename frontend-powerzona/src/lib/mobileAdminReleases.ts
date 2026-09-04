@@ -184,6 +184,9 @@ export type MasterAdminAppDetail = {
     runner_isolated: true;
     runner_requires_explicit_authorization: true;
     exact_engine_revision_required: true;
+    canonical_build_channel: 'production';
+    single_artifact_release: true;
+    publication_reuses_approved_artifact: true;
   };
 };
 
@@ -556,8 +559,8 @@ export async function uploadMasterAdminAppBrandAsset(
   } finally { try { bitmap?.close(); } catch (_) {} }
 }
 
-export function getMasterAdminAppDetail(baseUrl: string, token: string, channel: 'staging' | 'production') {
-  return post(baseUrl, token, '/api/pz/master/admin-app-releases/detail', { channel }, (value) => {
+export function getMasterAdminAppDetail(baseUrl: string, token: string) {
+  return post(baseUrl, token, '/api/pz/master/admin-app-releases/detail', { channel: 'production' }, (value) => {
     if (value?.ok !== true) return null;
     const engine = normalizeEngine(value.engine);
     const profile = value.profile ? normalizeProfile(value.profile) : null;
@@ -575,7 +578,10 @@ export function getMasterAdminAppDetail(baseUrl: string, token: string, channel:
       || runnerControl.active_job_id !== activeJobId
       || policy?.runner_isolated !== true
       || policy?.runner_requires_explicit_authorization !== true
-      || policy?.exact_engine_revision_required !== true) return null;
+      || policy?.exact_engine_revision_required !== true
+      || policy?.canonical_build_channel !== 'production'
+      || policy?.single_artifact_release !== true
+      || policy?.publication_reuses_approved_artifact !== true) return null;
     const eligible_devices = Array.isArray(value.eligible_devices) ? value.eligible_devices.map((item: any) => ({
       user_id: text(item.user_id, 15), user_name: text(item.user_name, 140), user_email: text(item.user_email, 254),
       store_id: text(item.store_id, 15), store_name: text(item.store_name, 140), device_id: text(item.device_id, 15),

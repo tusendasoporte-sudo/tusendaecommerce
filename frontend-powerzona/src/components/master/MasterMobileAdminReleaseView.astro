@@ -1,9 +1,9 @@
 ---
 import type { MasterAdminAppDetail } from '../../lib/mobileAdminReleases';
 
-interface Props { data: MasterAdminAppDetail; channel: 'staging' | 'production' }
+interface Props { data: MasterAdminAppDetail; channel: 'prepare' | 'publication' }
 const { data, channel } = Astro.props;
-const preparing = channel === 'staging';
+const preparing = channel === 'prepare';
 const profile = data.profile;
 const releaseActions = ['release_published', 'release_resumed', 'release_paused', 'release_withdrawn'];
 const stateFor = (artifactId: string) => {
@@ -55,16 +55,21 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
       <span class="admin-release__eyebrow">TU SENDA 84 ADMIN</span>
       <h1>{preparing ? 'Preparar y probar' : 'Publicación'}</h1>
       <p>{preparing
-        ? 'Configura la próxima versión, construye una sola APK y aprueba exactamente el archivo que probaste.'
-        : 'Publica la APK aprobada sin reconstruirla y controla su disponibilidad para los administradores.'}</p>
+        ? 'Configura la próxima versión y construye una única APK final desde el panel Master de producción.'
+        : 'Publica exactamente la APK aprobada, sin reconstruirla, y controla su disponibilidad para los administradores.'}</p>
     </div>
     <span class:list={['status', profile && 'status--active']}>{profile ? 'Identidad configurada' : 'Sin configurar'}</span>
   </header>
 
   <nav class="channel-tabs" aria-label="Flujo de Mobile Admin">
-    <a href="?channel=staging" aria-current={preparing ? 'page' : undefined}>Preparar y probar</a>
-    <a href="?channel=production" aria-current={!preparing ? 'page' : undefined}>Publicación</a>
+    <a href="?channel=prepare" aria-current={preparing ? 'page' : undefined}>Preparar y probar</a>
+    <a href="?channel=publication" aria-current={!preparing ? 'page' : undefined}>Publicación</a>
   </nav>
+
+  <aside class="single-apk-policy" role="note">
+    <strong>Una sola APK Admin</strong>
+    <span>Staging sirve para desarrollar y validar cambios de código. La APK se construye desde Master en producción; descargarla, probarla, aprobarla y publicarla siempre reutiliza el mismo archivo y el mismo SHA-256.</span>
+  </aside>
 
   <aside class="engine-card" aria-label="Motor de construcción">
     <div><small>Motor que construirá la APK</small><strong>{data.engine.name} {data.engine.version}</strong></div>
@@ -101,7 +106,7 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
   {preparing ? (
     <>
       <section class="panel">
-        <div class="panel__title"><div><span>Paso 1</span><h2>Configurar la aplicación</h2></div><small>Una sola identidad para pruebas y publicación.</small></div>
+        <div class="panel__title"><div><span>Paso 1</span><h2>Configurar la aplicación</h2></div><small>Una sola identidad para la APK de producción.</small></div>
         <form class="form-grid" data-profile-form>
           <fieldset class="group">
             <legend>Identidad Android</legend>
@@ -162,7 +167,7 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
         {previewJob && (
           <article class="preview" data-preview-job data-job-id={previewJob.id} data-preview-hash={previewJob.preview_hash}>
             <strong>{previewJob.version_name} ({previewJob.version_code})</strong>
-            <span>Se construirá con {previewJob.engine.name} {previewJob.engine.version} · revisión {previewJob.engine.revision.slice(0, 12)}, Firebase obligatorio y la apariencia seleccionada.</span>
+            <span>Se construirá la única APK candidata con {previewJob.engine.name} {previewJob.engine.version} · revisión {previewJob.engine.revision.slice(0, 12)}, Firebase obligatorio y la apariencia seleccionada.</span>
             <div class="release-actions">
               <button type="button" data-confirm-build disabled={!engineReady}>Confirmar trabajo</button>
               <button type="button" class="secondary" data-cancel-build data-job-id={previewJob.id}>Cancelar vista previa</button>
@@ -211,7 +216,7 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
       </section>
 
       <section class="panel">
-        <div class="panel__title"><div><span>Paso 4</span><h2>Probar y aprobar</h2></div><small>Publicar se realiza después desde Publicación.</small></div>
+        <div class="panel__title"><div><span>Paso 4</span><h2>Probar y aprobar</h2></div><small>Publicar después no genera otra APK.</small></div>
         {testApk ? (
           <article class="release-ready">
             <div><small>APK candidata</small><strong>{testApk.version_name} ({testApk.version_code})</strong><span>{testApk.file_name} · SHA-256 {testApk.sha256.slice(0, 16)}…</span></div>
@@ -222,7 +227,7 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
             </div>
           </article>
         ) : <p>Cuando construyas una APK candidata aparecerá aquí para descargarla y probarla.</p>}
-        <p class="hint">La aprobación no publica nada. Después podrás promover exactamente este mismo checksum.</p>
+        <p class="hint">Esta es la única APK. La aprobación no publica ni recompila nada; después podrás publicar exactamente este mismo checksum.</p>
       </section>
     </>
   ) : (
@@ -249,13 +254,13 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
       </section>
 
       <section class="panel">
-        <div class="panel__title"><div><span>Siguiente versión</span><h2>Lista para publicar</h2></div><small>Se utiliza el mismo archivo aprobado en la prueba.</small></div>
+        <div class="panel__title"><div><span>Siguiente versión</span><h2>Lista para publicar</h2></div><small>Se utiliza el mismo archivo y SHA-256 aprobados en la prueba.</small></div>
         {candidate ? (
           <article class="release-ready">
             <div><strong>{candidate.version_name} ({candidate.version_code})</strong><span>{candidate.file_name}</span><span class="checksum">SHA-256 {candidate.sha256}</span></div>
             <button type="button" data-publish-general>{publishLabel}</button>
           </article>
-        ) : testApk ? <p>La APK {testApk.version_name} ({testApk.version_code}) todavía debe aprobarse en <a href="?channel=staging">Preparar y probar</a>.</p>
+        ) : testApk ? <p>La APK {testApk.version_name} ({testApk.version_code}) todavía debe aprobarse en <a href="?channel=prepare">Preparar y probar</a>.</p>
           : <p>No hay una APK aprobada pendiente de publicación.</p>}
       </section>
 
@@ -333,6 +338,7 @@ const stateLabel = currentState === 'published' ? 'Publicada' : currentState ===
 </script>
 
 <style>
+  .single-apk-policy{display:grid;gap:5px;border:1px solid #86efac;border-radius:14px;background:#f0fdf4;color:#166534;padding:14px 16px;line-height:1.45}.single-apk-policy span{font-size:13px}
   .notification-health{display:grid;gap:13px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff;padding:15px}
   .notification-health__title{display:flex;align-items:center;justify-content:space-between;gap:14px}
   .notification-health__title>div{display:grid;gap:4px}
