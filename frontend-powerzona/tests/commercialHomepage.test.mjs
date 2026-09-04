@@ -139,3 +139,9 @@ test('la portada consume configuración Master y usa un icono Android genérico'
   assert.match(page, /\/brand\/android-platform-icon\.svg/);
   assert.doesNotMatch(page, /powerzona-app-preview-android\.png/);
 });
+
+test('los iconos Android permanecen dentro de sus tarjetas en móvil', () => {
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.commercial-app-card\s*\{[\s\S]*?min-height:\s*0[\s\S]*?grid-template-rows:\s*auto auto/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.commercial-app-card > img,[\s\S]*?\.commercial-app-card figure\s*\{[\s\S]*?width:\s*min\(148px, 44vw\)[\s\S]*?margin:\s*0/);
+  assert.doesNotMatch(styles, /margin-bottom:\s*-45px/);
+});

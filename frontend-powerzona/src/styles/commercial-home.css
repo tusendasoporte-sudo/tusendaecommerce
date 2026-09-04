@@ -1905,17 +1905,22 @@
   }
 
   .commercial-app-card {
-    min-height: 500px;
+    min-height: 0;
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
     align-items: start;
+    align-content: start;
+    gap: 28px;
     padding: 24px;
   }
 
   .commercial-app-card > img,
   .commercial-app-card figure {
-    width: 160px;
+    width: min(148px, 44vw);
+    max-width: 100%;
+    align-self: end;
     justify-self: end;
-    margin-bottom: -45px;
+    margin: 0;
   }
 
   .commercial-section-head-row {
