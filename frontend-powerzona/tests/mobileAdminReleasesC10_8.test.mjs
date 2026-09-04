@@ -18,8 +18,17 @@ const downloadApi = readFileSync(new URL('../src/pages/api/admin/mobile-app/down
 const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
 const sidebar = readFileSync(new URL('../src/components/admin/AdminSidebar.astro', import.meta.url), 'utf8');
 const android = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/MainActivity.java', import.meta.url), 'utf8');
+const adminMessaging = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminMessagingService.java', import.meta.url), 'utf8');
+const adminNotificationClient = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminNotificationClient.java', import.meta.url), 'utf8');
+const adminNotificationStore = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminNotificationStore.java', import.meta.url), 'utf8');
+const adminPushPayload = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminPushPayload.java', import.meta.url), 'utf8');
+const adminPushBackend = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience_lib.js', import.meta.url), 'utf8');
+const adminPushRoutes = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience.pb.js', import.meta.url), 'utf8');
 const verifier = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminApkVerifier.java', import.meta.url), 'utf8');
 const runner = readFileSync(new URL('../../mobile-admin/runner/run-admin-app-job-queue.ps1', import.meta.url), 'utf8');
+const runnerCustody = readFileSync(new URL('../../mobile-admin/runner/initialize-admin-runner-custody.ps1', import.meta.url), 'utf8');
+const runnerInvoker = readFileSync(new URL('../../mobile-admin/runner/invoke-admin-runner.ps1', import.meta.url), 'utf8');
+const runnerShortcut = readFileSync(new URL('../../mobile-admin/runner/install-admin-runner-shortcut.ps1', import.meta.url), 'utf8');
 const gradle = readFileSync(new URL('../../mobile-admin/app/build.gradle', import.meta.url), 'utf8');
 const launchBackground = readFileSync(new URL('../../mobile-admin/app/src/main/res/drawable/launch_background.xml', import.meta.url), 'utf8');
 const theme = readFileSync(new URL('../../mobile-admin/app/src/main/res/values/themes.xml', import.meta.url), 'utf8');
@@ -138,6 +147,7 @@ test('panel Master separa preparación de publicación y reutiliza la APK aproba
   assert.match(masterView, /Aplicación publicada/);
   assert.match(masterView, /Lista para publicar/);
   assert.match(masterView, /data\.engine\.name/);
+  assert.match(masterView, /!!previewJob \|\| !!activeExecutionJob/);
   assert.match(masterView, /automático/);
   assert.match(masterView, /Cambiar icono/);
   assert.match(masterView, /Cambiar pantalla/);
@@ -209,13 +219,57 @@ test('Android verifica checksum, paquete, código y firma antes del instalador',
 test('runner solo acepta firma existente y usa un secreto exclusivo', () => {
   assert.match(runner, /PZ_ADMIN_APP_RUNNER_SECRET/);
   assert.match(runner, /SigningPropertiesPath/);
-  assert.doesNotMatch(runner, /generate.*sign|keytool -genkey|Firebase/i);
+  assert.doesNotMatch(runner, /generate.*sign|keytool\s+-genkey/i);
   assert.match(runner, /admin-app-builds\/artifacts\/upload/);
   assert.match(runner, /admin-app-builds\/complete/);
+  assert.match(runner, /admin-app-runners\/heartbeat/);
+  assert.match(runner, /runner_engine_release_mismatch/);
   assert.match(runner, /engine_manifest|engineManifest/i);
   assert.match(runner, /admin-app-brand-assets/);
   assert.match(runner, /runner_brand_checksum_mismatch/);
+  assert.match(runner, /MultipartFormDataContent/);
+  assert.doesNotMatch(runner, /Invoke-RestMethod[^\r\n]*-Form/);
+  assert.match(runnerCustody, /Windows DPAPI CurrentUser/);
+  assert.match(runnerCustody, /SecretsRoot debe estar fuera del repositorio/);
+  assert.match(runnerInvoker, /admin-runner-settings\.json/);
+  assert.match(runnerShortcut, /Tu Senda 84 - Construir App Admin/);
+  assert.match(runnerShortcut, /-Once/);
+  assert.match(runnerShortcut, /SecretsInShortcutArguments = \$false/);
   assert.match(gradle, /releaseKeystorePropertiesFile\.parentFile/);
   assert.match(gradle, /Firebase es obligatorio/);
   assert.match(gradle, /releasePackagingRequested && !firebaseConfigFile\.exists/);
+});
+
+test('Mobile Admin recupera avisos sin depender exclusivamente de Firebase', () => {
+  assert.match(sidebar, /\/api\/pz\/admin-push\/v2\/register/);
+  assert.match(sidebar, /credential_required/);
+  assert.match(sidebar, /completeRegistration\?\.\(credential, storeId\)/);
+  assert.match(sidebar, /setNotificationsEnabled/);
+  assert.doesNotMatch(sidebar, /\/api\/pz\/store-push\/disable/);
+  assert.match(android, /localInstallationId/);
+  assert.match(android, /TRIGGER_RESUME/);
+  assert.match(android, /TRIGGER_FOREGROUND/);
+  assert.match(adminNotificationClient, /\/api\/pz\/admin-push\/v2\/notifications\/sync/);
+  assert.match(adminNotificationClient, /BuildConfig\.API_BASE_URL/);
+  assert.doesNotMatch(adminNotificationClient, /BuildConfig\.ADMIN_URL/);
+  assert.match(adminNotificationClient, /runDurableBackgroundSync/);
+  assert.match(adminMessaging, /AdminPushPayload\.fromFcm/);
+  assert.match(adminMessaging, /PushNotifications\.show/);
+  assert.match(adminNotificationStore, /native_delivered/);
+  assert.match(adminPushPayload, /source\.keySet\(\)\.equals\(FCM_KEYS\)/);
+  assert.doesNotMatch(
+    adminNotificationClient + adminNotificationStore + adminPushPayload,
+    /\b(?:Set|List)\.(?:of|copyOf)\(/,
+  );
+  assert.match(adminNotificationClient, /while \(keys\.hasNext\(\)\)/);
+  assert.match(adminPushPayload, /while \(keys\.hasNext\(\)\)/);
+  assert.match(adminMessaging, /PushNotifications\.show/);
+  assert.match(
+    readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/PushNotifications.java', import.meta.url), 'utf8'),
+    /static synchronized boolean show[\s\S]*boundStoreId[\s\S]*wasDisplayed[\s\S]*markDisplayed/,
+  );
+  assert.match(adminPushBackend, /SYNC_WINDOW_MS = 72/);
+  assert.match(adminPushBackend, /credential_digest/);
+  assert.match(adminPushRoutes, /admin_push_receipt_cleanup/);
+  assert.match(masterView, /Firebase \+ recuperación automática/);
 });

@@ -50,6 +50,13 @@ routerAdd(
 );
 
 routerAdd(
+  "POST", "/api/pz/master/admin-app-releases/start-runner",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleRunnerStart(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(), $apis.bodyLimit(2048), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "POST", "/api/pz/master/admin-app-releases/action",
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleMasterAction(e),
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireAuthenticatedUser(e),
@@ -96,6 +103,13 @@ routerAdd(
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleRunnerClaim(e),
   (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireRunner(e),
   $apis.bodyLimit(1024), $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST", "/api/pz/internal/admin-app-runners/heartbeat",
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).handleRunnerHeartbeat(e),
+  (e) => require(`${__hooks}/pz_admin_app_releases_lib.js`).requireRunner(e),
+  $apis.bodyLimit(2048), $apis.skipSuccessActivityLog()
 );
 
 routerAdd(

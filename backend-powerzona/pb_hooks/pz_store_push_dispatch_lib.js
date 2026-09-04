@@ -124,6 +124,7 @@ function findActiveDevices(app, storeId) {
 }
 
 function canReceive(app, device, store, notificationType) {
+  if (recordValue(device, "notifications_enabled") === false) return false;
   const user = findRecord(app, "users", relationId(device, "user"));
   if (!user || recordString(user, "status") !== "active") return false;
   if (relationId(user, "store") !== String(store.id || recordString(store, "id"))) return false;

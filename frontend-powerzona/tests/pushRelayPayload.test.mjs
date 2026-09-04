@@ -94,12 +94,13 @@ test('el puente Android no devuelve el FID directamente a frames del WebView', (
   assert.match(activitySource, /getStringExtra\("target_url"\)/);
 });
 
-test('el relay envia payload hibrido para que Android lo muestre con la app cerrada', () => {
+test('el relay envia solo datos para que Android deduplique y confirme la entrega', () => {
   const relaySource = readFileSync(
     new URL('../src/pages/api/internal/push/send.ts', import.meta.url),
     'utf8',
   );
-  assert.match(relaySource, /notification:\s*\{\s*title:\s*payload\.notification\.title,[\s\S]*?body:\s*payload\.notification\.body/);
-  assert.match(relaySource, /channelId:\s*androidNotificationChannelId\(payload\.notification\)/);
+  assert.match(relaySource, /data:\s*\{[\s\S]*?notification_id:\s*payload\.notification\.id,[\s\S]*?title:\s*payload\.notification\.title,[\s\S]*?body:\s*payload\.notification\.body/);
+  assert.doesNotMatch(relaySource, /fids:[\s\S]*?\n\s*notification:\s*\{/);
+  assert.doesNotMatch(relaySource, /channelId:\s*androidNotificationChannelId/);
   assert.match(relaySource, /priority:\s*androidMessagePriority\(payload\.notification\)/);
 });

@@ -48,19 +48,39 @@ test('preview fija entrega autenticada, aprobación Master y publicación autom�
     firebase_app_id: '', latest_version_code: 3,
     get(key) { return this[key]; },
   };
-  const preview = releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' });
+  const approvedRelease = { version: '2.0.0', revision: 'a'.repeat(40), severity: 'recommended' };
+  const preview = releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' }, null, approvedRelease);
   assert.equal(preview.operation, 'update');
-  assert.deepEqual(preview.engine, { name: 'Tu Senda 84 Admin Engine', version: '1.0.1', contract_version: 1, firebase_required: true });
+  assert.deepEqual(preview.engine, {
+    name: 'Tu Senda 84 Admin Engine', version: '2.0.0', revision: 'a'.repeat(40),
+    contract_version: 2, firebase_required: true, api_base_url: 'https://api.tusenda84.com',
+  });
   assert.deepEqual(preview.notifications, { firebase_required: true, managed_by_engine: true });
   assert.equal(preview.identity.package_name, 'com.tusenda84.admin');
+  assert.equal(preview.engine.api_base_url, 'https://api.tusenda84.com');
   assert.equal(preview.delivery.authenticated_only, true);
   assert.equal(preview.delivery.master_test_approval_required, true);
   assert.equal(preview.delivery.automatic_authorized_admin_delivery, true);
   assert.equal(preview.delivery.mandatory_after_publication, true);
-  assert.equal(releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' }).identity.signing_cert_sha256, preview.identity.signing_cert_sha256);
+  assert.equal(releases.buildPreview(profile, { versionCode: 4, versionName: '1.0.3' }, null, approvedRelease).identity.signing_cert_sha256, preview.identity.signing_cert_sha256);
   assert.match(source, /signing_identity_required/);
   assert.match(source, /sha256Domain\("pz_admin_app_preview:v2", canonical\(currentPreview\)\) !== hash/);
   assert.equal(releases.nextVersionCode({ latest_version_code: 4, last_allocated_version_code: 7 }), 8);
+});
+
+test('la API nativa pertenece al motor y falla cerrada ante un origen no válido', () => {
+  const previousOs = global.$os;
+  try {
+    global.$os = { getenv: (name) => (name === 'PZ_ADMIN_API_BASE_URL' ? 'https://api.example.test:8443' : '') };
+    assert.equal(releases.adminApiBaseUrl(), 'https://api.example.test:8443');
+    global.$os = { getenv: (name) => (name === 'PZ_ADMIN_API_BASE_URL' ? 'https://attacker.test/path' : '') };
+    assert.equal(releases.adminApiBaseUrl(), '');
+    global.$os = { getenv: (name) => (name === 'PZ_ADMIN_API_BASE_URL' ? 'https://user@attacker.test' : '') };
+    assert.equal(releases.adminApiBaseUrl(), '');
+  } finally {
+    if (previousOs === undefined) delete global.$os;
+    else global.$os = previousOs;
+  }
 });
 
 test('política y check-in usan la última APK publicada sin asignaciones individuales', () => {
@@ -96,7 +116,7 @@ test('asignaciones y completion rechazan formas laxas o artefactos incompletos',
   const complete = {
     job_id: 'jobc10800000001', runner_id: 'runner-c108', status: 'succeeded', failure_code: '',
     signing_cert_sha256: '11:'.repeat(31) + '11',
-    engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1', engine_contract_version: 1,
+    engine_name: 'Tu Senda 84 Admin Engine', engine_version: '2.0.0', engine_contract_version: 2,
     engine_revision: 'b'.repeat(40),
     artifacts: ['apk', 'checksums', 'instructions', 'build_manifest'].map((kind) => ({
       kind,
@@ -136,4 +156,24 @@ test('secreto del runner compara hashes y rechaza valores cortos', () => {
   assert.equal(releases.secretEqual('a'.repeat(32), 'a'.repeat(32), security), true);
   assert.equal(releases.secretEqual('a'.repeat(32), 'b'.repeat(32), security), false);
   assert.equal(releases.secretEqual('short', 'short', security), false);
+});
+
+test('runner Admin exige revisión exacta, capacidades y autorización de un solo uso', () => {
+  const now = new Date('2026-09-04T12:00:00.000Z');
+  const agent = {
+    runner_id: 'admin-runner-pc', mode: 'manual', engine_version: '2.0.0',
+    engine_revision: 'a'.repeat(40), allow_firebase: true, allow_signing: true,
+    workspace_clean: true, last_seen_at: now.toISOString(),
+    get(key) { return this[key]; },
+  };
+  const preview = { engine: { version: '2.0.0', revision: 'a'.repeat(40) } };
+  const compatible = releases.runnerCompatibility(agent, preview, now);
+  assert.equal(compatible.engineMatches, true);
+  assert.equal(compatible.capabilitiesMatch, true);
+  assert.equal(compatible.snapshot.online, true);
+  assert.equal(releases.runnerCompatibility({ ...agent, engine_revision: 'b'.repeat(40) }, preview, now).engineMatches, false);
+  assert.equal(releases.runnerCompatibility({ ...agent, allow_signing: false }, preview, now).capabilitiesMatch, false);
+  assert.match(source, /RUNNER_AUTHORIZATION_TTL_MS = 10 \* 60 \* 1000/);
+  assert.match(source, /execution_authorized_until/);
+  assert.match(source, /execution_runner_id/);
 });

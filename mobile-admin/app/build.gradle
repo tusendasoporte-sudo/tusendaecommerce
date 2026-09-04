@@ -9,6 +9,7 @@ if (firebaseConfigFile.exists()) {
 
 def configuredAppName = (project.findProperty('PZ_APP_NAME') ?: 'Tu Senda 84 Admin').toString()
 def configuredAdminUrl = (project.findProperty('PZ_ADMIN_URL') ?: 'https://tusenda84.com/admin').toString()
+def configuredApiBaseUrl = (project.findProperty('PZ_API_BASE_URL') ?: 'https://api.tusenda84.com').toString()
 def configuredApplicationId = (project.findProperty('PZ_APPLICATION_ID') ?: 'com.tusenda84.admin').toString()
 def configuredVersionCode = Integer.parseInt((project.findProperty('PZ_ADMIN_VERSION_CODE') ?: '3').toString())
 def configuredVersionName = (project.findProperty('PZ_ADMIN_VERSION_NAME') ?: '1.0.2').toString()
@@ -16,6 +17,22 @@ def configuredSplashBackground = (project.findProperty('PZ_SPLASH_BACKGROUND') ?
 if (configuredVersionCode < 1) throw new GradleException('PZ_ADMIN_VERSION_CODE debe ser mayor que cero.')
 if (!(configuredVersionName ==~ /[0-9]+\.[0-9]+\.[0-9]+/)) throw new GradleException('PZ_ADMIN_VERSION_NAME debe usar formato X.Y.Z.')
 if (!(configuredSplashBackground ==~ /#[A-F0-9]{6}/)) throw new GradleException('PZ_SPLASH_BACKGROUND debe usar formato #RRGGBB.')
+def configuredApiUri = null
+try {
+    configuredApiUri = new URI(configuredApiBaseUrl)
+} catch (Exception ignored) {
+}
+if (!configuredApiUri
+    || configuredApiUri.scheme != 'https'
+    || !configuredApiUri.host
+    || configuredApiUri.rawUserInfo
+    || configuredApiUri.rawQuery
+    || configuredApiUri.rawFragment
+    || (configuredApiUri.rawPath && configuredApiUri.rawPath != '/')
+    || configuredApiUri.port == 0
+    || configuredApiUri.port > 65535) {
+    throw new GradleException('PZ_API_BASE_URL debe ser un origen HTTPS valido sin ruta.')
+}
 def configuredSigningProperties = (project.findProperty('PZ_ADMIN_SIGNING_PROPERTIES') ?: '').toString().trim()
 def releaseKeystorePropertiesFile = configuredSigningProperties
     ? rootProject.file(configuredSigningProperties)
@@ -65,6 +82,7 @@ android {
         manifestPlaceholders = [appName: configuredAppName]
         resValue 'color', 'pz_splash_background', configuredSplashBackground
         buildConfigField 'String', 'ADMIN_URL', javaStringLiteral(configuredAdminUrl)
+        buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(configuredApiBaseUrl)
         buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(configuredAppName)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
     }
@@ -112,6 +130,7 @@ android {
 
 dependencies {
     implementation 'androidx.core:core:1.17.0'
+    implementation 'androidx.work:work-runtime:2.10.1'
     implementation platform('com.google.firebase:firebase-bom:34.17.0')
     implementation 'com.google.firebase:firebase-messaging'
     testImplementation 'junit:junit:4.13.2'

@@ -4,7 +4,6 @@ import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin
 import { getMessaging } from 'firebase-admin/messaging';
 import {
   androidMessagePriority,
-  androidNotificationChannelId,
   groupDevicesByAppId,
   isInvalidInstallationError,
   normalizeRelayPayload,
@@ -80,10 +79,6 @@ export const POST: APIRoute = async ({ request }) => {
     for (const [appId, devices] of groupDevicesByAppId(payload.devices)) {
       const result = await messaging.sendEachForMulticast({
         fids: devices.map((device) => device.fid),
-        notification: {
-          title: payload.notification.title,
-          body: payload.notification.body,
-        },
         data: {
           notification_id: payload.notification.id,
           store_id: payload.notification.store_id,
@@ -97,12 +92,6 @@ export const POST: APIRoute = async ({ request }) => {
           priority: androidMessagePriority(payload.notification),
           ttl: 86_400_000,
           restrictedPackageName: appId,
-          notification: {
-            channelId: androidNotificationChannelId(payload.notification),
-            icon: 'ic_notification',
-            color: '#2563EB',
-            tag: `pz_${payload.notification.id}`,
-          },
         },
       });
 

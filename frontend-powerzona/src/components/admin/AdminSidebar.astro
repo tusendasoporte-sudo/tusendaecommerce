@@ -790,6 +790,7 @@ const audienceSubClass = (subsection: string) => {
     let realtimeUnsubscribe = null;
     let realtimeRefreshTimer = null;
     let nativeRegistrationSyncTimer = null;
+    let nativeRegistrationSyncPromise = null;
     let nativePushState = null;
     let audioContext = null;
 
@@ -1467,25 +1468,42 @@ const audienceSubClass = (subsection: string) => {
     function nativePushPayload(state) {
       return {
         installation_id: String(state?.installation_id || '').trim(),
+        firebase_installation_id: String(state?.firebase_installation_id || '').trim(),
         app_id: String(state?.app_id || '').trim(),
         device_label: String(state?.device_label || '').trim().slice(0, 120),
         os_version: String(state?.os_version || '').trim().slice(0, 40),
         app_version: String(state?.app_version || '').trim().slice(0, 40),
+        app_version_code: Number(state?.app_version_code || 0),
+        notification_permission: String(state?.permission || 'prompt'),
+        notifications_enabled: getBrowserNotificationsEnabled(),
+        credential_required: state?.credential_ready !== true,
       };
     }
 
     function handleNativePushState(event) {
       const detail = event?.detail;
       if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return;
+      const previous = nativePushState;
       nativePushState = {
         permission: String(detail.permission || 'prompt'),
         installation_id: String(detail.installation_id || ''),
+        firebase_installation_id: String(detail.firebase_installation_id || ''),
+        credential_ready: detail.credential_ready === true,
+        notifications_enabled: detail.notifications_enabled === true,
         app_id: String(detail.app_id || ''),
         device_label: String(detail.device_label || ''),
         os_version: String(detail.os_version || ''),
         app_version: String(detail.app_version || ''),
+        app_version_code: Number(detail.app_version_code || 0),
+        last_successful_sync: String(detail.last_successful_sync || ''),
       };
       renderBrowserNotificationsButton();
+      if (previous && (
+        previous.permission !== nativePushState.permission
+        || previous.firebase_installation_id !== nativePushState.firebase_installation_id
+        || previous.credential_ready !== nativePushState.credential_ready
+        || previous.notifications_enabled !== nativePushState.notifications_enabled
+      )) scheduleNativePushSync(0);
     }
 
     function requestNativePushState(bridge, timeoutMs = 900) {
@@ -1513,41 +1531,45 @@ const audienceSubClass = (subsection: string) => {
     }
 
     async function syncNativePushRegistration(attempt = 0) {
-      const bridge = getNativePushBridge();
-      if (!bridge || !getBrowserNotificationsEnabled()) return false;
-      const state = await requestNativePushState(bridge);
-      const permission = String(state?.permission || bridge.permissionState?.() || 'prompt');
-      renderBrowserNotificationsButton();
-      if (permission !== 'granted') {
-        if (permission === 'prompt' && attempt < 30) scheduleNativePushSync(attempt + 1);
-        return false;
+      if (nativeRegistrationSyncPromise) return nativeRegistrationSyncPromise;
+      nativeRegistrationSyncPromise = performNativePushRegistration(attempt);
+      try {
+        return await nativeRegistrationSyncPromise;
+      } finally {
+        nativeRegistrationSyncPromise = null;
       }
+    }
+
+    async function performNativePushRegistration(attempt = 0) {
+      const bridge = getNativePushBridge();
+      if (!bridge) return false;
+      const state = await requestNativePushState(bridge);
+      renderBrowserNotificationsButton();
       const installationId = String(state?.installation_id || '').trim();
       if (!installationId) {
         if (attempt < 30) scheduleNativePushSync(attempt + 1);
         return false;
       }
       const payload = nativePushPayload(state);
-      if (!payload.app_id) return false;
-      await api('/api/pz/store-push/register', {
+      if (!payload.app_id || payload.app_version_code < 1) return false;
+      try { bridge.setNotificationsEnabled?.(payload.notifications_enabled); } catch (error) {}
+      const result = await api('/api/pz/admin-push/v2/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      const credential = String(result?.credential || '');
+      if (credential && bridge.completeRegistration?.(credential, storeId) !== true) {
+        throw new Error('No se pudo proteger la credencial de notificaciones.');
+      }
+      try { bridge.syncNow?.(); } catch (error) {}
       renderBrowserNotificationsButton();
       return true;
     }
 
     async function disableNativePushRegistration(bridge) {
-      const state = await requestNativePushState(bridge);
-      const installationId = String(state?.installation_id || '').trim();
-      const appId = String(state?.app_id || '').trim();
-      if (!installationId || !appId) return;
-      await api('/api/pz/store-push/disable', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ installation_id: installationId, app_id: appId }),
-      });
+      try { bridge.setNotificationsEnabled?.(false); } catch (error) {}
+      await syncNativePushRegistration();
     }
 
     function shouldRunNotificationCleanup(settings = {}) {
@@ -2119,6 +2141,7 @@ const audienceSubClass = (subsection: string) => {
             if (typeof window.adminToast === 'function') window.adminToast('Avisos de Android pausados', 'info');
           } else {
             setBrowserNotificationsEnabled(true);
+            nativeBridge.setNotificationsEnabled?.(true);
             nativeBridge.requestPermission?.();
             scheduleNativePushSync(0);
             if (typeof window.adminToast === 'function') window.adminToast('Activando avisos de Android...', 'info');
@@ -2139,6 +2162,7 @@ const audienceSubClass = (subsection: string) => {
         }
       } catch (error) {
         setBrowserNotificationsEnabled(false);
+        try { getNativePushBridge()?.setNotificationsEnabled?.(false); } catch (ignored) {}
       } finally {
         renderBrowserNotificationsButton();
       }
@@ -2154,6 +2178,7 @@ const audienceSubClass = (subsection: string) => {
       }
 
       setBrowserNotificationsEnabled(true);
+      nativeBridge.setNotificationsEnabled?.(true);
       nativePushOnboardingButton.disabled = true;
       nativeBridge.requestPermission?.();
       scheduleNativePushSync(0);

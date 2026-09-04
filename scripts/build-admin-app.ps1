@@ -8,6 +8,7 @@ param(
     [ValidatePattern('^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$')][string]$PackageName = 'com.tusenda84.admin',
     [string]$DisplayName = 'Tu Senda 84 Admin',
     [string]$AdminUrl = 'https://tusenda84.com/admin',
+    [string]$ApiBaseUrl = '',
     [ValidatePattern('^$|^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$')][string]$ExpectedSigningCertSha256 = '',
     [ValidatePattern('^$|^[a-f0-9]{64}$')][string]$IconSha256 = '',
     [ValidatePattern('^$|^[a-f0-9]{64}$')][string]$SplashSha256 = '',
@@ -18,6 +19,7 @@ param(
     [string]$SigningPropertiesPath,
     [string]$ConfirmedPreviewPath,
     [ValidatePattern('^$|^[a-f0-9]{64}$')][string]$ConfirmedPreviewHash = '',
+    [ValidatePattern('^$|^[a-f0-9]{40}$')][string]$EngineRevision = '',
     [switch]$ExecuteBuild
 )
 
@@ -28,7 +30,28 @@ $engineManifestPath = Join-Path $mobileRoot 'engine.json'
 if (-not (Test-Path -LiteralPath $engineManifestPath -PathType Leaf)) { throw 'Falta el contrato del motor Mobile Admin.' }
 $engineManifest = Get-Content -LiteralPath $engineManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ([string]$engineManifest.name -ne 'Tu Senda 84 Admin Engine' -or [string]$engineManifest.version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' `
-    -or [int]$engineManifest.contract_version -lt 1 -or $engineManifest.firebase_required -ne $true) { throw 'El contrato del motor Mobile Admin es inválido.' }
+    -or [int]$engineManifest.contract_version -ne 2 -or $engineManifest.firebase_required -ne $true) { throw 'El contrato del motor Mobile Admin es inválido.' }
+
+$resolvedApiBaseUrl = $ApiBaseUrl.Trim()
+if (-not $resolvedApiBaseUrl) { $resolvedApiBaseUrl = ([string]$engineManifest.api_base_url).Trim() }
+$apiUri = $null
+try { $apiUri = [Uri]$resolvedApiBaseUrl } catch {}
+if (-not $apiUri -or -not $apiUri.IsAbsoluteUri -or $apiUri.Scheme -cne 'https' -or -not $apiUri.Host `
+    -or $apiUri.UserInfo -or $apiUri.Query -or $apiUri.Fragment -or ($apiUri.AbsolutePath -and $apiUri.AbsolutePath -ne '/')) {
+    throw 'ApiBaseUrl debe ser un origen HTTPS sin ruta, credenciales, consulta ni fragmento.'
+}
+$resolvedApiBaseUrl = $apiUri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
+
+$resolvedEngineRevision = $EngineRevision.Trim().ToLowerInvariant()
+if (-not $resolvedEngineRevision) {
+    $resolvedEngineRevision = ([string](& git -C $repositoryRoot rev-parse HEAD)).Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0) {
+        throw 'No se pudo fijar la revisión aprobada del motor Mobile Admin.'
+    }
+}
+if ($resolvedEngineRevision -cnotmatch '^[a-f0-9]{40}$') {
+    throw 'No se pudo fijar la revisión aprobada del motor Mobile Admin.'
+}
 
 function ConvertTo-CanonicalJson {
     param([Parameter(Mandatory = $true)]$Value)
@@ -98,7 +121,7 @@ $preview = [ordered]@{
     schema_version = 2
     app = 'mobile-admin'
     channel = $Channel
-    engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; firebase_required = $true }
+    engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; revision = $resolvedEngineRevision; contract_version = [int]$engineManifest.contract_version; firebase_required = $true; api_base_url = $resolvedApiBaseUrl }
     operation = $ReleaseOperation
     identity = [ordered]@{
         display_name = $DisplayName
@@ -132,6 +155,8 @@ if ($confirmed.preview_hash -ne $ConfirmedPreviewHash -or $ConfirmedPreviewHash 
 
 $gitRevision = [string](& git -C $repositoryRoot rev-parse HEAD)
 if ($LASTEXITCODE -ne 0 -or $gitRevision.Trim() -notmatch '^[a-f0-9]{40}$') { throw 'No se pudo fijar la revisión Git.' }
+$gitRevision = $gitRevision.Trim().ToLowerInvariant()
+if ($gitRevision -cne $resolvedEngineRevision) { throw 'La revisión local no coincide con el motor aprobado.' }
 $workspaceChanges = @(& git -C $repositoryRoot status --porcelain --untracked-files=all)
 if ($BuildType -eq 'Release' -and $workspaceChanges.Count -ne 0) { throw 'Release requiere un workspace Git limpio.' }
 
@@ -173,7 +198,7 @@ try {
         Remove-Item -LiteralPath $splashXmlTarget -Force
         Copy-Item -LiteralPath $SplashPath -Destination $splashPngTarget
     }
-    $gradleArgs = @("-PPZ_ADMIN_VERSION_CODE=$VersionCode", "-PPZ_ADMIN_VERSION_NAME=$VersionName", "-PPZ_APPLICATION_ID=$PackageName", "-PPZ_APP_NAME=$DisplayName", "-PPZ_ADMIN_URL=$AdminUrl", "-PPZ_SPLASH_BACKGROUND=$SplashBackgroundColor", '--no-daemon')
+    $gradleArgs = @("-PPZ_ADMIN_VERSION_CODE=$VersionCode", "-PPZ_ADMIN_VERSION_NAME=$VersionName", "-PPZ_APPLICATION_ID=$PackageName", "-PPZ_APP_NAME=$DisplayName", "-PPZ_ADMIN_URL=$AdminUrl", "-PPZ_API_BASE_URL=$resolvedApiBaseUrl", "-PPZ_SPLASH_BACKGROUND=$SplashBackgroundColor", '--no-daemon')
     if ($BuildType -eq 'Debug') {
         & $gradle 'clean' 'testDebugUnitTest' 'lintDebug' 'assembleDebug' @gradleArgs
         $sourceApk = Join-Path $mobileRoot 'app\build\outputs\apk\debug\app-debug.apk'
@@ -190,13 +215,13 @@ try {
     @("Aplicación: $DisplayName", "Paquete: $PackageName", "Versión: $VersionName ($VersionCode)", "Motor: $($engineManifest.name) $($engineManifest.version)", "SHA-256: $apkHash", 'Instalar sin desinstalar la versión anterior.') | Set-Content -LiteralPath (Join-Path $releaseDirectory 'INSTRUCCIONES.txt') -Encoding UTF8
     [ordered]@{
         schema_version = 2; app = 'mobile-admin'; channel = $Channel
-        engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; git_commit = $gitRevision.Trim() }
+        engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; git_commit = $gitRevision; api_base_url = $resolvedApiBaseUrl }
         version_code = $VersionCode; version_name = $VersionName; package_name = $PackageName; signing_cert_sha256 = $signingCert
         appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
         notifications = [ordered]@{ firebase_required = $true; included = $true }
         apk = $apkName; sha256 = $apkHash
     } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $releaseDirectory 'build-manifest.json') -Encoding UTF8
-    return [pscustomobject]@{ OutputDirectory = $releaseDirectory; ApkName = $apkName; ApkSha256 = $apkHash; SigningCertSha256 = $signingCert; PreviewHash = $previewHash }
+    return [pscustomobject]@{ OutputDirectory = $releaseDirectory; ApkName = $apkName; ApkSha256 = $apkHash; SigningCertSha256 = $signingCert; PreviewHash = $previewHash; EngineVersion = [string]$engineManifest.version; EngineRevision = $gitRevision; ApiBaseUrl = $resolvedApiBaseUrl }
 } catch {
     if (Test-Path -LiteralPath $releaseDirectory) { Remove-Item -LiteralPath $releaseDirectory -Recurse -Force }
     throw

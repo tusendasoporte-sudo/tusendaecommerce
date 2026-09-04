@@ -1,6 +1,7 @@
 {
   "name": "Tu Senda 84 Admin Engine",
-  "version": "1.0.1",
-  "contract_version": 1,
-  "firebase_required": true
+  "version": "2.0.0",
+  "contract_version": 2,
+  "firebase_required": true,
+  "api_base_url": "https://api.tusenda84.com"
 }

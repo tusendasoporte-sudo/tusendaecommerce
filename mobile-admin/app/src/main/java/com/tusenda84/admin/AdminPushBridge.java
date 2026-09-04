@@ -11,7 +11,7 @@ final class AdminPushBridge {
 
     @JavascriptInterface
     public boolean isAvailable() {
-        return BuildConfig.FIREBASE_CONFIGURED;
+        return true;
     }
 
     @JavascriptInterface
@@ -32,5 +32,20 @@ final class AdminPushBridge {
     @JavascriptInterface
     public void openSettings() {
         activity.runOnUiThread(activity::openNotificationSettings);
+    }
+
+    @JavascriptInterface
+    public boolean completeRegistration(String credential, String storeId) {
+        return activity.completePushRegistration(credential, storeId);
+    }
+
+    @JavascriptInterface
+    public void setNotificationsEnabled(boolean enabled) {
+        activity.setPushNotificationsEnabled(enabled);
+    }
+
+    @JavascriptInterface
+    public void syncNow() {
+        activity.syncAdminNotifications(AdminNotificationStore.TRIGGER_FOREGROUND);
     }
 }

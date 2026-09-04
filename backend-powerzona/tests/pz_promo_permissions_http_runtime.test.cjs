@@ -43,6 +43,8 @@ const POST_PERMISSION_MIGRATIONS = [
   '1788447900_public_homepage_settings.js',
   '1788448000_storefront_delivery_transport_observability.js',
   '1788448100_homepage_store_label.js',
+  '1788448200_admin_app_engine_v2_runner_control.js',
+  '1788448300_admin_push_resilience.js',
 ];
 
 function runtimeEnvironment() {

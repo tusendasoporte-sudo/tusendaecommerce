@@ -15,6 +15,7 @@ const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'po
 const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
 const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 const RUNNER_SECRET = 'c108-runtime-runner-secret-abcdefghijklmnopqrstuvwxyz';
+const ENGINE_REVISION = 'b'.repeat(40);
 const SIGNING_CERT = `${'11:'.repeat(31)}11`;
 const PASSWORD = 'Qa-C108-runtime-password-2026!';
 const DEVICE_HEADER = 'X-PZ-Admin-Device';
@@ -130,7 +131,14 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
   timeout: 90_000,
 }, async () => {
   const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'pz-c108-runtime-'));
-  const environment = { ...process.env, PZ_ADMIN_APP_RUNNER_SECRET: RUNNER_SECRET };
+  const environment = {
+    ...process.env,
+    PZ_ADMIN_APP_RUNNER_SECRET: RUNNER_SECRET,
+    PZ_ADMIN_ENGINE_VERSION: '2.0.0',
+    PZ_ADMIN_ENGINE_REVISION: ENGINE_REVISION,
+    PZ_ADMIN_API_BASE_URL: 'https://api.tusenda84.com',
+    PZ_ADMIN_ENGINE_UPDATE_SEVERITY: 'recommended',
+  };
   const superEmail = 'super-c108-runtime@example.test';
   const masterEmail = 'master-c108-runtime@example.test';
   const adminEmail = 'admin-c108-runtime@example.test';
@@ -200,6 +208,115 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       return devices.data.items.find((item) => item.device_digest === digest)?.id || '';
     });
     assert.ok(deviceIds.every((id) => /^[a-z0-9]{15}$/.test(id)), 'resolver los tres dispositivos exactos');
+    const adminHeaders = { [DEVICE_HEADER]: deviceTokens[0] };
+
+    const pushRegistration = await request('/api/pz/admin-push/v2/register', {
+      token: adminLogins[0],
+      headers: adminHeaders,
+      body: {
+        installation_id: '123e4567-e89b-42d3-a456-426614174000',
+        firebase_installation_id: '',
+        app_id: 'com.tusenda84.admin',
+        device_label: 'Android Runtime C10.8',
+        os_version: 'Android 16 (API 36)',
+        app_version: '2.0.0',
+        app_version_code: 4,
+        notification_permission: 'granted',
+        notifications_enabled: true,
+        credential_required: true,
+      },
+    });
+    assertStatus(pushRegistration, 201, 'registrar identidad local Admin sin depender de Firebase');
+    assert.match(pushRegistration.data.credential, /^pza_v1_[a-f0-9]{64}$/);
+    assert.equal(pushRegistration.data.device.firebase_status, 'pending');
+    const pushCredential = pushRegistration.data.credential;
+
+    const firebaseEnrichment = await request('/api/pz/admin-push/v2/firebase', {
+      token: pushCredential,
+      body: { firebase_installation_id: 'runtimeAdminFid_20260904' },
+    });
+    assertStatus(firebaseEnrichment, 200, 'enriquecer Firebase después del registro básico');
+    assert.equal(firebaseEnrichment.data.device.firebase_status, 'registered');
+
+    const recoverableNotification = await create('store_notifications', {
+      store: store.id,
+      type: 'low_stock',
+      title: 'Stock bajo runtime',
+      message: 'Quedan dos unidades.',
+      status: 'unread',
+      priority: 'important',
+      target_url: '/admin/products',
+    });
+    const synchronized = await request('/api/pz/admin-push/v2/notifications/sync', {
+      token: pushCredential,
+      body: { delivery_trigger: 'workmanager' },
+    });
+    assertStatus(synchronized, 200, 'recuperar avisos no leídos sin Firebase');
+    assert.deepEqual(
+      synchronized.data.notifications.map((item) => item.notification_id),
+      [recoverableNotification.id],
+    );
+
+    const occurredAt = new Date().toISOString();
+    const acknowledged = await request('/api/pz/admin-push/v2/notifications/ack', {
+      token: pushCredential,
+      body: {
+        receipts: [{
+          notification_id: recoverableNotification.id,
+          state: 'native_delivered',
+          occurred_at: occurredAt,
+          delivery_trigger: 'workmanager',
+        }, {
+          notification_id: recoverableNotification.id,
+          state: 'read',
+          occurred_at: occurredAt,
+          delivery_trigger: '',
+        }],
+      },
+    });
+    assertStatus(acknowledged, 200, 'confirmar entrega y lectura nativas');
+    assert.equal(acknowledged.data.accepted + acknowledged.data.duplicates, 2);
+    const readNotification = await request(
+      `/api/collections/store_notifications/records/${recoverableNotification.id}`,
+      { token: superToken },
+    );
+    assertStatus(readNotification, 200, 'comprobar lectura durable');
+    assert.equal(readNotification.data.status, 'read');
+
+    const pausedRegistration = await request('/api/pz/admin-push/v2/register', {
+      token: adminLogins[0],
+      headers: adminHeaders,
+      body: {
+        installation_id: '123e4567-e89b-42d3-a456-426614174000',
+        firebase_installation_id: 'runtimeAdminFid_20260904',
+        app_id: 'com.tusenda84.admin',
+        device_label: 'Android Runtime C10.8',
+        os_version: 'Android 16 (API 36)',
+        app_version: '2.0.0',
+        app_version_code: 4,
+        notification_permission: 'granted',
+        notifications_enabled: false,
+        credential_required: false,
+      },
+    });
+    assertStatus(pausedRegistration, 200, 'pausar avisos sin borrar la instalación');
+    assert.equal(pausedRegistration.data.credential, '');
+    const pausedNotification = await create('store_notifications', {
+      store: store.id,
+      type: 'new_order',
+      title: 'Pedido runtime pausado',
+      message: 'No debe entregarse mientras la instalación esté pausada.',
+      status: 'unread',
+      priority: 'critical',
+      target_url: '/admin/orders',
+    });
+    const pausedSync = await request('/api/pz/admin-push/v2/notifications/sync', {
+      token: pushCredential,
+      body: { delivery_trigger: 'resume_sync' },
+    });
+    assertStatus(pausedSync, 200, 'sincronizar instalación pausada sin entregar');
+    assert.equal(pausedSync.data.notifications.length, 0);
+    assert.ok(pausedNotification.id);
 
     const anonymous = await request('/api/pz/master/admin-app-releases/detail', { body: { channel: 'staging' } });
     assert.ok([401, 403].includes(anonymous.status));
@@ -240,14 +357,37 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       'x-pz-admin-app-runner': RUNNER_SECRET,
       'x-pz-admin-app-runner-id': 'runtime-c108',
     };
-    const claimed = await request('/api/pz/internal/admin-app-builds/claim', {
-      headers: runnerHeaders, body: {
-        runner_id: 'runtime-c108', engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1',
-        engine_contract_version: 1, engine_revision: 'b'.repeat(40),
+    const heartbeat = await request('/api/pz/internal/admin-app-runners/heartbeat', {
+      headers: runnerHeaders,
+      body: {
+        runner_id: 'runtime-c108',
+        engine_version: '2.0.0',
+        engine_revision: ENGINE_REVISION,
+        mode: 'manual',
+        allow_firebase: true,
+        allow_signing: true,
+        workspace_clean: true,
       },
+    });
+    assertStatus(heartbeat, 200, 'registrar Runner Admin independiente');
+
+    const authorized = await request('/api/pz/master/admin-app-releases/start-runner', {
+      token: masterToken,
+      body: {
+        job_id: preview.data.job.id,
+        preview_hash: preview.data.job.preview_hash,
+        confirmation: 'INICIAR RUNNER ADMIN',
+      },
+    });
+    assertStatus(authorized, 200, 'autorizar un solo trabajo para el Runner Admin');
+    assert.equal(authorized.data.runner.runner_id, 'runtime-c108');
+
+    const claimed = await request('/api/pz/internal/admin-app-builds/claim', {
+      headers: runnerHeaders, body: { runner_id: 'runtime-c108' },
     });
     assertStatus(claimed, 200, 'reclamar build C10.8');
     assert.equal(claimed.data.job.id, preview.data.job.id);
+    assert.equal(claimed.data.job.preview.engine.api_base_url, 'https://api.tusenda84.com');
     assert.equal(claimed.data.job.profile.icon.sha256, sha256(iconBytes));
     const runnerIcon = await fetch(`${baseUrl}${claimed.data.job.profile.icon.download_path}`, { headers: runnerHeaders, signal: AbortSignal.timeout(20_000) });
     assert.equal(runnerIcon.status, 200);
@@ -278,8 +418,8 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       body: {
         job_id: preview.data.job.id, runner_id: 'runtime-c108', status: 'succeeded', failure_code: '',
         signing_cert_sha256: SIGNING_CERT,
-        engine_name: 'Tu Senda 84 Admin Engine', engine_version: '1.0.1', engine_contract_version: 1,
-        engine_revision: 'b'.repeat(40),
+        engine_name: 'Tu Senda 84 Admin Engine', engine_version: '2.0.0', engine_contract_version: 2,
+        engine_revision: ENGINE_REVISION,
         artifacts: fixtures.map((fixture) => ({
           kind: fixture.kind, file_name: fixture.fileName, sha256: fixture.sha256, bytes: fixture.bytes.length,
         })),
@@ -287,7 +427,14 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     });
     assertStatus(completed, 200, 'completar build C10.8');
 
-    for (const [collection, field] of [['admin_app_brand_assets', 'file'], ['admin_app_release_profiles', 'last_allocated_version_code'], ['admin_app_build_jobs', 'engine_version'], ['admin_app_download_tickets', 'profile']]) {
+    for (const [collection, field] of [
+      ['admin_app_brand_assets', 'file'],
+      ['admin_app_release_profiles', 'current_engine_revision'],
+      ['admin_app_build_jobs', 'execution_authorized_at'],
+      ['admin_app_download_tickets', 'profile'],
+      ['admin_app_runner_agents', 'runner_id'],
+      ['admin_push_delivery_receipts', 'notification'],
+    ]) {
       const schema = await request(`/api/collections/${collection}`, { token: superToken, method: 'GET' });
       assertStatus(schema, 200, `consultar esquema ${collection}`);
       assert.ok(schema.data.fields.some((item) => item.name === field), `${collection} no contiene ${field}: ${schema.raw}`);
@@ -297,6 +444,17 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
       token: masterToken, body: { channel: 'staging' },
     });
     assertStatus(detail, 200, 'consultar inventario C10.8');
+    assert.equal(detail.data.engine.ready, true);
+    assert.equal(detail.data.engine.api_base_url, 'https://api.tusenda84.com');
+    assert.equal(detail.data.runner_control.authorization_state, 'none');
+    assert.equal(detail.data.runner_control.agents[0].runner_id, 'runtime-c108');
+    assert.equal(detail.data.policy.runner_isolated, true);
+    assert.equal(detail.data.notification_health.available, true);
+    assert.equal(detail.data.notification_health.summary.active_installations, 1);
+    assert.equal(detail.data.notification_health.summary.credential_ready, 1);
+    assert.equal(detail.data.notification_health.summary.firebase_registered, 1);
+    assert.equal(detail.data.notification_health.summary.notifications_enabled, 0);
+    assert.equal(detail.data.notification_health.summary.delivery_triggers.workmanager, 1);
     assert.equal(detail.data.profile.latest_version_code, 3, 'una candidata no sustituye la versión publicada');
     assert.equal(detail.data.profile.latest_version_name, '1.0.2');
     const apk = detail.data.artifacts.find((item) => item.kind === 'apk');
@@ -309,7 +467,6 @@ test('runtime C10.8 completa custodia, prueba Master, publicación global y obli
     assert.equal(masterPhysical.headers.get('x-pz-apk-sha256'), fixtures[0].sha256);
     assert.deepEqual(Buffer.from(await masterPhysical.arrayBuffer()), fixtures[0].bytes);
 
-    const adminHeaders = { [DEVICE_HEADER]: deviceTokens[0] };
     const unpublishedPortal = await request('/api/pz/admin-app/releases/portal', {
       token: adminLogins[0], headers: adminHeaders,
       body: { grant: '', package_name: 'com.tusenda84.admin', channel: 'production' },

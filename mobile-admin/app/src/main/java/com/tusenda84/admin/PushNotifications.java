@@ -10,10 +10,10 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import java.util.Locale;
-import java.util.Map;
 
 final class PushNotifications {
     static final String EXTRA_TARGET_URL = "pz_target_url";
+    static final String EXTRA_NOTIFICATION_ID = "pz_notification_id";
     private static final String CHANNEL_ORDERS = "pz_admin_orders";
     private static final String CHANNEL_INVENTORY = "pz_admin_inventory";
     private static final String CHANNEL_SECURITY = "pz_admin_security";
@@ -73,23 +73,20 @@ final class PushNotifications {
         return channel;
     }
 
-    static void show(Context context, Map<String, String> data, String fallbackTitle, String fallbackBody) {
+    static synchronized boolean show(Context context, AdminPushPayload payload) {
+        if (payload == null || !PushRegistrationStore.notificationsEnabled(context)) return false;
+        if (!payload.storeId.equals(PushRegistrationStore.boundStoreId(context))) return false;
+        if (AdminNotificationStore.wasDisplayed(context, payload.notificationId)) return false;
         if (android.os.Build.VERSION.SDK_INT >= 33
                 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return;
+            return false;
         }
-
-        String notificationId = clean(data.get("notification_id"));
-        String type = clean(data.get("type"));
-        String title = firstNonBlank(data.get("title"), fallbackTitle, "Nueva notificación");
-        String body = firstNonBlank(data.get("body"), fallbackBody, "Tienes un nuevo aviso en el panel administrativo.");
-        String targetUrl = clean(data.get("target_url"));
-        String storeId = clean(data.get("store_id"));
 
         Intent openIntent = new Intent(context, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        openIntent.putExtra(EXTRA_TARGET_URL, targetUrl);
-        int requestCode = positiveHash(notificationId.isEmpty() ? targetUrl + title : notificationId);
+        openIntent.putExtra(EXTRA_TARGET_URL, payload.targetUrl);
+        openIntent.putExtra(EXTRA_NOTIFICATION_ID, payload.notificationId);
+        int requestCode = positiveHash(payload.notificationId);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 context,
                 requestCode,
@@ -97,21 +94,25 @@ final class PushNotifications {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        Notification notification = new Notification.Builder(context, channelForType(type))
+        Notification notification = new Notification.Builder(context, channelForType(payload.type))
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(Color.rgb(37, 99, 235))
-                .setContentTitle(title)
-                .setContentText(body)
-                .setStyle(new Notification.BigTextStyle().bigText(body))
+                .setContentTitle(payload.title)
+                .setContentText(payload.body)
+                .setStyle(new Notification.BigTextStyle().bigText(payload.body))
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setCategory(categoryForType(type))
-                .setGroup(storeId.isEmpty() ? "pz_admin" : "pz_admin_" + storeId)
+                .setOnlyAlertOnce(true)
+                .setCategory(categoryForType(payload.type))
+                .setGroup("pz_admin_" + payload.storeId)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .build();
 
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        if (manager != null) manager.notify(requestCode, notification);
+        if (manager == null) return false;
+        manager.notify("pz_admin_" + payload.notificationId, requestCode, notification);
+        AdminNotificationStore.markDisplayed(context, payload.notificationId);
+        return true;
     }
 
     private static String channelForType(String rawType) {
@@ -134,15 +135,4 @@ final class PushNotifications {
         return hash == Integer.MIN_VALUE ? 1 : Math.max(1, Math.abs(hash));
     }
 
-    private static String clean(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            String clean = clean(value);
-            if (!clean.isEmpty()) return clean;
-        }
-        return "";
-    }
 }

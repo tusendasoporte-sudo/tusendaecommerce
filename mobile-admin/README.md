@@ -67,7 +67,11 @@ La misma base permite generar variantes para otra marca o URL administrativa:
 
 ## Notificaciones push de Android
 
-La app admite avisos de pedidos nuevos o pendientes, reseñas pendientes, stock bajo o agotado, vencimientos de productos y variaciones, seguridad y resultados de rifas aun cuando el panel este cerrado. El backend genera los eventos y Firebase los entrega al teléfono; los recordatorios temporizados de pedidos y rifas se revisan cada cinco minutos. Firebase debe registrar exactamente el mismo package ID usado al compilar (por defecto `com.tusenda84.admin`).
+La app admite avisos de pedidos nuevos o pendientes, reseñas pendientes, stock bajo o agotado, vencimientos de productos y variaciones, seguridad y resultados de rifas aun cuando el panel este cerrado. El backend genera los eventos y Firebase conserva la entrega inmediata. Mobile Admin 2 añade una ruta de recuperación autenticada: cada instalación nace de un UUID local, recibe una credencial aleatoria guardada con Android Keystore y WorkManager recupera únicamente avisos no leídos de las últimas 72 horas. Por eso el registro básico, la sincronización y los recibos de entrega no dependen de que Firebase o el permiso de Android estén listos en el primer arranque.
+
+El origen de PocketBase usado por esa recuperación queda fijado dentro del APK por el motor y se valida como HTTPS tanto al construir como al ejecutarse. El WebView no puede cambiar el destino de la credencial: la tarea en segundo plano usa `api.tusenda84.com` aunque la interfaz administrativa viva en `tusenda84.com`.
+
+El payload de Firebase es solo de datos. La app valida sus campos, tienda, vencimiento y destino antes de mostrarlo; deduplica por ID de notificación y confirma recepción, visualización y lectura al backend. El panel Master muestra métricas agregadas de instalaciones activas, permisos, Firebase, sincronización reciente y origen de entrega sin exponer FID, UUID ni credenciales.
 
 1. Crea o selecciona el proyecto en Firebase y registra la aplicacion Android.
 2. Descarga `google-services.json` y guardalo localmente como `app/google-services.json`.
@@ -111,7 +115,7 @@ universal firmada por Play después de subir el AAB.
 
 C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públicas:
 
-- el constructor se identifica como `Tu Senda 84 Admin Engine 1.0.1`; su nombre, versión y contrato están en `engine.json` y quedan registrados en cada trabajo y manifiesto;
+- el constructor se identifica como `Tu Senda 84 Admin Engine 2.0.0`, contrato 2; su nombre, versión, contrato y revisión Git exacta están en `engine.json` y quedan registrados en cada trabajo y manifiesto;
 - `versionCode` es una secuencia reservada por el backend al confirmar el build: una app nueva parte de base 0 y recibe 1; una compilación confirmada consume su número aunque falle;
 - existe una sola identidad Android; paquete y firma se conservan entre preparación y publicación, y la versión base solo se puede corregir antes del primer build confirmado;
 - Firebase es obligatorio y administrado por el motor: no es una opción por versión, el runner reutiliza la configuración externa existente y cada manifiesto confirma su inclusión;
@@ -129,11 +133,46 @@ C10.8 conserva este paquete y su firma, pero separa la entrega de las apps públ
 
 Mobile Admin pertenece a Tu Senda 84 y no a PowerZona. La misma app sirve para administrar tiendas, páginas promocionales o futuros tipos de proyecto siempre que todos entren por la URL administrativa central y el backend autorice las funciones disponibles para cada proyecto.
 
+### Runner Admin independiente
+
 El runner está en `runner/run-admin-app-job-queue.ps1`. Requiere el secreto exclusivo
 `PZ_ADMIN_APP_RUNNER_SECRET`, una ruta externa a la firma ya existente y la configuración
-Firebase existente. Nunca crea una firma, un proyecto Firebase o una publicación. La vista previa reproducible puede generarse
-sin compilar ni acceder a secretos. El siguiente comando es una verificación técnica
-local; en operación normal el backend decide el código y el runner lo recibe:
+Firebase existente. No comparte secreto, cola ni autorización con el constructor de apps
+de clientes. Nunca crea una firma, un proyecto Firebase o una publicación.
+
+En la PC de compilación se inicializa una sola vez la custodia cifrada fuera del
+repositorio. `-CopyRunnerSecretToClipboard` es opcional y se usa solo para copiar el mismo
+valor a la variable protegida `PZ_ADMIN_APP_RUNNER_SECRET` del backend:
+
+```powershell
+./runner/initialize-admin-runner-custody.ps1 `
+  -SecretsRoot 'C:\TuSenda84\AdminRunner' `
+  -SigningPropertiesPath 'C:\TuSenda84\Signing\mobile-admin-upload.properties' `
+  -CopyRunnerSecretToClipboard
+```
+
+Después de desplegar un commit limpio y configurar en el backend
+`PZ_ADMIN_ENGINE_VERSION=2.0.0`, `PZ_ADMIN_ENGINE_REVISION=<commit de 40 caracteres>`
+y `PZ_ADMIN_API_BASE_URL=https://api.tusenda84.com`,
+se registra el runner y se crea el acceso directo manual:
+
+```powershell
+./runner/install-admin-runner-shortcut.ps1 `
+  -ApiBaseUrl 'https://api.tusenda84.com' `
+  -RunnerId 'tu-senda-84-admin-pc' `
+  -SecretsRoot 'C:\TuSenda84\AdminRunner' `
+  -RegisterNow
+```
+
+El flujo normal es: confirmar el trabajo en Master, pulsar **Autorizar Runner Admin** y
+abrir **Tu Senda 84 - Construir App Admin** antes de que venza la autorización de diez
+minutos. El acceso directo procesa como máximo un trabajo y no contiene el secreto. No
+es necesario mantener un segundo proceso permanente; `-ServiceMode` queda disponible si
+en el futuro se decide operar el runner como servicio.
+
+La vista previa reproducible puede generarse sin compilar ni acceder a secretos. El
+siguiente comando es una verificación técnica local; en operación normal el backend
+decide el código y el runner lo recibe:
 
 ```powershell
 ../scripts/build-admin-app.ps1 -Operation Preview `

@@ -79,6 +79,7 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileChooserCallback;
     private PendingDownload pendingDownload;
     private boolean backNavigationPending;
+    private long lastForegroundPushSyncStartedAt;
     private final ExecutorService pushRegistrationExecutor = Executors.newSingleThreadExecutor();
     private final ExecutorService adminUpdateExecutor = Executors.newSingleThreadExecutor();
 
@@ -89,7 +90,11 @@ public final class MainActivity extends Activity {
         setContentView(createContentView());
         configureWebView();
         configureBackNavigation();
-        PushNotifications.createChannels(this);
+        try {
+            PushRegistrationStore.localInstallationId(this);
+        } catch (RuntimeException ignored) {
+        }
+        recordPushOpen(getIntent());
 
         if (savedInstanceState == null) {
             String pushTarget = resolvePushTarget(getIntent());
@@ -99,7 +104,7 @@ public final class MainActivity extends Activity {
             webView.restoreState(savedInstanceState);
         }
 
-        registerForPushIfAllowed();
+        initializePushTransport();
     }
 
     private void configureWindow() {
@@ -272,7 +277,6 @@ public final class MainActivity extends Activity {
     }
 
     String getPushPermissionState() {
-        if (!BuildConfig.FIREBASE_CONFIGURED) return "unavailable";
         if (Build.VERSION.SDK_INT < 33
                 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
             return "granted";
@@ -291,13 +295,19 @@ public final class MainActivity extends Activity {
             String deviceLabel = manufacturer.isEmpty() || model.toLowerCase(Locale.ROOT).startsWith(manufacturer.toLowerCase(Locale.ROOT))
                     ? model
                     : (manufacturer + " " + model).trim();
+            if (deviceLabel.isEmpty()) deviceLabel = "Android";
             JSONObject state = new JSONObject();
             state.put("permission", getPushPermissionState());
-            state.put("installation_id", PushRegistrationStore.getInstallationId(this));
+            state.put("installation_id", safeLocalInstallationId());
+            state.put("firebase_installation_id", PushRegistrationStore.getInstallationId(this));
+            state.put("credential_ready", PushRegistrationStore.hasCredential(this));
+            state.put("notifications_enabled", PushRegistrationStore.notificationsEnabled(this));
             state.put("app_id", getPackageName());
             state.put("device_label", deviceLabel);
             state.put("os_version", "Android " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
             state.put("app_version", BuildConfig.VERSION_NAME);
+            state.put("app_version_code", BuildConfig.VERSION_CODE);
+            state.put("last_successful_sync", PushRegistrationStore.lastSuccessfulSync(this));
             webView.evaluateJavascript(
                     "window.dispatchEvent(new CustomEvent('pz:android-push-state',{detail:" + state + "}));",
                     null
@@ -306,10 +316,7 @@ public final class MainActivity extends Activity {
     }
 
     void requestPushPermissionFromWeb() {
-        if (!BuildConfig.FIREBASE_CONFIGURED) {
-            Toast.makeText(this, "Firebase todavía no está conectado a esta APK.", Toast.LENGTH_LONG).show();
-            return;
-        }
+        PushRegistrationStore.setNotificationsEnabled(this, true);
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             PushRegistrationStore.markPermissionRequested(this);
@@ -334,16 +341,13 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private void registerForPushIfAllowed() {
+    private void initializePushTransport() {
         if (!BuildConfig.FIREBASE_CONFIGURED) return;
-        if (Build.VERSION.SDK_INT >= 33
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         enablePushRegistration();
     }
 
     private void enablePushRegistration() {
+        if (!BuildConfig.FIREBASE_CONFIGURED) return;
         pushRegistrationExecutor.execute(() -> {
             try {
                 FirebaseMessaging messaging = FirebaseMessaging.getInstance();
@@ -387,8 +391,16 @@ public final class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        recordPushOpen(intent);
         String target = resolvePushTarget(intent);
         if (!target.isEmpty()) openInternalUrl(target);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        syncAdminNotifications(AdminNotificationStore.TRIGGER_RESUME);
+        emitPushStateToWeb();
     }
 
     private void configureBackNavigation() {
@@ -541,7 +553,9 @@ public final class MainActivity extends Activity {
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
             PushRegistrationStore.markPermissionRequested(this);
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                PushRegistrationStore.setNotificationsEnabled(this, true);
                 enablePushRegistration();
+                syncAdminNotifications(AdminNotificationStore.TRIGGER_RESUME);
                 Toast.makeText(this, "Avisos de Android activados.", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Puedes activar los avisos desde los ajustes de Android.", Toast.LENGTH_LONG).show();
@@ -684,6 +698,62 @@ public final class MainActivity extends Activity {
         });
     }
 
+    boolean completePushRegistration(String credential, String storeId) {
+        try {
+            PushRegistrationStore.saveCredential(this, credential, storeId);
+        } catch (RuntimeException error) {
+            return false;
+        }
+        AdminBackgroundSync.schedule(this);
+        AdminNotificationClient client = new AdminNotificationClient(this);
+        String firebaseInstallationId = PushRegistrationStore.getInstallationId(this);
+        if (!firebaseInstallationId.isEmpty()) {
+            client.enrichFirebase(firebaseInstallationId, result -> {
+                syncAdminNotifications(AdminNotificationStore.TRIGGER_RESUME);
+                emitPushStateToWeb();
+            });
+        } else {
+            syncAdminNotifications(AdminNotificationStore.TRIGGER_RESUME);
+            runOnUiThread(this::emitPushStateToWeb);
+        }
+        return true;
+    }
+
+    void setPushNotificationsEnabled(boolean enabled) {
+        PushRegistrationStore.setNotificationsEnabled(this, enabled);
+        AdminBackgroundSync.enqueueImmediate(this);
+        runOnUiThread(this::emitPushStateToWeb);
+    }
+
+    synchronized void syncAdminNotifications(String deliveryTrigger) {
+        if (!PushRegistrationStore.hasCredential(this)) return;
+        long now = System.currentTimeMillis();
+        if (AdminNotificationStore.TRIGGER_FOREGROUND.equals(deliveryTrigger)
+                && now - lastForegroundPushSyncStartedAt < 60_000) return;
+        if (AdminNotificationStore.TRIGGER_FOREGROUND.equals(deliveryTrigger)) {
+            lastForegroundPushSyncStartedAt = now;
+        }
+        new AdminNotificationClient(this).syncNotifications(deliveryTrigger, result ->
+                emitPushStateToWeb()
+        );
+    }
+
+    private String safeLocalInstallationId() {
+        try {
+            return PushRegistrationStore.localInstallationId(this);
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
+    private void recordPushOpen(Intent intent) {
+        if (intent == null) return;
+        String notificationId = intent.getStringExtra(PushNotifications.EXTRA_NOTIFICATION_ID);
+        if (notificationId == null || notificationId.trim().isEmpty()) return;
+        AdminNotificationStore.queueReceipt(this, notificationId, "read", "");
+        AdminBackgroundSync.enqueueImmediate(this);
+    }
+
     private void openVerifiedAdminUpdate(File apk) {
         if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
             Toast.makeText(this, "Autoriza a Mobile Admin para instalar esta actualización y vuelve a intentarlo.", Toast.LENGTH_LONG).show();
@@ -775,6 +845,7 @@ public final class MainActivity extends Activity {
             CookieManager.getInstance().flush();
             emitPushStateToWeb();
             emitAdminAppStateToWeb();
+            syncAdminNotifications(AdminNotificationStore.TRIGGER_FOREGROUND);
         }
 
         @Override

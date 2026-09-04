@@ -4,6 +4,10 @@ const deviceLib = typeof __hooks === "undefined"
   ? require("./pz_store_user_devices_lib.js")
   : require(`${__hooks}/pz_store_user_devices_lib.js`);
 
+const adminPush = typeof __hooks === "undefined"
+  ? require("./pz_admin_push_resilience_lib.js")
+  : require(__hooks + "/pz_admin_push_resilience_lib.js");
+
 const PROFILES = "admin_app_release_profiles";
 const JOBS = "admin_app_build_jobs";
 const ARTIFACTS = "admin_app_artifacts";
@@ -11,9 +15,11 @@ const ASSIGNMENTS = "admin_app_release_assignments";
 const TICKETS = "admin_app_download_tickets";
 const EVENTS = "admin_app_release_events";
 const BRAND_ASSETS = "admin_app_brand_assets";
+const RUNNER_AGENTS = "admin_app_runner_agents";
 const ENGINE_NAME = "Tu Senda 84 Admin Engine";
-const ENGINE_VERSION = "1.0.1";
-const ENGINE_CONTRACT_VERSION = 1;
+const ENGINE_VERSION = "2.0.0";
+const ENGINE_CONTRACT_VERSION = 2;
+const DEFAULT_ADMIN_API_BASE_URL = "https://api.tusenda84.com";
 const CANONICAL_PROFILE_CHANNEL = "production";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -21,13 +27,17 @@ const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const CERT_PATTERN = /^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/;
 const PACKAGE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
+const ENGINE_REVISION_PATTERN = /^[a-f0-9]{40}$/;
 const FILE_PATTERN = /^[A-Za-z0-9._-]+$/;
 const RUNNER_PATTERN = /^[A-Za-z0-9._:-]{3,100}$/;
+const HTTPS_ORIGIN_PATTERN = /^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?$/;
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
 const TICKET_TTL_MS = 2 * 60 * 1000;
 const MAX_APK_BYTES = 100 * 1024 * 1024;
 const MAX_BRAND_BYTES = 2 * 1024 * 1024;
 const COLOR_PATTERN = /^#[A-F0-9]{6}$/;
+const RUNNER_ONLINE_TTL_MS = 45 * 1000;
+const RUNNER_AUTHORIZATION_TTL_MS = 10 * 60 * 1000;
 
 function bodyValue(body, key) {
   if (!body) return undefined;
@@ -57,6 +67,55 @@ function recordValue(record, key) {
     try { return record.get(key); } catch (_) {}
   }
   return record[key];
+}
+
+function jsonObjectValue(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    try {
+      const normalized = JSON.parse(JSON.stringify(value));
+      return normalized && typeof normalized === "object" && !Array.isArray(normalized)
+        ? normalized
+        : null;
+    } catch (_) { return null; }
+  }
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch (_) { return null; }
+}
+
+function storedPreviewValue(job) {
+  if (job && typeof job.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
+    try {
+      const model = new DynamicModel({
+        schema_version: 0,
+        app: "",
+        channel: "",
+        engine: {},
+        operation: "",
+        identity: {},
+        build: {},
+        appearance: {},
+        notifications: {},
+        delivery: {},
+      });
+      job.unmarshalJSONField("preview_json", model);
+      return {
+        schema_version: Number(model.schema_version),
+        app: text(model.app, 40),
+        channel: text(model.channel, 20),
+        engine: jsonObjectValue(model.engine) || {},
+        operation: text(model.operation, 20),
+        identity: jsonObjectValue(model.identity) || {},
+        build: jsonObjectValue(model.build) || {},
+        appearance: jsonObjectValue(model.appearance) || {},
+        notifications: jsonObjectValue(model.notifications) || {},
+        delivery: jsonObjectValue(model.delivery) || {},
+      };
+    } catch (_) {}
+  }
+  return jsonObjectValue(recordValue(job, "preview_json"));
 }
 
 function recordString(record, key, max) {
@@ -120,6 +179,19 @@ function requestHeader(e, name) {
 
 function runnerSecret() {
   try { return text($os.getenv("PZ_ADMIN_APP_RUNNER_SECRET"), 512); } catch (_) { return ""; }
+}
+
+function environment(name, max) {
+  try { return text($os.getenv(name), max || 512); } catch (_) { return ""; }
+}
+
+function adminApiBaseUrl() {
+  const configured = environment("PZ_ADMIN_API_BASE_URL", 500).replace(/\/+$/, "");
+  const candidate = configured || DEFAULT_ADMIN_API_BASE_URL;
+  if (!HTTPS_ORIGIN_PATTERN.test(candidate)) return "";
+  const portMatch = candidate.match(/:([0-9]{1,5})$/);
+  if (portMatch && (Number(portMatch[1]) < 1 || Number(portMatch[1]) > 65535)) return "";
+  return candidate;
 }
 
 function secretEqual(left, right, security) {
@@ -191,20 +263,80 @@ function ticketDigest(token, security) {
 
 function managementReady(app) {
   try {
-    return [PROFILES, JOBS, ARTIFACTS, ASSIGNMENTS, TICKETS, EVENTS, BRAND_ASSETS].every((name) => {
+    return [PROFILES, JOBS, ARTIFACTS, ASSIGNMENTS, TICKETS, EVENTS, BRAND_ASSETS, RUNNER_AGENTS].every((name) => {
       const collection = app.findCollectionByNameOrId(name);
       return collection.listRule === null && collection.viewRule === null && collection.createRule === null
         && collection.updateRule === null && collection.deleteRule === null;
     }) && app.findCollectionByNameOrId(ARTIFACTS).fields.getByName("file").protected === true
       && app.findCollectionByNameOrId(BRAND_ASSETS).fields.getByName("file").protected === true
       && !!app.findCollectionByNameOrId(PROFILES).fields.getByName("last_allocated_version_code")
+      && !!app.findCollectionByNameOrId(PROFILES).fields.getByName("current_engine_revision")
       && !!app.findCollectionByNameOrId(JOBS).fields.getByName("engine_version")
+      && !!app.findCollectionByNameOrId(JOBS).fields.getByName("execution_authorized_at")
+      && !!app.findCollectionByNameOrId(JOBS).fields.getByName("execution_runner_id")
       && !!app.findCollectionByNameOrId(TICKETS).fields.getByName("profile");
   } catch (_) { return false; }
 }
 
-function engineDescriptor() {
-  return { name: ENGINE_NAME, version: ENGINE_VERSION, contract_version: ENGINE_CONTRACT_VERSION, firebase_required: true };
+function engineRelease() {
+  const configuredVersion = environment("PZ_ADMIN_ENGINE_VERSION", 40);
+  const configuredRevision = environment("PZ_ADMIN_ENGINE_REVISION", 40).toLowerCase();
+  const configuredSeverity = environment("PZ_ADMIN_ENGINE_UPDATE_SEVERITY", 20).toLowerCase();
+  return {
+    version: VERSION_PATTERN.test(configuredVersion) ? configuredVersion : ENGINE_VERSION,
+    revision: ENGINE_REVISION_PATTERN.test(configuredRevision) ? configuredRevision : "",
+    apiBaseUrl: adminApiBaseUrl(),
+    severity: ["normal", "recommended", "critical"].includes(configuredSeverity)
+      ? configuredSeverity
+      : "recommended",
+  };
+}
+
+function assertEngineReleaseConfigured() {
+  const configuredVersion = environment("PZ_ADMIN_ENGINE_VERSION", 40);
+  const configuredRevision = environment("PZ_ADMIN_ENGINE_REVISION", 40).toLowerCase();
+  if (configuredVersion !== ENGINE_VERSION
+    || !ENGINE_REVISION_PATTERN.test(configuredRevision)
+    || !adminApiBaseUrl()) {
+    throw new Error("engine_release_unconfigured");
+  }
+  return engineRelease();
+}
+
+function engineDescriptor(release) {
+  const target = release || engineRelease();
+  return {
+    name: ENGINE_NAME,
+    version: target.version,
+    revision: target.revision,
+    contract_version: ENGINE_CONTRACT_VERSION,
+    firebase_required: true,
+    api_base_url: text(target.apiBaseUrl, 500) || adminApiBaseUrl(),
+  };
+}
+
+function engineReleaseSnapshot() {
+  const release = engineRelease();
+  const configuredVersion = environment("PZ_ADMIN_ENGINE_VERSION", 40);
+  return {
+    ...engineDescriptor(release),
+    ready: configuredVersion === ENGINE_VERSION
+      && ENGINE_REVISION_PATTERN.test(release.revision)
+      && !!release.apiBaseUrl,
+    severity: release.severity,
+  };
+}
+
+function assertPreviewEngineRelease(preview) {
+  const release = assertEngineReleaseConfigured();
+  const engine = bodyValue(preview, "engine") || {};
+  if (text(bodyValue(engine, "version"), 40) !== release.version
+    || text(bodyValue(engine, "revision"), 40).toLowerCase() !== release.revision
+    || integer(bodyValue(engine, "contract_version")) !== ENGINE_CONTRACT_VERSION
+    || text(bodyValue(engine, "api_base_url"), 500) !== release.apiBaseUrl) {
+    throw new Error("engine_release_changed");
+  }
+  return release;
 }
 
 function masterProfile(app) {
@@ -275,6 +407,8 @@ function profileSnapshot(profile, app, audience) {
     latest_version_code: recordNumber(profile, "latest_version_code"),
     latest_version_name: recordString(profile, "latest_version_name", 40),
     next_version_code: nextVersionCode(profile),
+    current_engine_version: recordString(profile, "current_engine_version", 40),
+    current_engine_revision: recordString(profile, "current_engine_revision", 40),
     identity_locked: app ? profileIdentityLocked(app, profile.id) : false,
     icon: brandAssetSnapshot(icon, audience),
     splash: brandAssetSnapshot(splash, audience),
@@ -288,7 +422,7 @@ function profileSnapshot(profile, app, audience) {
 
 function jobSnapshot(job) {
   if (!job) return null;
-  const preview = recordValue(job, "preview_json");
+  const preview = storedPreviewValue(job);
   return {
     id: text(job.id || recordString(job, "id", 15), 15),
     profile_id: relationId(job, "profile"),
@@ -301,6 +435,10 @@ function jobSnapshot(job) {
     preview_expires_at: iso(recordValue(job, "preview_expires_at")),
     confirmed_at: iso(recordValue(job, "confirmed_at")),
     runner_id: recordString(job, "runner_id", 100),
+    execution_authorized_at: iso(recordValue(job, "execution_authorized_at")),
+    execution_authorized_until: iso(recordValue(job, "execution_authorized_until")),
+    execution_authorized_by: relationId(job, "execution_authorized_by"),
+    execution_runner_id: recordString(job, "execution_runner_id", 100),
     engine: {
       name: recordString(job, "engine_name", 80),
       version: recordString(job, "engine_version", 20),
@@ -316,11 +454,94 @@ function jobSnapshot(job) {
   };
 }
 
+function requiredRunnerCapabilities() {
+  return { firebase: true, signing: true };
+}
+
+function runnerAgentSnapshot(agent, now) {
+  if (!agent) return null;
+  const lastSeenAt = iso(recordValue(agent, "last_seen_at"));
+  const lastSeen = new Date(lastSeenAt);
+  const currentTime = new Date(now || Date.now()).getTime();
+  return {
+    runner_id: recordString(agent, "runner_id", 100),
+    mode: recordString(agent, "mode", 20) === "service" ? "service" : "manual",
+    engine_version: recordString(agent, "engine_version", 40),
+    engine_revision: recordString(agent, "engine_revision", 40).toLowerCase(),
+    allow_firebase: recordValue(agent, "allow_firebase") === true,
+    allow_signing: recordValue(agent, "allow_signing") === true,
+    workspace_clean: recordValue(agent, "workspace_clean") === true,
+    last_seen_at: lastSeenAt,
+    online: Number.isFinite(lastSeen.getTime())
+      && lastSeen.getTime() > currentTime - RUNNER_ONLINE_TTL_MS,
+  };
+}
+
+function runnerCompatibility(agent, preview, now) {
+  const snapshot = runnerAgentSnapshot(agent, now);
+  const engine = bodyValue(preview, "engine") || {};
+  const required = requiredRunnerCapabilities();
+  const engineMatches = !!snapshot
+    && snapshot.workspace_clean
+    && snapshot.engine_version === text(bodyValue(engine, "version"), 40)
+    && snapshot.engine_revision === text(bodyValue(engine, "revision"), 40).toLowerCase();
+  const capabilitiesMatch = !!snapshot
+    && (!required.firebase || snapshot.allow_firebase)
+    && (!required.signing || snapshot.allow_signing);
+  return { snapshot, required, engineMatches, capabilitiesMatch };
+}
+
+function authorizationState(job, now) {
+  if (!job) return "none";
+  if (recordString(job, "runner_id", 100) || recordString(job, "status", 30) === "claimed") {
+    return "claimed";
+  }
+  const authorizedAt = iso(recordValue(job, "execution_authorized_at"));
+  const authorizedUntil = new Date(iso(recordValue(job, "execution_authorized_until")));
+  if (!authorizedAt) return "pending";
+  return Number.isFinite(authorizedUntil.getTime())
+    && authorizedUntil.getTime() > new Date(now || Date.now()).getTime()
+    ? "authorized"
+    : "expired";
+}
+
+function clearExecutionAuthorization(job) {
+  job.set("execution_authorized_at", "");
+  job.set("execution_authorized_until", "");
+  job.set("execution_authorized_by", "");
+  job.set("execution_runner_id", "");
+  job.set("execution_capabilities", null);
+}
+
+function runnerControlResponse(app, jobs, now) {
+  const activeJob = (jobs || []).find((job) => ["queued", "claimed"].includes(recordString(job, "status", 30))) || null;
+  const preview = activeJob ? storedPreviewValue(activeJob) : null;
+  const required = preview ? requiredRunnerCapabilities(preview) : requiredRunnerCapabilities();
+  const agents = records(app, RUNNER_AGENTS, "", "-last_seen_at", 10, {}).map((agent) => {
+    const compatibility = preview ? runnerCompatibility(agent, preview, now) : null;
+    return {
+      ...runnerAgentSnapshot(agent, now),
+      compatible: compatibility
+        ? compatibility.engineMatches && compatibility.capabilitiesMatch
+        : false,
+    };
+  });
+  return {
+    online_ttl_seconds: Math.floor(RUNNER_ONLINE_TTL_MS / 1000),
+    authorization_ttl_seconds: Math.floor(RUNNER_AUTHORIZATION_TTL_MS / 1000),
+    required_capabilities: required,
+    active_job_id: activeJob ? activeJob.id : "",
+    authorization_state: authorizationState(activeJob, now),
+    authorized_runner_id: activeJob ? recordString(activeJob, "execution_runner_id", 100) : "",
+    agents,
+  };
+}
+
 function runnerProfileSnapshot(profile, job, app) {
   const snapshot = profileSnapshot(profile, app, "runner");
-  const preview = recordValue(job, "preview_json") || {};
-  const identity = preview && preview.identity || {};
-  const appearance = preview && preview.appearance || {};
+  const preview = storedPreviewValue(job) || {};
+  const identity = bodyValue(preview, "identity") || {};
+  const appearance = bodyValue(preview, "appearance") || {};
   const icon = findRecord(app, BRAND_ASSETS, relationId(job, "icon_asset"));
   const splash = findRecord(app, BRAND_ASSETS, relationId(job, "splash_asset"));
   return {
@@ -507,6 +728,10 @@ function safeErrorCode(error) {
     "ticket_not_found", "ticket_expired", "ticket_used", "ticket_identity_mismatch", "profile_identity_locked",
     "signing_identity_required", "assignment_revoked", "engine_incompatible", "version_sequence_changed",
     "brand_asset_required", "brand_asset_invalid", "brand_asset_too_large", "release_withdrawn",
+    "active_job_exists", "engine_release_unconfigured", "engine_release_changed",
+    "runner_job_not_startable", "runner_not_registered", "runner_engine_mismatch",
+    "runner_capability_missing", "runner_heartbeat_failed", "runner_start_failed",
+    "job_not_retryable", "job_not_cancelable", "candidate_not_discardable",
   ].includes(code) ? code : "";
 }
 
@@ -532,6 +757,7 @@ function handleMasterDetail(e) {
   if (!["staging", "production"].includes(channel)) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
     if (!managementReady($app)) return e.json(503, { ok: false, error: "admin_app_unavailable" });
+    const generatedAt = new Date().toISOString();
     const profile = masterProfile($app);
     const profileId = profile ? profile.id : "";
     const jobs = profile ? records($app, JOBS, "profile = {:profile}", "-created", 25, { profile: profileId }) : [];
@@ -558,9 +784,21 @@ function handleMasterDetail(e) {
     });
     const events = profile ? records($app, EVENTS, "profile = {:profile}", "-created", 100, { profile: profileId }) : [];
     return e.json(200, {
-      ok: true, engine: engineDescriptor(), profile: profileSnapshot(profile, $app, "master"), jobs: jobs.map(jobSnapshot),
+      ok: true,
+      generated_at: generatedAt,
+      engine: engineReleaseSnapshot(),
+      profile: profileSnapshot(profile, $app, "master"),
+      jobs: jobs.map(jobSnapshot),
       artifacts: artifacts.map(artifactSnapshot), assignments: assignments.map((item) => assignmentSnapshot(item, $app)),
-      eligible_devices: eligible, events: events.map(eventSnapshot),
+      eligible_devices: eligible,
+      events: events.map(eventSnapshot),
+      runner_control: runnerControlResponse($app, jobs, generatedAt),
+      notification_health: adminPush.healthSnapshot($app, generatedAt),
+      policy: {
+        runner_isolated: true,
+        runner_requires_explicit_authorization: true,
+        exact_engine_revision_required: true,
+      },
     });
   } catch (_) { return e.json(500, { ok: false, error: "admin_app_detail_failed" }); }
 }
@@ -641,12 +879,12 @@ function parseBuildPreview(body) {
   return VERSION_PATTERN.test(parsed.versionName) ? parsed : null;
 }
 
-function buildPreview(profile, parsed, app) {
+function buildPreview(profile, parsed, app, approvedRelease) {
   const icon = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "icon_asset")) : null;
   const splash = app ? findRecord(app, BRAND_ASSETS, relationId(profile, "splash_asset")) : null;
   return {
     schema_version: 2, app: "mobile-admin", channel: "staging",
-    engine: engineDescriptor(),
+    engine: engineDescriptor(approvedRelease),
     operation: recordNumber(profile, "latest_version_code") > 0 ? "update" : "provision",
     identity: {
       display_name: recordString(profile, "display_name", 120), package_name: recordString(profile, "package_name", 190),
@@ -673,28 +911,36 @@ function handleMasterPreview(e) {
   const parsed = parseBuildPreview(e.requestInfo().body || {});
   if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
   try {
+    const release = assertEngineReleaseConfigured();
     const profile = masterProfile($app);
     if (!profile) throw new Error("profile_not_found");
     if (recordString(profile, "status", 20) !== "active") throw new Error("release_not_available");
     if (!CERT_PATTERN.test(recordString(profile, "signing_cert_sha256", 95))) throw new Error("signing_identity_required");
     const versionCode = nextVersionCode(profile);
-    const preview = buildPreview(profile, { versionCode, versionName: parsed.versionName }, $app);
+    const preview = buildPreview(profile, { versionCode, versionName: parsed.versionName }, $app, release);
     const hash = sha256Domain("pz_admin_app_preview:v2", canonical(preview));
     if (!SHA256_PATTERN.test(hash)) throw new Error("invalid_payload");
     const existing = first($app, JOBS, "preview_hash = {:hash}", { hash });
-    if (existing) {
-      if (recordString(existing, "status", 30) === "preview"
-        && new Date(iso(recordValue(existing, "preview_expires_at"))).getTime() <= Date.now()) {
-        existing.set("preview_expires_at", new Date(Date.now() + PREVIEW_TTL_MS).toISOString());
-        existing.set("preview_json", preview); existing.set("created_by", e.auth.id); $app.save(existing);
-      }
+    const otherActive = records($app, JOBS, "", "-created", 100, {})
+      .find((job) => ["preview", "queued", "claimed"].includes(recordString(job, "status", 30))
+        && (!existing || job.id !== existing.id));
+    if (otherActive) throw new Error("active_job_exists");
+    if (existing && ["preview", "canceled"].includes(recordString(existing, "status", 30))) {
+      existing.set("status", "preview");
+      existing.set("failure_code", "");
+      existing.set("completed_at", "");
+      existing.set("preview_expires_at", new Date(Date.now() + PREVIEW_TTL_MS).toISOString());
+      existing.set("preview_json", preview);
+      existing.set("created_by", e.auth.id);
+      $app.save(existing);
       return e.json(200, { ok: true, idempotent: true, job: jobSnapshot(existing) });
     }
     const expires = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
     const job = createRecord($app, JOBS, {
       profile: profile.id, operation: preview.operation, status: "preview", version_code: versionCode,
       version_name: parsed.versionName, preview_hash: hash, preview_json: preview, preview_expires_at: expires,
-      engine_name: ENGINE_NAME, engine_version: ENGINE_VERSION, engine_contract_version: ENGINE_CONTRACT_VERSION,
+      engine_name: ENGINE_NAME, engine_version: release.version, engine_contract_version: ENGINE_CONTRACT_VERSION,
+      engine_revision: release.revision,
       icon_asset: relationId(profile, "icon_asset"), splash_asset: relationId(profile, "splash_asset"),
       created_by: e.auth.id,
     });
@@ -722,16 +968,26 @@ function handleMasterConfirm(e) {
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
       if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("release_not_available");
       if (!CERT_PATTERN.test(recordString(profile, "signing_cert_sha256", 95))) throw new Error("signing_identity_required");
-      if (recordString(job, "engine_name", 80) !== ENGINE_NAME || recordString(job, "engine_version", 20) !== ENGINE_VERSION
+      const release = assertPreviewEngineRelease(storedPreviewValue(job));
+      if (recordString(job, "engine_name", 80) !== ENGINE_NAME || recordString(job, "engine_version", 20) !== release.version
+        || recordString(job, "engine_revision", 40) !== release.revision
         || recordNumber(job, "engine_contract_version") !== ENGINE_CONTRACT_VERSION) throw new Error("engine_incompatible");
+      const otherActive = records(app, JOBS, "", "-created", 100, {})
+        .find((candidate) => candidate.id !== job.id
+          && ["queued", "claimed"].includes(recordString(candidate, "status", 30)));
+      if (otherActive) throw new Error("active_job_exists");
       if (recordNumber(job, "version_code") !== nextVersionCode(profile)) throw new Error("version_sequence_changed");
       const currentPreview = buildPreview(profile, {
         versionCode: recordNumber(job, "version_code"), versionName: recordString(job, "version_name", 40),
-      }, app);
+      }, app, release);
       if (sha256Domain("pz_admin_app_preview:v2", canonical(currentPreview)) !== hash) throw new Error("version_identity_mismatch");
       profile.set("last_allocated_version_code", recordNumber(job, "version_code"));
       profile.set("updated_by", e.auth.id); app.save(profile);
-      job.set("status", "queued"); job.set("confirmed_by", e.auth.id); job.set("confirmed_at", new Date().toISOString()); app.save(job);
+      job.set("status", "queued");
+      job.set("confirmed_by", e.auth.id);
+      job.set("confirmed_at", new Date().toISOString());
+      clearExecutionAuthorization(job);
+      app.save(job);
       writeEvent(app, "build_queued", "succeeded", { profileId: profile.id, actorId: e.auth.id, snapshot: { job_id: job.id, version_code: recordNumber(job, "version_code") } });
       response = { ok: true, idempotent: false, job: jobSnapshot(job) };
     });
@@ -821,6 +1077,11 @@ function publishGeneral(app, e, artifactId) {
   }
   profile.set("latest_version_code", artifactVersionCode);
   profile.set("latest_version_name", recordString(artifact, "version_name", 40));
+  const artifactJob = findRecord(app, JOBS, relationId(artifact, "job"));
+  if (artifactJob) {
+    profile.set("current_engine_version", recordString(artifactJob, "engine_version", 40));
+    profile.set("current_engine_revision", recordString(artifactJob, "engine_revision", 40));
+  }
   profile.set("updated_by", e.auth.id);
   app.save(profile);
   writeEvent(app, "release_published", "succeeded", {
@@ -964,6 +1225,95 @@ function handleMasterAction(e) {
           writeEvent(app, "assignment_revoked", "succeeded", { profileId: relationId(assignment, "profile"), artifactId: relationId(assignment, "artifact"), assignmentId: assignment.id, storeId: relationId(assignment, "store"), targetUserId: relationId(assignment, "user"), deviceId: relationId(assignment, "device"), actorId: e.auth.id, reason: "manual" });
         }
         response = { ok: true, assignment: assignmentSnapshot(assignment, app) };
+        return;
+      }
+      if (action === "retry_build") {
+        if (!exactPayload(body, ["action", "confirmation", "job_id", "preview_hash"])
+          || text(bodyValue(body, "confirmation"), 80) !== "REINTENTAR BUILD MOBILE ADMIN") {
+          throw new Error("invalid_payload");
+        }
+        const job = findRecord(app, JOBS, text(bodyValue(body, "job_id"), 15));
+        const previewHash = text(bodyValue(body, "preview_hash"), 64).toLowerCase();
+        if (!job || !["failed", "needs_attention"].includes(recordString(job, "status", 30))
+          || recordString(job, "preview_hash", 64) !== previewHash) throw new Error("job_not_retryable");
+        const otherActive = records(app, JOBS, "", "-created", 100, {})
+          .find((candidate) => candidate.id !== job.id
+            && ["preview", "queued", "claimed"].includes(recordString(candidate, "status", 30)));
+        if (otherActive) throw new Error("active_job_exists");
+        const profile = findRecord(app, PROFILES, relationId(job, "profile"));
+        if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("profile_not_found");
+        const release = assertPreviewEngineRelease(storedPreviewValue(job));
+        const currentPreview = buildPreview(profile, {
+          versionCode: recordNumber(job, "version_code"),
+          versionName: recordString(job, "version_name", 40),
+        }, app, release);
+        if (sha256Domain("pz_admin_app_preview:v2", canonical(currentPreview)) !== previewHash) {
+          throw new Error("version_identity_mismatch");
+        }
+        records(app, ARTIFACTS, "job = {:job}", "", 20, { job: job.id })
+          .forEach((artifact) => {
+            if (recordString(artifact, "lifecycle_status", 30) !== "deleted") {
+              artifact.set("lifecycle_status", "deleted");
+              app.save(artifact);
+            }
+          });
+        job.set("status", "queued");
+        job.set("runner_id", "");
+        job.set("failure_code", "");
+        job.set("started_at", "");
+        job.set("completed_at", "");
+        clearExecutionAuthorization(job);
+        app.save(job);
+        writeEvent(app, "build_retried", "succeeded", {
+          profileId: profile.id,
+          actorId: e.auth.id,
+          snapshot: { job_id: job.id, preview_hash: previewHash },
+        });
+        response = { ok: true, job: jobSnapshot(job) };
+        return;
+      }
+      if (action === "cancel_build") {
+        if (!exactPayload(body, ["action", "confirmation", "job_id"])
+          || text(bodyValue(body, "confirmation"), 80) !== "CANCELAR BUILD MOBILE ADMIN") {
+          throw new Error("invalid_payload");
+        }
+        const job = findRecord(app, JOBS, text(bodyValue(body, "job_id"), 15));
+        if (!job || !["preview", "queued"].includes(recordString(job, "status", 30))
+          || recordString(job, "runner_id", 100)) throw new Error("job_not_cancelable");
+        job.set("status", "canceled");
+        job.set("failure_code", "canceled_by_master");
+        job.set("completed_at", new Date().toISOString());
+        clearExecutionAuthorization(job);
+        app.save(job);
+        writeEvent(app, "build_canceled", "succeeded", {
+          profileId: relationId(job, "profile"),
+          actorId: e.auth.id,
+          snapshot: { job_id: job.id },
+        });
+        response = { ok: true, job: jobSnapshot(job) };
+        return;
+      }
+      if (action === "discard_candidate") {
+        if (!exactPayload(body, ["action", "artifact_id", "confirmation"])
+          || text(bodyValue(body, "confirmation"), 80) !== "DESCARTAR APK MOBILE ADMIN") {
+          throw new Error("invalid_payload");
+        }
+        const artifact = findRecord(app, ARTIFACTS, text(bodyValue(body, "artifact_id"), 15));
+        if (!artifact || recordString(artifact, "kind", 30) !== "apk"
+          || recordString(artifact, "lifecycle_status", 30) !== "available"
+          || releaseState(app, artifact.id) !== "draft") throw new Error("candidate_not_discardable");
+        const jobId = relationId(artifact, "job");
+        records(app, ARTIFACTS, "job = {:job}", "", 20, { job: jobId }).forEach((item) => {
+          item.set("lifecycle_status", "deleted");
+          app.save(item);
+        });
+        writeEvent(app, "candidate_discarded", "succeeded", {
+          profileId: relationId(artifact, "profile"),
+          artifactId: artifact.id,
+          actorId: e.auth.id,
+          snapshot: { job_id: jobId, version_code: recordNumber(artifact, "version_code") },
+        });
+        response = { ok: true, artifact: artifactSnapshot(artifact) };
         return;
       }
       throw new Error("invalid_payload");
@@ -1216,30 +1566,169 @@ function validateUpload(file, parsed) {
   if (policy.json && prefix.find((value) => ![9, 10, 13, 32].includes(value)) !== 0x7b) throw new Error("invalid_payload");
 }
 
+function handleRunnerHeartbeat(e) {
+  setPrivateHeaders(e);
+  try {
+    const body = e.requestInfo().body || {};
+    const keys = ["allow_firebase", "allow_signing", "engine_revision", "engine_version", "mode", "runner_id", "workspace_clean"];
+    if (!exactPayload(body, keys)) return e.json(400, { ok: false, error: "invalid_payload" });
+    const parsed = {
+      runnerId: text(bodyValue(body, "runner_id"), 100),
+      engineVersion: text(bodyValue(body, "engine_version"), 40),
+      engineRevision: text(bodyValue(body, "engine_revision"), 40).toLowerCase(),
+      mode: text(bodyValue(body, "mode"), 20),
+      allowFirebase: bodyValue(body, "allow_firebase"),
+      allowSigning: bodyValue(body, "allow_signing"),
+      workspaceClean: bodyValue(body, "workspace_clean"),
+    };
+    if (!RUNNER_PATTERN.test(parsed.runnerId)
+      || !VERSION_PATTERN.test(parsed.engineVersion)
+      || !ENGINE_REVISION_PATTERN.test(parsed.engineRevision)
+      || !["manual", "service"].includes(parsed.mode)
+      || typeof parsed.allowFirebase !== "boolean"
+      || typeof parsed.allowSigning !== "boolean"
+      || typeof parsed.workspaceClean !== "boolean"
+      || requestHeader(e, "x-pz-admin-app-runner-id") !== parsed.runnerId) {
+      return e.json(400, { ok: false, error: "invalid_payload" });
+    }
+    let snapshot = null;
+    $app.runInTransaction((app) => {
+      let agent = first(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId: parsed.runnerId });
+      if (!agent) agent = new Record(app.findCollectionByNameOrId(RUNNER_AGENTS), {});
+      agent.set("runner_id", parsed.runnerId);
+      agent.set("engine_version", parsed.engineVersion);
+      agent.set("engine_revision", parsed.engineRevision);
+      agent.set("mode", parsed.mode);
+      agent.set("allow_firebase", parsed.allowFirebase);
+      agent.set("allow_signing", parsed.allowSigning);
+      agent.set("workspace_clean", parsed.workspaceClean);
+      agent.set("last_seen_at", new Date().toISOString());
+      app.save(agent);
+      snapshot = runnerAgentSnapshot(agent, new Date());
+    });
+    return e.json(200, { ok: true, runner: snapshot });
+  } catch (_) {
+    return e.json(500, { ok: false, error: "runner_heartbeat_failed" });
+  }
+}
+
+function handleRunnerStart(e) {
+  setPrivateHeaders(e);
+  const body = e.requestInfo().body || {};
+  if (!isMaster(e.auth)) return e.json(403, { ok: false, error: "unauthorized" });
+  if (!exactPayload(body, ["confirmation", "job_id", "preview_hash"])) {
+    return e.json(400, { ok: false, error: "invalid_payload" });
+  }
+  const jobId = text(bodyValue(body, "job_id"), 15);
+  const previewHash = text(bodyValue(body, "preview_hash"), 64).toLowerCase();
+  if (!RECORD_ID_PATTERN.test(jobId) || !SHA256_PATTERN.test(previewHash)
+    || text(bodyValue(body, "confirmation"), 40) !== "INICIAR RUNNER ADMIN") {
+    return e.json(400, { ok: false, error: "invalid_payload" });
+  }
+  try {
+    let response = null;
+    $app.runInTransaction((app) => {
+      const now = new Date();
+      const actor = findRecord(app, "users", text(e.auth.id || recordString(e.auth, "id", 15), 15));
+      const job = findRecord(app, JOBS, jobId);
+      if (!actor || !isMaster(actor)) throw new Error("unauthorized");
+      if (!job || recordString(job, "status", 30) !== "queued" || recordString(job, "runner_id", 100)) {
+        throw new Error("runner_job_not_startable");
+      }
+      if (recordString(job, "preview_hash", 64) !== previewHash) throw new Error("version_identity_mismatch");
+      const profile = findRecord(app, PROFILES, relationId(job, "profile"));
+      if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("profile_not_found");
+      const preview = storedPreviewValue(job);
+      assertPreviewEngineRelease(preview);
+
+      const currentState = authorizationState(job, now);
+      const currentRunnerId = recordString(job, "execution_runner_id", 100);
+      if (currentState === "authorized" && currentRunnerId) {
+        const existingAgent = first(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId: currentRunnerId });
+        const existingCompatibility = runnerCompatibility(existingAgent, preview, now);
+        if (existingCompatibility.snapshot
+          && existingCompatibility.engineMatches
+          && existingCompatibility.capabilitiesMatch) {
+          response = { ok: true, idempotent: true, job: jobSnapshot(job), runner: existingCompatibility.snapshot };
+          return;
+        }
+      }
+
+      const registered = records(app, RUNNER_AGENTS, "", "-last_seen_at", 50, {})
+        .map((agent) => runnerCompatibility(agent, preview, now))
+        .filter((compatibility) => compatibility.snapshot);
+      if (!registered.length) throw new Error("runner_not_registered");
+      const matchingEngine = registered.filter((item) => item.engineMatches);
+      if (!matchingEngine.length) throw new Error("runner_engine_mismatch");
+      const compatible = matchingEngine
+        .filter((item) => item.capabilitiesMatch)
+        .sort((left, right) => Number(right.snapshot.online) - Number(left.snapshot.online));
+      if (!compatible.length) throw new Error("runner_capability_missing");
+      const selected = compatible[0].snapshot;
+      const reauthorized = !!iso(recordValue(job, "execution_authorized_at"));
+      job.set("execution_authorized_at", now.toISOString());
+      job.set("execution_authorized_until", new Date(now.getTime() + RUNNER_AUTHORIZATION_TTL_MS).toISOString());
+      job.set("execution_authorized_by", actor.id);
+      job.set("execution_runner_id", selected.runner_id);
+      job.set("execution_capabilities", requiredRunnerCapabilities());
+      app.save(job);
+      writeEvent(app, reauthorized ? "runner_reauthorized" : "runner_authorized", "succeeded", {
+        profileId: profile.id,
+        actorId: actor.id,
+        snapshot: { job_id: job.id, runner_id: selected.runner_id, preview_hash: previewHash },
+      });
+      response = { ok: true, idempotent: false, job: jobSnapshot(job), runner: selected };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    return sendError(e, error, "runner_start_failed");
+  }
+}
+
 function handleRunnerClaim(e) {
   setPrivateHeaders(e);
   const body = e.requestInfo().body || {};
-  if (!exactPayload(body, ["engine_contract_version", "engine_name", "engine_revision", "engine_version", "runner_id"])) return e.json(400, { ok: false, error: "invalid_payload" });
+  if (!exactPayload(body, ["runner_id"])) return e.json(400, { ok: false, error: "invalid_payload" });
   const runnerId = text(bodyValue(body, "runner_id"), 100);
-  const engineName = text(bodyValue(body, "engine_name"), 80);
-  const engineVersion = text(bodyValue(body, "engine_version"), 20);
-  const engineContract = integer(bodyValue(body, "engine_contract_version"));
-  const engineRevision = text(bodyValue(body, "engine_revision"), 40).toLowerCase();
   if (!RUNNER_PATTERN.test(runnerId) || requestHeader(e, "x-pz-admin-app-runner-id") !== runnerId) return e.json(401, { ok: false, error: "unauthorized" });
-  if (engineName !== ENGINE_NAME || engineVersion !== ENGINE_VERSION || engineContract !== ENGINE_CONTRACT_VERSION || !/^[a-f0-9]{40}$/.test(engineRevision)) {
-    return e.json(409, { ok: false, error: "engine_incompatible", expected: engineDescriptor() });
-  }
   try {
     let response = { ok: true, job: null };
     $app.runInTransaction((app) => {
-      const job = records(app, JOBS, "status = 'queued'", "+created", 1, {})[0] || null;
+      const staleBefore = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      records(app, JOBS, "status = 'claimed' && started_at < {:staleBefore}", "+started_at", 50, { staleBefore })
+        .forEach((staleJob) => {
+          staleJob.set("status", "needs_attention");
+          staleJob.set("failure_code", "runner_lease_expired");
+          staleJob.set("completed_at", new Date().toISOString());
+          app.save(staleJob);
+        });
+      const agent = first(app, RUNNER_AGENTS, "runner_id = {:runnerId}", { runnerId });
+      const agentSnapshot = runnerAgentSnapshot(agent, new Date());
+      if (!agentSnapshot || !agentSnapshot.online) return;
+      const currentTime = Date.now();
+      const job = records(app, JOBS, "status = 'queued'", "+created", 100, {}).find((candidate) => {
+        const authorizedUntil = new Date(iso(recordValue(candidate, "execution_authorized_until")));
+        return recordString(candidate, "execution_runner_id", 100) === runnerId
+          && !!iso(recordValue(candidate, "execution_authorized_at"))
+          && Number.isFinite(authorizedUntil.getTime())
+          && authorizedUntil.getTime() > currentTime;
+      }) || null;
       if (!job) return;
-      if (recordString(job, "engine_name", 80) !== engineName || recordString(job, "engine_version", 20) !== engineVersion
-        || recordNumber(job, "engine_contract_version") !== engineContract) throw new Error("engine_incompatible");
       const profile = findRecord(app, PROFILES, relationId(job, "profile"));
       if (!profile || recordString(profile, "status", 20) !== "active") throw new Error("profile_not_found");
-      job.set("status", "claimed"); job.set("runner_id", runnerId); job.set("engine_revision", engineRevision); job.set("started_at", new Date().toISOString()); app.save(job);
-      response = { ok: true, job: { ...jobSnapshot(job), preview: recordValue(job, "preview_json"), profile: runnerProfileSnapshot(profile, job, app) } };
+      const preview = storedPreviewValue(job);
+      assertPreviewEngineRelease(preview);
+      const compatibility = runnerCompatibility(agent, preview, new Date());
+      if (!compatibility.engineMatches || !compatibility.capabilitiesMatch) {
+        clearExecutionAuthorization(job);
+        app.save(job);
+        return;
+      }
+      job.set("status", "claimed");
+      job.set("runner_id", runnerId);
+      job.set("started_at", new Date().toISOString());
+      app.save(job);
+      response = { ok: true, job: { ...jobSnapshot(job), preview, profile: runnerProfileSnapshot(profile, job, app) } };
     });
     return e.json(200, response);
   } catch (error) { return sendError(e, error, "runner_claim_failed"); }
@@ -1257,9 +1746,24 @@ function handleRunnerUpload(e) {
     if (!job || recordString(job, "status", 30) !== "claimed" || recordString(job, "runner_id", 100) !== parsed.runnerId) throw new Error("job_not_claimed");
     const existing = first($app, ARTIFACTS, "job = {:job} && kind = {:kind}", { job: job.id, kind: parsed.kind });
     if (existing) {
+      if (recordString(existing, "lifecycle_status", 30) === "deleted") {
+        existing.set("file_name", parsed.fileName);
+        existing.set("file", files[0]);
+        existing.set("sha256", parsed.sha256);
+        existing.set("bytes", parsed.bytes);
+        existing.set("version_code", recordNumber(job, "version_code"));
+        existing.set("version_name", recordString(job, "version_name", 40));
+        existing.set("lifecycle_status", "staged");
+        $app.save(existing);
+        return e.json(201, { ok: true, idempotent: false, artifact: artifactSnapshot(existing) });
+      }
       const same = recordString(existing, "file_name", 220) === parsed.fileName && recordString(existing, "sha256", 64) === parsed.sha256
         && recordNumber(existing, "bytes") === parsed.bytes && !!recordString(existing, "file", 220);
       if (!same) throw new Error("version_identity_mismatch");
+      if (recordString(existing, "lifecycle_status", 30) !== "staged") {
+        existing.set("lifecycle_status", "staged");
+        $app.save(existing);
+      }
       return e.json(200, { ok: true, idempotent: true, artifact: artifactSnapshot(existing) });
     }
     const artifact = createRecord($app, ARTIFACTS, {
@@ -1285,8 +1789,9 @@ function parseCompletion(body) {
     })) : [],
   };
   if (!RECORD_ID_PATTERN.test(parsed.jobId) || !RUNNER_PATTERN.test(parsed.runnerId) || !["succeeded", "failed", "needs_attention"].includes(parsed.status)
-    || parsed.engineName !== ENGINE_NAME || parsed.engineVersion !== ENGINE_VERSION || parsed.engineContractVersion !== ENGINE_CONTRACT_VERSION
-    || !/^[a-f0-9]{40}$/.test(parsed.engineRevision)) return null;
+    || parsed.engineName !== ENGINE_NAME || !VERSION_PATTERN.test(parsed.engineVersion)
+    || parsed.engineContractVersion !== ENGINE_CONTRACT_VERSION
+    || !ENGINE_REVISION_PATTERN.test(parsed.engineRevision)) return null;
   if (parsed.status !== "succeeded") return /^[a-z0-9_:-]{3,80}$/.test(parsed.failureCode) && !parsed.artifacts.length ? parsed : null;
   const kinds = parsed.artifacts.map((item) => item.kind);
   return !parsed.failureCode && CERT_PATTERN.test(parsed.signingCert) && new Set(kinds).size === kinds.length
@@ -1418,12 +1923,13 @@ function handleAdminDownload(e) {
 }
 
 module.exports = {
-  ARTIFACTS, ASSIGNMENTS, BRAND_ASSETS, ENGINE_CONTRACT_VERSION, ENGINE_NAME, ENGINE_VERSION, EVENTS, JOBS, PREVIEW_TTL_MS, PROFILES, TICKETS, TICKET_TTL_MS,
-  activeAssignment, artifactSnapshot, assignmentSnapshot, authorizedAdminContext, buildPreview,
-  brandAssetSnapshot, canonical, engineDescriptor, exactPayload, generalPublished, grantDigest, handleAdminCheckIn, handleAdminDownload, handleAdminPolicy,
+  ARTIFACTS, ASSIGNMENTS, BRAND_ASSETS, ENGINE_CONTRACT_VERSION, ENGINE_NAME, ENGINE_VERSION, EVENTS, JOBS, PREVIEW_TTL_MS, PROFILES, RUNNER_AGENTS, TICKETS, TICKET_TTL_MS,
+  activeAssignment, adminApiBaseUrl, artifactSnapshot, assignmentSnapshot, authorizationState, authorizedAdminContext, buildPreview,
+  brandAssetSnapshot, canonical, engineDescriptor, engineRelease, engineReleaseSnapshot, exactPayload, generalPublished, grantDigest, handleAdminCheckIn, handleAdminDownload, handleAdminPolicy,
   handleAdminPortal, handleAdminTicket, handleMasterAction, handleMasterArtifactDownload, handleMasterConfigure, handleMasterConfirm,
-  handleMasterBrandDownload, handleMasterBrandUpload, handleMasterDetail, handleMasterPreview, handleRunnerBrandDownload, handleRunnerClaim, handleRunnerComplete, handleRunnerUpload,
+  handleMasterBrandDownload, handleMasterBrandUpload, handleMasterDetail, handleMasterPreview, handleRunnerBrandDownload, handleRunnerClaim, handleRunnerComplete, handleRunnerHeartbeat, handleRunnerStart, handleRunnerUpload,
   isMaster, isStoreAdmin, jobSnapshot, managementReady, masterProfile, nextVersionCode, parseAssignment, parseBrandUpload, parseBuildPreview,
   parseCompletion, parseConfigure, parseUpload, portalResponse, profileIdentityLocked, profileSnapshot, randomToken,
-  publishedArtifactForProfile, recipientSnapshot, releaseState, requireAuthenticatedUser, requireRunner, resolveAdminRelease, secretEqual, testApproved, ticketDigest, validatedPilotExists,
+  publishedArtifactForProfile, recipientSnapshot, releaseState, requireAuthenticatedUser, requireRunner, resolveAdminRelease,
+  runnerAgentSnapshot, runnerCompatibility, runnerControlResponse, secretEqual, storedPreviewValue, testApproved, ticketDigest, validatedPilotExists,
 };
