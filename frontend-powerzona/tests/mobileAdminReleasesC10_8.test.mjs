@@ -13,6 +13,7 @@ const backendLib = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_adm
 const masterPage = readFileSync(new URL('../src/pages/master/mobile-admin.astro', import.meta.url), 'utf8');
 const masterView = readFileSync(new URL('../src/components/master/MasterMobileAdminReleaseView.astro', import.meta.url), 'utf8');
 const portal = readFileSync(new URL('../src/pages/admin/mobile-app.astro', import.meta.url), 'utf8');
+const updatePrompt = readFileSync(new URL('../src/components/admin/AdminAppUpdatePrompt.astro', import.meta.url), 'utf8');
 const ticketApi = readFileSync(new URL('../src/pages/api/admin/mobile-app/ticket.ts', import.meta.url), 'utf8');
 const downloadApi = readFileSync(new URL('../src/pages/api/admin/mobile-app/download/[artifact]/[ticket]/[filename].ts', import.meta.url), 'utf8');
 const middleware = readFileSync(new URL('../src/middleware.ts', import.meta.url), 'utf8');
@@ -190,11 +191,13 @@ test('panel Master separa preparación de publicación y reutiliza la APK aproba
 
 test('portal y proxy conservan sesión, dispositivo y APK privada sin asignación individual', () => {
   assert.match(portal, /isStoreAdmin/);
-  assert.match(portal, /únicamente con su sesión[\s\S]*dispositivo autorizado/i);
-  assert.match(portal, /access\.recipient\.user/);
+  assert.match(portal, /únicamente para tu sesión[\s\S]*este dispositivo/i);
+  assert.match(portal, /getAdminAppPortal/);
   assert.doesNotMatch(portal, /access\.assignment|Oleada/);
   assert.match(portal, /\/api\/admin\/mobile-app\/ticket/);
   assert.match(portal, /PZAndroidUpdate/);
+  assert.doesNotMatch(portal, /<dt>SHA-256|<dt>Paquete|<dt>Archivo|<dt>Canal/);
+  assert.match(portal, /payload\?\.artifact/);
   assert.match(ticketApi, /refreshAuthFromCookie/);
   assert.match(ticketApi, /readAdminDeviceToken/);
   assert.match(downloadApi, /Authorization: `Bearer/);
@@ -209,6 +212,13 @@ test('enforcement afecta la app antigua y deja navegadores normales fuera del ga
   assert.match(middleware, /status: 426/);
   assert.match(middleware, /requestedSection !== 'mobile-app'/);
   assert.match(middleware, /context\.locals\.adminAppPolicy = policy\.data/);
+  assert.doesNotMatch(middleware, /policy\.data\?\.update_required\) return context\.redirect/);
+  assert.match(sidebar, /AdminAppUpdatePrompt/);
+  assert.match(updatePrompt, /role="dialog"/);
+  assert.match(updatePrompt, /aria-modal="true"/);
+  assert.match(updatePrompt, /Actualizar ahora/);
+  assert.doesNotMatch(updatePrompt, />SHA-256<|>Paquete<|>Archivo<|>Canal</);
+  assert.match(updatePrompt, /artifact\.sha256/);
   assert.match(sidebar, /Actualizar aplicación/);
   assert.match(sidebar, /adminAppPolicy\?\.update_available/);
   assert.match(middleware, /change-temporary-password/);

@@ -1,5 +1,6 @@
 ---
 import AdminDialog from './AdminDialog.astro';
+import AdminAppUpdatePrompt from './AdminAppUpdatePrompt.astro';
 import AdminRefreshFeedback from './AdminRefreshFeedback.astro';
 import StorePlanIndicator from '../shared/StorePlanIndicator.astro';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
@@ -88,6 +89,7 @@ const notificationsAdminProductsPath = adminProductsPath;
 const currentAdminPath = Astro.url.pathname.replace(/\/+$/, '');
 const adminAppPolicy = Astro.locals.adminAppPolicy;
 const showAdminAppUpdate = !isMasterSupportMode && adminAppPolicy?.update_available === true;
+const requireAdminAppUpdate = showAdminAppUpdate && adminAppPolicy?.update_required === true;
 const isMarketingRafflesPath = /\/admin\/promos\/raffles$/.test(currentAdminPath);
 
 const defaultMobileTitleBySection: Record<string, string> = {
@@ -405,7 +407,14 @@ const audienceSubClass = (subsection: string) => {
 };
 ---
 
-{showAdminAppUpdate && (
+{requireAdminAppUpdate && adminAppPolicy && (
+  <AdminAppUpdatePrompt
+    packageName={adminAppPolicy.package_name}
+    versionName={adminAppPolicy.latest_version_name}
+  />
+)}
+
+{showAdminAppUpdate && !requireAdminAppUpdate && (
   <aside class="pz-admin-app-update-banner" role="status" aria-label="Actualización de Mobile Admin disponible">
     <span>
       <strong>Nueva versión {adminAppPolicy?.latest_version_name}</strong>

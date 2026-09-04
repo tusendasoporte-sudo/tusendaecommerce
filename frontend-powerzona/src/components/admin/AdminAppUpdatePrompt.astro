@@ -1,0 +1,155 @@
+---
+interface Props {
+  packageName: string;
+  versionName: string;
+}
+
+const { packageName, versionName } = Astro.props;
+---
+
+<div
+  class="pz-admin-app-update-overlay"
+  data-admin-app-update-prompt
+  data-package={packageName}
+  role="presentation"
+>
+  <section
+    class="pz-admin-app-update-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pz-admin-app-update-title"
+    aria-describedby="pz-admin-app-update-message"
+  >
+    <span class="pz-admin-app-update-dialog__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.6l2.3-2.3 1.4 1.4-4.7 4.7-4.7-4.7 1.4-1.4 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"></path></svg>
+    </span>
+    <span class="pz-admin-app-update-dialog__eyebrow">Actualización obligatoria</span>
+    <h2 id="pz-admin-app-update-title">Actualización necesaria</h2>
+    <p id="pz-admin-app-update-message">
+      Instala la versión <strong>{versionName}</strong> para seguir usando Mobile Admin de forma segura.
+    </p>
+    <p class="pz-admin-app-update-dialog__note">
+      Tus datos y tu sesión se conservarán. No desinstales la aplicación actual.
+    </p>
+    <button type="button" data-admin-app-update-start>Actualizar ahora</button>
+    <p class="pz-admin-app-update-dialog__status" data-admin-app-update-status aria-live="polite"></p>
+  </section>
+</div>
+
+<script>
+  (() => {
+    const prompt = document.querySelector<HTMLElement>('[data-admin-app-update-prompt]');
+    if (!prompt) return;
+    document.body.classList.add('pz-admin-app-update-required');
+    const button = prompt.querySelector<HTMLButtonElement>('[data-admin-app-update-start]');
+    const status = prompt.querySelector<HTMLElement>('[data-admin-app-update-status]');
+    const packageName = prompt.dataset.package || '';
+
+    const show = (message: string, error = false) => {
+      if (!status) return;
+      status.textContent = message;
+      status.classList.toggle('is-error', error);
+    };
+
+    button?.addEventListener('click', async () => {
+      button.disabled = true;
+      show('Preparando una actualización segura…');
+      try {
+        const response = await fetch('/api/admin/mobile-app/ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'production', grant: '', package_name: packageName }),
+        });
+        const payload = await response.json();
+        const artifact = payload?.artifact;
+        if (!response.ok || payload?.ok !== true || !artifact) throw new Error('ticket_failed');
+        const downloadUrl = new URL(String(payload.download_url || ''), window.location.origin).toString();
+        const nativeUpdater = (window as any).PZAndroidUpdate;
+        if (nativeUpdater?.downloadUpdate) {
+          nativeUpdater.downloadUpdate(
+            downloadUrl,
+            String(artifact.sha256 || ''),
+            Number(artifact.version_code || 0),
+            String(artifact.package_name || packageName),
+          );
+          show('Descargando y verificando la actualización…');
+        } else {
+          show('Descarga autorizada. Android abrirá el instalador.');
+          window.location.assign(downloadUrl);
+        }
+      } catch (_) {
+        show('No se pudo iniciar la actualización. Comprueba tu conexión e inténtalo otra vez.', true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  })();
+</script>
+
+<style is:global>
+  body.pz-admin-app-update-required { overflow: hidden !important; }
+  .pz-admin-app-update-overlay {
+    position: fixed;
+    z-index: 11000;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: auto;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+    background: rgba(15, 23, 42, .58);
+    backdrop-filter: blur(4px);
+  }
+  .pz-admin-app-update-dialog {
+    width: min(100%, 430px);
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    border: 1px solid rgba(226, 232, 240, .95);
+    border-radius: 24px;
+    background: #fff;
+    color: #0f172a;
+    padding: 28px 24px 22px;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .3);
+    text-align: center;
+  }
+  .pz-admin-app-update-dialog__icon {
+    width: 58px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+  .pz-admin-app-update-dialog__icon svg { width: 30px; height: 30px; fill: currentColor; }
+  .pz-admin-app-update-dialog__eyebrow {
+    color: #4338ca;
+    font-size: 11px;
+    font-weight: 1000;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .pz-admin-app-update-dialog h2 { margin: 0; font-size: clamp(24px, 7vw, 31px); line-height: 1.1; }
+  .pz-admin-app-update-dialog p { margin: 0; color: #475569; font-size: 15px; line-height: 1.55; }
+  .pz-admin-app-update-dialog__note {
+    width: 100%;
+    border-radius: 14px;
+    background: #f8fafc;
+    padding: 12px 14px;
+    font-size: 13px !important;
+  }
+  .pz-admin-app-update-dialog button {
+    width: 100%;
+    min-height: 52px;
+    border: 0;
+    border-radius: 14px;
+    background: #111827;
+    color: #fff;
+    padding: 12px 18px;
+    font: 900 15px inherit;
+    cursor: pointer;
+  }
+  .pz-admin-app-update-dialog button:disabled { opacity: .62; cursor: wait; }
+  .pz-admin-app-update-dialog__status { min-height: 21px; color: #166534 !important; font-size: 13px !important; font-weight: 800; }
+  .pz-admin-app-update-dialog__status.is-error { color: #b91c1c !important; }
+</style>

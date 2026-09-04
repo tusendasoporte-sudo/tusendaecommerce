@@ -478,7 +478,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
             nativeAdminApp,
           );
           if (policy.data) context.locals.adminAppPolicy = policy.data;
-          if (policy.data?.update_required) return context.redirect(getStoreAdminPath(currentStoreSlug, 'mobile-app'));
+          // Las versiones obligatorias se bloquean mediante un diálogo sobre el panel.
+          // Las API siguen respondiendo 426, por lo que la app antigua no puede operar
+          // mientras el aviso permanece visible.
         }
       }
       if (adminContext.isMasterSupport

@@ -68,30 +68,18 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
     <main class="release-shell" data-admin-mobile-portal data-grant={grant} data-package={packageName} data-channel={channel}>
       {access ? (
         <>
-          <header class="release-hero">
-            <span>ACTUALIZACIÓN PRIVADA</span>
-            <h1>{access.profile.display_name}</h1>
-            <p>Disponible para <strong>{access.recipient.user.name || access.recipient.user.email}</strong> únicamente con su sesión y el dispositivo autorizado <strong>{access.recipient.device.label}</strong>.</p>
-          </header>
           <section class="release-card">
-            <dl>
-              <div><dt>Versión</dt><dd>{access.artifact.version_name} ({access.artifact.version_code})</dd></div>
-              <div><dt>Paquete</dt><dd>{access.profile.package_name}</dd></div>
-              <div><dt>Archivo</dt><dd>{access.artifact.file_name}</dd></div>
-              <div><dt>SHA-256</dt><dd class="checksum">{access.artifact.sha256}</dd></div>
-              <div><dt>Canal</dt><dd>{access.profile.channel === 'staging' ? 'Pruebas' : 'Producción'}</dd></div>
-            </dl>
-            <div class="release-warning">
-              <strong>Comprueba antes de instalar</strong>
-              <p>Android debe mostrar el mismo paquete y aceptar la actualización sin desinstalar. Si solicita eliminar la app anterior, cancela.</p>
-            </div>
+            <span class="release-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.6l2.3-2.3 1.4 1.4-4.7 4.7-4.7-4.7 1.4-1.4 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"></path></svg>
+            </span>
+            <span class="release-eyebrow">Actualización de Mobile Admin</span>
+            <h1>Versión {access.artifact.version_name} disponible</h1>
+            <p>Esta actualización está autorizada únicamente para tu sesión y este dispositivo.</p>
+            <p class="release-warning">Tus datos y tu sesión se conservarán. No desinstales la aplicación actual.</p>
             <button
               type="button"
               class="release-download"
               data-admin-mobile-download
-              data-package={access.profile.package_name}
-              data-version-code={String(access.artifact.version_code)}
-              data-sha256={access.artifact.sha256}
             >{nativeIdentity ? 'Descargar actualización' : 'Descargar APK'}</button>
             <p class="release-status" data-admin-mobile-status aria-live="polite"></p>
           </section>
@@ -139,13 +127,15 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
             });
             const payload = await response.json();
             if (!response.ok || payload?.ok !== true) throw new Error(String(payload?.error || 'ticket_failed'));
+            const artifact = payload?.artifact;
+            if (!artifact) throw new Error('artifact_missing');
             const nativeUpdater = (window as any).PZAndroidUpdate;
             if (nativeUpdater?.downloadUpdate) {
               nativeUpdater.downloadUpdate(
                 new URL(payload.download_url, window.location.origin).toString(),
-                button.dataset.sha256 || '', Number(button.dataset.versionCode || 0), button.dataset.package || '',
+                String(artifact.sha256 || ''), Number(artifact.version_code || 0), String(artifact.package_name || packageName),
               );
-              show('La app verificará checksum, paquete, firma y versión antes de abrir Android.');
+              show('La app verificará la actualización antes de abrir Android.');
             } else {
               show('Descarga autorizada. El ticket vence en dos minutos y solo funciona una vez.');
               window.location.assign(payload.download_url);
@@ -160,5 +150,5 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
 </html>
 
 <style>
-  .admin-mobile-release-page{margin:0;background:#f4f7fb;color:#0f172a}.release-shell{width:min(920px,calc(100% - 36px));margin:0 auto;padding:34px 0 90px}.release-hero{padding:28px;border-radius:24px;background:linear-gradient(135deg,#0f172a,#312e81);color:#fff}.release-hero>span{font-size:11px;font-weight:900;letter-spacing:.12em;color:#c7d2fe}.release-hero h1{margin:8px 0;font-size:clamp(30px,7vw,48px)}.release-hero p{margin:0;color:#e0e7ff;line-height:1.55}.release-card{display:grid;gap:20px;margin-top:18px;border:1px solid #dbe3ef;border-radius:22px;background:#fff;padding:24px;box-shadow:0 18px 50px rgba(15,23,42,.08)}.release-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}.release-card dl div{display:grid;gap:5px;border:1px solid #e2e8f0;border-radius:13px;padding:13px}.release-card dt{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.release-card dd{margin:0;font-weight:850;overflow-wrap:anywhere}.checksum{font:700 12px ui-monospace,monospace}.release-warning{border:1px solid #fde68a;border-radius:14px;background:#fffbeb;color:#92400e;padding:14px}.release-warning p{margin:5px 0 0;line-height:1.5}.release-download{min-height:50px;border:0;border-radius:12px;background:#111827;color:#fff;padding:12px 18px;font:900 14px inherit;cursor:pointer}.release-download:disabled{opacity:.55;cursor:wait}.release-status{min-height:20px;margin:0;color:#166534;font-weight:800}.release-status.is-error{color:#b91c1c}.release-card--error{color:#991b1b}.release-card--error a{width:max-content;border-radius:10px;background:#111827;color:#fff;padding:11px 14px;text-decoration:none;font-weight:900}@media(max-width:760px){.release-shell{padding-top:90px}.release-card dl{grid-template-columns:1fr}}
+  .admin-mobile-release-page{margin:0;background:#f4f7fb;color:#0f172a}.release-shell{position:fixed;z-index:11000;inset:0;display:grid;place-items:center;overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));background:rgba(15,23,42,.58);backdrop-filter:blur(4px)}.release-card{width:min(100%,430px);display:grid;justify-items:center;gap:14px;border:1px solid rgba(226,232,240,.95);border-radius:24px;background:#fff;padding:28px 24px 22px;box-shadow:0 28px 80px rgba(15,23,42,.3);text-align:center}.release-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:#e0e7ff;color:#3730a3}.release-icon svg{width:30px;height:30px;fill:currentColor}.release-eyebrow{color:#4338ca;font-size:11px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}.release-card h1{margin:0;font-size:clamp(24px,7vw,31px);line-height:1.1}.release-card>p{margin:0;color:#475569;font-size:15px;line-height:1.55}.release-warning{width:100%;border-radius:14px;background:#f8fafc;padding:12px 14px;font-size:13px!important}.release-download{width:100%;min-height:52px;border:0;border-radius:14px;background:#111827;color:#fff;padding:12px 18px;font:900 15px inherit;cursor:pointer}.release-download:disabled{opacity:.62;cursor:wait}.release-status{min-height:21px;margin:0;color:#166534!important;font-size:13px!important;font-weight:800}.release-status.is-error{color:#b91c1c!important}.release-card--error{color:#991b1b}.release-card--error a{width:max-content;border-radius:10px;background:#111827;color:#fff;padding:11px 14px;text-decoration:none;font-weight:900}
 </style>
