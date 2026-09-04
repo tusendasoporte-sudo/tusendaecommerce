@@ -139,6 +139,7 @@ do {
         continue
     }
     $preview = $null
+    $iterationFailureCode = ''
     $brandDirectory = Join-Path ([IO.Path]::GetTempPath()) ("pz-admin-runner-brand-" + [Guid]::NewGuid().ToString('N'))
     try {
         if ([string]$job.preview.engine.name -cne [string]$engineManifest.name -or [string]$job.preview.engine.version -cne [string]$engineManifest.version -or [string]$job.preview.engine.revision -cne $engineRevision -or [int]$job.preview.engine.contract_version -ne [int]$engineManifest.contract_version) {
@@ -187,6 +188,7 @@ do {
         $code = ([string]$_.Exception.Message).ToLowerInvariant() -replace '[^a-z0-9_:-]', '_'
         if ($code.Length -lt 3) { $code = 'runner_failed' }
         if ($code.Length -gt 80) { $code = $code.Substring(0, 80) }
+        $iterationFailureCode = $code
         Send-Completion -Body @{
             job_id = [string]$job.id; runner_id = $RunnerId; status = 'needs_attention'; failure_code = $code
             signing_cert_sha256 = ''; artifacts = @()
@@ -198,5 +200,6 @@ do {
         Get-ChildItem -LiteralPath $brandDirectory -File -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
         if (Test-Path -LiteralPath $brandDirectory) { Remove-Item -LiteralPath $brandDirectory -Force }
     }
+    if ($Once -and $iterationFailureCode) { throw "Runner Admin falló: $iterationFailureCode" }
     if ($Once) { break }
 } while ($true)

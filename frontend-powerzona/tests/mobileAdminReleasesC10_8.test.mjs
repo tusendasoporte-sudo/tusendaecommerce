@@ -181,6 +181,10 @@ test('panel Master separa preparación de publicación y reutiliza la APK aproba
   assert.match(adminBuilder, /\[ValidateSet\('production'\)\]\[string\]\$Channel = 'production'/);
   assert.doesNotMatch(adminBuilder, /ValidateSet\([^\r\n]*staging/);
   assert.match(runner, /job\.preview\.channel -cne 'production'/);
+  assert.match(adminBuilder, /Push-Location -LiteralPath \$mobileRoot/);
+  assert.match(adminBuilder, /if \(\$gradleLocationPushed\) \{ Pop-Location \}/);
+  assert.match(runner, /\$iterationFailureCode = \$code/);
+  assert.match(runner, /if \(\$Once -and \$iterationFailureCode\) \{ throw/);
   assert.doesNotMatch(masterView, /wa\.me|WhatsApp|Google Play|generate.*sign/i);
 });
 

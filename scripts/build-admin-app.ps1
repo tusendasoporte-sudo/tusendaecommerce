@@ -187,6 +187,7 @@ $brandBackupDirectory = Join-Path ([IO.Path]::GetTempPath()) ("pz-admin-brand-" 
 $iconTarget = Join-Path $mobileRoot 'app\src\main\res\drawable-nodpi\ic_launcher_brand_foreground.png'
 $splashXmlTarget = Join-Path $mobileRoot 'app\src\main\res\drawable\splash_icon.xml'
 $splashPngTarget = Join-Path $mobileRoot 'app\src\main\res\drawable-nodpi\splash_icon.png'
+$gradleLocationPushed = $false
 try {
     New-Item -ItemType Directory -Path $brandBackupDirectory | Out-Null
     if ($IconSha256) {
@@ -198,6 +199,8 @@ try {
         Remove-Item -LiteralPath $splashXmlTarget -Force
         Copy-Item -LiteralPath $SplashPath -Destination $splashPngTarget
     }
+    Push-Location -LiteralPath $mobileRoot
+    $gradleLocationPushed = $true
     $gradleArgs = @("-PPZ_ADMIN_VERSION_CODE=$VersionCode", "-PPZ_ADMIN_VERSION_NAME=$VersionName", "-PPZ_APPLICATION_ID=$PackageName", "-PPZ_APP_NAME=$DisplayName", "-PPZ_ADMIN_URL=$AdminUrl", "-PPZ_API_BASE_URL=$resolvedApiBaseUrl", "-PPZ_SPLASH_BACKGROUND=$SplashBackgroundColor", '--no-daemon')
     if ($BuildType -eq 'Debug') {
         & $gradle 'clean' 'testDebugUnitTest' 'lintDebug' 'assembleDebug' @gradleArgs
@@ -226,6 +229,7 @@ try {
     if (Test-Path -LiteralPath $releaseDirectory) { Remove-Item -LiteralPath $releaseDirectory -Recurse -Force }
     throw
 } finally {
+    if ($gradleLocationPushed) { Pop-Location }
     if ($IconSha256 -and (Test-Path -LiteralPath (Join-Path $brandBackupDirectory 'ic_launcher_brand_foreground.png'))) {
         Copy-Item -LiteralPath (Join-Path $brandBackupDirectory 'ic_launcher_brand_foreground.png') -Destination $iconTarget -Force
     }
