@@ -37,6 +37,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -76,6 +77,7 @@ public final class MainActivity extends Activity {
     private LinearLayout errorView;
     private TextView errorTitle;
     private TextView errorMessage;
+    private View startupView;
     private ValueCallback<Uri[]> fileChooserCallback;
     private PendingDownload pendingDownload;
     private boolean backNavigationPending;
@@ -144,6 +146,12 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
+        startupView = createStartupView();
+        root.addView(startupView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+
         if (Build.VERSION.SDK_INT >= 35) {
             getWindow().setDecorFitsSystemWindows(false);
             root.setOnApplyWindowInsetsListener((view, windowInsets) -> {
@@ -162,6 +170,21 @@ public final class MainActivity extends Activity {
         }
 
         return root;
+    }
+
+    private View createStartupView() {
+        FrameLayout container = new FrameLayout(this);
+        container.setBackgroundColor(getColor(R.color.pz_splash_background));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.splash_icon);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logo.setContentDescription(BuildConfig.APP_DISPLAY_NAME);
+        FrameLayout.LayoutParams logoParams = new FrameLayout.LayoutParams(dp(288), dp(288));
+        logoParams.gravity = Gravity.CENTER;
+        container.addView(logo, logoParams);
+
+        return container;
     }
 
     private LinearLayout createErrorView() {
@@ -438,6 +461,7 @@ public final class MainActivity extends Activity {
 
     private void showError(String title, String message) {
         progressBar.setVisibility(View.GONE);
+        dismissStartupView(false);
         errorTitle.setText(title);
         errorMessage.setText(message);
         webView.setVisibility(View.GONE);
@@ -447,6 +471,23 @@ public final class MainActivity extends Activity {
     private void hideError() {
         errorView.setVisibility(View.GONE);
         webView.setVisibility(View.VISIBLE);
+    }
+
+    private void dismissStartupView(boolean animate) {
+        if (startupView == null || startupView.getVisibility() != View.VISIBLE) return;
+        startupView.animate().cancel();
+        if (!animate) {
+            startupView.setVisibility(View.GONE);
+            return;
+        }
+        startupView.animate()
+                .alpha(0f)
+                .setDuration(180L)
+                .withEndAction(() -> {
+                    startupView.setVisibility(View.GONE);
+                    startupView.setAlpha(1f);
+                })
+                .start();
     }
 
     private boolean handleNavigation(String rawUrl) {
@@ -842,10 +883,16 @@ public final class MainActivity extends Activity {
         @Override
         public void onPageFinished(WebView view, String url) {
             progressBar.setVisibility(View.GONE);
+            dismissStartupView(true);
             CookieManager.getInstance().flush();
             emitPushStateToWeb();
             emitAdminAppStateToWeb();
             syncAdminNotifications(AdminNotificationStore.TRIGGER_FOREGROUND);
+        }
+
+        @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            dismissStartupView(true);
         }
 
         @Override
