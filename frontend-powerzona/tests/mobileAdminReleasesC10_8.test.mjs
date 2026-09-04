@@ -272,6 +272,10 @@ test('runner solo acepta firma existente y usa un secreto exclusivo', () => {
   assert.match(runnerShortcut, /Tu Senda 84 - Construir App Admin/);
   assert.match(runnerShortcut, /-Once/);
   assert.match(runnerShortcut, /SecretsInShortcutArguments = \$false/);
+  assert.match(adminBuilder, /\$previousErrorActionPreference = \$ErrorActionPreference/);
+  assert.match(adminBuilder, /\$ErrorActionPreference = 'Continue'/);
+  assert.match(adminBuilder, /\$keytoolExitCode = \$LASTEXITCODE/);
+  assert.match(adminBuilder, /finally \{[\s\S]*\$ErrorActionPreference = \$previousErrorActionPreference/);
   assert.match(gradle, /releaseKeystorePropertiesFile\.parentFile/);
   assert.match(gradle, /Firebase es obligatorio/);
   assert.match(gradle, /releasePackagingRequested && !firebaseConfigFile\.exists/);

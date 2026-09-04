@@ -107,13 +107,24 @@ function Get-SigningFingerprint {
     if (-not (Test-Path -LiteralPath $keystore -PathType Leaf)) { throw 'No existe el keystore configurado.' }
     $keytool = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin\keytool.exe' } else { 'keytool.exe' }
     $env:PZ_ADMIN_KEYSTORE_PASSWORD = [string]$signing.storePassword
+    $previousErrorActionPreference = $ErrorActionPreference
     try {
-        $output = & $keytool -list -v -keystore $keystore -alias ([string]$signing.keyAlias) -storepass:env PZ_ADMIN_KEYSTORE_PASSWORD 2>$null
-        if ($LASTEXITCODE -ne 0) { throw 'No se pudo verificar el certificado configurado.' }
+        # Windows PowerShell convierte cualquier advertencia nativa de keytool en
+        # NativeCommandError cuando ErrorActionPreference está en Stop. La salida
+        # de error sigue descartada y el resultado real se decide por exit code.
+        $ErrorActionPreference = 'Continue'
+        $keytoolExitCode = -1
+        $output = @(& $keytool -list -v -keystore $keystore -alias ([string]$signing.keyAlias) -storepass:env PZ_ADMIN_KEYSTORE_PASSWORD 2>$null)
+        $keytoolExitCode = $LASTEXITCODE
+        $ErrorActionPreference = $previousErrorActionPreference
+        if ($keytoolExitCode -ne 0) { throw 'No se pudo verificar el certificado configurado.' }
         $line = $output | Where-Object { $_ -match 'SHA256:\s*((?:[A-F0-9]{2}:){31}[A-F0-9]{2})' } | Select-Object -First 1
         if (-not $line -or $line -notmatch 'SHA256:\s*((?:[A-F0-9]{2}:){31}[A-F0-9]{2})') { throw 'La firma no expone SHA-256 válido.' }
         return $Matches[1]
-    } finally { Remove-Item Env:PZ_ADMIN_KEYSTORE_PASSWORD -ErrorAction SilentlyContinue }
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+        Remove-Item Env:PZ_ADMIN_KEYSTORE_PASSWORD -ErrorAction SilentlyContinue
+    }
 }
 
 if ($AdminUrl -notmatch '^https://') { throw 'AdminUrl debe usar HTTPS.' }
