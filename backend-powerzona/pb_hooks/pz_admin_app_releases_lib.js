@@ -743,8 +743,37 @@ function statusFor(code) {
   return 409;
 }
 
+function unexpectedErrorSignature(error) {
+  const name = text(error && error.name, 80).replace(/[\r\n]+/g, " ");
+  const message = text(error && error.message, 320).replace(/[\r\n]+/g, " ");
+  const fields = [];
+  const sources = [
+    error && error.data,
+    error && error.response && error.response.data && error.response.data.data,
+  ];
+  sources.forEach((source) => {
+    if (!source || typeof source !== "object" || Array.isArray(source)) return;
+    Object.keys(source).sort().slice(0, 20).forEach((field) => {
+      const detail = source[field];
+      const validationCode = text(detail && detail.code, 80).replace(/[\r\n]+/g, " ");
+      fields.push(validationCode ? `${text(field, 80)}:${validationCode}` : text(field, 80));
+    });
+  });
+  return text([name, message, Array.from(new Set(fields)).join(",")].filter(Boolean).join(" | "), 700);
+}
+
 function sendError(e, error, fallback) {
-  const code = safeErrorCode(error) || fallback;
+  const knownCode = safeErrorCode(error);
+  if (!knownCode) {
+    try {
+      $app.logger().error(
+        "Tu Senda 84 Admin release operation failed safely.",
+        "code", fallback,
+        "error", unexpectedErrorSignature(error) || "unknown_error"
+      );
+    } catch (_) {}
+  }
+  const code = knownCode || fallback;
   return e.json(statusFor(code), { ok: false, error: code });
 }
 
