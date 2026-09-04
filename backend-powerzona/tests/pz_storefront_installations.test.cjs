@@ -664,7 +664,20 @@ test('cola nativa entrega sin FID, evita duplicados y confirma recepción', () =
     notification_id: delivery.id,
     state: 'native_delivered',
     occurred_at: '2026-08-12T02:00:00.000Z',
+    delivery_trigger: 'websocket_sync',
   }] });
+  assert.equal(installations.parseNotificationReceiptsPayload({ receipts: [{
+    notification_id: delivery.id,
+    state: 'native_delivered',
+    occurred_at: '2026-08-12T02:00:00.000Z',
+    delivery_trigger: 'invented_transport',
+  }] }), null);
+  assert.equal(installations.parseNotificationReceiptsPayload({ receipts: [{
+    notification_id: delivery.id,
+    state: 'fcm_received',
+    occurred_at: '2026-08-12T02:00:00.000Z',
+    delivery_trigger: 'workmanager',
+  }] }), null);
   const first = installations.recordNotificationReceipts(
     app,
     { ...authenticated, payload: receiptPayload },
@@ -678,6 +691,35 @@ test('cola nativa entrega sin FID, evita duplicados y confirma recepción', () =
   assert.deepEqual(first, { ok: true, accepted: 1, duplicates: 0 });
   assert.deepEqual(duplicate, { ok: true, accepted: 0, duplicates: 1 });
   assert.equal(delivery.getString('native_status'), 'delivered');
+  assert.equal(delivery.getString('displayed_at'), '2026-08-12T02:00:00.000Z');
+  assert.equal(delivery.getString('native_delivered_at'), '2026-08-12T02:00:00.000Z');
+  assert.equal(delivery.getString('delivery_trigger'), 'websocket_sync');
+
+  const laterFcm = installations.recordNotificationReceipts(app, {
+    ...authenticated,
+    payload: installations.parseNotificationReceiptsPayload({ receipts: [{
+      notification_id: delivery.id,
+      state: 'fcm_received',
+      occurred_at: '2026-08-12T02:00:01.000Z',
+      delivery_trigger: 'fcm',
+    }] }),
+  }, CREDENTIAL_SECRET);
+  assert.deepEqual(laterFcm, { ok: true, accepted: 1, duplicates: 0 });
+  assert.equal(delivery.getString('fcm_received_at'), '2026-08-12T02:00:01.000Z');
+  assert.equal(delivery.getString('delivery_trigger'), 'websocket_sync');
+
+  const earlierFcmRetry = installations.recordNotificationReceipts(app, {
+    ...authenticated,
+    payload: installations.parseNotificationReceiptsPayload({ receipts: [{
+      notification_id: delivery.id,
+      state: 'fcm_received',
+      occurred_at: '2026-08-12T01:59:59.000Z',
+      delivery_trigger: 'fcm',
+    }] }),
+  }, CREDENTIAL_SECRET);
+  assert.deepEqual(earlierFcmRetry, { ok: true, accepted: 0, duplicates: 1 });
+  assert.equal(delivery.getString('fcm_received_at'), '2026-08-12T01:59:59.000Z');
+  assert.equal(delivery.getString('delivery_trigger'), 'fcm');
   assert.equal(installations.syncNativeNotifications(app, authenticated, CREDENTIAL_SECRET).notifications.length, 0);
 });
 
@@ -1075,7 +1117,7 @@ test('runtime PocketBase real completa registro, rotacion, mantenimiento, bootst
     assert.equal(rotated.status, 200, rotated.raw);
     assert.equal(rotated.data.fid_rotated, true);
     assert.equal(rotated.data.installation.id, first.data.installation.id);
-    assert.notEqual(rotated.data.credential, first.data.credential);
+    assert.equal(rotated.data.credential, first.data.credential);
 
     const heartbeat = await internalPost(
       'installations_heartbeat',

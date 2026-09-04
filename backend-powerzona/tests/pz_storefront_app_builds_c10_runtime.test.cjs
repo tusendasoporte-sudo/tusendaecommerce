@@ -679,6 +679,7 @@ test('runtime C10 aplica migracion y completa la entrega manual por WhatsApp sin
       version_name: '1.4.0',
       lifecycle_status: 'available',
       release_status: 'published',
+      published_at: new Date().toISOString(),
     }, 'file', APK_BYTES, 'tienda-c10-runtime-1.4.0.apk', 'application/vnd.android.package-archive');
 
     const detailBlocked = await request('/api/pz/master/storefront-app-builds', {

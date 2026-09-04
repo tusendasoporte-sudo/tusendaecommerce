@@ -8,10 +8,17 @@ const installationSecurity = typeof __hooks === "undefined"
 
 const INSTALLATIONS_COLLECTION = "storefront_installations";
 const DIAGNOSTICS_COLLECTION = "storefront_installation_diagnostics";
+const DELIVERIES_COLLECTION = "push_campaign_deliveries";
 const MAX_INSTALLATIONS = 100;
 const MAX_DIAGNOSTICS = 5000;
+const MAX_DELIVERIES = 5000;
 const FRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_WINDOW_MS = 30 * FRESH_WINDOW_MS;
+const DISPLAY_TIME_ZONE = "America/Havana";
+const DELIVERY_TRIGGERS = Object.freeze([
+  "fcm", "websocket_sync", "foreground_poll", "resume_sync", "workmanager",
+  "native_sync_legacy", "unknown",
+]);
 const EVENT_TYPES = Object.freeze([
   "APP_STARTED",
   "INTERNET_AVAILABLE",
@@ -126,6 +133,75 @@ function recentDiagnostics(app, storeId, now) {
   return result;
 }
 
+function recentDeliveries(app, storeId, now) {
+  if (!collectionReady(app, DELIVERIES_COLLECTION)) return [];
+  const result = [];
+  const since = new Date(now.getTime() - ACTIVE_WINDOW_MS).toISOString();
+  for (let offset = 0; offset < MAX_DELIVERIES; offset += 500) {
+    const page = records(
+      app,
+      DELIVERIES_COLLECTION,
+      'store = {:store} && created >= {:since} && (fcm_status = "received" || native_status = "delivered" || native_status = "read")',
+      "-created,-id",
+      Math.min(500, MAX_DELIVERIES - offset),
+      offset,
+      { store: storeId, since },
+    );
+    result.push(...page.filter((record) => relationId(record, "store") === storeId));
+    if (page.length < 500) break;
+  }
+  return result;
+}
+
+function inferredDeliveryTrigger(record, fcmReceivedAt, displayedAt) {
+  const stored = recordString(record, "delivery_trigger", 40);
+  if (DELIVERY_TRIGGERS.includes(stored) && stored !== "unknown") return stored;
+  const fcm = parsedDate(fcmReceivedAt);
+  const displayed = parsedDate(displayedAt);
+  if (fcm && (!displayed || fcm.getTime() <= displayed.getTime())) return "fcm";
+  if (displayed) return "native_sync_legacy";
+  return "unknown";
+}
+
+function deliverySnapshot(record) {
+  if (!record) return null;
+  const fcmReceivedAt = isoDate(recordString(record, "fcm_received_at", 40));
+  const displayedAt = isoDate(
+    recordString(record, "displayed_at", 40)
+      || recordString(record, "native_delivered_at", 40),
+  );
+  const readAt = isoDate(recordString(record, "read_at", 40));
+  if (!fcmReceivedAt && !displayedAt && !readAt) return null;
+  const state = readAt ? "read" : displayedAt ? "displayed" : "received";
+  return {
+    state,
+    delivery_trigger: inferredDeliveryTrigger(record, fcmReceivedAt, displayedAt),
+    accepted_at: isoDate(recordString(record, "accepted_at", 40)),
+    fcm_received_at: fcmReceivedAt,
+    displayed_at: displayedAt,
+    read_at: readAt,
+  };
+}
+
+function latestDeliveryMap(deliveries, installationIds) {
+  const accepted = new Set(installationIds);
+  const result = new Map();
+  const activityAt = (snapshot) => laterIso(snapshot && snapshot.displayed_at, snapshot && snapshot.fcm_received_at);
+  deliveries.forEach((record) => {
+    const installationId = relationId(record, "installation");
+    if (!accepted.has(installationId)) return;
+    const snapshot = deliverySnapshot(record);
+    if (!snapshot) return;
+    const existing = result.get(installationId);
+    const nextAt = parsedDate(activityAt(snapshot));
+    const existingAt = parsedDate(activityAt(existing));
+    if (!existing || (nextAt && (!existingAt || nextAt.getTime() > existingAt.getTime()))) {
+      result.set(installationId, snapshot);
+    }
+  });
+  return result;
+}
+
 function eventSnapshot(record) {
   if (!record) return null;
   const result = recordString(record, "result", 20);
@@ -189,7 +265,7 @@ function latestEventMap(diagnostics, installationIds) {
   return result;
 }
 
-function installationSnapshot(record, events, now, storeId, options) {
+function installationSnapshot(record, events, delivery, now, storeId, options) {
   const id = recordId(record);
   const event = (type) => events.get(`${id}:${type}`) || null;
   const latest = {
@@ -269,7 +345,12 @@ function installationSnapshot(record, events, now, storeId, options) {
     backend_status: backendStatus,
     registration_status: registrationStatus,
     native_sync_status: nativeSyncStatus,
-    last_push_at: latest.push ? latest.push.occurred_at : "",
+    last_push_at: laterIso(
+      latest.push ? latest.push.occurred_at : "",
+      delivery && delivery.fcm_received_at,
+      delivery && delivery.displayed_at,
+    ),
+    last_delivery: delivery || null,
     last_error: latest.error ? {
       code: latest.error.error_code || "error_reported",
       occurred_at: latest.error.occurred_at,
@@ -398,13 +479,15 @@ function buildStorefrontAppHealth(app, storeId, options) {
     return {
       available: false,
       generated_at: Number.isFinite(now.getTime()) ? now.toISOString() : new Date().toISOString(),
+      display_time_zone: DISPLAY_TIME_ZONE,
       overall_status: "unknown",
       fresh_window_hours: 24,
       retention_days: 30,
       summary: {
         total: 0, active: 0, recent: 0, healthy: 0, warning: 0, critical: 0,
         unknown: 0, monitored: 0, firebase_registered: 0, fcm_registered: 0,
-        notification_granted: 0, notification_denied: 0,
+        notification_granted: 0, notification_denied: 0, push_fcm: 0, push_native: 0,
+        push_unknown: 0,
       },
       services: [],
       installations: [],
@@ -423,7 +506,15 @@ function buildStorefrontAppHealth(app, storeId, options) {
   ).filter((record) => relationId(record, "store") === storeId);
   const installationIds = installationRecords.map(recordId).filter(Boolean);
   const events = latestEventMap(recentDiagnostics(app, storeId, now), installationIds);
-  const installations = installationRecords.map((record) => installationSnapshot(record, events, now, storeId, settings));
+  const deliveries = latestDeliveryMap(recentDeliveries(app, storeId, now), installationIds);
+  const installations = installationRecords.map((record) => installationSnapshot(
+    record,
+    events,
+    deliveries.get(recordId(record)) || null,
+    now,
+    storeId,
+    settings,
+  ));
   const recent = installations.filter((item) => item.installation_status === "active"
     && parsedDate(item.last_contact_at)
     && now.getTime() - parsedDate(item.last_contact_at).getTime() <= ACTIVE_WINDOW_MS);
@@ -435,6 +526,12 @@ function buildStorefrontAppHealth(app, storeId, options) {
   const granted = recent.filter((item) => item.notification_permission === "granted").length;
   const denied = recent.filter((item) => item.notification_permission === "denied").length;
   const pushes = recent.filter((item) => parsedDate(item.last_push_at)).length;
+  const fcmPushes = recent.filter((item) => item.last_delivery
+    && item.last_delivery.delivery_trigger === "fcm").length;
+  const nativePushes = recent.filter((item) => item.last_delivery
+    && ["websocket_sync", "foreground_poll", "resume_sync", "workmanager", "native_sync_legacy"]
+      .includes(item.last_delivery.delivery_trigger)).length;
+  const unknownPushes = Math.max(0, pushes - fcmPushes - nativePushes);
   const activeErrors = recent.filter((item) => item.last_error && item.last_error.active).length;
   const checkedAt = now.toISOString();
   const services = [
@@ -484,10 +581,16 @@ function buildStorefrontAppHealth(app, storeId, options) {
     ),
     service(
       "push_receipts", "Recepción de campañas", pushes > 0 ? "healthy" : "unknown", "observability",
-      pushes > 0 ? `${pushes} instalaciones recientes confirmaron al menos una recepción.`
+      pushes > 0 ? `${pushes} instalaciones recientes confirmaron recepción: ${fcmPushes} por FCM, ${nativePushes} por el sistema resiliente y ${unknownPushes} sin canal concluyente.`
         : "No hay recepción reciente registrada; puede significar que no se envió una campaña de prueba.",
       laterIso(...recent.map((item) => item.last_push_at), checkedAt),
-      { total: recent.length, received: pushes },
+      {
+        total: recent.length,
+        received: pushes,
+        fcm: fcmPushes,
+        native: nativePushes,
+        unknown: unknownPushes,
+      },
     ),
     service(
       "errors", "Errores de la APK", activeErrors > 0 ? "warning" : recent.length ? "healthy" : "unknown", "observability",
@@ -510,6 +613,7 @@ function buildStorefrontAppHealth(app, storeId, options) {
   return {
     available: true,
     generated_at: checkedAt,
+    display_time_zone: DISPLAY_TIME_ZONE,
     overall_status: overallStatus,
     fresh_window_hours: 24,
     retention_days: 30,
@@ -526,6 +630,9 @@ function buildStorefrontAppHealth(app, storeId, options) {
       fcm_registered: installations.filter((item) => item.fcm_registration_present).length,
       notification_granted: installations.filter((item) => item.notification_permission === "granted").length,
       notification_denied: installations.filter((item) => item.notification_permission === "denied").length,
+      push_fcm: fcmPushes,
+      push_native: nativePushes,
+      push_unknown: unknownPushes,
     },
     services,
     installations,
@@ -535,7 +642,9 @@ function buildStorefrontAppHealth(app, storeId, options) {
 
 module.exports = {
   ACTIVE_WINDOW_MS,
+  DELIVERIES_COLLECTION,
   DIAGNOSTICS_COLLECTION,
+  DISPLAY_TIME_ZONE,
   FRESH_WINDOW_MS,
   INSTALLATIONS_COLLECTION,
   buildStorefrontAppHealth,

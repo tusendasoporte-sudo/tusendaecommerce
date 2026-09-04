@@ -74,6 +74,13 @@ const DIAGNOSTIC_EVENT_TYPES = new Set([
 ]);
 const DIAGNOSTIC_RESULTS = new Set(["started", "success", "failure", "skipped"]);
 const NOTIFICATION_RECEIPT_STATES = new Set(["fcm_received", "native_delivered", "read"]);
+const NOTIFICATION_DELIVERY_TRIGGERS = new Set([
+  "fcm", "websocket_sync", "foreground_poll", "resume_sync", "workmanager",
+]);
+const STORED_DELIVERY_TRIGGERS = new Set([
+  ...NOTIFICATION_DELIVERY_TRIGGERS,
+  "native_sync_legacy",
+]);
 const SESSION_BOOTSTRAP_SECONDS = 60;
 const SESSION_ACTIVE_SECONDS = 86400;
 const REALTIME_TICKET_SECONDS = 60;
@@ -585,14 +592,28 @@ function parseNotificationReceiptsPayload(value) {
   if (!Array.isArray(receipts) || receipts.length < 1 || receipts.length > 50) return null;
   const parsed = [];
   for (const receipt of receipts) {
-    if (!exactPayload(receipt, ["notification_id", "state", "occurred_at"])) return null;
+    const legacyShape = exactPayload(receipt, ["notification_id", "state", "occurred_at"]);
+    const tracedShape = exactPayload(receipt, [
+      "notification_id", "state", "occurred_at", "delivery_trigger",
+    ]);
+    if (!legacyShape && !tracedShape) return null;
     const notificationId = boundedText(bodyValue(receipt, "notification_id"), 15, RECORD_ID_PATTERN);
     const state = safeText(bodyValue(receipt, "state"));
+    const trigger = tracedShape ? safeText(bodyValue(receipt, "delivery_trigger")) : "";
     const occurredAtRaw = safeText(bodyValue(receipt, "occurred_at"));
     const occurredAt = new Date(occurredAtRaw);
     if (!notificationId || !NOTIFICATION_RECEIPT_STATES.has(state)
+      || (tracedShape && !trigger)
+      || (trigger && !NOTIFICATION_DELIVERY_TRIGGERS.has(trigger))
+      || (state === "fcm_received" && trigger && trigger !== "fcm")
+      || (state === "read" && trigger)
       || !occurredAtRaw || !Number.isFinite(occurredAt.getTime())) return null;
-    parsed.push(Object.freeze({ notificationId, state, occurredAt: occurredAt.toISOString() }));
+    parsed.push(Object.freeze({
+      notificationId,
+      state,
+      occurredAt: occurredAt.toISOString(),
+      deliveryTrigger: state === "fcm_received" ? "fcm" : trigger,
+    }));
   }
   return Object.freeze({ receipts: Object.freeze(parsed) });
 }
@@ -1235,6 +1256,39 @@ function syncNativeNotifications(app, context, credentialSecret) {
   });
 }
 
+function dateMillis(value) {
+  const parsed = new Date(safeText(value));
+  return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
+}
+
+function deliveryTriggerTime(delivery, trigger) {
+  if (trigger === "fcm") return dateMillis(
+    recordString(delivery, "fcm_received_at")
+      || recordString(delivery, "displayed_at")
+      || recordString(delivery, "native_delivered_at"),
+  );
+  return dateMillis(recordString(delivery, "displayed_at") || recordString(delivery, "native_delivered_at"));
+}
+
+function setEarliestDeliveryDate(delivery, field, occurredAt) {
+  const candidateAt = dateMillis(occurredAt);
+  const currentAt = dateMillis(recordString(delivery, field));
+  if (!candidateAt || (currentAt && currentAt <= candidateAt)) return false;
+  delivery.set(field, occurredAt);
+  return true;
+}
+
+function setFirstDeliveryTrigger(delivery, trigger, occurredAt) {
+  if (!STORED_DELIVERY_TRIGGERS.has(trigger)) return false;
+  const current = recordString(delivery, "delivery_trigger");
+  const candidateAt = dateMillis(occurredAt);
+  const currentAt = deliveryTriggerTime(delivery, current);
+  if (current && currentAt && (!candidateAt || currentAt <= candidateAt)) return false;
+  if (current === trigger && currentAt === candidateAt) return false;
+  delivery.set("delivery_trigger", trigger);
+  return true;
+}
+
 function recordNotificationReceipts(app, context, credentialSecret) {
   const resolved = resolveCredentialContext(app, context, credentialSecret, false, false);
   let accepted = 0;
@@ -1253,34 +1307,90 @@ function recordNotificationReceipts(app, context, credentialSecret) {
       throw new StorefrontInstallationError("delivery_not_eligible");
     }
     let duplicate = false;
+    let observabilityChanged = false;
     if (receipt.state === "fcm_received") {
       duplicate = recordString(delivery, "fcm_status") === "received";
       if (!duplicate) {
         delivery.set("fcm_status", "received");
-        delivery.set("fcm_received_at", receipt.occurredAt);
       }
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "fcm_received_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      observabilityChanged = setFirstDeliveryTrigger(
+        delivery,
+        "fcm",
+        receipt.occurredAt,
+      ) || observabilityChanged;
     } else if (receipt.state === "native_delivered") {
       duplicate = ["delivered", "read"].includes(recordString(delivery, "native_status"));
       if (!duplicate) {
         delivery.set("native_status", "delivered");
-        delivery.set("native_delivered_at", receipt.occurredAt);
       }
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "native_delivered_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "displayed_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      const trigger = receipt.deliveryTrigger || (
+        dateMillis(recordString(delivery, "fcm_received_at"))
+          && dateMillis(recordString(delivery, "fcm_received_at")) <= dateMillis(receipt.occurredAt)
+          ? "fcm" : "native_sync_legacy"
+      );
+      observabilityChanged = setFirstDeliveryTrigger(
+        delivery,
+        trigger,
+        receipt.occurredAt,
+      ) || observabilityChanged;
     } else {
       duplicate = recordString(delivery, "native_status") === "read";
       if (!duplicate) {
         delivery.set("native_status", "read");
-        if (!recordString(delivery, "native_delivered_at")) {
-          delivery.set("native_delivered_at", receipt.occurredAt);
-        }
-        delivery.set("read_at", receipt.occurredAt);
-        delivery.set("inbox_read_at", receipt.occurredAt);
+      }
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "native_delivered_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "displayed_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "read_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      observabilityChanged = setEarliestDeliveryDate(
+        delivery,
+        "inbox_read_at",
+        receipt.occurredAt,
+      ) || observabilityChanged;
+      if (!recordString(delivery, "delivery_trigger")) {
+        const fcmAt = dateMillis(recordString(delivery, "fcm_received_at"));
+        const displayedAt = dateMillis(recordString(delivery, "displayed_at"));
+        observabilityChanged = setFirstDeliveryTrigger(
+          delivery,
+          fcmAt && (!displayedAt || fcmAt <= displayedAt) ? "fcm" : "native_sync_legacy",
+          fcmAt && (!displayedAt || fcmAt <= displayedAt)
+            ? recordString(delivery, "fcm_received_at") : recordString(delivery, "displayed_at"),
+        ) || observabilityChanged;
       }
     }
     if (duplicate) duplicates += 1;
     else {
+      accepted += 1;
+    }
+    if (!duplicate || observabilityChanged) {
       schema.assertTenantIsolation(app, DELIVERIES_COLLECTION, delivery);
       app.save(delivery);
-      accepted += 1;
     }
   }
   return Object.freeze({ ok: true, accepted, duplicates });

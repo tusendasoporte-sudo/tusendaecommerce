@@ -111,6 +111,39 @@ function createApp() {
       event('diaghealth00008', FAILED_INSTALLATION, 'LAST_ERROR', 'failure', '2026-09-02T17:51:00.000Z', { error_code: 'network_timeout' }),
       event('diaghealth00009', OTHER_INSTALLATION, 'BACKEND_REACHABLE', 'success', '2026-09-02T17:59:00.000Z', { error_code: 'OTHER-TENANT-ERROR' }),
     ]],
+    ['push_campaign_deliveries', [
+      record('push_campaign_deliveries', 'deliveryhealth1', {
+        store: STORE,
+        installation: HEALTHY_INSTALLATION,
+        created: '2026-09-02T17:53:58.000Z',
+        accepted_at: '2026-09-02T17:53:59.000Z',
+        fcm_status: 'received',
+        native_status: 'delivered',
+        fcm_received_at: '2026-09-02T17:54:00.100Z',
+        displayed_at: '2026-09-02T17:54:00.107Z',
+        native_delivered_at: '2026-09-02T17:54:00.107Z',
+        delivery_trigger: 'fcm',
+      }),
+      record('push_campaign_deliveries', 'deliveryhealth2', {
+        store: STORE,
+        installation: FAILED_INSTALLATION,
+        created: '2026-09-02T17:52:58.000Z',
+        accepted_at: '2026-09-02T17:52:59.000Z',
+        fcm_status: 'not_attempted',
+        native_status: 'delivered',
+        displayed_at: '2026-09-02T17:53:01.000Z',
+        native_delivered_at: '2026-09-02T17:53:01.000Z',
+        delivery_trigger: 'websocket_sync',
+      }),
+      record('push_campaign_deliveries', 'deliveryhealth3', {
+        store: OTHER_STORE,
+        installation: OTHER_INSTALLATION,
+        created: '2026-09-02T17:59:00.000Z',
+        native_status: 'delivered',
+        displayed_at: '2026-09-02T17:59:01.000Z',
+        delivery_trigger: 'workmanager',
+      }),
+    ]],
   ]);
   const collections = new Map([...tables.keys()].map((name) => [name, { name, listRule: null, viewRule: null }]));
   return {
@@ -123,13 +156,17 @@ function createApp() {
       let result = [...(tables.get(collection) || [])];
       if (params.store) result = result.filter((item) => item.getString('store') === params.store);
       if (params.since) result = result.filter((item) => {
-        const occurredAt = Date.parse(item.getString('client_occurred_at'));
+        const occurredAt = Date.parse(item.getString(
+          collection === 'push_campaign_deliveries' ? 'created' : 'client_occurred_at',
+        ));
         return Number.isFinite(occurredAt) && occurredAt >= Date.parse(params.since);
       });
       if (String(sort).startsWith('-last_seen_at')) {
         result.sort((left, right) => right.getString('last_seen_at').localeCompare(left.getString('last_seen_at')));
       } else if (String(sort).startsWith('-client_occurred_at')) {
         result.sort((left, right) => right.getString('client_occurred_at').localeCompare(left.getString('client_occurred_at')));
+      } else if (String(sort).startsWith('-created')) {
+        result.sort((left, right) => right.getString('created').localeCompare(left.getString('created')));
       }
       return result.slice(offset, offset + limit);
     },
@@ -170,14 +207,31 @@ test('crea un resumen privado por tienda y distingue canal principal de acelerad
   assert.equal(result.summary.healthy, 1);
   assert.equal(result.summary.critical, 1);
   assert.equal(result.summary.fcm_registered, 1);
+  assert.equal(result.summary.push_fcm, 1);
+  assert.equal(result.summary.push_native, 1);
+  assert.equal(result.summary.push_unknown, 0);
+  assert.equal(result.display_time_zone, 'America/Havana');
   assert.equal(result.installations[0].support_ref, 'APP-1A2B-3C4D-5E6F');
   assert.equal(result.installations[0].fcm_registration_present, true);
+  assert.deepEqual(result.installations[0].last_delivery, {
+    state: 'displayed',
+    delivery_trigger: 'fcm',
+    accepted_at: '2026-09-02T17:53:59.000Z',
+    fcm_received_at: '2026-09-02T17:54:00.100Z',
+    displayed_at: '2026-09-02T17:54:00.107Z',
+    read_at: '',
+  });
+  assert.equal(result.installations[1].last_delivery.delivery_trigger, 'websocket_sync');
   assert.equal(result.installations[1].health_status, 'critical');
   assert.equal(result.installations[1].last_error.code, 'network_timeout');
   assert.equal(result.services.find((item) => item.key === 'api').importance, 'core');
   assert.equal(result.services.find((item) => item.key === 'realtime').importance, 'accelerator');
   assert.equal(result.services.find((item) => item.key === 'realtime').status, 'healthy');
   assert.equal(result.services.find((item) => item.key === 'updates').status, 'healthy');
+  assert.deepEqual(
+    result.services.find((item) => item.key === 'push_receipts').metrics,
+    { total: 2, received: 2, fcm: 1, native: 1, unknown: 0 },
+  );
 
   const serialized = JSON.stringify(result);
   for (const secret of [
@@ -209,6 +263,27 @@ test('conserva el registro FCM basado en FID aunque la telemetría reciente ya h
   assert.equal(result.installations[0].fcm_registration_present, true);
   assert.equal(result.services.find((item) => item.key === 'realtime').status, 'warning');
   assert.equal(result.overall_status, 'warning');
+});
+
+test('clasifica recibos anteriores sin origen como sincronización nativa heredada', () => {
+  const app = createApp();
+  app.findRecordsByFilter = ((original) => (collection, filter, sort, limit, offset, params) => {
+    const result = original(collection, filter, sort, limit, offset, params);
+    if (collection === 'push_campaign_deliveries') {
+      const legacy = result.find((item) => item.id === 'deliveryhealth2');
+      if (legacy) legacy.values.delivery_trigger = '';
+    }
+    return result;
+  })(app.findRecordsByFilter.bind(app));
+  const result = health.buildStorefrontAppHealth(app, STORE, {
+    now: NOW,
+    appState: appState(),
+    getenv: () => '',
+    referenceFor: (_storeId, installationId) => installationId === HEALTHY_INSTALLATION
+      ? 'APP-1A2B-3C4D-5E6F' : 'APP-6F5E-4D3C-2B1A',
+  });
+  assert.equal(result.installations[1].last_delivery.delivery_trigger, 'native_sync_legacy');
+  assert.equal(result.summary.push_native, 1);
 });
 
 test('rechaza orígenes WebSocket inesperados al construir la sonda HTTPS', () => {

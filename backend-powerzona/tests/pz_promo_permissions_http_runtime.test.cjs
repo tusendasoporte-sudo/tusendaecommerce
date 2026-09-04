@@ -40,6 +40,8 @@ const POST_PERMISSION_MIGRATIONS = [
   '1788447600_taxonomy_contract_indexes.js',
   '1788447700_store_plan_lifecycle_notifications.js',
   '1788447800_store_plan_commercial_audit.js',
+  '1788447900_public_homepage_settings.js',
+  '1788448000_storefront_delivery_transport_observability.js',
 ];
 
 function runtimeEnvironment() {
