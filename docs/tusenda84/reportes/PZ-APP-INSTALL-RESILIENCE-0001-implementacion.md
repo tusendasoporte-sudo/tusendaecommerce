@@ -124,6 +124,8 @@ Campos nuevos en `push_campaign_deliveries`:
 - `native_status`
 - `fcm_received_at`
 - `native_delivered_at`
+- `displayed_at`
+- `delivery_trigger` (`fcm`, `websocket_sync`, `foreground_poll`, `resume_sync`, `workmanager` o `native_sync_legacy`)
 - `read_at`
 - `delivery_expires_at`
 
@@ -156,7 +158,7 @@ El resumen diferencia explícitamente:
 - configuración del usuario: permiso Android para notificaciones;
 - observabilidad: confirmaciones de push y errores activos.
 
-También muestra hasta 100 instalaciones recientes de la tienda, cada una mediante una referencia opaca de soporte. Nunca devuelve al navegador UUID, FID, token FCM, credencial, hashes internos, IP ni el JSON libre de diagnóstico. La respuesta se construye únicamente con las colecciones privadas `storefront_installations` y `storefront_installation_diagnostics`, filtradas de nuevo por tienda.
+También muestra hasta 100 instalaciones recientes de la tienda, cada una mediante una referencia opaca de soporte. Para la entrega más reciente indica cuál canal ganó, cuándo FCM confirmó recepción, cuándo Android mostró el aviso y cuándo se abrió. Todas esas fechas se presentan en `America/Havana` y se rotulan como hora de Cuba. Nunca devuelve al navegador UUID, FID, token FCM, credencial, hashes internos, IP ni el JSON libre de diagnóstico. La respuesta se construye únicamente con las colecciones privadas `storefront_installations`, `storefront_installation_diagnostics` y `push_campaign_deliveries`, filtradas de nuevo por tienda.
 
 La vista se vuelve a comprobar cada 60 segundos mientras permanece visible. La sonda WebSocket transforma exclusivamente la URL configurada `wss://.../v1/connect` en `https://.../healthz`; una caída del acelerador aparece como aviso y no convierte Firebase en dependencia crítica. Este panel es una mejora web/backend y no obliga a reconstruir la APK.
 
@@ -190,7 +192,7 @@ Si existe bloqueo, la excepción debe limitarse a las rutas nativas exactas y om
 10. compilar una APK de staging con versión superior y la misma firma;
 11. instalar sobre una APK existente, sin desinstalar;
 12. verificar en diagnóstico: API, registro backend, estado WebSocket, FID opcional y permiso;
-13. enviar una campaña de prueba y comprobar `fcm_status`, `native_status` y lectura;
+13. enviar una campaña de prueba y comprobar `fcm_status`, `native_status`, `delivery_trigger`, `displayed_at` y lectura;
 14. hacer el piloto con uno o dos teléfonos en Cuba, probando app visible, segundo plano y cerrada;
 15. publicar la APK de producción y entregar una vez por enlace/WhatsApp a equipos antiguos no registrados.
 

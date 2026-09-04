@@ -163,6 +163,8 @@ El motor `1.5.0` registra cada instalación con un UUID persistente independient
 
 El motor `1.5.1` conserva en las compilaciones optimizadas el constructor de la base interna de WorkManager que AndroidX Startup necesita al abrir la APK.
 
+El motor `1.6.0` identifica el canal efectivo de cada notificación (`FCM`, WebSocket, sondeo visible, apertura/reanudación o WorkManager), conserva los recibos de versiones anteriores y permite mostrar una cronología verificable en hora de Cuba dentro del Master.
+
 `Update` exige un `versionCode` mayor y reutiliza de forma inmutable:
 
 - `app_key` y `applicationId`;

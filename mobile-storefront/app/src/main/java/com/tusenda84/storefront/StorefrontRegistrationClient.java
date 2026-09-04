@@ -200,6 +200,12 @@ final class StorefrontRegistrationClient {
             "^pzrt_v1\\.[a-f0-9]{64}\\.[0-9]{10}\\.[0-9]{10}\\."
                     + "[A-Za-z0-9]{32}\\.[a-f0-9]{64}$"
     );
+    private static final Set<String> NOTIFICATION_SYNC_TRIGGERS = Set.of(
+            StorefrontNotificationStore.TRIGGER_WEBSOCKET_SYNC,
+            StorefrontNotificationStore.TRIGGER_FOREGROUND_POLL,
+            StorefrontNotificationStore.TRIGGER_RESUME_SYNC,
+            StorefrontNotificationStore.TRIGGER_WORKMANAGER
+    );
     private static final int RESPONSE_LIMIT = 65_536;
     private static final long APP_SET_TIMEOUT_SECONDS = 5;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -288,8 +294,8 @@ final class StorefrontRegistrationClient {
         execute(callback, this::flushDiagnosticsInternal);
     }
 
-    void syncNotifications(Callback callback) {
-        execute(callback, this::syncNotificationsInternal);
+    void syncNotifications(String deliveryTrigger, Callback callback) {
+        execute(callback, () -> syncNotificationsInternal(deliveryTrigger));
     }
 
     void flushNotificationReceipts(Callback callback) {
@@ -918,7 +924,10 @@ final class StorefrontRegistrationClient {
         return Result.ok("Diagnósticos sincronizados.");
     }
 
-    private Result syncNotificationsInternal() throws Exception {
+    private Result syncNotificationsInternal(String deliveryTrigger) throws Exception {
+        if (!NOTIFICATION_SYNC_TRIGGERS.contains(deliveryTrigger)) {
+            return Result.fail("El origen de sincronización no es válido.");
+        }
         Result readiness = coreReadiness();
         if (!readiness.ok) return readiness;
         String credential = StorefrontInstallationStore.credential(context);
@@ -956,13 +965,23 @@ final class StorefrontRegistrationClient {
                 return Result.fail("El gateway devolvió una notificación no válida.");
             }
             if (StorefrontNotificationStore.wasDisplayed(context, payload.deliveryId)) {
-                StorefrontNotificationStore.queueReceipt(context, payload.deliveryId, "native_delivered");
+                StorefrontNotificationStore.queueReceipt(
+                        context,
+                        payload.deliveryId,
+                        "native_delivered",
+                        deliveryTrigger
+                );
                 continue;
             }
             boolean posted = StorefrontNotifications.show(context, payload, payload.title, payload.body);
             if (!posted) continue;
             StorefrontNotificationStore.markDisplayed(context, payload.deliveryId);
-            StorefrontNotificationStore.queueReceipt(context, payload.deliveryId, "native_delivered");
+            StorefrontNotificationStore.queueReceipt(
+                    context,
+                    payload.deliveryId,
+                    "native_delivered",
+                    deliveryTrigger
+            );
             delivered += 1;
         }
         if (delivered > 0) {
@@ -1017,7 +1036,9 @@ final class StorefrontRegistrationClient {
         try {
             Result core = registerCoreInternal();
             if (!core.ok) return core;
-            Result notifications = syncNotificationsInternal();
+            Result notifications = syncNotificationsInternal(
+                    StorefrontNotificationStore.TRIGGER_WORKMANAGER
+            );
             try { flushDiagnosticsInternal(); } catch (Exception ignored) {}
             return notifications;
         } catch (Exception error) {

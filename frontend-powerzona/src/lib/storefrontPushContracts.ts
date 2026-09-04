@@ -56,6 +56,9 @@ const STOREFRONT_PATH_PATTERN = /^\/t\/[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[A-Za-z0-9._
 const NOTIFICATION_RECEIPT_STATES = Object.freeze([
   'fcm_received', 'native_delivered', 'read',
 ] as const);
+export const STOREFRONT_NOTIFICATION_DELIVERY_TRIGGERS = Object.freeze([
+  'fcm', 'websocket_sync', 'foreground_poll', 'resume_sync', 'workmanager',
+] as const);
 
 export type NotificationPermission = typeof PERMISSION_STATES[number];
 
@@ -323,20 +326,37 @@ export function normalizeStorefrontNotificationReceiptsPayload(value: unknown) {
   if (!exactKeys(value, ['receipts'])) return null;
   const receipts = (value as Record<string, unknown>).receipts;
   if (!Array.isArray(receipts) || receipts.length < 1 || receipts.length > 50) return null;
-  const normalized: Array<Readonly<{ notification_id: string; state: string; occurred_at: string }>> = [];
+  const normalized: Array<Readonly<{
+    notification_id: string;
+    state: string;
+    occurred_at: string;
+    delivery_trigger?: string;
+  }>> = [];
   for (const receipt of receipts) {
-    if (!exactKeys(receipt, ['notification_id', 'state', 'occurred_at'])) return null;
+    const legacyShape = exactKeys(receipt, ['notification_id', 'state', 'occurred_at']);
+    const tracedShape = exactKeys(receipt, [
+      'notification_id', 'state', 'occurred_at', 'delivery_trigger',
+    ]);
+    if (!legacyShape && !tracedShape) return null;
     const source = receipt as Record<string, unknown>;
     const notificationId = boundedText(source.notification_id, 15, RECORD_ID_PATTERN);
     const state = typeof source.state === 'string'
       && NOTIFICATION_RECEIPT_STATES.includes(source.state as typeof NOTIFICATION_RECEIPT_STATES[number])
       ? source.state : '';
+    const deliveryTrigger = tracedShape && typeof source.delivery_trigger === 'string'
+      && STOREFRONT_NOTIFICATION_DELIVERY_TRIGGERS.includes(
+        source.delivery_trigger as typeof STOREFRONT_NOTIFICATION_DELIVERY_TRIGGERS[number],
+      ) ? source.delivery_trigger : '';
     const occurredAt = typeof source.occurred_at === 'string' ? new Date(source.occurred_at) : null;
-    if (!notificationId || !state || !occurredAt || !Number.isFinite(occurredAt.getTime())) return null;
+    if (!notificationId || !state || (tracedShape && !deliveryTrigger)
+      || (state === 'fcm_received' && deliveryTrigger && deliveryTrigger !== 'fcm')
+      || (state === 'read' && deliveryTrigger)
+      || !occurredAt || !Number.isFinite(occurredAt.getTime())) return null;
     normalized.push(Object.freeze({
       notification_id: notificationId,
       state,
       occurred_at: occurredAt.toISOString(),
+      ...(deliveryTrigger ? { delivery_trigger: deliveryTrigger } : {}),
     }));
   }
   return Object.freeze({ receipts: Object.freeze(normalized) });

@@ -1,7 +1,12 @@
 ---
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
-import { proposeFirebaseProjectId, type MasterStoreAppBuilds } from '../../lib/masterStoreAppBuilds';
+import {
+  formatStorefrontAppDateTime,
+  formatStorefrontAppDeliveryDateTime,
+  proposeFirebaseProjectId,
+  type MasterStoreAppBuilds,
+} from '../../lib/masterStoreAppBuilds';
 import { POWERZONA_EXISTING_APP_BASELINE, powerZonaStorefrontDefaults } from '../../lib/storefrontAppDefaults';
 import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
@@ -115,10 +120,7 @@ const statusLabels: Record<string, string> = {
 };
 
 function dateTime(value: string) {
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime())
-    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed)
-    : 'Pendiente';
+  return formatStorefrontAppDateTime(value);
 }
 
 function activityDateTime(value: string) {
@@ -160,6 +162,22 @@ function firebaseLabel(value: string) {
   if (value === 'unavailable') return 'No disponible';
   if (value === 'registering') return 'Registrando';
   return 'Sin confirmar';
+}
+
+function deliveryTriggerLabel(value: string) {
+  if (value === 'fcm') return 'Firebase / FCM';
+  if (value === 'websocket_sync') return 'Sistema resiliente · WebSocket';
+  if (value === 'foreground_poll') return 'Sistema resiliente · sondeo visible';
+  if (value === 'resume_sync') return 'Sistema resiliente · apertura o reanudación';
+  if (value === 'workmanager') return 'Sistema resiliente · tarea Android';
+  if (value === 'native_sync_legacy') return 'Sistema resiliente · versión anterior';
+  return 'Canal sin identificar';
+}
+
+function deliveryStateLabel(value: string) {
+  if (value === 'read') return 'Abierta';
+  if (value === 'displayed') return 'Mostrada';
+  return 'Recibida';
 }
 ---
 
@@ -801,7 +819,7 @@ function firebaseLabel(value: string) {
       <div class="master-app-health__toolbar">
         <div>
           <strong>Última comprobación: {dateTime(appHealth.generated_at)}</strong>
-          <span>Actividad reciente: últimas {appHealth.fresh_window_hours} horas · telemetría conservada {appHealth.retention_days} días.</span>
+          <span>Actividad reciente: últimas {appHealth.fresh_window_hours} horas · telemetría conservada {appHealth.retention_days} días · zona horaria {appHealth.display_time_zone}.</span>
         </div>
         <a class="master-btn master-btn--secondary" href={`/master/stores/${store.id}/app?channel=health`}>
           <MasterIcon name="analytics" size={17} /> Actualizar ahora
@@ -822,6 +840,9 @@ function firebaseLabel(value: string) {
             <article><span>Con avisos</span><strong>{healthSummary.warning.toLocaleString('es-US')}</strong><small>Requieren observación</small></article>
             <article><span>Críticas</span><strong>{healthSummary.critical.toLocaleString('es-US')}</strong><small>Requieren soporte</small></article>
             <article><span>Monitoreadas</span><strong>{healthSummary.monitored.toLocaleString('es-US')}</strong><small>Con telemetría nueva</small></article>
+            <article><span>Push por FCM</span><strong>{healthSummary.push_fcm.toLocaleString('es-US')}</strong><small>Firebase fue el canal efectivo</small></article>
+            <article><span>Push resiliente</span><strong>{healthSummary.push_native.toLocaleString('es-US')}</strong><small>Sincronización propia fue el canal efectivo</small></article>
+            <article><span>Canal desconocido</span><strong>{healthSummary.push_unknown.toLocaleString('es-US')}</strong><small>Confirmaciones anteriores sin trazabilidad</small></article>
           </div>
 
           <section class="master-app-health__services" aria-labelledby="app-health-services-title">
@@ -854,7 +875,7 @@ function firebaseLabel(value: string) {
               <div class="master-app-health__table-wrap">
                 <table class="master-app-health__table">
                   <thead>
-                    <tr><th>Dispositivo</th><th>Estado</th><th>Versión</th><th>Backend</th><th>Firebase / FCM</th><th>Permiso</th><th>Último contacto</th><th>Push / error</th></tr>
+                    <tr><th>Dispositivo</th><th>Estado</th><th>Versión</th><th>Backend</th><th>Firebase / FCM</th><th>Permiso</th><th>Último contacto</th><th>Última entrega / error</th></tr>
                   </thead>
                   <tbody>
                     {appHealth.installations.map((installation) => (
@@ -873,7 +894,19 @@ function firebaseLabel(value: string) {
                         <td><span class:list={['master-pill', installation.notification_permission === 'granted' ? 'master-pill--success' : installation.notification_permission === 'denied' ? 'master-pill--warning' : '']}>{permissionLabel(installation.notification_permission)}</span></td>
                         <td><strong>{activityDateTime(installation.last_contact_at)}</strong><small class="master-app-health__substatus">Sync {healthLabel(installation.native_sync_status).toLowerCase()}</small></td>
                         <td>
-                          <strong>{installation.last_push_at ? dateTime(installation.last_push_at) : 'Sin push confirmado'}</strong>
+                          <strong>{installation.last_delivery
+                            ? `${deliveryStateLabel(installation.last_delivery.state)} por ${deliveryTriggerLabel(installation.last_delivery.delivery_trigger)}`
+                            : installation.last_push_at ? `Confirmación anterior · ${dateTime(installation.last_push_at)}` : 'Sin push confirmado'}</strong>
+                          {installation.last_delivery ? (
+                            <small class="master-app-health__substatus">{
+                              [
+                                installation.last_delivery.accepted_at ? `Aceptada: ${formatStorefrontAppDeliveryDateTime(installation.last_delivery.accepted_at)}` : '',
+                                installation.last_delivery.fcm_received_at ? `FCM recibido: ${formatStorefrontAppDeliveryDateTime(installation.last_delivery.fcm_received_at)}` : '',
+                                installation.last_delivery.displayed_at ? `Mostrada: ${formatStorefrontAppDeliveryDateTime(installation.last_delivery.displayed_at)}` : '',
+                                installation.last_delivery.read_at ? `Abierta: ${formatStorefrontAppDeliveryDateTime(installation.last_delivery.read_at)}` : '',
+                              ].filter(Boolean).join(' · ')
+                            }</small>
+                          ) : null}
                           <small class:list={['master-app-health__substatus', { 'is-error': installation.last_error?.active }]}>{
                             installation.last_error
                               ? `${installation.last_error.active ? 'Error activo' : 'Recuperado'}: ${installation.last_error.code}`

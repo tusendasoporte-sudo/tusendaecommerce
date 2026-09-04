@@ -413,11 +413,26 @@ test('contratos de la cola nativa son exactos, acotados y deduplicables', () => 
       notification_id: 'delivery0000001',
       state: 'native_delivered',
       occurred_at: '2026-08-15T12:00:00.000Z',
+      delivery_trigger: 'websocket_sync',
     }],
   };
   assert.deepEqual(normalizeStorefrontNotificationReceiptsPayload(receipt), receipt);
+  const legacyReceipt = {
+    receipts: [{
+      notification_id: 'delivery0000001',
+      state: 'native_delivered',
+      occurred_at: '2026-08-15T12:00:00.000Z',
+    }],
+  };
+  assert.deepEqual(normalizeStorefrontNotificationReceiptsPayload(legacyReceipt), legacyReceipt);
   assert.equal(normalizeStorefrontNotificationReceiptsPayload({
     receipts: [{ ...receipt.receipts[0], state: 'accepted' }],
+  }), null);
+  assert.equal(normalizeStorefrontNotificationReceiptsPayload({
+    receipts: [{ ...receipt.receipts[0], delivery_trigger: 'unknown_transport' }],
+  }), null);
+  assert.equal(normalizeStorefrontNotificationReceiptsPayload({
+    receipts: [{ ...receipt.receipts[0], state: 'fcm_received', delivery_trigger: 'workmanager' }],
   }), null);
   assert.equal(normalizeStorefrontNotificationReceiptsPayload({ ...receipt, store_id: 'otra' }), null);
 

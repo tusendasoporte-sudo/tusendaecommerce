@@ -284,6 +284,46 @@ export type StorefrontAppDownloadAnalytics = {
 
 export type StorefrontAppHealthState = 'healthy' | 'warning' | 'critical' | 'unknown';
 export type StorefrontInstallationHealthState = StorefrontAppHealthState | 'inactive';
+export const STOREFRONT_APP_HEALTH_TIME_ZONE = 'America/Havana' as const;
+
+export type StorefrontAppDeliveryTrigger = 'fcm' | 'websocket_sync' | 'foreground_poll'
+  | 'resume_sync' | 'workmanager' | 'native_sync_legacy' | 'unknown';
+
+export type StorefrontAppHealthDelivery = {
+  state: 'received' | 'displayed' | 'read';
+  delivery_trigger: StorefrontAppDeliveryTrigger;
+  accepted_at: string;
+  fcm_received_at: string;
+  displayed_at: string;
+  read_at: string;
+};
+
+export function formatStorefrontAppDateTime(value: unknown) {
+  const parsed = new Date(String(value || ''));
+  return Number.isFinite(parsed.getTime())
+    ? `${new Intl.DateTimeFormat('es-CU', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: STOREFRONT_APP_HEALTH_TIME_ZONE,
+    }).format(parsed)} (hora de Cuba)`
+    : 'Pendiente';
+}
+
+export function formatStorefrontAppDeliveryDateTime(value: unknown) {
+  const parsed = new Date(String(value || ''));
+  return Number.isFinite(parsed.getTime())
+    ? `${new Intl.DateTimeFormat('es-CU', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      fractionalSecondDigits: 3,
+      timeZone: STOREFRONT_APP_HEALTH_TIME_ZONE,
+    }).format(parsed)} (hora de Cuba)`
+    : 'Pendiente';
+}
 
 export type StorefrontAppHealthEvent = {
   result: 'started' | 'success' | 'failure' | 'skipped';
@@ -331,6 +371,7 @@ export type StorefrontInstallationHealth = {
   registration_status: StorefrontAppHealthState;
   native_sync_status: StorefrontAppHealthState;
   last_push_at: string;
+  last_delivery: StorefrontAppHealthDelivery | null;
   last_error: { code: string; occurred_at: string; active: boolean } | null;
   latest_events: {
     internet: StorefrontAppHealthEvent | null;
@@ -347,6 +388,7 @@ export type StorefrontInstallationHealth = {
 export type StorefrontAppHealth = {
   available: boolean;
   generated_at: string;
+  display_time_zone: typeof STOREFRONT_APP_HEALTH_TIME_ZONE;
   overall_status: StorefrontAppHealthState;
   fresh_window_hours: 24;
   retention_days: 30;
@@ -363,6 +405,9 @@ export type StorefrontAppHealth = {
     fcm_registered: number;
     notification_granted: number;
     notification_denied: number;
+    push_fcm: number;
+    push_native: number;
+    push_unknown: number;
   };
   services: StorefrontAppHealthService[];
   installations: StorefrontInstallationHealth[];
@@ -1047,6 +1092,31 @@ function appHealthService(value: any): StorefrontAppHealthService | null {
   };
 }
 
+function appHealthDelivery(value: any): StorefrontAppHealthDelivery | null {
+  if (value === null || value === undefined) return null;
+  const state = text(value.state, 20);
+  const deliveryTrigger = text(value.delivery_trigger, 40);
+  const acceptedAt = isoDate(value.accepted_at);
+  const fcmReceivedAt = isoDate(value.fcm_received_at);
+  const displayedAt = isoDate(value.displayed_at);
+  const readAt = isoDate(value.read_at);
+  const validTriggers: StorefrontAppDeliveryTrigger[] = [
+    'fcm', 'websocket_sync', 'foreground_poll', 'resume_sync', 'workmanager',
+    'native_sync_legacy', 'unknown',
+  ];
+  if (!['received', 'displayed', 'read'].includes(state)
+    || !validTriggers.includes(deliveryTrigger as StorefrontAppDeliveryTrigger)
+    || (!fcmReceivedAt && !displayedAt && !readAt)) return null;
+  return {
+    state: state as StorefrontAppHealthDelivery['state'],
+    delivery_trigger: deliveryTrigger as StorefrontAppDeliveryTrigger,
+    accepted_at: acceptedAt,
+    fcm_received_at: fcmReceivedAt,
+    displayed_at: displayedAt,
+    read_at: readAt,
+  };
+}
+
 function appInstallationHealth(value: any): StorefrontInstallationHealth | null {
   const supportRef = text(value?.support_ref, 20);
   const healthStatus = appHealthState(value?.health_status, true);
@@ -1059,6 +1129,7 @@ function appInstallationHealth(value: any): StorefrontInstallationHealth | null 
   const backendStatus = appHealthState(value?.backend_status);
   const registrationStatus = appHealthState(value?.registration_status);
   const nativeSyncStatus = appHealthState(value?.native_sync_status);
+  const lastDelivery = appHealthDelivery(value?.last_delivery);
   if (!/^APP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/.test(supportRef) || !healthStatus
     || !['active', 'disabled', 'invalid', 'revoked'].includes(installationStatus)
     || typeof value?.monitoring_active !== 'boolean'
@@ -1071,6 +1142,7 @@ function appInstallationHealth(value: any): StorefrontInstallationHealth | null 
     || !backendStatus || backendStatus === 'inactive'
     || !registrationStatus || registrationStatus === 'inactive'
     || !nativeSyncStatus || nativeSyncStatus === 'inactive'
+    || (value?.last_delivery !== null && value?.last_delivery !== undefined && !lastDelivery)
     || !value.latest_events || typeof value.latest_events !== 'object') return null;
   const latestEvents = {} as StorefrontInstallationHealth['latest_events'];
   for (const key of APP_HEALTH_EVENT_KEYS) {
@@ -1113,6 +1185,7 @@ function appInstallationHealth(value: any): StorefrontInstallationHealth | null 
     registration_status: registrationStatus as StorefrontAppHealthState,
     native_sync_status: nativeSyncStatus as StorefrontAppHealthState,
     last_push_at: isoDate(value.last_push_at),
+    last_delivery: lastDelivery,
     last_error: lastError,
     latest_events: latestEvents,
   };
@@ -1125,9 +1198,14 @@ export function normalizeStorefrontAppHealth(value: any): StorefrontAppHealth | 
     'total', 'active', 'recent', 'healthy', 'warning', 'critical', 'unknown', 'monitored',
     'firebase_registered', 'fcm_registered', 'notification_granted', 'notification_denied',
   ] as const;
+  const channelSummaryKeys = ['push_fcm', 'push_native', 'push_unknown'] as const;
+  const displayTimeZone = text(value?.display_time_zone, 80) || STOREFRONT_APP_HEALTH_TIME_ZONE;
   if (typeof value?.available !== 'boolean' || !generatedAt || !overallStatus || overallStatus === 'inactive'
     || value.fresh_window_hours !== 24 || value.retention_days !== 30
     || !value.summary || summaryKeys.some((key) => !Number.isSafeInteger(value.summary[key]) || value.summary[key] < 0)
+    || channelSummaryKeys.some((key) => value.summary[key] !== undefined
+      && (!Number.isSafeInteger(value.summary[key]) || value.summary[key] < 0))
+    || displayTimeZone !== STOREFRONT_APP_HEALTH_TIME_ZONE
     || !Array.isArray(value.services) || !Array.isArray(value.installations)
     || !text(value.privacy_note, 300)) return null;
   const services = value.services.map(appHealthService).filter(Boolean) as StorefrontAppHealthService[];
@@ -1135,10 +1213,14 @@ export function normalizeStorefrontAppHealth(value: any): StorefrontAppHealth | 
   if (services.length !== value.services.length || installations.length !== value.installations.length
     || new Set(services.map((item) => item.key)).size !== services.length
     || new Set(installations.map((item) => item.support_ref)).size !== installations.length) return null;
-  const summary = Object.fromEntries(summaryKeys.map((key) => [key, Number(value.summary[key])])) as StorefrontAppHealth['summary'];
+  const summary = {
+    ...Object.fromEntries(summaryKeys.map((key) => [key, Number(value.summary[key])])),
+    ...Object.fromEntries(channelSummaryKeys.map((key) => [key, Number(value.summary[key] || 0)])),
+  } as StorefrontAppHealth['summary'];
   return {
     available: value.available,
     generated_at: generatedAt,
+    display_time_zone: STOREFRONT_APP_HEALTH_TIME_ZONE,
     overall_status: overallStatus as StorefrontAppHealthState,
     fresh_window_hours: 24,
     retention_days: 30,
@@ -1153,13 +1235,14 @@ function emptyAppHealth(generatedAt: unknown): StorefrontAppHealth {
   return {
     available: false,
     generated_at: isoDate(generatedAt) || new Date(0).toISOString(),
+    display_time_zone: STOREFRONT_APP_HEALTH_TIME_ZONE,
     overall_status: 'unknown',
     fresh_window_hours: 24,
     retention_days: 30,
     summary: {
       total: 0, active: 0, recent: 0, healthy: 0, warning: 0, critical: 0, unknown: 0,
       monitored: 0, firebase_registered: 0, fcm_registered: 0, notification_granted: 0,
-      notification_denied: 0,
+      notification_denied: 0, push_fcm: 0, push_native: 0, push_unknown: 0,
     },
     services: [],
     installations: [],

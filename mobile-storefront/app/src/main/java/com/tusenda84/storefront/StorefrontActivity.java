@@ -70,6 +70,7 @@ public final class StorefrontActivity extends Activity {
     private boolean permissionSyncInFlight;
     private boolean notificationSyncInFlight;
     private boolean notificationSyncRequested;
+    private String requestedNotificationSyncTrigger = StorefrontNotificationStore.TRIGGER_RESUME_SYNC;
     private boolean sessionRefreshInFlight;
     private boolean updateCheckInFlight;
     private boolean updateDownloadInFlight;
@@ -90,7 +91,7 @@ public final class StorefrontActivity extends Activity {
         @Override
         public void run() {
             if (isFinishing() || isDestroyed()) return;
-            syncNotifications();
+            syncNotifications(StorefrontNotificationStore.TRIGGER_FOREGROUND_POLL);
             foregroundHandler.postDelayed(this, FOREGROUND_NOTIFICATION_SYNC_MS);
         }
     };
@@ -107,7 +108,11 @@ public final class StorefrontActivity extends Activity {
         configureBackNavigation();
         StorefrontNotifications.createChannels(this);
         client = new StorefrontRegistrationClient(this);
-        realtimeClient = new StorefrontRealtimeClient(this, client, this::syncNotifications);
+        realtimeClient = new StorefrontRealtimeClient(
+                this,
+                client,
+                () -> syncNotifications(StorefrontNotificationStore.TRIGGER_WEBSOCKET_SYNC)
+        );
 
         findViewById(R.id.storefront_retry).setOnClickListener(view -> retry());
         findViewById(R.id.storefront_home).setOnClickListener(view -> openStoreHome());
@@ -236,7 +241,7 @@ public final class StorefrontActivity extends Activity {
             updateNotificationCard();
             if (result.ok) {
                 realtimeClient.connect();
-                syncNotifications();
+                syncNotifications(StorefrontNotificationStore.TRIGGER_RESUME_SYNC);
                 refreshWebSession(null);
                 checkForUpdates();
             }
@@ -258,7 +263,7 @@ public final class StorefrontActivity extends Activity {
                 return;
             }
             realtimeClient.connect();
-            syncNotifications();
+            syncNotifications(StorefrontNotificationStore.TRIGGER_RESUME_SYNC);
             checkForUpdates();
             refreshWebSession(sessionResult -> completeInitialNavigation(intent));
         });
@@ -858,7 +863,7 @@ public final class StorefrontActivity extends Activity {
         updateNotificationCard();
         syncPermissionIfChanged();
         syncHeartbeat();
-        syncNotifications();
+        syncNotifications(StorefrontNotificationStore.TRIGGER_RESUME_SYNC);
         if (initialNavigationDone) refreshWebSession(null);
         flushEvents();
         if (pendingVerifiedUpdate != null) {
@@ -887,19 +892,23 @@ public final class StorefrontActivity extends Activity {
         });
     }
 
-    private void syncNotifications() {
+    private void syncNotifications(String deliveryTrigger) {
         if (client == null || !StorefrontInstallationStore.hasCredential(this)) return;
         if (notificationSyncInFlight) {
             notificationSyncRequested = true;
+            requestedNotificationSyncTrigger = deliveryTrigger;
             return;
         }
         notificationSyncRequested = false;
+        requestedNotificationSyncTrigger = StorefrontNotificationStore.TRIGGER_RESUME_SYNC;
         notificationSyncInFlight = true;
-        client.syncNotifications(result -> {
+        client.syncNotifications(deliveryTrigger, result -> {
             notificationSyncInFlight = false;
             if (notificationSyncRequested) {
+                String requestedTrigger = requestedNotificationSyncTrigger;
                 notificationSyncRequested = false;
-                syncNotifications();
+                requestedNotificationSyncTrigger = StorefrontNotificationStore.TRIGGER_RESUME_SYNC;
+                syncNotifications(requestedTrigger);
             }
             // El registro y el heartbeat ya reparan credenciales inválidas. Un fallo
             // temporal de la bandeja no debe disparar otro registro cada 60 segundos.

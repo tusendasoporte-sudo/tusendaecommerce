@@ -57,7 +57,12 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
                 0,
                 0
         );
-        StorefrontNotificationStore.queueReceipt(this, payload.deliveryId, "fcm_received");
+        StorefrontNotificationStore.queueReceipt(
+                this,
+                payload.deliveryId,
+                "fcm_received",
+                StorefrontNotificationStore.TRIGGER_FCM
+        );
         boolean duplicate = StorefrontNotificationStore.wasDisplayed(this, payload.deliveryId);
         boolean posted = !duplicate && StorefrontNotifications.show(
                 this,
@@ -67,7 +72,12 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
         );
         if (posted) {
             StorefrontNotificationStore.markDisplayed(this, payload.deliveryId);
-            StorefrontNotificationStore.queueReceipt(this, payload.deliveryId, "native_delivered");
+            StorefrontNotificationStore.queueReceipt(
+                    this,
+                    payload.deliveryId,
+                    "native_delivered",
+                    StorefrontNotificationStore.TRIGGER_FCM
+            );
         }
         StorefrontRegistrationClient client = new StorefrontRegistrationClient(this);
         if (StorefrontInstallationStore.hasCredential(this)) {
