@@ -65,7 +65,14 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
       activeSection="account"
       mobileTitle="Mobile Admin"
     />
-    <main class="release-shell" data-admin-mobile-portal data-grant={grant} data-package={packageName} data-channel={channel}>
+    <main
+      class="release-shell"
+      data-admin-mobile-portal
+      data-grant={grant}
+      data-package={packageName}
+      data-channel={channel}
+      data-native={nativeIdentity ? 'true' : 'false'}
+    >
       {access ? (
         <>
           <section class="release-card">
@@ -94,32 +101,37 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
     </main>
 
     {access && (
-      <script>
-        const root = document.querySelector('[data-admin-mobile-portal]') as HTMLElement | null;
-        const button = root?.querySelector<HTMLButtonElement>('[data-admin-mobile-download]');
-        const status = root?.querySelector<HTMLElement>('[data-admin-mobile-status]');
+      <script is:inline>
+        const root = document.querySelector('[data-admin-mobile-portal]');
+        const button = root?.querySelector('[data-admin-mobile-download]');
+        const status = root?.querySelector('[data-admin-mobile-status]');
         const grant = root?.dataset.grant || '';
         const packageName = root?.dataset.package || '';
         const channel = root?.dataset.channel === 'staging' ? 'staging' : 'production';
-        function show(message: string, error = false) {
+        const nativeIdentity = root?.dataset.native === 'true';
+        function show(message, error = false) {
           if (!status) return;
           status.textContent = message;
           status.classList.toggle('is-error', error);
         }
 
         window.addEventListener('pz:android-admin-app-state', async (event) => {
-          const detail = (event as CustomEvent).detail || {};
+          const detail = event.detail || {};
           if (!detail.package_name || !detail.version_code || !detail.version_name) return;
           await fetch('/api/admin/mobile-app/check-in', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ package_name: detail.package_name, version_code: Number(detail.version_code), version_name: detail.version_name }),
           }).catch(() => null);
         });
-        (window as any).PZAndroidUpdate?.requestState?.();
+        const initialNativeUpdater = window.PZAndroidUpdate;
+        if (initialNativeUpdater && typeof initialNativeUpdater.requestState === 'function') {
+          initialNativeUpdater.requestState();
+        }
 
         button?.addEventListener('click', async () => {
           button.disabled = true;
           show('Creando un ticket privado de un solo uso…');
+          let updateStarted = false;
           try {
             const response = await fetch('/api/admin/mobile-app/ticket', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -129,26 +141,36 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
             if (!response.ok || payload?.ok !== true) throw new Error(String(payload?.error || 'ticket_failed'));
             const artifact = payload?.artifact;
             if (!artifact) throw new Error('artifact_missing');
-            const nativeUpdater = (window as any).PZAndroidUpdate;
-            if (nativeUpdater?.downloadUpdate) {
+            const downloadUrl = new URL(payload.download_url, window.location.origin);
+            const nativeUpdater = window.PZAndroidUpdate;
+            if (nativeUpdater && typeof nativeUpdater.downloadUpdate === 'function') {
+              updateStarted = true;
               nativeUpdater.downloadUpdate(
-                new URL(payload.download_url, window.location.origin).toString(),
+                downloadUrl.toString(),
                 String(artifact.sha256 || ''), Number(artifact.version_code || 0), String(artifact.package_name || packageName),
               );
               show('La app verificará la actualización antes de abrir Android.');
+            } else if (nativeIdentity) {
+              downloadUrl.searchParams.set('handoff', 'legacy-webview');
+              updateStarted = true;
+              show('Descarga iniciada. Cuando termine, toca la notificación para instalar la actualización.');
+              window.location.assign(downloadUrl.toString());
             } else {
+              updateStarted = true;
               show('Descarga autorizada. El ticket vence en dos minutos y solo funciona una vez.');
-              window.location.assign(payload.download_url);
+              window.location.assign(downloadUrl.toString());
             }
           } catch (_) {
             show('No fue posible autorizar la descarga. Actualiza la página e inténtalo nuevamente.', true);
-          } finally { button.disabled = false; }
+          } finally {
+            if (!updateStarted) button.disabled = false;
+          }
         });
       </script>
     )}
   </body>
 </html>
 
-<style>
-  .admin-mobile-release-page{margin:0;background:#f4f7fb;color:#0f172a}.release-shell{position:fixed;z-index:11000;inset:0;display:grid;place-items:center;overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));background:rgba(15,23,42,.58);backdrop-filter:blur(4px)}.release-card{width:min(100%,430px);display:grid;justify-items:center;gap:14px;border:1px solid rgba(226,232,240,.95);border-radius:24px;background:#fff;padding:28px 24px 22px;box-shadow:0 28px 80px rgba(15,23,42,.3);text-align:center}.release-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:#e0e7ff;color:#3730a3}.release-icon svg{width:30px;height:30px;fill:currentColor}.release-eyebrow{color:#4338ca;font-size:11px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}.release-card h1{margin:0;font-size:clamp(24px,7vw,31px);line-height:1.1}.release-card>p{margin:0;color:#475569;font-size:15px;line-height:1.55}.release-warning{width:100%;border-radius:14px;background:#f8fafc;padding:12px 14px;font-size:13px!important}.release-download{width:100%;min-height:52px;border:0;border-radius:14px;background:#111827;color:#fff;padding:12px 18px;font:900 15px inherit;cursor:pointer}.release-download:disabled{opacity:.62;cursor:wait}.release-status{min-height:21px;margin:0;color:#166534!important;font-size:13px!important;font-weight:800}.release-status.is-error{color:#b91c1c!important}.release-card--error{color:#991b1b}.release-card--error a{width:max-content;border-radius:10px;background:#111827;color:#fff;padding:11px 14px;text-decoration:none;font-weight:900}
+<style is:inline>
+  .admin-mobile-release-page{margin:0;background:#f4f7fb;color:#0f172a}.release-shell{box-sizing:border-box;position:fixed;z-index:11000;inset:0;display:grid;place-items:center;overflow:auto;padding:calc(24px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));background:rgba(15,23,42,.58);backdrop-filter:blur(4px)}.release-card{box-sizing:border-box;width:min(100%,430px);display:grid;justify-items:center;gap:14px;border:1px solid rgba(226,232,240,.95);border-radius:24px;background:#fff;padding:28px 24px 22px;box-shadow:0 28px 80px rgba(15,23,42,.3);text-align:center}.release-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:18px;background:#e0e7ff;color:#3730a3}.release-icon svg{width:30px;height:30px;fill:currentColor}.release-eyebrow{color:#4338ca;font-size:11px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}.release-card h1{margin:0;font-size:clamp(24px,7vw,31px);line-height:1.1}.release-card>p{margin:0;color:#475569;font-size:15px;line-height:1.55}.release-warning{box-sizing:border-box;width:100%;border-radius:14px;background:#f8fafc;padding:12px 14px;font-size:13px!important}.release-download{box-sizing:border-box;width:100%;min-height:52px;border:0;border-radius:14px;background:#111827;color:#fff;padding:12px 18px;font:900 15px inherit;cursor:pointer}.release-download:disabled{opacity:.62;cursor:wait}.release-status{min-height:21px;margin:0;color:#166534!important;font-size:13px!important;font-weight:800}.release-status.is-error{color:#b91c1c!important}.release-card--error{color:#991b1b}.release-card--error a{width:max-content;border-radius:10px;background:#111827;color:#fff;padding:11px 14px;text-decoration:none;font-weight:900}
 </style>

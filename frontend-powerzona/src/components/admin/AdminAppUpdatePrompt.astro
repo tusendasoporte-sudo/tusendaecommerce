@@ -36,24 +36,26 @@ const { packageName, versionName } = Astro.props;
   </section>
 </div>
 
-<script>
+<script is:inline>
   (() => {
-    const prompt = document.querySelector<HTMLElement>('[data-admin-app-update-prompt]');
+    const prompt = document.querySelector('[data-admin-app-update-prompt]');
     if (!prompt) return;
     document.body.classList.add('pz-admin-app-update-required');
-    const button = prompt.querySelector<HTMLButtonElement>('[data-admin-app-update-start]');
-    const status = prompt.querySelector<HTMLElement>('[data-admin-app-update-status]');
+    const button = prompt.querySelector('[data-admin-app-update-start]');
+    const status = prompt.querySelector('[data-admin-app-update-status]');
     const packageName = prompt.dataset.package || '';
 
-    const show = (message: string, error = false) => {
+    const show = (message, error = false) => {
       if (!status) return;
       status.textContent = message;
       status.classList.toggle('is-error', error);
     };
 
-    button?.addEventListener('click', async () => {
+    if (!button) return;
+    button.addEventListener('click', async () => {
       button.disabled = true;
       show('Preparando una actualización segura…');
+      let updateStarted = false;
       try {
         const response = await fetch('/api/admin/mobile-app/ticket', {
           method: 'POST',
@@ -64,8 +66,9 @@ const { packageName, versionName } = Astro.props;
         const artifact = payload?.artifact;
         if (!response.ok || payload?.ok !== true || !artifact) throw new Error('ticket_failed');
         const downloadUrl = new URL(String(payload.download_url || ''), window.location.origin).toString();
-        const nativeUpdater = (window as any).PZAndroidUpdate;
-        if (nativeUpdater?.downloadUpdate) {
+        const nativeUpdater = window.PZAndroidUpdate;
+        if (nativeUpdater && typeof nativeUpdater.downloadUpdate === 'function') {
+          updateStarted = true;
           nativeUpdater.downloadUpdate(
             downloadUrl,
             String(artifact.sha256 || ''),
@@ -74,21 +77,25 @@ const { packageName, versionName } = Astro.props;
           );
           show('Descargando y verificando la actualización…');
         } else {
-          show('Descarga autorizada. Android abrirá el instalador.');
-          window.location.assign(downloadUrl);
+          const legacyDownloadUrl = new URL(downloadUrl);
+          legacyDownloadUrl.searchParams.set('handoff', 'legacy-webview');
+          updateStarted = true;
+          show('Descarga iniciada. Cuando termine, toca la notificación para instalar la actualización.');
+          window.location.assign(legacyDownloadUrl.toString());
         }
       } catch (_) {
         show('No se pudo iniciar la actualización. Comprueba tu conexión e inténtalo otra vez.', true);
       } finally {
-        button.disabled = false;
+        if (!updateStarted) button.disabled = false;
       }
     });
   })();
 </script>
 
-<style is:global>
+<style is:inline>
   body.pz-admin-app-update-required { overflow: hidden !important; }
   .pz-admin-app-update-overlay {
+    box-sizing: border-box;
     position: fixed;
     z-index: 11000;
     inset: 0;
@@ -100,6 +107,7 @@ const { packageName, versionName } = Astro.props;
     backdrop-filter: blur(4px);
   }
   .pz-admin-app-update-dialog {
+    box-sizing: border-box;
     width: min(100%, 430px);
     display: grid;
     justify-items: center;
@@ -139,6 +147,7 @@ const { packageName, versionName } = Astro.props;
     font-size: 13px !important;
   }
   .pz-admin-app-update-dialog button {
+    box-sizing: border-box;
     width: 100%;
     min-height: 52px;
     border: 0;
