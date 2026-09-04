@@ -29,7 +29,8 @@ test('normaliza el contrato backend completo sin redefinir sus valores comercial
   assert.equal(catalog.currency.code, 'CUP');
   assert.deepEqual(catalog.commercial_period_months, [1, 6, 12]);
   assert.equal(commercialStoreType(catalog, 'promo')?.name, 'Tienda Promocional');
-  assert.equal(commercialStoreType(catalog, 'commerce')?.name, 'Tienda Ecommerce');
+  assert.equal(commercialStoreType(catalog, 'commerce')?.name, 'Tienda');
+  assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'free')?.capabilities.admin_android_app_enabled, true);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'free')?.capabilities.max_products, 100);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'basic')?.capabilities.max_products, 700);
   assert.equal(commercialPlan(commercialStoreType(catalog, 'ecommerce'), 'premium')?.capabilities.max_products, 1600);

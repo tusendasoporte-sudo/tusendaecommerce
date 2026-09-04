@@ -35,6 +35,8 @@ test('las tarjetas muestran precio, total, ahorro, duración, límites, funcione
   assert.match(page, /Seguridad avanzada', value: \(\) => 'No incluida'/);
   assert.doesNotMatch(page, /Opcional · apagada por defecto/);
   assert.match(settings, /No está incluida ni activada por defecto/);
+  assert.match(page, /Está incluida desde la prueba gratis de la modalidad Tienda/);
+  assert.match(page, /data-store-mode="ecommerce" aria-pressed="false">Tienda</);
 });
 
 test('los planes promocionales no muestran límites de idiomas ni almacenamiento', () => {
@@ -66,8 +68,20 @@ test('la interacción alterna modalidad, periodo, comparación y selección acce
   assert.match(page, /panel\.dataset\.panelMode !== activeMode/);
   assert.match(page, /panel\.dataset\.panelPeriod !== activePeriod/);
   assert.match(page, /table\.dataset\.comparisonTable !== activeMode/);
+  assert.match(page, /panel\.dataset\.comparisonMobile !== activeMode/);
+  assert.match(page, /activeComparisonPlans\.set\(mode, plan\)/);
   assert.match(page, /aria-live="polite"/);
   assert.match(page, /HTMLDetailsElement/);
+});
+
+test('la comparación móvil repite la modalidad y presenta un plan completo sin tabla horizontal', () => {
+  assert.match(page, /commercial-comparison-controls/);
+  assert.match(page, /aria-label="Tipo de tienda en la comparación"/);
+  assert.match(page, /data-comparison-mobile/);
+  assert.match(page, /data-comparison-plan-card/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.commercial-table-wrap\s*\{\s*display:\s*none/);
+  assert.match(styles, /\.commercial-comparison-mobile:not\(\[hidden\]\)\s*\{[\s\S]*?display:\s*grid/);
+  assert.match(styles, /\.commercial-mobile-comparison-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
 });
 
 test('la composición tiene cortes responsive, foco visible y movimiento reducido', () => {

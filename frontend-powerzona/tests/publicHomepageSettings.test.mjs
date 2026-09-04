@@ -8,6 +8,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROJECT_ROOT = path.resolve(ROOT, '..');
 const read = (relative) => fs.readFileSync(path.join(PROJECT_ROOT, relative), 'utf8');
 const migration = read('backend-powerzona/pb_migrations/1788447900_public_homepage_settings.js');
+const storeLabelMigration = read('backend-powerzona/pb_migrations/1788448100_homepage_store_label.js');
 const settingsLib = read('frontend-powerzona/src/lib/publicHomepageSettings.ts');
 const masterPage = read('frontend-powerzona/src/pages/master/homepage.astro');
 const masterView = read('frontend-powerzona/src/components/master/MasterHomepageSettingsView.astro');
@@ -22,6 +23,13 @@ test('la migración crea una configuración pública de portada con escritura ex
   assert.match(migration, /stores_section_enabled/);
   assert.match(migration, /faq_section_enabled/);
   assert.match(migration, /faqs_json/);
+});
+
+test('la etiqueta Tienda actualiza únicamente el texto predeterminado de las preguntas', () => {
+  assert.match(storeLabelMigration, /Promocional y Tienda/);
+  assert.match(storeLabelMigration, /next\[field\] === previous\[field\]/);
+  assert.match(storeLabelMigration, /En la modalidad Tienda es una capacidad opcional/);
+  assert.match(storeLabelMigration, /settings\.set\("faqs_json", updated\)/);
 });
 
 test('Master ofrece visibilidad, selección de tiendas y edición completa de preguntas', () => {

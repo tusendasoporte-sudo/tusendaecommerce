@@ -25,11 +25,11 @@ export type PublicHomepageSettings = {
 };
 
 export const DEFAULT_HOMEPAGE_FAQS: readonly PublicHomepageFaq[] = Object.freeze([
-  { id: 'store-types', visible: true, question: '¿Cuál es la diferencia entre Promocional y Ecommerce?', answer: 'Promocional está orientada a presentar servicios, catálogo, reseñas y contacto. Ecommerce añade productos, pedidos y herramientas operativas de venta.' },
+  { id: 'store-types', visible: true, question: '¿Cuál es la diferencia entre Promocional y Tienda?', answer: 'Promocional está orientada a presentar servicios, catálogo, reseñas y contacto. Tienda añade productos, pedidos y herramientas operativas de venta.' },
   { id: 'monthly-equivalent', visible: true, question: '¿Qué significa precio mensual equivalente?', answer: 'En los periodos de 6 y 12 meses permite comparar el valor mensual, pero el total indicado corresponde al pago completo del periodo.' },
   { id: 'free-trial', visible: true, question: '¿Cómo funciona la prueba gratis?', answer: 'La prueba dura 30 días, tiene un total de 0 CUP y puede utilizarse una sola vez por tienda.' },
   { id: 'android-apps', visible: true, question: '¿Las dos aplicaciones Android son iguales?', answer: 'No. La aplicación administrativa es para el equipo que gestiona el negocio. La aplicación para clientes lleva la identidad de la tienda y está pensada para comprar.' },
-  { id: 'advanced-security', visible: true, question: '¿Seguridad avanzada viene activada al crear la tienda?', answer: 'No. No está incluida ni activada por defecto. En Ecommerce es una capacidad opcional por tienda y solo Master puede controlarla.' },
+  { id: 'advanced-security', visible: true, question: '¿Seguridad avanzada viene activada al crear la tienda?', answer: 'No. No está incluida ni activada por defecto. En la modalidad Tienda es una capacidad opcional y solo Master puede controlarla.' },
   { id: 'plan-renewal', visible: true, question: '¿Puedo cambiar o renovar el plan?', answer: 'Sí. La administración Master gestiona la asignación, el cambio y la renovación dentro de los periodos comerciales disponibles.' },
 ]);
 

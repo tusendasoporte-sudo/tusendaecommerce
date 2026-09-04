@@ -170,7 +170,7 @@ function comparisonValue(value: string | boolean) {
   isBazar={true}
   seo={{
     title: 'Tu Senda 84 | Crea tu tienda online',
-    description: 'Crea una tienda promocional o ecommerce con planes claros, catálogo, administración y aplicaciones Android según el plan.',
+    description: 'Crea una presencia promocional o una tienda con planes claros, catálogo, administración y aplicaciones Android según el plan.',
     image: '/brand/tusenda84-bazzar-logo.webp',
     canonical: '/',
     type: 'website',
@@ -200,7 +200,7 @@ function comparisonValue(value: string | boolean) {
             Tu negocio, en su mejor versión digital
           </span>
           <h1>Abre una tienda que se sienta <em>tan tuya</em> como tu marca.</h1>
-          <p>Presenta tus productos, recibe pedidos y administra tu negocio desde un solo lugar. Empieza con una vitrina promocional o da el salto a una experiencia ecommerce completa.</p>
+          <p>Presenta tus productos, recibe pedidos y administra tu negocio desde un solo lugar. Empieza con una vitrina promocional o da el salto a una tienda completa.</p>
           <div class="commercial-hero-actions">
             <a class="commercial-button commercial-button-light" href="#planes">Explorar planes <span aria-hidden="true">↓</span></a>
             {showFeaturedStores && <a class="commercial-button commercial-button-ghost" href="#tiendas">Ver tiendas destacadas <span aria-hidden="true">↗</span></a>}
@@ -214,7 +214,7 @@ function comparisonValue(value: string | boolean) {
         <div class="commercial-hero-visual" aria-label="Plataforma de tiendas Tu Senda 84">
           <div class="commercial-visual-orbit" aria-hidden="true"></div>
           <img src="/brand/tusenda84-storefront-platform-v2.webp" alt="Ilustración de una tienda digital con panel administrativo y catálogo móvil" width="840" height="1000" fetchpriority="high" />
-          <div class="commercial-visual-note commercial-visual-note-top"><strong>2 modalidades</strong><span>Promocional y Ecommerce</span></div>
+          <div class="commercial-visual-note commercial-visual-note-top"><strong>2 modalidades</strong><span>Promocional y Tienda</span></div>
           <div class="commercial-visual-note commercial-visual-note-bottom"><strong>Todo conectado</strong><span>Web, administración y Android</span></div>
         </div>
       </div>
@@ -240,7 +240,7 @@ function comparisonValue(value: string | boolean) {
 
             <article class="commercial-type-card commercial-type-card-accent">
               <span class="commercial-type-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 1.9-1.4L21 8H7M10 20a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm9 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" /></svg></span>
-              <span class="commercial-type-tag">Ecommerce</span>
+              <span class="commercial-type-tag">Tienda</span>
               <h3>Vende y gestiona de principio a fin.</h3>
               <p>Organiza productos, inventario y pedidos, con aplicaciones Android disponibles según el plan seleccionado.</p>
               <ul><li>Hasta 1,600 productos</li><li>Categorías y subcategorías</li><li>Administración Android</li><li>Funciones Premium</li></ul>
@@ -262,11 +262,11 @@ function comparisonValue(value: string | boolean) {
             <div class="commercial-section-head">
               <span class="commercial-eyebrow">Planes claros</span>
               <h2 id="planes-title">La tienda que necesitas hoy, lista para crecer mañana.</h2>
-              <p>Elige una presencia promocional para mostrar tu catálogo y recibir contactos, o activa ecommerce para vender y gestionar pedidos de principio a fin.</p>
+              <p>Elige una presencia promocional para mostrar tu catálogo y recibir contactos, o activa tu tienda para vender y gestionar pedidos de principio a fin.</p>
             </div>
             {commercialCatalog && (
               <div class="commercial-price-controls" aria-label="Configurar comparación de planes">
-                <div class="commercial-segment" role="group" aria-label="Tipo de tienda"><button type="button" data-store-mode="promotional" aria-pressed="true">Promocional</button><button type="button" data-store-mode="ecommerce" aria-pressed="false">Ecommerce</button></div>
+                <div class="commercial-segment" role="group" aria-label="Tipo de tienda"><button type="button" data-store-mode="promotional" aria-pressed="true">Promocional</button><button type="button" data-store-mode="ecommerce" aria-pressed="false">Tienda</button></div>
                 <div class="commercial-segment" role="group" aria-label="Periodo de pago">
                   {commercialPeriods.map((months) => <button type="button" data-billing-period={months} aria-pressed={months === 1 ? 'true' : 'false'}>{periodLabels[months] || `${months} meses`}</button>)}
                 </div>
@@ -330,13 +330,51 @@ function comparisonValue(value: string | boolean) {
         <section class="commercial-section commercial-comparison" id="comparacion" aria-labelledby="comparacion-title">
           <div class="commercial-shell">
             <div class="commercial-section-head"><span class="commercial-eyebrow">Comparación rápida</span><h2 id="comparacion-title">Lo esencial, lado a lado.</h2><p>La tabla cambia junto con la modalidad seleccionada en Planes claros.</p></div>
-            {commercialCatalog.store_types.map((storeType) => (
-              <div class="commercial-table-wrap" data-comparison-table={storeType.code} hidden={storeType.code !== 'promotional'}>
-                <table>
-                  <thead><tr><th scope="col">Función o límite</th>{storeType.plans.map((plan) => <th scope="col">{plan.name}</th>)}</tr></thead>
-                  <tbody>{comparisonRows(storeType).map((row) => <tr><th scope="row">{row.label}</th>{storeType.plans.map((plan) => { const display = comparisonValue(row.value(plan)); return <td><span class:list={['commercial-table-value', `is-${display.tone}`]}>{display.symbol && <b aria-hidden="true">{display.symbol}</b>}{display.label}</span></td>; })}</tr>)}</tbody>
-                </table>
+            <div class="commercial-comparison-controls" aria-label="Configurar comparación móvil">
+              <span>Tipo de tienda</span>
+              <div class="commercial-segment" role="group" aria-label="Tipo de tienda en la comparación">
+                <button type="button" data-store-mode="promotional" aria-pressed="true">Promocional</button>
+                <button type="button" data-store-mode="ecommerce" aria-pressed="false">Tienda</button>
               </div>
+            </div>
+            {commercialCatalog.store_types.map((storeType) => (
+              <>
+                <div class="commercial-table-wrap" data-comparison-table={storeType.code} hidden={storeType.code !== 'promotional'}>
+                  <table>
+                    <thead><tr><th scope="col">Función o límite</th>{storeType.plans.map((plan) => <th scope="col">{plan.name}</th>)}</tr></thead>
+                    <tbody>{comparisonRows(storeType).map((row) => <tr><th scope="row">{row.label}</th>{storeType.plans.map((plan) => { const display = comparisonValue(row.value(plan)); return <td><span class:list={['commercial-table-value', `is-${display.tone}`]}>{display.symbol && <b aria-hidden="true">{display.symbol}</b>}{display.label}</span></td>; })}</tr>)}</tbody>
+                  </table>
+                </div>
+                <div class="commercial-comparison-mobile" data-comparison-mobile={storeType.code} hidden={storeType.code !== 'promotional'}>
+                  <div class="commercial-comparison-plan-tabs" role="group" aria-label={`Plan de ${storeType.name}`}>
+                    {storeType.plans.map((plan, planIndex) => (
+                      <button type="button" data-comparison-plan={plan.code} data-comparison-plan-mode={storeType.code} aria-pressed={planIndex === 0 ? 'true' : 'false'}>{plan.name}</button>
+                    ))}
+                  </div>
+                  {storeType.plans.map((plan, planIndex) => (
+                    <article class="commercial-mobile-comparison-card" data-comparison-plan-card={plan.code} data-comparison-plan-mode={storeType.code} hidden={planIndex !== 0}>
+                      <header>
+                        <span class="commercial-mobile-comparison-mark" aria-hidden="true">
+                          <svg viewBox="0 0 24 24"><path d="M4 7.5h16v11H4v-11Zm4-3h8v3H8v-3Zm1 7h6m-6 3h6" /></svg>
+                        </span>
+                        <h3>{plan.name}</h3>
+                        <strong>Plan seleccionado</strong>
+                      </header>
+                      <dl>
+                        {comparisonRows(storeType).map((row) => {
+                          const display = comparisonValue(row.value(plan));
+                          return (
+                            <div class="commercial-mobile-comparison-row">
+                              <dt>{row.label}</dt>
+                              <dd><span class:list={['commercial-table-value', `is-${display.tone}`]}>{display.symbol && <b aria-hidden="true">{display.symbol}</b>}{display.label}</span></dd>
+                            </div>
+                          );
+                        })}
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              </>
             ))}
           </div>
         </section>
@@ -344,10 +382,10 @@ function comparisonValue(value: string | boolean) {
 
       <section class="commercial-section commercial-apps" id="aplicaciones" aria-labelledby="aplicaciones-title">
         <div class="commercial-shell">
-          <div class="commercial-section-head"><span class="commercial-eyebrow">Aplicaciones Android</span><h2 id="aplicaciones-title">Una aplicación para gestionar. Otra para comprar.</h2><p>Son experiencias diferentes y su disponibilidad depende de la modalidad Ecommerce y del plan contratado.</p></div>
+          <div class="commercial-section-head"><span class="commercial-eyebrow">Aplicaciones Android</span><h2 id="aplicaciones-title">Una aplicación para gestionar. Otra para comprar.</h2><p>Son experiencias diferentes y su disponibilidad depende de la modalidad Tienda y del plan contratado.</p></div>
           <div class="commercial-app-grid">
-            <article class="commercial-app-card commercial-app-admin"><div><span class="commercial-app-label">Para ti y tu equipo</span><h3>Aplicación administrativa</h3><p>El centro de control móvil para gestionar catálogo y operación. Está incluida en los planes Ecommerce Básico y Premium.</p><ul><li>Administración desde Android</li><li>Acceso de usuarios autorizados</li><li>Hasta 20 dispositivos en Premium</li></ul></div><img src="/brand/tu-senda-84-admin-icon-512.png" alt="Icono de Tu Senda 84 Admin para Android" width="512" height="512" loading="lazy" /></article>
-            <article class="commercial-app-card commercial-app-customer"><div><span class="commercial-app-label">Para tus compradores</span><h3>Aplicación para clientes</h3><p>Una app con la identidad de la tienda para que los clientes exploren y compren. Está incluida en Ecommerce Premium.</p><ul><li>Marca propia de la tienda</li><li>Catálogo y experiencia de compra</li><li>Campañas push en Premium</li></ul></div><figure><img src="/brand/android-platform-icon.svg" alt="Icono de Android para la aplicación de clientes" width="512" height="512" loading="lazy" /><figcaption>Disponible para Android</figcaption></figure></article>
+            <article class="commercial-app-card commercial-app-admin"><div><span class="commercial-app-label">Para ti y tu equipo</span><h3>Aplicación administrativa</h3><p>El centro de control móvil para gestionar catálogo y operación. Está incluida desde la prueba gratis de la modalidad Tienda.</p><ul><li>Administración desde Android</li><li>Acceso de usuarios autorizados</li><li>Hasta 20 dispositivos en Premium</li></ul></div><img src="/brand/tu-senda-84-admin-icon-512.png" alt="Icono de Tu Senda 84 Admin para Android" width="512" height="512" loading="lazy" /></article>
+            <article class="commercial-app-card commercial-app-customer"><div><span class="commercial-app-label">Para tus compradores</span><h3>Aplicación para clientes</h3><p>Una app con la identidad de la tienda para que los clientes exploren y compren. Está incluida en Tienda Premium.</p><ul><li>Marca propia de la tienda</li><li>Catálogo y experiencia de compra</li><li>Campañas push en Premium</li></ul></div><figure><img src="/brand/android-platform-icon.svg" alt="Icono de Android para la aplicación de clientes" width="512" height="512" loading="lazy" /><figcaption>Disponible para Android</figcaption></figure></article>
           </div>
         </div>
       </section>
@@ -392,7 +430,7 @@ function comparisonValue(value: string | boolean) {
       <section class="commercial-final-cta" aria-label="Comenzar con Tu Senda 84"><div><span>Tu próxima tienda empieza aquí</span><h2>Encuentra el plan que acompaña tu próximo paso.</h2><p>Compara precios, duración, límites, aplicaciones y funciones incluidas.</p></div><div><a class="commercial-button commercial-button-light" href="#planes">Elegir modalidad</a>{showFeaturedStores && <a class="commercial-button commercial-button-ghost" href="#tiendas">Explorar tiendas</a>}</div></section>
     </div>
 
-    <footer class="commercial-footer commercial-shell"><a class="commercial-brand commercial-brand-footer" href="#inicio"><span class="commercial-brand-mark"><img src="/brand/tu-senda-84-admin-icon-512.png" alt="" width="42" height="42" /></span><span>Tu Senda 84</span></a><p>Tiendas promocionales y ecommerce para negocios que quieren crecer.</p></footer>
+    <footer class="commercial-footer commercial-shell"><a class="commercial-brand commercial-brand-footer" href="#inicio"><span class="commercial-brand-mark"><img src="/brand/tu-senda-84-admin-icon-512.png" alt="" width="42" height="42" /></span><span>Tu Senda 84</span></a><p>Modalidades Promocional y Tienda para negocios que quieren crecer.</p></footer>
   </div>
 
   <script>
@@ -402,23 +440,52 @@ function comparisonValue(value: string | boolean) {
       const periodButtons = Array.from(root.querySelectorAll('[data-billing-period]'));
       const planPanels = Array.from(root.querySelectorAll('[data-plan-panel]'));
       const comparisonTables = Array.from(root.querySelectorAll('[data-comparison-table]'));
+      const comparisonMobilePanels = Array.from(root.querySelectorAll('[data-comparison-mobile]'));
+      const comparisonPlanButtons = Array.from(root.querySelectorAll('[data-comparison-plan]'));
+      const comparisonPlanCards = Array.from(root.querySelectorAll('[data-comparison-plan-card]'));
       const selection = root.querySelector('[data-plan-selection]');
       const selectionTitle = root.querySelector('[data-selection-title]');
       const selectionDetail = root.querySelector('[data-selection-detail]');
       let activeMode = 'promotional';
       let activePeriod = '1';
+      const activeComparisonPlans = new Map();
+      comparisonPlanButtons.forEach((button) => {
+        const mode = button.getAttribute('data-comparison-plan-mode') || '';
+        const plan = button.getAttribute('data-comparison-plan') || '';
+        if (mode && plan && !activeComparisonPlans.has(mode)) activeComparisonPlans.set(mode, plan);
+      });
 
       const clearSelection = () => { if (selection instanceof HTMLElement) selection.hidden = true; };
+      const updateComparisonPlans = () => {
+        comparisonPlanButtons.forEach((button) => {
+          const mode = button.getAttribute('data-comparison-plan-mode') || '';
+          const plan = button.getAttribute('data-comparison-plan') || '';
+          button.setAttribute('aria-pressed', String(activeComparisonPlans.get(mode) === plan));
+        });
+        comparisonPlanCards.forEach((card) => {
+          if (!(card instanceof HTMLElement)) return;
+          card.hidden = activeComparisonPlans.get(card.dataset.comparisonPlanMode || '') !== card.dataset.comparisonPlanCard;
+        });
+      };
       const updatePricing = () => {
         modeButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.getAttribute('data-store-mode') === activeMode)));
         periodButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.getAttribute('data-billing-period') === activePeriod)));
         planPanels.forEach((panel) => { if (panel instanceof HTMLElement) panel.hidden = panel.dataset.panelMode !== activeMode || panel.dataset.panelPeriod !== activePeriod; });
         comparisonTables.forEach((table) => { if (table instanceof HTMLElement) table.hidden = table.dataset.comparisonTable !== activeMode; });
+        comparisonMobilePanels.forEach((panel) => { if (panel instanceof HTMLElement) panel.hidden = panel.dataset.comparisonMobile !== activeMode; });
+        updateComparisonPlans();
         clearSelection();
       };
 
       modeButtons.forEach((button) => button.addEventListener('click', () => { activeMode = button.getAttribute('data-store-mode') || 'promotional'; updatePricing(); }));
       periodButtons.forEach((button) => button.addEventListener('click', () => { activePeriod = button.getAttribute('data-billing-period') || '1'; updatePricing(); }));
+      comparisonPlanButtons.forEach((button) => button.addEventListener('click', () => {
+        const mode = button.getAttribute('data-comparison-plan-mode') || '';
+        const plan = button.getAttribute('data-comparison-plan') || '';
+        if (!mode || !plan) return;
+        activeComparisonPlans.set(mode, plan);
+        updateComparisonPlans();
+      }));
       root.querySelectorAll('[data-plan-action]').forEach((button) => button.addEventListener('click', () => {
         if (!(button instanceof HTMLElement) || !(selection instanceof HTMLElement)) return;
         if (selectionTitle) selectionTitle.textContent = `${button.dataset.planName} · ${button.dataset.storeName}`;

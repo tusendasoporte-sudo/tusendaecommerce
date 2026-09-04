@@ -86,7 +86,7 @@ const FREE_CAPABILITIES = Object.freeze({
   max_product_images: 2,
   categories_enabled: true,
   subcategories_enabled: true,
-  admin_android_app_enabled: false,
+  admin_android_app_enabled: true,
   customer_android_app_enabled: false,
   raffles_enabled: false,
   security_enabled: false,

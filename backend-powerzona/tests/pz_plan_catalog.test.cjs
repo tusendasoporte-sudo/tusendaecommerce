@@ -20,6 +20,7 @@ test('el catálogo v1 expone una sola moneda y los dos tipos de tienda', () => {
   ]);
   assert.deepEqual(catalog.getPlanCodes('promo'), ['free', 'basic']);
   assert.deepEqual(catalog.getPlanCodes('commerce'), ['free', 'basic', 'premium']);
+  assert.equal(dto.store_types.find(({ code }) => code === 'ecommerce').name, 'Tienda');
 });
 
 test('los precios Promo en CUP incluyen equivalencia, total y ahorro exactos', () => {
@@ -79,7 +80,7 @@ test('Gratis, Básico y Premium Ecommerce tienen límites y accesos separados', 
     assert.equal(capabilities.subcategories_enabled, true);
     assert.equal(capabilities.security_enabled, false);
   }
-  assert.equal(free.admin_android_app_enabled, false);
+  assert.equal(free.admin_android_app_enabled, true);
   assert.equal(basic.admin_android_app_enabled, true);
   assert.equal(premium.admin_android_app_enabled, true);
   assert.equal(premium.customer_android_app_enabled, true);

@@ -148,7 +148,7 @@ const PLAN_CATALOG = deepFreeze({
   ecommerce: {
     code: "ecommerce",
     storage_code: "commerce",
-    name: "Tienda Ecommerce",
+    name: "Tienda",
     plans: {
       free: {
         code: "free",
@@ -161,7 +161,7 @@ const PLAN_CATALOG = deepFreeze({
           maxProductImages: 2,
           maxActiveUsers: 1,
           maxStoreDevices: 5,
-          adminAndroid: false,
+          adminAndroid: true,
           customerAndroid: false,
           premiumFeatures: false,
         }),
