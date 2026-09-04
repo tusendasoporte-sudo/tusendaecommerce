@@ -23,6 +23,7 @@ const adminMessaging = readFileSync(new URL('../../mobile-admin/app/src/main/jav
 const adminNotificationClient = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminNotificationClient.java', import.meta.url), 'utf8');
 const adminNotificationStore = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminNotificationStore.java', import.meta.url), 'utf8');
 const adminPushPayload = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminPushPayload.java', import.meta.url), 'utf8');
+const pushNotifications = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/PushNotifications.java', import.meta.url), 'utf8');
 const adminPushBackend = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience_lib.js', import.meta.url), 'utf8');
 const adminPushRoutes = readFileSync(new URL('../../backend-powerzona/pb_hooks/pz_admin_push_resilience.pb.js', import.meta.url), 'utf8');
 const verifier = readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/AdminApkVerifier.java', import.meta.url), 'utf8');
@@ -301,9 +302,12 @@ test('Mobile Admin recupera avisos sin depender exclusivamente de Firebase', () 
   assert.match(adminPushPayload, /while \(keys\.hasNext\(\)\)/);
   assert.match(adminMessaging, /PushNotifications\.show/);
   assert.match(
-    readFileSync(new URL('../../mobile-admin/app/src/main/java/com/tusenda84/admin/PushNotifications.java', import.meta.url), 'utf8'),
+    pushNotifications,
     /static synchronized boolean show[\s\S]*boundStoreId[\s\S]*wasDisplayed[\s\S]*markDisplayed/,
   );
+  assert.match(pushNotifications, /manager\.notify\(notificationTag\(payload\.notificationId\), NOTIFICATION_ID, notification\)/);
+  assert.match(android, /getStringExtra\("notification_id"\)/);
+  assert.match(android, /systemFirebaseNotification[\s\S]*fcm_received[\s\S]*native_delivered/);
   assert.match(adminPushBackend, /SYNC_WINDOW_MS = 72/);
   assert.match(adminPushBackend, /credential_digest/);
   assert.match(adminPushRoutes, /admin_push_receipt_cleanup/);

@@ -94,13 +94,16 @@ test('el puente Android no devuelve el FID directamente a frames del WebView', (
   assert.match(activitySource, /getStringExtra\("target_url"\)/);
 });
 
-test('el relay envia solo datos para que Android deduplique y confirme la entrega', () => {
+test('el relay combina aviso visible y datos para entregar con la app cerrada', () => {
   const relaySource = readFileSync(
     new URL('../src/pages/api/internal/push/send.ts', import.meta.url),
     'utf8',
   );
+  assert.match(relaySource, /fids:[\s\S]*?\n\s*notification:\s*\{[\s\S]*?title:\s*payload\.notification\.title,[\s\S]*?body:\s*payload\.notification\.body/);
   assert.match(relaySource, /data:\s*\{[\s\S]*?notification_id:\s*payload\.notification\.id,[\s\S]*?title:\s*payload\.notification\.title,[\s\S]*?body:\s*payload\.notification\.body/);
-  assert.doesNotMatch(relaySource, /fids:[\s\S]*?\n\s*notification:\s*\{/);
-  assert.doesNotMatch(relaySource, /channelId:\s*androidNotificationChannelId/);
+  assert.match(relaySource, /channelId:\s*androidNotificationChannelId/);
+  assert.match(relaySource, /tag:\s*`pz_admin_\$\{payload\.notification\.id\}`/);
+  assert.match(relaySource, /visibility:\s*'private'/);
   assert.match(relaySource, /priority:\s*androidMessagePriority\(payload\.notification\)/);
+  assert.match(relaySource, /\[admin_push_relay\]/);
 });

@@ -790,7 +790,27 @@ public final class MainActivity extends Activity {
     private void recordPushOpen(Intent intent) {
         if (intent == null) return;
         String notificationId = intent.getStringExtra(PushNotifications.EXTRA_NOTIFICATION_ID);
+        boolean systemFirebaseNotification = false;
+        if (notificationId == null || notificationId.trim().isEmpty()) {
+            notificationId = intent.getStringExtra("notification_id");
+            systemFirebaseNotification = notificationId != null && !notificationId.trim().isEmpty();
+        }
         if (notificationId == null || notificationId.trim().isEmpty()) return;
+        if (systemFirebaseNotification) {
+            AdminNotificationStore.markDisplayed(this, notificationId);
+            AdminNotificationStore.queueReceipt(
+                    this,
+                    notificationId,
+                    "fcm_received",
+                    AdminNotificationStore.TRIGGER_FCM
+            );
+            AdminNotificationStore.queueReceipt(
+                    this,
+                    notificationId,
+                    "native_delivered",
+                    AdminNotificationStore.TRIGGER_FCM
+            );
+        }
         AdminNotificationStore.queueReceipt(this, notificationId, "read", "");
         AdminBackgroundSync.enqueueImmediate(this);
     }

@@ -4,6 +4,7 @@ import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin
 import { getMessaging } from 'firebase-admin/messaging';
 import {
   androidMessagePriority,
+  androidNotificationChannelId,
   groupDevicesByAppId,
   isInvalidInstallationError,
   normalizeRelayPayload,
@@ -45,6 +46,13 @@ function initializeFirebaseAdmin() {
   });
 }
 
+function safeFirebaseErrorCode(error: unknown) {
+  const candidate = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code?: unknown }).code || '').trim().toLowerCase()
+    : '';
+  return /^[a-z0-9_/-]{1,80}$/.test(candidate) ? candidate : 'unknown';
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const configuredSecret = String(process.env.PZ_PUSH_RELAY_SECRET || '').trim();
   if (!secretMatches(request.headers.get('x-pz-push-secret') || '', configuredSecret)) {
@@ -72,13 +80,20 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const invalidDeviceIds = new Set<string>();
+  const failureCodes = new Map<string, number>();
   let successCount = 0;
   let failureCount = 0;
+  let recipientCount = 0;
 
   try {
     for (const [appId, devices] of groupDevicesByAppId(payload.devices)) {
+      recipientCount += devices.length;
       const result = await messaging.sendEachForMulticast({
         fids: devices.map((device) => device.fid),
+        notification: {
+          title: payload.notification.title,
+          body: payload.notification.body,
+        },
         data: {
           notification_id: payload.notification.id,
           store_id: payload.notification.store_id,
@@ -92,20 +107,42 @@ export const POST: APIRoute = async ({ request }) => {
           priority: androidMessagePriority(payload.notification),
           ttl: 86_400_000,
           restrictedPackageName: appId,
+          notification: {
+            channelId: androidNotificationChannelId(payload.notification),
+            icon: 'ic_notification',
+            color: '#2563EB',
+            tag: `pz_admin_${payload.notification.id}`,
+            visibility: 'private',
+          },
         },
       });
 
       successCount += result.successCount;
       failureCount += result.failureCount;
       result.responses.forEach((response, index) => {
+        if (!response.success) {
+          const code = safeFirebaseErrorCode(response.error);
+          failureCodes.set(code, (failureCodes.get(code) || 0) + 1);
+        }
         if (!response.success && isInvalidInstallationError(response.error)) {
           invalidDeviceIds.add(devices[index].id);
         }
       });
     }
-  } catch {
+  } catch (error) {
+    console.error(
+      `[admin_push_relay] status=failed recipients=${recipientCount} code=${safeFirebaseErrorCode(error)}`,
+    );
     return json(502, { ok: false, error: 'firebase_send_failed' });
   }
+
+  const summarizedCodes = Array.from(failureCodes.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([code, count]) => `${code}:${count}`)
+    .join(',') || 'none';
+  console.info(
+    `[admin_push_relay] status=completed recipients=${recipientCount} success=${successCount} failure=${failureCount} invalid=${invalidDeviceIds.size} codes=${summarizedCodes}`,
+  );
 
   return json(200, {
     ok: true,

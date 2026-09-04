@@ -14,6 +14,7 @@ import java.util.Locale;
 final class PushNotifications {
     static final String EXTRA_TARGET_URL = "pz_target_url";
     static final String EXTRA_NOTIFICATION_ID = "pz_notification_id";
+    static final int NOTIFICATION_ID = 0;
     private static final String CHANNEL_ORDERS = "pz_admin_orders";
     private static final String CHANNEL_INVENTORY = "pz_admin_inventory";
     private static final String CHANNEL_SECURITY = "pz_admin_security";
@@ -110,9 +111,13 @@ final class PushNotifications {
 
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager == null) return false;
-        manager.notify("pz_admin_" + payload.notificationId, requestCode, notification);
+        manager.notify(notificationTag(payload.notificationId), NOTIFICATION_ID, notification);
         AdminNotificationStore.markDisplayed(context, payload.notificationId);
         return true;
+    }
+
+    static String notificationTag(String notificationId) {
+        return "pz_admin_" + (notificationId == null ? "" : notificationId.trim());
     }
 
     private static String channelForType(String rawType) {
