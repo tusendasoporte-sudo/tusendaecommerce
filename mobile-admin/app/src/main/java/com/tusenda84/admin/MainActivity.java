@@ -80,6 +80,7 @@ public final class MainActivity extends Activity {
     private View startupView;
     private ValueCallback<Uri[]> fileChooserCallback;
     private PendingDownload pendingDownload;
+    private File pendingVerifiedAdminUpdate;
     private boolean backNavigationPending;
     private long lastForegroundPushSyncStartedAt;
     private final ExecutorService pushRegistrationExecutor = Executors.newSingleThreadExecutor();
@@ -424,6 +425,15 @@ public final class MainActivity extends Activity {
         super.onResume();
         syncAdminNotifications(AdminNotificationStore.TRIGGER_RESUME);
         emitPushStateToWeb();
+        if (pendingVerifiedAdminUpdate != null) {
+            File verified = pendingVerifiedAdminUpdate;
+            if (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls()) {
+                openVerifiedAdminUpdate(verified);
+                return;
+            }
+            pendingVerifiedAdminUpdate = null;
+            if (verified.exists()) verified.delete();
+        }
     }
 
     private void configureBackNavigation() {
@@ -817,11 +827,26 @@ public final class MainActivity extends Activity {
 
     private void openVerifiedAdminUpdate(File apk) {
         if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(this, "Autoriza a Mobile Admin para instalar esta actualización y vuelve a intentarlo.", Toast.LENGTH_LONG).show();
-            Intent settings = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()));
-            startActivity(settings);
+            pendingVerifiedAdminUpdate = apk;
+            Toast.makeText(
+                    this,
+                    "Autoriza a Mobile Admin. La instalación continuará al regresar.",
+                    Toast.LENGTH_LONG
+            ).show();
+            try {
+                Intent settings = new Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName())
+                );
+                startActivity(settings);
+            } catch (ActivityNotFoundException error) {
+                pendingVerifiedAdminUpdate = null;
+                if (apk.exists()) apk.delete();
+                Toast.makeText(this, "Android no pudo abrir los ajustes de instalación.", Toast.LENGTH_LONG).show();
+            }
             return;
         }
+        pendingVerifiedAdminUpdate = null;
         try {
             Uri content = FileProvider.getUriForFile(this, getPackageName() + ".admin_update_files", apk);
             Intent install = new Intent(Intent.ACTION_VIEW);
@@ -829,6 +854,7 @@ public final class MainActivity extends Activity {
             install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(install);
         } catch (RuntimeException error) {
+            if (apk.exists()) apk.delete();
             Toast.makeText(this, "Android no pudo abrir el instalador verificado.", Toast.LENGTH_LONG).show();
         }
     }
