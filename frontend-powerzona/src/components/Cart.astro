@@ -161,6 +161,9 @@ const { storeInitials = 'TS' } = Astro.props;
     checkoutBtn.classList.toggle('cursor-not-allowed', shouldDisable);
   };
   const runCartLiveValidation = async ({ force = false, removeUnavailable = false } = {}) => {
+    // A fast click may arrive before the deferred catalog engines. Never skip
+    // validation because its script is still downloading (or failed to load).
+    if (window.PZ_CART_RUNTIME_READY) await window.PZ_CART_RUNTIME_READY;
     const validator = getCartValidator();
     if (!validator?.applyCartValidation) return null;
     const result = await validator.applyCartValidation(getCart(), {

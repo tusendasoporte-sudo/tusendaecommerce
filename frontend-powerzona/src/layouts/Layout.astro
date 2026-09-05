@@ -8,6 +8,9 @@ import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 import { getPublicMediaPreconnectOrigin } from '../lib/publicMediaUrl';
 import { isPublicCatalogPath } from '../lib/publicCatalogResponse';
+import cartValidatorUrl from '../../public/cart-live-validator.js?url&no-inline';
+import cartPromotionsUrl from '../../public/cart-promotions.js?url&no-inline';
+import cartRuntimeReadySource from '../lib/cartRuntimeReady.js?raw';
 
 const {
 	isBazar = false,
@@ -31,6 +34,8 @@ const preloadImageUrl = /^https?:\/\//.test(String(preloadImage || '').trim())
 	: '';
 const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiProp);
 const enablePublicNavigationPrefetch = !hideStoreFloatingUi && isPublicCatalogPath(Astro.url.pathname);
+// Checkout and non-catalog pages retain their synchronous initialization order.
+const deferCartScripts = enablePublicNavigationPrefetch;
 const mediaPreconnectOrigin = enablePublicNavigationPrefetch
 	? getPublicMediaPreconnectOrigin(import.meta.env.PUBLIC_MEDIA_CDN_URL, pocketbaseUrl, Astro.url.origin)
 	: '';
@@ -174,7 +179,8 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 				migrateLegacyCart();
 			})();
 		</script>}
-		{!hideStoreFloatingUi && <script is:inline src="/cart-live-validator.js"></script>}
+		{deferCartScripts && <script is:inline set:html={cartRuntimeReadySource} />}
+		{!hideStoreFloatingUi && <script is:inline src={cartValidatorUrl} defer={deferCartScripts}></script>}
 		
 		<main class="flex flex-col min-h-screen w-full min-w-0">
 			<div class={contentContainerClass}>
@@ -182,21 +188,25 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 			</div>
 		</main>
 
-		{!hideStoreFloatingUi && <script is:inline src="/cart-promotions.js"></script>}
+		{!hideStoreFloatingUi && <script is:inline src={cartPromotionsUrl} defer={deferCartScripts}></script>}
 		{!hideStoreFloatingUi && <script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix }}>
 			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			window.PZ_CURRENT_STORE_ID = currentStoreId || '';
 			window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';
-			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((promotions) => {
+			const withCartRuntime = (load) => window.PZ_CART_RUNTIME_READY ? window.PZ_CART_RUNTIME_READY.then(load) : load();
+			window.PZ_PROMOTIONS_READY = withCartRuntime(() => window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID))?.then((promotions) => {
 				window.PZ_AUTOMATIC_PROMOTIONS = promotions;
 				window.dispatchEvent(new Event('pz-promotions-updated'));
 				return promotions;
 			});
-			window.PZ_COUPONS_READY = window.PZPromotions?.loadActiveCoupons(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((coupons) => {
+			window.PZ_COUPONS_READY = withCartRuntime(() => window.PZPromotions?.loadActiveCoupons(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID))?.then((coupons) => {
 				window.PZ_MANUAL_COUPONS = coupons;
 				window.dispatchEvent(new Event('pz-coupons-updated'));
 				return coupons;
 			});
+			// Keep failed dependencies rejected for consumers without unhandled rejections.
+			window.PZ_PROMOTIONS_READY?.catch(() => {});
+			window.PZ_COUPONS_READY?.catch(() => {});
 			(() => {
 				const params = new URLSearchParams(window.location.search);
 				const code = String(params.get('coupon') || '').trim().toUpperCase();
@@ -411,6 +421,10 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 						tone: 'success',
 						onClose: cleanCouponFromUrl,
 					});
+				}).catch(() => {
+					// A missing engine is not an expired/invalid coupon. Preserve the URL
+					// and saved code so the customer can retry after a reload.
+					showCouponModal({ title: 'No se pudo cargar el cupón', mainText: 'Recarga la página para intentarlo de nuevo.', tone: 'warning' });
 				});
 			})();
 		</script>}
