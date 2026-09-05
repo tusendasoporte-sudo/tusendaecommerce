@@ -6,6 +6,8 @@ import StorefrontAppShell from '../components/StorefrontAppShell.astro';
 import SocialMeta from '../components/SocialMeta.astro';
 import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
+import { getPublicMediaPreconnectOrigin } from '../lib/publicMediaUrl';
+import { isPublicCatalogPath } from '../lib/publicCatalogResponse';
 
 const {
 	isBazar = false,
@@ -28,6 +30,10 @@ const preloadImageUrl = /^https?:\/\//.test(String(preloadImage || '').trim())
 	? String(preloadImage).trim()
 	: '';
 const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiProp);
+const enablePublicNavigationPrefetch = !hideStoreFloatingUi && isPublicCatalogPath(Astro.url.pathname);
+const mediaPreconnectOrigin = enablePublicNavigationPrefetch
+	? getPublicMediaPreconnectOrigin(import.meta.env.PUBLIC_MEDIA_CDN_URL, pocketbaseUrl, Astro.url.origin)
+	: '';
 const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const currentStoreSlug = currentStore.slug || 'powerzona';
@@ -48,6 +54,7 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 		{!isMaster && pocketbaseOrigin && <link rel="preconnect" href={pocketbaseOrigin} />}
 		{!isMaster && pocketbaseOrigin && <link rel="dns-prefetch" href={pocketbaseOrigin} />}
+		{mediaPreconnectOrigin && <link rel="preconnect" href={mediaPreconnectOrigin} />}
 		{preloadImageUrl && <link rel="preload" as="image" href={preloadImageUrl} fetchpriority="high" />}
 		<link rel="icon" href="/favicon.ico?v=2" sizes="any" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
@@ -56,7 +63,12 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
 		<SocialMeta {...seo} />
 	</head>
-	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden">
+	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden" data-pz-public-prefetch={enablePublicNavigationPrefetch ? 'true' : undefined}>
+		<script>
+			import { prefetch } from 'astro:prefetch';
+			import { installPublicNavigationPrefetch } from '../lib/publicNavigationPrefetch';
+			installPublicNavigationPrefetch(prefetch);
+		</script>
 		{!hideStoreFloatingUi && <script define:vars={{ currentStoreId, currentStoreSlug, publicPathPrefix }}>
 			(() => {
 				const storeId = String(currentStoreId || '').trim();

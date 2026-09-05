@@ -18,3 +18,14 @@ export function resolvePublicMediaBaseUrl(mediaCdnUrl: unknown, pocketbaseUrl: u
   if (configuredMediaUrl) return normalizePublicOrigin(configuredMediaUrl);
   return normalizePublicOrigin(pocketbaseUrl);
 }
+
+// The API already has its own connection hint. Do not duplicate it or add a
+// connection for the current document's origin when the CDN is not separate.
+export function getPublicMediaPreconnectOrigin(mediaCdnUrl: unknown, pocketbaseUrl: unknown, pageOrigin: unknown) {
+  const mediaOrigin = resolvePublicMediaBaseUrl(mediaCdnUrl, pocketbaseUrl);
+  return mediaOrigin
+    && mediaOrigin !== normalizePublicOrigin(pocketbaseUrl)
+    && mediaOrigin !== normalizePublicOrigin(pageOrigin)
+    ? mediaOrigin
+    : '';
+}
