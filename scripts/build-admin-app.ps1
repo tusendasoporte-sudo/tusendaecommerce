@@ -84,6 +84,15 @@ function Get-Sha256File {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Write-Utf8NoBom {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value
+    )
+    $encoding = [Text.UTF8Encoding]::new($false)
+    [IO.File]::WriteAllText($Path, $Value, $encoding)
+}
+
 function Read-Properties {
     param([string]$Path)
     $values = @{}
@@ -153,7 +162,8 @@ if ($Operation -eq 'Preview') {
     $previewDirectory = Join-Path $mobileRoot 'build\previews'
     New-Item -ItemType Directory -Path $previewDirectory -Force | Out-Null
     $previewPath = Join-Path $previewDirectory "mobile-admin-$VersionName-$VersionCode-$previewHash.json"
-    [ordered]@{ preview_hash = $previewHash; preview = $preview } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $previewPath -Encoding UTF8
+    $previewJson = [ordered]@{ preview_hash = $previewHash; preview = $preview } | ConvertTo-Json -Depth 10
+    Write-Utf8NoBom -Path $previewPath -Value ($previewJson + [Environment]::NewLine)
     return [pscustomobject]@{ PreviewPath = $previewPath; PreviewHash = $previewHash; Preview = $preview }
 }
 
@@ -225,16 +235,18 @@ try {
     $apkName = "mobile-admin-$VersionName-$VersionCode.apk"
     Copy-Item -LiteralPath $sourceApk -Destination (Join-Path $releaseDirectory $apkName)
     $apkHash = Get-Sha256File (Join-Path $releaseDirectory $apkName)
-    "$apkHash  $apkName" | Set-Content -LiteralPath (Join-Path $releaseDirectory 'SHA256SUMS.txt') -Encoding UTF8
-    @("Aplicación: $DisplayName", "Paquete: $PackageName", "Versión: $VersionName ($VersionCode)", "Motor: $($engineManifest.name) $($engineManifest.version)", "SHA-256: $apkHash", 'Instalar sin desinstalar la versión anterior.') | Set-Content -LiteralPath (Join-Path $releaseDirectory 'INSTRUCCIONES.txt') -Encoding UTF8
-    [ordered]@{
+    Write-Utf8NoBom -Path (Join-Path $releaseDirectory 'SHA256SUMS.txt') -Value ("$apkHash  $apkName" + [Environment]::NewLine)
+    $instructions = @("Aplicación: $DisplayName", "Paquete: $PackageName", "Versión: $VersionName ($VersionCode)", "Motor: $($engineManifest.name) $($engineManifest.version)", "SHA-256: $apkHash", 'Instalar sin desinstalar la versión anterior.')
+    Write-Utf8NoBom -Path (Join-Path $releaseDirectory 'INSTRUCCIONES.txt') -Value (($instructions -join [Environment]::NewLine) + [Environment]::NewLine)
+    $buildManifestJson = [ordered]@{
         schema_version = 2; app = 'mobile-admin'; channel = $Channel
         engine = [ordered]@{ name = [string]$engineManifest.name; version = [string]$engineManifest.version; contract_version = [int]$engineManifest.contract_version; git_commit = $gitRevision; api_base_url = $resolvedApiBaseUrl }
         version_code = $VersionCode; version_name = $VersionName; package_name = $PackageName; signing_cert_sha256 = $signingCert
         appearance = [ordered]@{ icon_sha256 = $IconSha256; splash_sha256 = $SplashSha256; splash_background_color = $SplashBackgroundColor }
         notifications = [ordered]@{ firebase_required = $true; included = $true }
         apk = $apkName; sha256 = $apkHash
-    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $releaseDirectory 'build-manifest.json') -Encoding UTF8
+    } | ConvertTo-Json -Depth 8
+    Write-Utf8NoBom -Path (Join-Path $releaseDirectory 'build-manifest.json') -Value ($buildManifestJson + [Environment]::NewLine)
     return [pscustomobject]@{ OutputDirectory = $releaseDirectory; ApkName = $apkName; ApkSha256 = $apkHash; SigningCertSha256 = $signingCert; PreviewHash = $previewHash; EngineVersion = [string]$engineManifest.version; EngineRevision = $gitRevision; ApiBaseUrl = $resolvedApiBaseUrl }
 } catch {
     if (Test-Path -LiteralPath $releaseDirectory) { Remove-Item -LiteralPath $releaseDirectory -Recurse -Force }
