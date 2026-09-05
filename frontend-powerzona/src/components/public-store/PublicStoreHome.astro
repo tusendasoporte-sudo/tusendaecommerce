@@ -17,6 +17,7 @@ import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { getVisibleRafflesForStore } from '../../lib/raffles';
 import { resolveRafflesCapability } from '../../lib/raffleAccess';
 import { measurePublicHome } from '../../lib/publicHomeTiming';
+import { buildPublicCategoryCounts } from '../../lib/publicCategoryCounts';
 
 const homeTiming = Astro.locals.publicHomeTiming;
 const homeDataStartedAt = performance.now();
@@ -142,10 +143,6 @@ function cleanWhatsappNumber(value: string | undefined) {
   return String(value || '').replace(/[^0-9]/g, '');
 }
 
-function subcategoriesByCategory(categoryId: string) {
-  return subcategories.filter((subcategory) => subcategory.category === categoryId);
-}
-
 function productCountLabel(count: number) {
   return `${count} ${count === 1 ? 'producto' : 'productos'}`;
 }
@@ -204,13 +201,7 @@ const publicTrustItems = parseJsonArray(settings?.footer_trust_items)
   }))
   .slice(0, 2);
 
-function productsByCategoryTotal(categoryId: string) {
-  const childSubcategoryIds = new Set(subcategoriesByCategory(categoryId).map((subcategory) => subcategory.id));
-  const categoryProducts = productTaxonomyIndex.filter((product) => product.subcategory
-    ? childSubcategoryIds.has(product.subcategory)
-    : product.category === categoryId);
-  return Array.from(new Map(categoryProducts.map((product) => [product.id, product])).values());
-}
+const productCountsByCategory = buildPublicCategoryCounts(productTaxonomyIndex, subcategories);
 
 const whatsappNumber = cleanWhatsappNumber(settings?.whatsapp_number || currentStore?.owner_phone);
 const whatsappStoreHref = whatsappNumber
@@ -2486,7 +2477,7 @@ function getProductOfferView(product: any) {
         </div>
         <div class="quick-categories-strip" aria-label="Accesos rápidos a categorías">
           {quickCategories.map((category) => {
-            const categoryProducts = productsByCategoryTotal(category.id);
+            const categoryProductCount = productCountsByCategory.get(category.id) || 0;
             return (
               <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-category-premium-card" aria-label={`Abrir categoría ${category.name}`}>
                 <div class="quick-category-premium-thumb">
@@ -2494,7 +2485,7 @@ function getProductOfferView(product: any) {
                 </div>
                 <div class="quick-category-premium-copy">
                   <p class="quick-category-premium-name">{category.name}</p>
-                  <p class="quick-category-premium-count">{productCountLabel(categoryProducts.length)}</p>
+                  <p class="quick-category-premium-count">{productCountLabel(categoryProductCount)}</p>
                 </div>
               </a>
             );
@@ -2510,7 +2501,7 @@ function getProductOfferView(product: any) {
           </div>
           <div class="quick-categories-modal-grid">
             {quickCategories.map((category) => {
-              const categoryProducts = productsByCategoryTotal(category.id);
+              const categoryProductCount = productCountsByCategory.get(category.id) || 0;
               return (
                 <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-categories-modal-card" aria-label={`Abrir categoría ${category.name}`}>
                   <div class="quick-categories-modal-thumb">
@@ -2518,7 +2509,7 @@ function getProductOfferView(product: any) {
                   </div>
                   <div class="quick-categories-modal-text">
                     <p class="quick-categories-modal-name">{category.name}</p>
-                    <p class="quick-categories-modal-count">{productCountLabel(categoryProducts.length)}</p>
+                    <p class="quick-categories-modal-count">{productCountLabel(categoryProductCount)}</p>
                   </div>
                 </a>
               );
@@ -2616,13 +2607,13 @@ function getProductOfferView(product: any) {
       </div>
       <div class={`category-showcase-grid columns-${publicCategoryColumns}`}>
         {publicCategoryCards.map((category) => {
-          const categoryProducts = productsByCategoryTotal(category.id);
+          const categoryProductCount = productCountsByCategory.get(category.id) || 0;
           return (
             <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="category-showcase-card" aria-label={`Abrir categoría ${category.name}`}>
               <div class="category-showcase-copy">
                 <h3 class="category-showcase-title">{category.name}</h3>
                 <div class="category-showcase-count">
-                  <span>{productCountLabel(categoryProducts.length)}</span>
+                  <span>{productCountLabel(categoryProductCount)}</span>
                 </div>
                 {category.description && <p class="category-showcase-description">{category.description}</p>}
                 <span class="category-showcase-button">Ver categoría</span>

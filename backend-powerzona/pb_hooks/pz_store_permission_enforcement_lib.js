@@ -1100,6 +1100,54 @@ function redactPublicProductRead(e, collection) {
   return changed;
 }
 
+// Only the public homepage taxonomy projection opts into batched reads. Keep
+// the same commercial evaluator and request hooks; never share this snapshot
+// across HTTP requests or use it for checkout, detail or administrative reads.
+function preparePublicTaxonomyReadCache(e, collection, products, cache) {
+  if (collection !== "products") return;
+  const fields = String(queryValue(requestQuery(e), "fields") || "")
+    .split(",").map((field) => field.trim()).sort().join(",");
+  if (fields !== "active,category,id,subcategory") return;
+  cache.relatedRecords = new Map();
+  cache.productVariations = new Map();
+  const ids = [...new Set(products.map((product) => recordString(product, "id")).filter(Boolean))];
+  // Bound parameters and paginate variations independently of product count.
+  // Inactive variations are intentionally retained, just like the old read.
+  for (let start = 0; start < ids.length; start += 100) {
+    const batchIds = ids.slice(start, start + 100);
+    const params = {};
+    const filter = batchIds.map((id, index) => {
+      params[`product${index}`] = id;
+      return `product = {:product${index}}`;
+    }).join(" || ");
+    const grouped = new Map(batchIds.map((id) => [id, []]));
+    try {
+      for (let offset = 0; ; offset += 500) {
+        const variations = Array.from(e.app.findRecordsByFilter(
+          "product_variations", filter, "sort_order,id", 500, offset, params,
+        ) || []);
+        variations.forEach((variation) => {
+          const target = grouped.get(relationId(variation, "product"));
+          if (target) target.push(variation);
+        });
+        if (variations.length < 500) break;
+      }
+      grouped.forEach((variations, id) => cache.productVariations.set(id, variations));
+    } catch (_) {
+      // No partial snapshot on failure. Retry through the existing individual
+      // loader rather than interpreting a failed batch as missing variations.
+    }
+  }
+}
+
+function publicProductRelatedRecord(app, collection, id, cache) {
+  const related = cache && cache.relatedRecords;
+  if (!related) return findRecord(app, collection, id);
+  const key = `${collection}:${id}`;
+  if (!related.has(key)) related.set(key, findRecord(app, collection, id));
+  return related.get(key);
+}
+
 function publicProductContext(app, collection, record, cache) {
   if (!app || !record || !["products", "product_variations"].includes(collection)) return null;
   const product = collection === "products"
@@ -1115,10 +1163,12 @@ function publicProductContext(app, collection, record, cache) {
     }
     return cached;
   }
-  const store = findRecord(app, "stores", relationId(product, "store"));
+  const store = publicProductRelatedRecord(app, "stores", relationId(product, "store"), cache);
   if (!store) return null;
   const productId = cacheKey;
-  const variations = findRecords(app, "product_variations", "product = {:product}", { product: productId });
+  const variations = cache && cache.productVariations && cache.productVariations.has(productId)
+    ? cache.productVariations.get(productId)
+    : findRecords(app, "product_variations", "product = {:product}", { product: productId });
   if (collection === "product_variations"
     && !variations.some((variation) => recordString(variation, "id") === recordString(record, "id"))) {
     variations.push(record);
@@ -1129,8 +1179,8 @@ function publicProductContext(app, collection, record, cache) {
     product,
     store,
     variations,
-    category: categoryId ? findRecord(app, "categories", categoryId) : null,
-    subcategory: subcategoryId ? findRecord(app, "subcategories", subcategoryId) : null,
+    category: categoryId ? publicProductRelatedRecord(app, "categories", categoryId, cache) : null,
+    subcategory: subcategoryId ? publicProductRelatedRecord(app, "subcategories", subcategoryId, cache) : null,
   };
   if (cache) cache.set(cacheKey, context);
   return context;
@@ -1265,7 +1315,9 @@ function filterPublicProductRead(e, collection) {
     && Number.isInteger(Number(e.result.page)) && Number.isInteger(Number(e.result.perPage))) {
     const page = Math.max(1, Number(e.result.page));
     const perPage = Math.max(1, Number(e.result.perPage));
-    const filtered = publicListCandidates(e, collection).filter(available);
+    const candidates = publicListCandidates(e, collection);
+    preparePublicTaxonomyReadCache(e, collection, candidates, cache);
+    const filtered = candidates.filter(available);
     const items = filtered.slice((page - 1) * perPage, page * perPage);
     applyRequestedExpands(e, items);
     e.result.items = items;

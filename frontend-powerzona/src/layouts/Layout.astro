@@ -68,11 +68,13 @@ const documentLanguage = /^(?:es|en)$/.test(String(htmlLang || '')) ? String(htm
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
 		<SocialMeta {...seo} />
 	</head>
-	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden" data-pz-public-prefetch={enablePublicNavigationPrefetch ? 'true' : undefined}>
+	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden" data-pz-public-prefetch={enablePublicNavigationPrefetch ? 'true' : undefined} data-pz-public-back={enablePublicNavigationPrefetch ? 'true' : undefined}>
 		<script>
 			import { prefetch } from 'astro:prefetch';
 			import { installPublicNavigationPrefetch } from '../lib/publicNavigationPrefetch';
+			import { installPublicBackNavigation } from '../lib/publicBackNavigation';
 			installPublicNavigationPrefetch(prefetch);
+			installPublicBackNavigation();
 		</script>
 		{!hideStoreFloatingUi && <script define:vars={{ currentStoreId, currentStoreSlug, publicPathPrefix }}>
 			(() => {

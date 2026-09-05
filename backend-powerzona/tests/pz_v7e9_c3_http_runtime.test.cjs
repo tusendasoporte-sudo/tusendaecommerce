@@ -685,6 +685,29 @@ test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, t
     );
     assert.ok(mixedPublicVariations.data.items.every((item) => !Object.prototype.hasOwnProperty.call(item, 'expiration_date')));
 
+    // Exercise the taxonomy batch inside the real PocketBase hook chain and
+    // compare with the unchanged general read, including paginated results.
+    for (const store of [storePremium, storeOther, storeBasic, storeFree]) {
+      for (const page of [1, 2]) {
+        const query = new URLSearchParams({
+          filter: `active=true && store="${store.id}"`, sort: 'id',
+          page: String(page), perPage: '3', skipTotal: 'true',
+          fields: 'id,category,subcategory,active,name',
+        });
+        const regular = await request(`/api/collections/products/records?${query}`);
+        assertStatus(regular, 200, 'lectura pública de referencia');
+        query.set('fields', 'id,category,subcategory,active');
+        const taxonomy = await request(`/api/collections/products/records?${query}`);
+        assertStatus(taxonomy, 200, 'proyección taxonómica optimizada');
+        assert.deepEqual(taxonomy.data, {
+          ...regular.data,
+          items: regular.data.items.map(({ id, category, subcategory, active }) => ({ id, category, subcategory, active })),
+        }, 'mismos IDs, relaciones, visibilidad, orden y paginación con los hooks reales');
+        assert.match(taxonomy.headers['cache-control'], /no-store/);
+        assert.doesNotMatch(taxonomy.raw, /expiration_date|purchase_price|cost_price/);
+      }
+    }
+
     const mixedExpired = await expirationEndpoint(tokens.premium, 'expired', 'commerce-variation');
     const mixedUpcoming = await expirationEndpoint(tokens.premium, 'upcoming', 'commerce-variation');
     assertStatus(mixedExpired, 200, 'V7E9 lista variación vencida');
