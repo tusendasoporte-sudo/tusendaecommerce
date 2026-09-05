@@ -6,10 +6,12 @@ import type { StoreAccessContext } from './lib/storeTeam';
 import type { AdminAppPolicy } from './lib/mobileAdminReleases';
 import type { PromoAccessContext } from './lib/promoAccess';
 import type { PromoPublicProfile, PromoPublicSeo } from './lib/promoPublicShell';
+import type { PublicHomeTiming } from './lib/publicHomeTiming';
 
 declare global {
   namespace App {
     interface Locals {
+      publicHomeTiming?: PublicHomeTiming;
       adminAuthPb?: PocketBase;
       adminContext?: AdminStoreContext;
       storeAccessContext?: StoreAccessContext;

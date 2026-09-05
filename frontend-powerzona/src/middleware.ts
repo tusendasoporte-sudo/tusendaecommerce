@@ -18,6 +18,7 @@ import {
 } from './lib/publicSecurity';
 import { optimizePublicCatalogResponse } from './lib/publicCatalogResponse';
 import { appendPublicRequestTiming } from './lib/publicRequestTiming';
+import { appendPublicHomeTiming, isPublicStoreHome } from './lib/publicHomeTiming';
 import { readAdminDeviceToken } from './lib/adminDevice';
 import { getAdminAppPolicy, parseNativeAdminAppUserAgent } from './lib/mobileAdminReleases';
 import {
@@ -366,10 +367,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
         });
       }
     }
+    const homeTiming = isPublicStoreHome(pathname) ? {} : undefined;
+    if (homeTiming) context.locals.publicHomeTiming = homeTiming;
     const renderStartedAt = performance.now();
     const response = await next();
     const renderDurationMs = performance.now() - renderStartedAt;
-    const optimizedResponse = optimizePublicCatalogResponse(context.request, response, pathname);
+    const measuredResponse = homeTiming
+      ? await appendPublicHomeTiming(response, homeTiming, requestStartedAt, context.request.method)
+      : response;
+    const optimizedResponse = optimizePublicCatalogResponse(context.request, measuredResponse, pathname);
     return resolver
       ? appendPublicRequestTiming(optimizedResponse, {
           securityDurationMs,

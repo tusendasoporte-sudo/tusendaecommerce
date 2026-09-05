@@ -5,11 +5,12 @@ import {
   promoPublicUnavailable,
   readPromoCommerceBridge,
 } from '../../../lib/promoPublicShell';
+import { measurePublicHome } from '../../../lib/publicHomeTiming';
 
 const storeSlug = String(Astro.params.storeSlug || '').trim();
 
 try {
-  const promoLocation = await readPromoCommerceBridge(Astro.request, storeSlug);
+  const promoLocation = await measurePublicHome(Astro.locals.publicHomeTiming, 'route', () => readPromoCommerceBridge(Astro.request, storeSlug));
   if (promoLocation) return applyPromoPublicHeaders(Astro.redirect(promoLocation, 307));
   return promoPublicUnavailable(503);
 } catch (error) {
@@ -24,7 +25,7 @@ const { StoreResolutionError, getCurrentStore } = await import('../../../lib/sto
 let currentStore;
 
 try {
-  currentStore = await getCurrentStore(Astro);
+  currentStore = await measurePublicHome(Astro.locals.publicHomeTiming, 'store', () => getCurrentStore(Astro));
 } catch (error) {
   if (error instanceof StoreResolutionError) {
     return Astro.redirect('/');

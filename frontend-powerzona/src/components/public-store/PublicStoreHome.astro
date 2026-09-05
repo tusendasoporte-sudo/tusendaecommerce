@@ -16,13 +16,16 @@ import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { getVisibleRafflesForStore } from '../../lib/raffles';
 import { resolveRafflesCapability } from '../../lib/raffleAccess';
+import { measurePublicHome } from '../../lib/publicHomeTiming';
 
+const homeTiming = Astro.locals.publicHomeTiming;
+const homeDataStartedAt = performance.now();
 const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const storeQuery = { storeId: currentStoreId, store: currentStore };
 const currentPathname = Astro.url.pathname;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const settings = await getSettings(storeQuery);
+const settings = await measurePublicHome(homeTiming, 'settings', () => getSettings(storeQuery));
 const isTemporarilyClosed = isStoreTemporarilyClosed(settings);
 const temporarilyClosedMessage = getTemporarilyClosedMessage(settings);
 const rafflesCapability = resolveRafflesCapability(currentStore);
@@ -41,18 +44,18 @@ const [
   storeReviewSummary,
   storeReviews,
 ] = await Promise.all([
-  isTemporarilyClosed ? Promise.resolve([]) : getCategories(storeQuery),
-  isTemporarilyClosed ? Promise.resolve([]) : getSubcategories(storeQuery),
-  isTemporarilyClosed ? Promise.resolve([]) : getHomepageProducts(storeQuery),
-  isTemporarilyClosed ? Promise.resolve([]) : getProductTaxonomyIndex(storeQuery),
-  isTemporarilyClosed ? Promise.resolve([]) : getStoreVisualItems(storeQuery),
-  isTemporarilyClosed ? Promise.resolve([]) : getPublicGifts(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'categories', () => getCategories(storeQuery)),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'subcategories', () => getSubcategories(storeQuery)),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'products', () => getHomepageProducts(storeQuery)),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'taxonomy', () => getProductTaxonomyIndex(storeQuery)),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'visuals', () => getStoreVisualItems(storeQuery)),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'gifts', () => getPublicGifts(storeQuery)),
   (async () => isTemporarilyClosed || !rafflesCapability.allowed
     ? []
-    : await getVisibleRafflesForStore(currentStore.slug))(),
-  isTemporarilyClosed ? Promise.resolve([]) : getAutomaticPromotions(storeQuery),
-  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve(emptyStoreReviewSummary) : getStoreReviewSummary(storeQuery),
-  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve([]) : getStoreReviews(storeQuery, 50),
+    : await measurePublicHome(homeTiming, 'raffles', () => getVisibleRafflesForStore(currentStore.slug)))(),
+  isTemporarilyClosed ? Promise.resolve([]) : measurePublicHome(homeTiming, 'promotions', () => getAutomaticPromotions(storeQuery)),
+  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve(emptyStoreReviewSummary) : measurePublicHome(homeTiming, 'review-summary', () => getStoreReviewSummary(storeQuery)),
+  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve([]) : measurePublicHome(homeTiming, 'reviews', () => getStoreReviews(storeQuery, 50)),
 ]);
 const featuredProducts = products
   .filter((product) => product.featured === true)
@@ -92,8 +95,9 @@ const storeReviewsEnabled = reviewsEnabled && settings?.store_reviews_enabled !=
 const showVerifiedBadge = settings?.show_verified_badge !== false;
 const showProductRating = reviewsEnabled && settings?.show_product_rating !== false;
 const productReviewSummaries = showProductRating
-  ? await getProductReviewSummaries(Array.from(new Set([...featuredProducts, ...homepageProducts].map((product) => product.id).filter(Boolean))), storeQuery)
+  ? await measurePublicHome(homeTiming, 'product-reviews', () => getProductReviewSummaries(Array.from(new Set([...featuredProducts, ...homepageProducts].map((product) => product.id).filter(Boolean))), storeQuery))
   : {};
+if (homeTiming) homeTiming.data = performance.now() - homeDataStartedAt;
 const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
 const coverImageUrl = currentStore?.bannerHeroUrl
   || settings?.coverHeroImageUrl

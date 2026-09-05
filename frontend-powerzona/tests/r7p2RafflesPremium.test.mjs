@@ -165,10 +165,10 @@ test('R7P2: rutas públicas bloquean por capacidad antes de ajustes o rifas', ()
 test('R7P2: home no consulta ni renderiza Rifas sin capacidad', () => {
   const home = read('../src/components/public-store/PublicStoreHome.astro');
   const capabilityIndex = home.indexOf('resolveRafflesCapability(currentStore)');
-  const queryIndex = home.indexOf('await getVisibleRafflesForStore(currentStore.slug)');
+  const queryIndex = home.indexOf('getVisibleRafflesForStore(currentStore.slug)');
   assert.ok(capabilityIndex > -1);
   assert.ok(queryIndex > capabilityIndex);
-  assert.match(home, /isTemporarilyClosed \|\| !rafflesCapability\.allowed[\s\S]*?\? \[\][\s\S]*?: await getVisibleRafflesForStore/);
+  assert.match(home, /isTemporarilyClosed \|\| !rafflesCapability\.allowed[\s\S]*?\? \[\][\s\S]*?: await measurePublicHome\(homeTiming, 'raffles', \(\) => getVisibleRafflesForStore\(currentStore.slug\)\)/);
   assert.match(home, /<PublicRafflesSection[\s\S]*?raffles=\{visibleRaffles\}/);
 });
 
