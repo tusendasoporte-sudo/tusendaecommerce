@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
 
@@ -77,7 +78,8 @@ test('catalogo y pedidos regresan de sus vistas internas antes de abandonar la s
 });
 
 test('las rutas de detalle declaran su padre aunque se abran desde enlace directo o notificacion', () => {
-  assert.match(orders, /mobileBackHref=\{isOrderDetailPage \? adminOrdersPath : ''\}/);
+  assert.match(orders, /class="action-btn detail-back-link" href=\{adminOrdersPath\}/);
+  assert.match(orders, /if \(IS_ORDER_DETAIL_PAGE\) \{\s*event\.preventDefault\(\);\s*window\.location\.assign\(ADMIN_ORDERS_PATH\);\s*return;/);
   assert.match(productHistory, /mobileBackHref=\{returnPath\}/);
   assert.match(teamActivity, /mobileBackHref=\{teamPath\}/);
   assert.match(visitorDetail, /mobileBackHref=\{visitorsBackHref\}/);
@@ -92,6 +94,48 @@ test('las rutas de detalle declaran su padre aunque se abran desde enlace direct
   assert.match(accountHistory, /class="pz-account-heading__back" href=\{backPath\}/);
   assert.match(accountHistory, /← \{backLabel\}/);
   assert.match(accountHistory, /backPath = returnToTeam \? getStoreAdminPath\(storeSlug, 'team'\) : accountPath/);
+});
+
+test('el detalle de pedidos conserva un solo regreso sin la tarjeta movil duplicada', () => {
+  assert.doesNotMatch(orders, /mobileBackHref=|mobileBackLabel=/);
+  assert.doesNotMatch(orders, /has-pz-admin-mobile-back|data-pz-admin-mobile-back/);
+  assert.equal((orders.match(/class="action-btn detail-back-link"/g) || []).length, 1);
+  assert.match(orders, /isOrderDetailPage && <a class="action-btn detail-back-link" href=\{adminOrdersPath\}>← Volver a pedidos<\/a>/);
+});
+
+test('Atrás de Android conserva el padre de pedidos sin depender de la tarjeta eliminada', () => {
+  const match = orders.match(/window\.addEventListener\('pz:admin-back-request', \(event\) => \{([\s\S]*?)\n      \}\);/);
+  assert.ok(match, 'El detalle debe seguir atendiendo el regreso de Android.');
+
+  for (const scenario of [
+    { detail: true, selected: null, prevented: false, expected: 'navigate' },
+    { detail: true, selected: { id: 'order' }, prevented: false, expected: 'navigate' },
+    { detail: true, selected: null, prevented: true, expected: null },
+    { detail: false, selected: { id: 'order' }, prevented: false, expected: 'clear' },
+    { detail: false, selected: null, prevented: false, expected: null },
+  ]) {
+    const calls = [];
+    const ordersPath = '/t/powerzona/admin/orders';
+    const handler = runInNewContext(`(event) => {${match[1]}}`, {
+      IS_ORDER_DETAIL_PAGE: scenario.detail,
+      ADMIN_ORDERS_PATH: ordersPath,
+      window: { location: { assign: (path) => calls.push(['navigate', path]) } },
+      addProductPanel: null,
+      editOrderPanel: null,
+      cleanupOrdersPanel: null,
+      selectedOrder: scenario.selected,
+      clearDetail: () => calls.push(['clear']),
+    });
+    let consumed = false;
+    handler({
+      defaultPrevented: scenario.prevented,
+      preventDefault: () => { consumed = true; },
+    });
+    assert.equal(consumed, Boolean(scenario.expected));
+    assert.deepEqual(calls, scenario.expected === 'navigate'
+      ? [['navigate', ordersPath]]
+      : scenario.expected === 'clear' ? [['clear']] : []);
+  }
 });
 
 test('formularios administrativos consumen Atrás y conservan sus guardas de cambios', () => {

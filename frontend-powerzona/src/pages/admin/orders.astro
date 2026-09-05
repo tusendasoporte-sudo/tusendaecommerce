@@ -958,7 +958,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
 
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeAccessContext={storeAccessContext} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle={isOrderDetailPage ? 'Detalle del pedido' : 'Pedidos'} mobileActionLabel={isOrderDetailPage ? '' : 'Actualizar'} mobileActionTarget={isOrderDetailPage ? '' : '#refresh-btn'} mobileBackHref={isOrderDetailPage ? adminOrdersPath : ''} mobileBackLabel={isOrderDetailPage ? 'Volver a Pedidos' : ''} />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeAccessContext={storeAccessContext} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle={isOrderDetailPage ? 'Detalle del pedido' : 'Pedidos'} mobileActionLabel={isOrderDetailPage ? '' : 'Actualizar'} mobileActionTarget={isOrderDetailPage ? '' : '#refresh-btn'} />
       <LastModificationMeta
         pocketbaseUrl={pocketbaseUrl}
         enabled={storeAccessContext?.access.is_primary_admin === true}
@@ -4110,7 +4110,12 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         else clearDetail();
       });
       window.addEventListener('pz:admin-back-request', (event) => {
-        if (event.defaultPrevented || IS_ORDER_DETAIL_PAGE) return;
+        if (event.defaultPrevented) return;
+        if (IS_ORDER_DETAIL_PAGE) {
+          event.preventDefault();
+          window.location.assign(ADMIN_ORDERS_PATH);
+          return;
+        }
         if (addProductPanel && !addProductPanel.classList.contains('hidden')) {
           event.preventDefault();
           setAddProductPanel(false);
