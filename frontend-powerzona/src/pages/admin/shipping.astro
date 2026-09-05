@@ -734,8 +734,8 @@ const masterSupportHref = masterSupportWhatsapp
       }
       async function loadZones(){
         showAlert(listAlert,'');
-        const result=await api(`/api/collections/shipping_zones/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=municipality,zone&perPage=500`);
-        shippingZones=result.items||[];
+        const result=await window.PZAdminNavigation.read('shipping');
+        shippingZones=result.shipping_zones;
         renderStats();
         populateMunicipalityFilter();
         renderZones();

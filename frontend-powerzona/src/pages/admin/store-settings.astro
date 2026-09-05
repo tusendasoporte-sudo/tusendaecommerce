@@ -5009,15 +5009,15 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       }
       async function loadData(options = {}) {
         let visualLoadError = null;
-        products = await loadAllRecords('products', withStoreFilter('sort=featured_order,name'));
-        categories = await loadAllRecords('categories', withStoreFilter('sort=order,name'));
-        try {
-          visualItems = await loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title'));
-        } catch (error) {
-          visualLoadError = error;
-          visualItems = [];
-          showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
-        }
+        [products, categories, visualItems] = await Promise.all([
+          loadAllRecords('products', withStoreFilter('sort=featured_order,name')),
+          loadAllRecords('categories', withStoreFilter('sort=order,name')),
+          loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title')).catch((error) => {
+            visualLoadError = error;
+            showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
+            return [];
+          }),
+        ]);
         renderAll();
         if (options.throwOnVisualError && visualLoadError) throw visualLoadError;
       }

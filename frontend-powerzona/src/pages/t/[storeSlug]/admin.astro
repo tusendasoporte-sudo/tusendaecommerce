@@ -8,13 +8,14 @@ import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } 
 import { ACTIVE_STORE_STATUS, getStoreBySlugAnyStatus } from '../../../lib/stores';
 
 const storeSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
-const store = await getStoreBySlugAnyStatus(storeSlug);
+const requestStore = Astro.locals.adminContext?.store;
+const store = requestStore?.slug === storeSlug ? requestStore : await getStoreBySlugAnyStatus(storeSlug);
 
 if (!store) {
   return Astro.redirect('/');
 }
 
-const settings = await getSettings({ storeId: store.id }).catch(() => null);
+const settings = Astro.locals.adminContext ? null : await getSettings({ storeId: store.id }).catch(() => null);
 const storeName = store.name || settings?.store_name || settings?.stored_name || 'Tienda';
 const logoUrl = store.logoUrl || settings?.logoImageUrl || '';
 const bannerUrl = store.bannerUrl || settings?.coverImageUrl || '';

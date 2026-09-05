@@ -84,7 +84,7 @@ test('M7U2-C3: Marketing usa selectores saneados y no solicita historial o catá
   assert.match(promos, /El historial individual está protegido y no se expone desde Marketing/);
 
   const organization = read('../src/pages/admin/organization.astro');
-  assert.match(organization, /if \(CAN_MANAGE_PROMOTIONS\) \{[\s\S]*?categories = await loadMarketingCategories\(\)/);
+  assert.match(organization, /CAN_MANAGE_PROMOTIONS \? loadMarketingCategories\(\)/);
   assert.match(organization, /apiRequest\('\/api\/pz\/store\/marketing\/selectors', \{/);
   assert.match(organization, /taxonomy_page: taxonomyPage, taxonomy_per_page: 100/);
   assert.match(organization, /result\?\.taxonomy\?\.categories_has_more !== true/);

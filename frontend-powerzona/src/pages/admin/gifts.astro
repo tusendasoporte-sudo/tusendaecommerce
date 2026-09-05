@@ -875,10 +875,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         await api('/api/collections/settings/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active:true, store:CURRENT_STORE_ID, store_name:'PowerZona', gifts_public_active:true, gifts_public_title:'Regalos' }) });
       }
 
-      async function loadSettings(){
-        const filter = encodeURIComponent(ACTIVE_STORE_FILTER);
-        const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
-        settings = result.items?.[0] || null;
+      async function loadSettings(preparedSettings = undefined){
+        if (preparedSettings === undefined) {
+          const filter = encodeURIComponent(ACTIVE_STORE_FILTER);
+          const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
+          settings = result.items?.[0] || null;
+        } else settings = preparedSettings;
         if(!settings && CURRENT_STORE_ID){
           await createStoreSettings();
           return loadSettings();
@@ -898,10 +900,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setGiftsCategoryInitialSnapshot();
       }
 
-      async function loadGifts(){
+      async function loadGifts(preparedGifts = undefined){
         if(giftsList) giftsList.innerHTML = '<div class="empty"><strong>Cargando regalos...</strong></div>';
-        const result = await api(`/api/collections/gifts/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=sort_order,name&perPage=200`);
-        gifts = result.items || [];
+        const data = preparedGifts === undefined ? await window.PZAdminNavigation.read('gifts') : null;
+        gifts = preparedGifts === undefined ? data.gifts : preparedGifts;
         renderStats();
         applyGiftFilters(false);
         renderPreview();
@@ -1320,8 +1322,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if(!POCKETBASE_URL){ showAlert('Falta PUBLIC_POCKETBASE_URL en .env', 'error'); return; }
         if(!ADMIN_AUTH_TOKEN){ showAlert('Tu sesión no está disponible. Vuelve a iniciar sesión.', 'error'); return; }
         try{
-          await loadSettings();
-          await loadGifts();
+          const data = await window.PZAdminNavigation.read('gifts');
+          await loadSettings(data.settings);
+          await loadGifts(data.gifts);
         } catch(error){
           showAlert(error.message || 'No se pudieron cargar los datos de esta tienda.', 'error');
         }

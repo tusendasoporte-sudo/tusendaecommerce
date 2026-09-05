@@ -7,7 +7,7 @@ const orders = read('../src/pages/admin/orders.astro');
 const products = read('../src/pages/admin/products.astro');
 
 test('pedidos usa una lectura consolidada y difiere catalogo y zonas hasta abrirlos', () => {
-  assert.match(orders, /\/api\/pz\/admin\/read\/orders-bootstrap/);
+  assert.match(orders, /PZAdminNavigation\.read\('orders'\)/);
   assert.match(orders, /productCatalogLoaded/);
   assert.match(orders, /shippingZonesLoaded/);
   assert.match(orders, /if \(opening && CAN_MANAGE_ORDER_SHIPPING\) await loadShippingZones\(\)/);
@@ -23,7 +23,7 @@ test('pedidos usa una lectura consolidada y difiere catalogo y zonas hasta abrir
 });
 
 test('productos obtiene metadatos y listado en una sola lectura administrativa', () => {
-  assert.match(products, /\/api\/pz\/admin\/read\/products-bootstrap/);
+  assert.match(products, /PZAdminNavigation\.read\('products'\)/);
   assert.match(products, /active_shipping_zone_count/);
   assert.doesNotMatch(products, /loadAllRecords\('products', withStoreFilter\('sort=name'\)\)/);
   assert.doesNotMatch(products, /loadAllRecords\('categories', withStoreFilter\('sort=order,name'\)\)/);

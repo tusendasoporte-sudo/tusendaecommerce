@@ -26,7 +26,7 @@ test('el resumen se llama Analíticas, inicia en Hoy con un desplegable y expone
   assert.match(source, /id="app-installations-more"[^>]+\?range=today/);
   assert.match(source, /appInstallationsMore\.setAttribute\('href', `\$\{ADMIN_APP_INSTALLATIONS_PATH\}\?range=today`\)/);
   assert.match(source, /\/api\/pz\/storefront\/v1\/analytics\/installations/);
-  assert.match(source, /fetchAppInstallationsSummary\(\)\.catch\(\(\) => null\)/);
+  assert.match(source, /Promise\.allSettled\(\[[\s\S]*?fetchAppInstallationsSummary\(\)/);
   assert.match(source, /normalizeAppInstallationAnalytics/);
   assert.match(source, /value\.metrics\.instalaciones_vigentes_ahora !== value\.status\.active/);
   assert.match(source, /no se muestran ceros parciales/);

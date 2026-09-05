@@ -1906,12 +1906,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         ordersList.innerHTML = '<div class="empty-state">Cargando órdenes...</div>';
         refreshBtn.disabled = true;
         try {
-          const result = await apiRequest('/api/pz/admin/read/orders-bootstrap', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ store_id: CURRENT_STORE_ID }),
-            cache: 'no-store',
-          });
+          const result = { data: await window.PZAdminNavigation.read('orders') };
           const data = result?.data || {};
           orders = (Array.isArray(data.orders) ? data.orders : []).map(redactOrderForCurrentPermissions);
           orderItemsByOrder = {};

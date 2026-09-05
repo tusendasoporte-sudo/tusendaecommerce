@@ -49,7 +49,7 @@ test('backend conserva la referencia opcional solo para entrega coordinada', () 
 test('editor de productos avisa cuando solo envio no tiene zonas activas', () => {
   assert.match(products, /id="product-delivery-zone-warning"/);
   assert.match(products, /productDeliveryModeInput\?\.value === 'delivery'/);
-  assert.match(products, /\/api\/pz\/admin\/read\/products-bootstrap/);
+  assert.match(products, /PZAdminNavigation\.read\('products'\)/);
   assert.match(products, /active_shipping_zone_count/);
   assert.match(products, /Los pedidos de este producto se recibirán como entrega por coordinar/);
 });

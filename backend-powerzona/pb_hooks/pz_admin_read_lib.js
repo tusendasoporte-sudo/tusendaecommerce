@@ -4,10 +4,6 @@ const activity = typeof __hooks === "undefined"
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
-const productQuota = typeof __hooks === "undefined"
-  ? require("./pz_product_quota_lib.js")
-  : require(`${__hooks}/pz_product_quota_lib.js`);
-
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const PRODUCT_LIST_LIMIT = 2000;
 const ORDER_LIST_LIMIT = 200;
@@ -83,7 +79,12 @@ function findRecords(app, collection, filter, sort, limit, params) {
 }
 
 function hasPermission(app, context, permission) {
-  return context.master || teamPermissions.hasStorePermission(app, context.actor, context.store, permission);
+  if (context.master) return true;
+  // This cache belongs to this authenticated request, never to another user/store.
+  if (!context.adminReadPermissions) {
+    context.adminReadPermissions = teamPermissions.resolveEffectiveStorePermissions(app, context.actor, context.store);
+  }
+  return context.adminReadPermissions.includes(permission);
 }
 
 function requirePermission(app, context, permission) {
@@ -159,7 +160,6 @@ function productsBootstrap(app, context) {
     products,
     currencies,
     active_shipping_zone_count: activeShippingZones.length,
-    product_quota: productQuota.productQuotaView(app, context.store),
   };
 }
 
@@ -192,16 +192,149 @@ function ordersBootstrap(app, context) {
   };
 }
 
+// Page through the complete result: a bootstrap must never silently truncate
+// catalog counts, historical profits, or the list the existing editors use.
+function allRecords(app, collection, filter, sort, params, fields) {
+  const result = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const page = app.findRecordsByFilter(collection, filter, sort, pageSize, offset, params) || [];
+    page.forEach((record) => result.push(fields ? recordFields(record, fields) : recordPublic(record)));
+    if (page.length < pageSize) return result;
+  }
+}
+
+const CATALOG_PRODUCT_FIELDS = Object.freeze([
+  "id", "store", "name", "slug", "category", "subcategory", "active", "stock", "track_stock",
+  "base_price_usd", "images", "image_order", "has_variations", "featured", "featured_order",
+]);
+const SUMMARY_ORDER_FIELDS = Object.freeze([
+  "id", "store", "order_number", "customer_name", "created", "status", "total", "shipping", "shipping_usd",
+  "delivered_at", "review_requested_at", "review_skipped_at", "review_completed_at",
+]);
+const SUMMARY_ITEM_FIELDS = Object.freeze([
+  "id", "order", "product", "variation", "product_name", "quantity", "is_gift",
+  "unit_price_usd", "variation_price_usd", "unit_price_selected_currency",
+  "unit_profit_usd", "line_profit_usd",
+]);
+
+function catalogBootstrap(app, context) {
+  requirePermission(app, context, "catalog.view");
+  const params = { store: context.storeId };
+  return {
+    categories: allRecords(app, "categories", "store = {:store}", "order,name,id", params),
+    subcategories: allRecords(app, "subcategories", "store = {:store}", "order,name,id", params),
+    products: allRecords(app, "products", "store = {:store}", "name,id", params, CATALOG_PRODUCT_FIELDS),
+  };
+}
+
+function parseCatalogDetailPayload(body) {
+  if (bodyKeys(body).some((key) => !["store_id", "category_id", "subcategory_id"].includes(key))) throw new Error("invalid_payload");
+  const parsed = parseBootstrapPayload({ store_id: bodyValue(body, "store_id") });
+  const categoryId = String(bodyValue(body, "category_id") || "");
+  const subcategoryId = String(bodyValue(body, "subcategory_id") || "");
+  if (!RECORD_ID_PATTERN.test(categoryId) || (subcategoryId && !RECORD_ID_PATTERN.test(subcategoryId))) throw new Error("invalid_payload");
+  return { ...parsed, categoryId, subcategoryId };
+}
+
+function catalogDetailBootstrap(app, context, parsed) {
+  requirePermission(app, context, "catalog.view");
+  const params = { store: context.storeId, category: parsed.categoryId, subcategory: parsed.subcategoryId };
+  const categories = allRecords(app, "categories", "store = {:store}", "order,name,id", params);
+  const category = categories.find((item) => item.id === parsed.categoryId);
+  if (!category) throw new Error("not_found");
+  const subcategories = allRecords(app, "subcategories", "store = {:store} && category = {:category}", "order,name,id", params);
+  const subcategory = parsed.subcategoryId ? subcategories.find((item) => item.id === parsed.subcategoryId) : null;
+  if (parsed.subcategoryId && !subcategory) throw new Error("not_found");
+  const products = allRecords(app, "products",
+    "store = {:store} && category = {:category}" + (subcategory ? " && subcategory = {:subcategory}" : ""),
+    "name,id", params, CATALOG_PRODUCT_FIELDS.concat(["internal_ref", "description", "short_description"]));
+  return { category, subcategory, categories, subcategories, products };
+}
+
+function profitsBootstrap(app, context) {
+  requirePermission(app, context, "orders.view");
+  requirePermission(app, context, "catalog.view");
+  const params = { store: context.storeId };
+  const orders = allRecords(app, "orders", "store = {:store}", "-created,-id", params, SUMMARY_ORDER_FIELDS);
+  const items = allRecords(app, "order_items", "order.store = {:store}", "-created,-id", params, SUMMARY_ITEM_FIELDS);
+  // Preserve the existing fallback to current costs for historical items without
+  // a saved profit, without serializing full product/variation expansions per item.
+  const canReadCatalog = hasPermission(app, context, "catalog.view");
+  const products = canReadCatalog
+    ? allRecords(app, "products", "store = {:store}", "name,id", params,
+      ["id", "name", "title", "cost_usd", "stock", "has_variations", "images", "image_order"])
+    : [];
+  const variations = canReadCatalog && items.some((item) => item.variation)
+    ? allRecords(app, "product_variations", "product.store = {:store}", "id", params, ["id", "cost_usd"])
+    : [];
+  const productMap = Object.fromEntries(products.map((product) => [product.id, product]));
+  const variationMap = Object.fromEntries(variations.map((variation) => [variation.id, variation]));
+  items.forEach((item) => {
+    const product = productMap[item.product];
+    const variation = variationMap[item.variation];
+    item.expand = {};
+    if (product) item.expand.product = { name: product.name, title: product.title, cost_usd: product.cost_usd };
+    if (variation) item.expand.variation = { cost_usd: variation.cost_usd };
+  });
+  return { orders, order_items: items, products };
+}
+
+function dashboardBootstrap(app, context) {
+  requirePermission(app, context, "catalog.view");
+  const data = profitsBootstrap(app, context);
+  const canReadReviews = hasPermission(app, context, "reviews.manage");
+  data.reviews = canReadReviews
+    ? allRecords(app, "reviews", "store = {:store}", "-created,-id", { store: context.storeId },
+      ["id", "order", "created", "rating", "source", "status", "type"])
+    : [];
+  data.reviews_available = canReadReviews;
+  return data;
+}
+
+function giftsBootstrap(app, context) {
+  requirePermission(app, context, "gifts.manage");
+  const params = { store: context.storeId };
+  return {
+    gifts: allRecords(app, "gifts", "store = {:store}", "sort_order,name,id", params),
+    settings: recordPublic(findRecords(app, "settings", "store = {:store} && active = true", "-updated,-id", 1, params)[0]),
+  };
+}
+
+function shippingBootstrap(app, context) {
+  requirePermission(app, context, "shipping.manage");
+  return { shipping_zones: allRecords(app, "shipping_zones", "store = {:store}", "municipality,zone,id", { store: context.storeId }) };
+}
+
+function handleSectionBootstrap(e, section) {
+  privateHeaders(e);
+  const loaders = { catalog: catalogBootstrap, 'catalog-detail': catalogDetailBootstrap, dashboard: dashboardBootstrap, profits: profitsBootstrap, gifts: giftsBootstrap, shipping: shippingBootstrap };
+  try {
+    if (!Object.hasOwn(loaders, section)) throw new Error("invalid_payload");
+    const parsed = section === 'catalog-detail'
+      ? parseCatalogDetailPayload(e.requestInfo().body || {})
+      : parseBootstrapPayload(e.requestInfo().body || {});
+    const context = activity.loadAccessContext($app, e, { storeId: parsed.storeId, requirePrimary: false });
+    const started = Date.now();
+    const data = loaders[section]($app, context, parsed);
+    try { e.response.header().set("Server-Timing", `pz-bootstrap;dur=${Date.now() - started}`); } catch (_) {}
+    return e.json(200, { ok: true, data });
+  } catch (error) {
+    return e.json(statusForError(error), { ok: false, error: safeError(error) });
+  }
+}
+
 function statusForError(error) {
   const code = text(error && (error.code || error.message), 80);
   if (["unauthorized", "forbidden", "primary_admin_required"].includes(code)) return 403;
   if (code === "invalid_payload") return 400;
+  if (code === "not_found") return 404;
   return 503;
 }
 
 function safeError(error) {
   const code = text(error && (error.code || error.message), 80);
-  return ["unauthorized", "forbidden", "primary_admin_required", "invalid_payload"].includes(code)
+  return ["unauthorized", "forbidden", "primary_admin_required", "invalid_payload", "not_found"].includes(code)
     ? code
     : "admin_read_unavailable";
 }
@@ -229,6 +362,15 @@ function handleOrdersBootstrap(e) {
 }
 
 module.exports = {
+  allRecords,
+  catalogBootstrap,
+  catalogDetailBootstrap,
+  parseCatalogDetailPayload,
+  dashboardBootstrap,
+  profitsBootstrap,
+  giftsBootstrap,
+  shippingBootstrap,
+  handleSectionBootstrap,
   ORDER_ITEM_LIMIT,
   ORDER_LIST_LIMIT,
   PRODUCT_LIST_FIELDS,

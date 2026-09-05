@@ -6,7 +6,7 @@ const products = readFileSync(new URL('../src/pages/admin/products.astro', impor
 
 test('editor permite elegir una moneda activa y conserva importes fuente', () => {
   assert.match(products, /id="product-price-currency"/);
-  assert.match(products, /\/api\/pz\/admin\/read\/products-bootstrap/);
+  assert.match(products, /PZAdminNavigation\.read\('products'\)/);
   assert.match(products, /Array\.isArray\(data\.currencies\)/);
   assert.match(products, /formData\.append\('price_currency', priceCurrency\.id\)/);
   assert.match(products, /formData\.append\('regular_price_amount'/);

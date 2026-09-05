@@ -207,12 +207,28 @@ const {
 
   function scheduleFlush() {
     if (flushTimer !== null) return;
-    flushTimer = window.setTimeout(() => void flush(), 30);
+    flushTimer = window.setTimeout(async () => {
+      await (window as any).PZAdminNavigation?.afterReady();
+      if (!lifecycleController.signal.aborted) void flush();
+    }, 60);
   }
+
+  const visibleObserver = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const element = entry.target as HTMLElement;
+          visibleObserver?.unobserve(element);
+          pending.add(element);
+          scheduleFlush();
+        });
+      }, { rootMargin: '160px' })
+    : null;
 
   function queue(element: HTMLElement) {
     if (!element.isConnected || element.dataset.lastModificationLoaded === 'true') return;
     if (!resourceFor(element)) return;
+    if (visibleObserver) { visibleObserver.observe(element); return; }
     pending.add(element);
     scheduleFlush();
   }
@@ -253,6 +269,7 @@ const {
 
   function cleanupLastModification() {
     observer.disconnect();
+    visibleObserver?.disconnect();
     if (flushTimer !== null) window.clearTimeout(flushTimer);
     flushTimer = null;
     pending.clear();

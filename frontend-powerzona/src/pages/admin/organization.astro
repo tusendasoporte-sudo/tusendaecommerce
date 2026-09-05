@@ -1073,25 +1073,18 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
       }
       async function loadData(options = {}) {
         let visualLoadError = null;
-        products = CAN_MANAGE_PRODUCT_VISIBILITY
-          ? await loadAllRecords('products', 'sort=featured_order,name')
-          : [];
-        if (CAN_MANAGE_PROMOTIONS) {
-          categories = await loadMarketingCategories();
-        } else if (CAN_MANAGE_PRODUCT_VISIBILITY) {
-          categories = await loadAllRecords('categories', 'sort=order,name');
-        } else {
-          categories = [];
-        }
-        visualItems = [];
-        if (CAN_MANAGE_PROMOTIONS) {
-          try {
-            visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
-          } catch (error) {
-            visualLoadError = error;
-            showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
-          }
-        }
+        [products, categories, visualItems] = await Promise.all([
+          CAN_MANAGE_PRODUCT_VISIBILITY ? loadAllRecords('products', 'sort=featured_order,name') : [],
+          CAN_MANAGE_PROMOTIONS ? loadMarketingCategories()
+            : CAN_MANAGE_PRODUCT_VISIBILITY ? loadAllRecords('categories', 'sort=order,name') : [],
+          CAN_MANAGE_PROMOTIONS
+            ? loadAllRecords('store_visual_items', 'sort=sort_order,title').catch((error) => {
+                visualLoadError = error;
+                showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
+                return [];
+              })
+            : [],
+        ]);
         renderAll();
         if (options.throwOnVisualError && visualLoadError) throw visualLoadError;
       }

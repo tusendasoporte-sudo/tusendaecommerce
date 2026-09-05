@@ -203,11 +203,11 @@ test('M7U2: Organizacion no mezcla promociones con visibilidad de productos', ()
   assert.equal(source.includes('const ADMIN_AUTH_TOKEN'), false);
   assert.match(source, /function assertOrganizationMutationAllowed\(path, options = \{\}\)/);
   assert.match(source, /assertOrganizationMutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
-  assert.match(source, /products = CAN_MANAGE_PRODUCT_VISIBILITY[\s\S]*?loadAllRecords\('products'/);
-  assert.match(source, /if \(CAN_MANAGE_PROMOTIONS\) \{[\s\S]*?categories = await loadMarketingCategories\(\)/);
+  assert.match(source, /CAN_MANAGE_PRODUCT_VISIBILITY \? loadAllRecords\('products', 'sort=featured_order,name'\) : \[\]/);
+  assert.match(source, /CAN_MANAGE_PROMOTIONS \? loadMarketingCategories\(\)/);
   assert.match(source, /body: JSON\.stringify\(\{ taxonomy_page: taxonomyPage, taxonomy_per_page: 100 \}\)/);
   assert.match(source, /result\?\.taxonomy\?\.categories_has_more !== true/);
-  assert.match(source, /if \(CAN_MANAGE_PROMOTIONS\) \{[\s\S]*?loadAllRecords\('store_visual_items'/);
+  assert.match(source, /CAN_MANAGE_PROMOTIONS\s*\? loadAllRecords\('store_visual_items'/);
   assert.match(source, /!canManageProductVisibility && 'permission-hidden'/);
   assert.match(source, /!canManagePromotions && 'permission-hidden'/);
 });
@@ -243,7 +243,10 @@ test('M7U2: Resumen no muta analitica y no consulta reseñas sin permiso', () =>
   assert.match(source, /\{landingQrAnalyticsVisible && <div class="visit-analytics-panel" data-analytics-panel="landingqr">/);
   assert.doesNotMatch(source, /loadAllRecords\('settings'/);
   assert.match(source, /\{reviewsFeatureVisible && <section class="dashboard-block" aria-labelledby="dashboard-reviews-title">/);
-  assert.match(source, /if \(ratingSummaryGrid\) await loadRatingSupportData\(\);/);
+  assert.match(source, /PZAdminNavigation\.read\('dashboard'\)/);
+  const backend = read('../../backend-powerzona/pb_hooks/pz_admin_read_lib.js');
+  assert.match(backend, /const canReadReviews = hasPermission\(app, context, "reviews.manage"\)/);
+  assert.match(backend, /data.reviews = canReadReviews\s*\? allRecords\(app, "reviews"/);
   assert.doesNotMatch(source, /deleteOldAnalyticsEvents|runAnalyticsCleanupIfNeeded|analytics_cleanup_last_run_at/);
   assert.doesNotMatch(source, /store_analytics_events\/records\/\$\{encodeURIComponent\(id\)\}[\s\S]{0,120}method: 'DELETE'/);
 });

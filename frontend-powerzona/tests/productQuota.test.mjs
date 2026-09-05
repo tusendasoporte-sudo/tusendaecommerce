@@ -86,14 +86,13 @@ test('explica cercanía, límite, downgrade y fallo cerrado sin bloquear edicion
   assert.match(productQuotaMessage(unavailable), /existentes se pueden editar/);
 });
 
-test('panel propietario consume la cuota del bootstrap y sólo bloquea nuevas altas', () => {
+test('panel propietario no consulta ni presenta la cuota; el backend conserva el rechazo al crear', () => {
   const owner = read('src/pages/admin/products.astro');
-  assert.match(owner, /applyProductQuota\(data\.product_quota\)/);
-  assert.match(owner, /const quotaBlocksCreation = !isEditing && productQuotaApplies && productQuota\?\.can_create !== true/);
-  assert.match(owner, /productSaveBtn\.disabled = isSavingProduct \|\| quotaBlocksCreation/);
-  assert.match(owner, /isEditing \? canMutateExistingProduct\(\) : CAN_CREATE_PRODUCTS && !quotaBlocksCreation/);
-  assert.match(owner, /productQuotaApplies = value !== null/);
-  assert.match(owner, /643 de 700 productos|productQuotaLabel/);
+  assert.doesNotMatch(owner, /product-quota-card|applyProductQuota|data\.product_quota|pzProductQuota/);
+  assert.match(owner, /productSaveBtn\.disabled = isSavingProduct \|\| missingName/);
+  assert.match(owner, /isEditing \? canMutateExistingProduct\(\) : CAN_CREATE_PRODUCTS/);
+  assert.match(owner, /codes\.includes\('product_limit_reached'\)/);
+  assert.match(owner, /codes\.includes\('product_quota_unavailable'\)/);
 });
 
 test('Plan y productos Master exigen y presentan el contrato backend', () => {

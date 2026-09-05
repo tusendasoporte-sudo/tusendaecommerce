@@ -359,13 +359,9 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
           orderList.innerHTML = '<div class="profits-empty">Falta PUBLIC_POCKETBASE_URL.</div>';
           return;
         }
-        const orderItemsFilter = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22&` : '';
-        const [ordersResult, itemsResult] = await Promise.all([
-          loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
-          loadAllRecords('order_items', `${orderItemsFilter}sort=-created&expand=product,variation`),
-        ]);
-        orders = ordersResult || [];
-        orderItems = itemsResult || [];
+        const data = await window.PZAdminNavigation.read('profits');
+        orders = data.orders;
+        orderItems = data.order_items;
         renderProfits();
       }
       rangeButtons.forEach((button) => {

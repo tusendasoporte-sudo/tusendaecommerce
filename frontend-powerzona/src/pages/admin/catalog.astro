@@ -2268,14 +2268,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         categoriesList.innerHTML = '<div class="empty-state">Cargando categorías...</div>';
         subcategoriesList.innerHTML = '<div class="empty-state">Cargando subcategorías...</div>';
         try {
-          const [categoryRecords, subcategoryRecords, productRecords] = await Promise.all([
-            loadAllRecords('categories', withStoreFilter('sort=order,name')),
-            loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
-            loadAllRecords('products', withStoreFilter('sort=name')),
-          ]);
-          categories = categoryRecords;
-          subcategories = subcategoryRecords;
-          products = productRecords;
+          const result = await window.PZAdminNavigation.read('catalog');
+          categories = result.categories;
+          subcategories = result.subcategories;
+          products = result.products;
           renderAll();
           closeContentView();
         } catch (error) {

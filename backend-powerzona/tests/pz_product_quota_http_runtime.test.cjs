@@ -143,18 +143,7 @@ test('Prompt 3 HTTP runtime: API, concurrencia, downgrade, variantes, borrado y 
     body: { store_id: store.id },
   });
   assert.equal(ownerBootstrap.status, 200, JSON.stringify(ownerBootstrap.data));
-  assert.deepEqual(ownerBootstrap.data.data.product_quota, {
-    catalog_contract: 'tusenda84.commercial-plan-catalog.v1',
-    store_type: 'ecommerce',
-    plan: 'free',
-    used: 100,
-    limit: 100,
-    remaining: 0,
-    over_by: 0,
-    percentage: 100,
-    state: 'limit_reached',
-    can_create: false,
-  });
+  assert.equal(Object.hasOwn(ownerBootstrap.data.data, 'product_quota'), false);
 
   const variation = await create('product_variations', {
     product: products[0].id,

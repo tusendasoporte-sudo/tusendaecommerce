@@ -2090,19 +2090,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       async function loadPage() {
         try {
           categoryTitle.textContent = 'Cargando categoría...';
-          const [categoryRecord, allCategories, subcategoryRecords, productRecords] = await Promise.all([
-            apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`),
-            loadAllRecords('categories', withStoreFilter('sort=order,name')),
-            loadAllRecords('subcategories', withStoreFilter(`filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=order,name`)),
-            loadAllRecords('products', withStoreFilter(`filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=name`)),
-          ]);
+          const data = await window.PZAdminNavigation.read('catalog-detail', { category_id: CATEGORY_ID });
+          const categoryRecord = data.category;
           if (!isCurrentStoreRecord(categoryRecord)) {
             throw new Error('Esta categoria no pertenece a tu tienda.');
           }
           category = categoryRecord;
-          categories = allCategories;
-          subcategories = subcategoryRecords;
-          products = productRecords;
+          categories = data.categories;
+          subcategories = data.subcategories;
+          products = data.products;
           renderAll();
         } catch (error) {
           categoryTitle.textContent = 'No se pudo cargar la categoría';

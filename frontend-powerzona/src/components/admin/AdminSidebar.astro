@@ -61,6 +61,7 @@ const planPresentation = resolveStorePlanPresentation(storePlanValues);
 const resolvedStoreName = String(storeName || 'Tienda').trim() || 'Tienda';
 const storeInitials = getStoreInitials(resolvedStoreName);
 const sidebarAuth = loadAuthClientFromCookie(Astro.request.headers.get('cookie') || '');
+const navigationActorId = String(sidebarAuth.authStore.record?.id || '');
 const isMasterSupportMode = Boolean(storeId && isMasterAdmin(sidebarAuth.authStore.record as any));
 const masterSupportReturnPath = storeId
   ? `/master/stores/${encodeURIComponent(storeId)}`
@@ -693,6 +694,15 @@ const audienceSubClass = (subsection: string) => {
 <AdminDialog />
 <AdminRefreshFeedback />
 
+<link rel="stylesheet" href="/admin-navigation.css" />
+<script define:vars={{ storeId, pocketbaseUrl, adminBasePath, isMasterSupportMode, navigationActorId }}>
+  window.PZ_ADMIN_NAVIGATION_CONFIG = {
+    storeId, baseUrl: pocketbaseUrl, basePath: adminBasePath,
+    supportMode: isMasterSupportMode, actorId: navigationActorId,
+  };
+</script>
+<script is:inline src="/admin-navigation.js"></script>
+
 <script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminBasePath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath, canShowNotificationsNav, isPrimaryAdmin, canGenerateRaffleNotifications, isMasterSupportMode }}>
   window.PZ_MASTER_SUPPORT_CONTEXT = isMasterSupportMode === true
     ? { storeId: String(storeId || '') }
@@ -794,6 +804,15 @@ const audienceSubClass = (subsection: string) => {
     const knownNotificationIds = new Set();
     let isOpen = false;
     let isLoading = false;
+    let maintenanceRunning = false;
+    let maintenanceTimer = null;
+    const maintenanceActor = (() => {
+      try {
+        const auth = JSON.parse(decodeURIComponent(readCookieValue('pb_auth')));
+        return String(auth.record?.id || auth.model?.id || 'session');
+      } catch (_) { return 'session'; }
+    })();
+    const maintenanceKey = `pz-notification-maintenance:v1:${storeId}:${maintenanceActor}`;
     let hasLoadedInitialNotifications = false;
     let realtimePb = null;
     let realtimeUnsubscribe = null;
@@ -1391,18 +1410,8 @@ const audienceSubClass = (subsection: string) => {
       if (isLoading) return;
       isLoading = true;
       try {
+        await window.PZAdminNavigation?.afterReady();
         const settings = await loadSettings();
-
-        if (canGenerateNotifications && (detectNewOrders || detectPending)) {
-          await detectMissingNewOrderNotifications(settings);
-        }
-        if (canGenerateNotifications && detectPending) {
-          await runNotificationCleanup(settings);
-          await detectPendingOrders(settings);
-          await detectPendingReviewNotifications(settings);
-          if (canGenerateRaffleNotifications) await detectDueRaffleResults(settings);
-          await detectInventoryNotifications(settings);
-        }
 
         const [items, unreadSummary, visibleCount] = await Promise.all([
           loadNotifications({ pb, storeId, limit: 12 }),
@@ -1414,6 +1423,9 @@ const audienceSubClass = (subsection: string) => {
         render(items);
         setUnreadState(unreadSummary, settings);
         setPanelSummary({ total: visibleCount, shown: items.length });
+        if (canGenerateNotifications && (detectNewOrders || detectPending)) {
+          scheduleNotificationMaintenance(settings, { detectNewOrders, detectPending });
+        }
       } catch (error) {
         list.innerHTML = '<p class="pz-admin-notifications-empty">No se pudieron cargar las notificaciones.</p>';
       } finally {
@@ -1548,6 +1560,42 @@ const audienceSubClass = (subsection: string) => {
         nativeRegistrationSyncPromise = null;
       }
     }
+
+    function scheduleNotificationMaintenance(settings, { detectNewOrders, detectPending }) {
+      if (maintenanceRunning || maintenanceTimer !== null) return;
+      maintenanceTimer = window.setTimeout(async () => {
+        maintenanceTimer = null;
+        if (document.visibilityState === 'hidden' || window.PZAdminNavigation?.pending) return;
+        let last = {};
+        try { last = JSON.parse(sessionStorage.getItem(maintenanceKey) || '{}'); } catch (_) {}
+        const now = Date.now();
+        const newOrdersDue = (detectNewOrders || detectPending) && now - Number(last.orders || 0) >= 30000;
+        const pendingDue = detectPending && now - Number(last.pending || 0) >= 60000;
+        if (!newOrdersDue && !pendingDue) return;
+        maintenanceRunning = true;
+        try {
+          if (newOrdersDue) {
+            await detectMissingNewOrderNotifications(settings);
+            last.orders = Date.now();
+          }
+          if (pendingDue) {
+            await runNotificationCleanup(settings);
+            await detectPendingOrders(settings);
+            await detectPendingReviewNotifications(settings);
+            if (canGenerateRaffleNotifications) await detectDueRaffleResults(settings);
+            await detectInventoryNotifications(settings);
+            last.pending = Date.now();
+          }
+          try { sessionStorage.setItem(maintenanceKey, JSON.stringify(last)); } catch (_) {}
+          await loadAll();
+        } finally { maintenanceRunning = false; }
+      }, 1200);
+    }
+
+    window.addEventListener('pagehide', () => {
+      if (maintenanceTimer !== null) window.clearTimeout(maintenanceTimer);
+      maintenanceTimer = null;
+    });
 
     async function performNativePushRegistration(attempt = 0) {
       const bridge = getNativePushBridge();
@@ -2400,6 +2448,7 @@ const audienceSubClass = (subsection: string) => {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hydrateMobileBackLink, { once: true });
     window.addEventListener('resize', syncSidebarA11y);
     window.addEventListener('pz:admin-sidebar-close', closeSidebar);
+    window.addEventListener('pz:admin-sidebar-open', openSidebar);
 
     document.addEventListener('click', (event) => {
       if (isOpenButton(event.target)) {
@@ -2423,7 +2472,7 @@ const audienceSubClass = (subsection: string) => {
       if (sidebarLink && document.body.classList.contains('sidebar-open')) {
         if (isMobileSidebar()) {
           window.setTimeout(() => {
-            closeSidebar();
+            if (!window.PZAdminNavigation?.pending) closeSidebar();
           }, 0);
         }
       }

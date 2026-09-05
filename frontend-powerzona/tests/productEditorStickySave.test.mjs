@@ -99,9 +99,9 @@ test('EDITOR-PRODUCTO-MOVIL: Variaciones se pliega cuando es válida y se abre s
 });
 
 test('EDITOR-PRODUCTO: la mejora no sustituye las validaciones ni el botón de guardado existente', () => {
-  assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| quotaBlocksCreation \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
+  assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
   assert.match(products, /editorSideSaveBtn\.disabled = productSaveBtn\.disabled;/);
   assert.match(products, /editorSideSaveBtn\.textContent = productSaveBtn\.textContent;/);
-  assert.match(products, /const canSaveProduct = isEditing \? canMutateExistingProduct\(\) : CAN_CREATE_PRODUCTS && !quotaBlocksCreation;/);
+  assert.match(products, /const canSaveProduct = isEditing \? canMutateExistingProduct\(\) : CAN_CREATE_PRODUCTS;/);
   assert.match(products, /setEditorSaveState\('No tienes permiso para guardar este producto\.', 'warning'\)/);
 });

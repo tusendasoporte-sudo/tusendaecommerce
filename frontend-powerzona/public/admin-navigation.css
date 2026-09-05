@@ -1,0 +1,30 @@
+.pz-navigation-pending { cursor: progress !important; }
+.pz-navigation-pending.pz-admin-sidebar__nav-item,
+.pz-navigation-pending.pz-admin-sidebar__settings-subitem {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+}
+.pz-navigation-pending .pz-navigation-original-icon { display: none !important; }
+.pz-navigation-spinner {
+  display: inline-block !important;
+  box-sizing: border-box;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0 5px;
+  border: 2px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-right-color: #2563eb;
+  border-radius: 50%;
+  animation: pz-navigation-spin .75s linear infinite;
+}
+@keyframes pz-navigation-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pz-navigation-spinner { animation-duration: 1.5s; }
+}
+#pz-navigation-error {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+  z-index: 100000; max-width: calc(100vw - 32px); padding: 14px 20px;
+  background: #fff; color: #991b1b; border: 1px solid #fecaca;
+  border-radius: 12px; box-shadow: 0 8px 30px #0f172a26;
+}

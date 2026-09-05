@@ -642,12 +642,13 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
           if (!POCKETBASE_URL || !CATEGORY_ID || !SUBCATEGORY_ID) throw new Error('La ruta de la subcategoría no está completa.');
           const categoryFilter = `category="${CATEGORY_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
           const productFilter = `${categoryFilter} && subcategory="${SUBCATEGORY_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-          const [categoryRecord, subcategoryRecord, siblings, productRecords] = await Promise.all([
-            apiRequest(`/api/collections/categories/records/${encodeURIComponent(CATEGORY_ID)}`),
-            apiRequest(`/api/collections/subcategories/records/${encodeURIComponent(SUBCATEGORY_ID)}`),
-            loadAllRecords('subcategories', recordsParams(categoryFilter, 'order,name')),
-            loadAllRecords('products', recordsParams(productFilter, 'name')),
-          ]);
+          const data = await window.PZAdminNavigation.read('catalog-detail', {
+            category_id: CATEGORY_ID, subcategory_id: SUBCATEGORY_ID,
+          });
+          const categoryRecord = data.category;
+          const subcategoryRecord = data.subcategory;
+          const siblings = data.subcategories;
+          const productRecords = data.products;
           if (!isCurrentStoreRecord(categoryRecord)) throw new Error('Esta categoría no pertenece a tu tienda.');
           if (!isCurrentStoreRecord(subcategoryRecord) || String(subcategoryRecord.category || '') !== CATEGORY_ID) {
             throw new Error('Esta subcategoría no pertenece a la categoría indicada.');
