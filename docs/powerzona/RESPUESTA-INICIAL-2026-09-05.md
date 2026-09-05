@@ -21,4 +21,16 @@ Esta fase no cambia consultas, caché, stock, precios, promociones, permisos ni 
 - Compilación de producción correcta; permanecen los tres avisos previos de getStaticPaths en rutas dinámicas.
 - El inventario de navegador, escenarios alternativos y artefactos locales está en .tmp/home-server-qa.
 
-Los resultados de staging y la optimización seleccionada se añadirán después de capturar la primera tanda instrumentada.
+## Primera captura de staging (29b51e3)
+
+Seis cargas instrumentadas, con recargas cercanas e intervalos de 16,5 segundos. HTTP 200 en todas, sin errores JavaScript. El mayor tiempo de un bloque fue rifas: 445,6 ms, frente a 54,3 ms o menos del resto de las lecturas concurrentes de esa muestra. En otra carga se observó una espera aislada de 255,8 ms en valoraciones de productos; no se atribuyen todos los picos a una sola causa.
+
+La revisión confirmó que requestPublicRaffles seguía usando PUBLIC_POCKETBASE_URL, mientras que el cliente SSR común, la seguridad y la resolución de modalidad usan serverPocketBaseUrl(). En Coolify se verificó que staging tiene PZ_POCKETBASE_INTERNAL_URL habilitada en build/runtime hacia el servicio interno de PocketBase. No se editaron variables ni se revelaron otras credenciales.
+
+## Optimización seleccionada
+
+La lectura pública SSR de rifas pasa a usar serverPocketBaseUrl(), el selector interno ya utilizado por las demás consultas del servidor. Mantiene POST /api/pz/raffles/public, los mismos tres campos del body, la ausencia de caché, los filtros y las respuestas de error. El backend conserva la verificación de tienda, acceso y disponibilidad. No se cambia el alta de participantes, su selección de números ni las reglas de rifas.
+
+El cambio tiene fallback a la URL pública solo cuando no existe configuración interna; una URL interna inválida falla cerrada como el resto de proxies. No se añade caché ni se modifica ninguna consulta de inventario, precios o compras.
+
+La prueba de ejecución compila el módulo real con el cliente de base de datos no utilizado aislado. Comprueba acciones home/first/detail, payload y respuestas, URL interna, fallback público, URL inválida, HTTP 403, JSON incorrecto y errores de conexión. La compilación pasó. Se repetirá la misma captura de staging después del despliegue antes de informar un ahorro.

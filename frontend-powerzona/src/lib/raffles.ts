@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { pb, getPocketBaseFileUrl } from './pocketbase';
+import { serverPocketBaseUrl } from './pocketBaseServerUrl';
 
 export const RAFFLE_TIME_ZONE = 'America/Havana';
 
@@ -657,7 +658,9 @@ async function requestPublicRaffles(
   storeSlug: string,
   raffleSlug = '',
 ): Promise<PublicRafflesPayload | null> {
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  // SSR uses the same internal transport as the other public server reads.
+  // Keep the canonical endpoint, no-store and all eligibility checks unchanged.
+  const baseUrl = serverPocketBaseUrl();
   const canonicalStoreSlug = normalizeRaffleSlug(storeSlug);
   const canonicalRaffleSlug = normalizeRaffleSlug(raffleSlug);
   if (!baseUrl || !canonicalStoreSlug) return null;
